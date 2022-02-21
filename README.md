@@ -1,14 +1,4 @@
-# Axelrod
-
-## Getting started
-Make sure you are running Python `3.9.7`. Rest of the package can be installed by simple:
-```
-pip install -r requirements.txt
-```
-Most experiments are actually stored in `/experiments`.
-
-
-## Pax
+# Pax
 Here we start building Pax - a Jax Batched Environment for sequential matrix games. Pax has a simple interface, similar to [dm_env](https://github.com/deepmind/dm_env)
 
 ```python
@@ -41,7 +31,6 @@ timestep.reward.shape()
 - [x] Add Observation Function
 - [x] Change state integers into one hot encodings
 - [x] Need to change individual actions into state
-- [ ] Make environment accept softmax's instead of ints
 - [X] SAC to run using categorical distribution
 - [X] Make agent experiment against another agent
 - [X] Start saving models post train runs
@@ -55,6 +44,5 @@ timestep.reward.shape()
 Nice to haves:
 - [X] Batched Game Environment (with tests)
 - [ ] Make pay-off matrix configurable
-- [ ] Make environment jit-able
-- [ ] Make prisoners dilemma randomly stop with non-zero probability
+- [x] Make environment jit-able
 - [ ] Clean up requirements
