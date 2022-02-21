@@ -1,5 +1,7 @@
 # Pax
-Here we start building Pax - a Jax Batched Environment for sequential matrix games. Pax has a simple interface, similar to [dm_env](https://github.com/deepmind/dm_env)
+Here we start building Pax - a Jax Batched Environment for sequential matrix games.
+
+Pax has a simple interface, similar to [dm env](https://github.com/deepmind/dm_env) and aspires to work with agents from both [acme](https://github.com/deepmind/acme) and [magi](https://github.com/ethanluoyc/magi).
 
 ```python
 import IteratedPrisonersDilemma
