@@ -1,7 +1,9 @@
-# Pax
-Here we start building Pax - a Jax Batched Environment for sequential matrix games.
+# PAX
+Here we start building PAX - a Jax Batched Environment for sequential matrix games (such as social dilemmas).
 
-Pax has a simple interface, similar to [dm env](https://github.com/deepmind/dm_env) and aspires to work with agents from both [acme](https://github.com/deepmind/acme) and [magi](https://github.com/ethanluoyc/magi).
+> *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
+
+PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_env) and aspires to work with agents from both [acme](https://github.com/deepmind/acme) and [magi](https://github.com/ethanluoyc/magi).
 
 ```python
 import IteratedPrisonersDilemma
@@ -31,7 +33,7 @@ timestep.reward.shape()
 ```
 
 # Installation
-Pax is written in pure Python, but depends on C++ code via JAX.
+PAX is written in pure Python, but depends on C++ code via JAX.
 
 Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
 

@@ -1,15 +1,21 @@
 import jax.numpy as jnp
 
 import wandb
+from pax.experiments import policy_logger, value_logger
 
 from pax.game import IteratedPrisonersDilemma
 from pax.strategies import Altruistic, TitForTat, Defect
 from pax.independent_learners import IndependentLeaners
 
 
-def train(env, agent_0, agent_1, num_episodes):
+def train_loop(env, agent_0, agent_1, num_episodes):
+    """Run training of agents in environment
+    TODO: make this a copy of acme
+    """
     print(f"Training ")
     print("-----------------------")
+
+    agents = IndependentLeaners([agent_0, agent_1])
 
     for _ in range(num_episodes // (env.num_envs + 1)):
         rewards_0, rewards_1 = [], []
@@ -18,7 +24,7 @@ def train(env, agent_0, agent_1, num_episodes):
         while not (t1.last() or t2.last()):
             action_0, _ = agent_0.select_action(t1)
             action_1, _ = agent_1.select_action(t2)
-            t1, t2 = env.step(action_0, action_1)
+            t1, t2 = env.step((action_0, action_1))
 
             rewards_0.append(t1.reward)
             rewards_1.append(t2.reward)
@@ -56,8 +62,11 @@ def train(env, agent_0, agent_1, num_episodes):
     return agent_0, agent_1
 
 
-def eval(env, agent_0, agent_1, num_episodes, logging):
-    print(f"Evaluating")
+def evaluate_loop(env, agent_0, agent_1, num_episodes, logging):
+    """Run evaluation of agents against environment
+    TODO: make this a copy of acme
+    """
+    print("Evaluating")
     print("-----------------------")
 
     agents = IndependentLeaners([agent_0, agent_1])
@@ -103,5 +112,4 @@ def eval(env, agent_0, agent_1, num_episodes, logging):
 if __name__ == "__main__":
     agent_0 = Altruistic()
     agent_1 = Defect()
-    env = IteratedPrisonersDilemma(50, 5)
-    eval(env, agent_0, agent_1, 50, False)
+    evaluate_loop(IteratedPrisonersDilemma(50, 5), agent_0, agent_1, 50, False)
