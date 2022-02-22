@@ -8,18 +8,23 @@ import IteratedPrisonersDilemma
 import jax.numpy as jnp 
 
 env = IteratedPrisonersDilemma(episode_length, num_envs)
-t0, t1 = env.reset()
-while not (t0.last() and t1.last()):
-     a0: jnp.array = agent.step(timestep_0.observation)
-     a1: jnp.array = agent.step(timestep_1.observation)
-     actions = (a0, a1)
-     t0, t1 = env.step(actions))
+timesteps = env.reset()
+
+agents = IndependentLeaners(
+     agent_0,
+     agent_1
+)
+
+while not timestep[0].last():
+     actions = agents.step(timesteps)
+     timestep = env.step(actions))
 ```
 
 and timestep returns the following:
 
 ```python
-timestep.observation.shape()
+timestep = timesteps[0]
+timesteps.observation.shape()
 # (num_envs, num_states)
 timestep.reward.shape()
 # (num_envs, 1)
@@ -33,26 +38,16 @@ Because JAX installation is different depending on your CUDA version, Haiku does
 First, follow these instructions to install JAX with the relevant accelerator support.
 
 ## Current State
-
-- [x] PrisonersDilemmas Environment
-- [x] Deterministic tit-for-tat player
-- [x] Re-structure to use state space
-- [x] Add method to vanilla train SAC
-- [x] Add Observation Function
-- [x] Change state integers into one hot encodings
-- [x] Need to change individual actions into state
-- [X] SAC to run using categorical distribution
-- [X] Make agent experiment against another agent
-- [X] Start saving models post train runs
-- [X] Make a specific different state for first play (no history)
-- [ ] Add memory to agents (RNN based policies)
-- [ ] Policy network
-- [ ] Behaviour Cloning script
-- [ ] Standard PPO script
+- [ ] Make eval run (with independent leaners wrapper)
+- [ ] Make train run
+- [ ] Make compatible with acme
+- [ ] Add simple examples of loggers
+- [ ] Make SAC agent work
+- [ ] Make pay-off matrix configurable
 
 
 Nice to haves:
 - [X] Batched Game Environment (with tests)
-- [ ] Make pay-off matrix configurable
 - [x] Make environment jit-able
 - [ ] Clean up requirements
+- [ ] Add doc-strings
