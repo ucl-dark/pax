@@ -1,8 +1,6 @@
 import jax.numpy as jnp
-import numpy as np
-from jax import vmap
-
-from src.strategies import TitForTat
+from pax.strategies import TitForTat
+from dm_env import TimeStep, transition, termination
 
 
 def test_titfortat():
@@ -19,19 +17,24 @@ def test_titfortat():
     cooperate_action = 0 * jnp.ones((batch_number, 1))
     defect_action = 1 * jnp.ones((batch_number, 1))
 
-    action, _ = agent.actor_step(None, cc_obs)
+    cc_timestep = transition(observation=cc_obs, reward=0)
+    action = agent.select_action(cc_timestep)
     assert jnp.array_equal(cooperate_action, action)
 
-    action, _ = agent.actor_step(None, dd_obs)
+    dd_timestep = transition(observation=dd_obs, reward=0)
+    action = agent.select_action(dd_timestep)
     assert jnp.array_equal(defect_action, action)
 
-    action, _ = agent.actor_step(None, dc_obs)
+    dc_timestep = transition(observation=dc_obs, reward=0)
+    action = agent.select_action(dc_timestep)
     # expect first player to cooperate, expect second player to defect
     assert jnp.array_equal(cooperate_action, action)
 
-    action, _ = agent.actor_step(None, cd_obs)
+    cd_timestep = transition(observation=cd_obs, reward=0)
+    action = agent.select_action(cd_timestep)
     assert jnp.array_equal(defect_action, action)
 
     # test initial conditions
-    action, _ = agent.actor_step(None, initial_obs)
+    cd_timestep = transition(observation=initial_obs, reward=0)
+    action = agent.select_action(cd_timestep)
     assert jnp.array_equal(cooperate_action, action)

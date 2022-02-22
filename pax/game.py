@@ -9,7 +9,7 @@ import numpy as onp
 from dm_env import Environment, TimeStep, restart, specs, termination, transition
 
 import wandb
-from src.strategies import Altruistic, Defect, Random, TitForTat
+from pax.strategies import Altruistic, Defect, Random, TitForTat
 
 # payoffs are [(2, 2), (3,0), (0,3), (1, 1)]
 # observations are one-hot representations
@@ -37,11 +37,15 @@ class IteratedPrisonersDilemma(Environment):
         self._reset_next_step = True
 
     def step(
-        self, action_1: jnp.array, action_2: jnp.ndarray
+        self,
+        actions: Tuple[jnp.ndarray, jnp.ndarray],
     ) -> Tuple[TimeStep, TimeStep]:
+        """
+        takes a tuple of batched actions ([1,2], [2,1]) and takes a step in the environment
+        """
         if self._reset_next_step:
             return self.reset()
-
+        action_1, action_2 = actions
         self._num_steps += 1
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 1)
@@ -153,7 +157,7 @@ def evaluate(
                 )
                 print(f"player 1 action: {_action_0}, player 2 action: {_action_1}")
 
-            _timestep_0, _timestep_1 = env.step(_action_0, _action_1)
+            _timestep_0, _timestep_1 = env.step((_action_0, _action_1))
 
             if logging:
                 wandb.log(

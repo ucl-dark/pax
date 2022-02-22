@@ -149,7 +149,7 @@ class GaussianPolicy(nn.Module):
             log_pi = gaussian_likelihood(pi, mu, log_sig)
             pi = nn.tanh(pi)
             log_pi -= jnp.sum(
-                jnp.log(nn.relu(1 - pi ** 2) + 1e-6),
+                jnp.log(nn.relu(1 - pi**2) + 1e-6),
                 axis=1,
                 keepdims=True,
             )

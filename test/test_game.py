@@ -1,9 +1,8 @@
-import jax
 import jax.numpy as jnp
 import pytest
 
-from src.game import IteratedPrisonersDilemma
-from src.strategies import TitForTat
+from pax.game import IteratedPrisonersDilemma
+from pax.strategies import TitForTat
 
 
 def test_single_batch_rewards() -> None:
@@ -13,23 +12,23 @@ def test_single_batch_rewards() -> None:
     r_array = jnp.ones((num_envs, 1), dtype=jnp.int32)
 
     # first step
-    tstep_0, tstep_1 = env.step(0 * action, 0 * action)
+    tstep_0, tstep_1 = env.step((0 * action, 0 * action))
     assert tstep_0.reward == None
     assert tstep_1.reward == None
 
-    tstep_0, tstep_1 = env.step(0 * action, 0 * action)
+    tstep_0, tstep_1 = env.step((0 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, 2 * r_array)
     assert jnp.array_equal(tstep_1.reward, 2 * r_array)
 
-    tstep_0, tstep_1 = env.step(1 * action, 0 * action)
+    tstep_0, tstep_1 = env.step((1 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, 3 * r_array)
     assert jnp.array_equal(tstep_1.reward, 0 * r_array)
 
-    tstep_0, tstep_1 = env.step(0 * action, 1 * action)
+    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
     assert jnp.array_equal(tstep_0.reward, 0 * r_array)
     assert jnp.array_equal(tstep_1.reward, 3 * r_array)
 
-    tstep_0, tstep_1 = env.step(1 * action, 1 * action)
+    tstep_0, tstep_1 = env.step((1 * action, 1 * action))
     assert jnp.array_equal(tstep_0.reward, 1 * r_array)
     assert jnp.array_equal(tstep_1.reward, 1 * r_array)
 
@@ -53,7 +52,7 @@ def test_batch_outcomes(actions, expected_rewards) -> None:
     action_1, action_2 = actions
     expected_r1, expected_r2 = expected_rewards
 
-    tstep_0, tstep_1 = env.step(action_1 * all_ones, action_2 * all_ones)
+    tstep_0, tstep_1 = env.step((action_1 * all_ones, action_2 * all_ones))
     assert jnp.array_equal(tstep_0.reward, expected_r1 * jnp.ones((num_envs, 1)))
     assert jnp.array_equal(tstep_1.reward, expected_r2 * jnp.ones((num_envs, 1)))
     assert tstep_0.last() == False
@@ -71,11 +70,11 @@ def test_tit_for_tat_match() -> None:
 
     tit_for_tat = TitForTat()
 
-    action_0, _ = tit_for_tat.actor_step(None, t_0.observation)
-    action_1, _ = tit_for_tat.actor_step(None, t_1.observation)
+    action_0 = tit_for_tat.select_action(t_0)
+    action_1 = tit_for_tat.select_action(t_1)
     assert jnp.array_equal(action_0, action_1)
 
-    t_0, t_1 = env.step(action_0, action_1)
+    t_0, t_1 = env.step((action_0, action_1))
     assert jnp.array_equal(t_0.reward, t_1.reward)
 
 
@@ -176,17 +175,17 @@ def test_done():
     action = jnp.ones((num_envs, 1))
 
     # check first
-    t_0, t_1 = env.step(0 * action, 0 * action)
+    t_0, t_1 = env.step((0 * action, 0 * action))
     assert t_0.last() == False
     assert t_1.last() == False
 
     for _ in range(4):
-        t_0, t_1 = env.step(0 * action, 0 * action)
+        t_0, t_1 = env.step((0 * action, 0 * action))
         assert t_0.last() == False
         assert t_1.last() == False
 
     # check final
-    t_0, t_1 = env.step(0 * action, 0 * action)
+    t_0, t_1 = env.step((0 * action, 0 * action))
     assert t_0.last() == True
     assert t_1.last() == True
 
@@ -199,13 +198,13 @@ def test_reset():
     env.reset()
 
     for i in range(4):
-        t_0, t_1 = env.step(0 * state, 0 * state)
+        t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False
 
     env.reset()
 
     for i in range(4):
-        t_0, t_1 = env.step(0 * state, 0 * state)
+        t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False

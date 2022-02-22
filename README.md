@@ -12,7 +12,8 @@ t0, t1 = env.reset()
 while not (t0.last() and t1.last()):
      a0: jnp.array = agent.step(timestep_0.observation)
      a1: jnp.array = agent.step(timestep_1.observation)
-     t0, t1 = env.step(a0, a1)
+     actions = (a0, a1)
+     t0, t1 = env.step(actions))
 ```
 
 and timestep returns the following:
@@ -23,6 +24,13 @@ timestep.observation.shape()
 timestep.reward.shape()
 # (num_envs, 1)
 ```
+
+# Installation
+Pax is written in pure Python, but depends on C++ code via JAX.
+
+Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
+
+First, follow these instructions to install JAX with the relevant accelerator support.
 
 ## Current State
 
