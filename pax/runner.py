@@ -2,8 +2,9 @@ import jax.numpy as jnp
 
 import wandb
 
-from src.game import IteratedPrisonersDilemma
-from src.strategies import Altruistic, TitForTat, Defect
+from pax.game import IteratedPrisonersDilemma
+from pax.strategies import Altruistic, TitForTat, Defect
+from pax.independent_learners import IndependentLeaners
 
 
 def train(env, agent_0, agent_1, num_episodes):
@@ -59,17 +60,18 @@ def eval(env, agent_0, agent_1, num_episodes, logging):
     print(f"Evaluating")
     print("-----------------------")
 
+    agents = IndependentLeaners([agent_0, agent_1])
+
     for _ in range(num_episodes // (env.num_envs + 1)):
         rewards_0, rewards_1 = [], []
-        t1, t2 = env.reset()
+        timesteps = env.reset()
 
-        while not (t1.last() or t2.last()):
-            a1 = agent_0.select_action(t1)
-            a2 = agent_1.select_action(t2)
-            t1, t2 = env.step(a1, a2)
+        while not timesteps[0].last():
+            actions = agents.select_action(timesteps)
+            timesteps = env.step(actions)
 
-            rewards_0.append(t1.reward)
-            rewards_1.append(t2.reward)
+            rewards_0.append(timesteps[0].reward)
+            rewards_1.append(timesteps[1].reward)
 
             # step logging
             if logging:

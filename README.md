@@ -24,7 +24,7 @@ and timestep returns the following:
 
 ```python
 timestep = timesteps[0]
-timesteps.observation.shape()
+timestep.observation.shape()
 # (num_envs, num_states)
 timestep.reward.shape()
 # (num_envs, 1)
