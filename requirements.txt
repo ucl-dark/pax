@@ -6,13 +6,12 @@ dm-tree
 flax
 isort
 jax
-jaxlib 
+jaxlib
 numpy
 optax
 pytest
 regex
 scipy
-tensorflow-macos
 dm-acme[jax]
 bsuite
 wandb
