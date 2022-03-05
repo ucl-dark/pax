@@ -12,7 +12,6 @@ optax
 pytest
 regex
 scipy
-dm-acme[jax]
 bsuite
 wandb
 pytest
