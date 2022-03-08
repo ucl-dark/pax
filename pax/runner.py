@@ -1,12 +1,11 @@
-from re import T
 import jax.numpy as jnp
 
 import wandb
-from pax.experiments import policy_logger, value_logger
+from .watchers import policy_logger, value_logger
 
-from pax.game import IteratedPrisonersDilemma
-from pax.strategies import Altruistic, TitForTat, Defect
-from pax.independent_learners import IndependentLearners
+from .game import IteratedPrisonersDilemma
+from .strategies import Altruistic, TitForTat, Defect
+from .independent_learners import IndependentLearners
 
 
 def train_loop(env, agents, num_episodes, watchers):
@@ -104,6 +103,7 @@ def evaluate_loop(env, agents, num_episodes, watchers):
 if __name__ == "__main__":
     agents = IndependentLearners([Altruistic(), TitForTat()])
     env = IteratedPrisonersDilemma(50, 5)
+    wandb.init(mode="offline")
 
     def log_sac(agent) -> dict:
         policy_dict = policy_logger(agent)
@@ -111,8 +111,9 @@ if __name__ == "__main__":
         logger_dict = policy_dict.update(value_dict)
         return logger_dict
 
-    def log_static(agent) -> dict:
+    def log_print(agent) -> dict:
+        print(agent)
         return None
 
-    evaluate_loop(env, agents, 50, False)
-    train_loop(env, agents, 2, False)
+    evaluate_loop(env, agents, 50, None)
+    train_loop(env, agents, 2, [log_print, log_print])
