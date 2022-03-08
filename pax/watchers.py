@@ -1,5 +1,5 @@
 from flax import linen as nn
-from .game import State
+from .env import State
 
 
 def policy_logger(agent) -> None:

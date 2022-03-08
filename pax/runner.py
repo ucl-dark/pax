@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import wandb
 from .watchers import policy_logger, value_logger
 
-from .game import IteratedPrisonersDilemma
+from .env import IteratedPrisonersDilemma
 from .strategies import Altruistic, TitForTat, Defect
 from .independent_learners import IndependentLearners
 

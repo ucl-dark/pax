@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.game import IteratedPrisonersDilemma
+from pax.env import IteratedPrisonersDilemma
 from pax.strategies import TitForTat
 
 
@@ -13,8 +13,8 @@ def test_single_batch_rewards() -> None:
 
     # first step
     tstep_0, tstep_1 = env.step((0 * action, 0 * action))
-    assert tstep_0.reward == None
-    assert tstep_1.reward == None
+    assert tstep_0.reward is None
+    assert tstep_1.reward is None
 
     tstep_0, tstep_1 = env.step((0 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, 2 * r_array)
@@ -53,8 +53,12 @@ def test_batch_outcomes(actions, expected_rewards) -> None:
     expected_r1, expected_r2 = expected_rewards
 
     tstep_0, tstep_1 = env.step((action_1 * all_ones, action_2 * all_ones))
-    assert jnp.array_equal(tstep_0.reward, expected_r1 * jnp.ones((num_envs, 1)))
-    assert jnp.array_equal(tstep_1.reward, expected_r2 * jnp.ones((num_envs, 1)))
+    assert jnp.array_equal(
+        tstep_0.reward, expected_r1 * jnp.ones((num_envs, 1))
+    )
+    assert jnp.array_equal(
+        tstep_1.reward, expected_r2 * jnp.ones((num_envs, 1))
+    )
     assert tstep_0.last() == False
     assert tstep_1.last() == False
 
@@ -197,14 +201,14 @@ def test_reset():
 
     env.reset()
 
-    for i in range(4):
+    for _ in range(4):
         t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False
 
     env.reset()
 
-    for i in range(4):
+    for _ in range(4):
         t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False

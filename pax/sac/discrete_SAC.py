@@ -9,7 +9,7 @@ import numpy as np
 from flax import optim
 from flax.core.frozen_dict import FrozenDict
 from haiku import PRNGSequence
-
+import dm_env
 import wandb
 from pax.sac.buffers import ReplayBuffer
 from pax.sac.models import (
@@ -209,6 +209,9 @@ class SAC:
         self.action_dim = action_dim
         self.total_it = 0
 
+        self.buffer = ReplayBuffer(state_dim, action_dim)
+        self.eval = False
+
     @property
     def target_params(self):
         return (
@@ -231,6 +234,14 @@ class SAC:
         )
 
         return jnp.expand_dims(jnp.argmax(action, axis=-1), axis=-1), log_pi
+
+    def select_action(self, timestep: dm_env.TimeStep) -> jnp.ndarary:
+        return self.actor_step(
+            next(self.rng), timestep.observation, self.eval
+        )[0]
+
+    def update(self, old_timestep, new_timestep) -> None:
+        pass
 
     def train(
         self,
