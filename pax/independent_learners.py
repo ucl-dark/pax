@@ -1,15 +1,28 @@
 from dm_env import TimeStep
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 import jax.numpy as jnp
 
 
-class IndependentLeaners:
+class IndependentLearners:
     "Interface for a set of agents to work with environment"
 
-    def __init__(self, list_of_agents: list):
-        self.num_agents = len(list_of_agents)
-        self.agents = list_of_agents
+    def __init__(self, agents: list):
+        self.num_agents: int = len(agents)
+        self.agents: list = agents
 
     def select_action(self, timesteps: List[TimeStep]) -> Tuple[jnp.ndarray]:
         assert len(timesteps) == self.num_agents
-        return (agent.select_action(t) for agent, t in zip(self.agents, timesteps))
+        return (
+            agent.select_action(t) for agent, t in zip(self.agents, timesteps)
+        )
+
+    def update(
+        self, old_timesteps: List[TimeStep], timesteps: List[TimeStep]
+    ) -> None:
+        # might have to add some centralised training to this
+        for agent, t, t_1 in zip(self.agents, old_timesteps, timesteps):
+            agent.update(t, t_1)
+
+    def log(self, metrics: List[Callable]) -> None:
+        for metric, agent in zip(metrics, self.agents):
+            metric(agent)

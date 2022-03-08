@@ -9,4 +9,10 @@ repos:
     hooks:
     - id: flake8
       additional_dependencies: [flake8-bugbear]
-      args: ["--show-source"]
+      args: [
+        "--show-source",
+        "--ignore=E203,E266,E501,W503,F403,F401,B008",
+        "--max-line-length=100",
+        "--max-complexity=18",
+        "--select=B,C,E,F,W,T4,B9"]
+      config: ".flake8"

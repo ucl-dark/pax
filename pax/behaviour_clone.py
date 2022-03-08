@@ -7,15 +7,17 @@ from absl import app, flags
 from flax import nn
 
 import wandb
-from src.game import IteratedPrisonersDilemma, State, evaluate
-from src.sac.buffers import ReplayBuffer
-from src.sac.discrete_SAC import SAC
-from src.strategies import Altruistic, Defect, Human, Random, TitForTat
+from pax.game import IteratedPrisonersDilemma, State, evaluate
+from pax.sac.buffers import ReplayBuffer
+from pax.sac.discrete_SAC import SAC
+from pax.strategies import Altruistic, Defect, Human, Random, TitForTat
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("seed", 0, "Random seed.")
 flags.DEFINE_integer(
-    "num_exploration_episodes", 10000, "Number of env episodes to run training for"
+    "num_exploration_episodes",
+    10000,
+    "Number of env episodes to run training for",
 )
 flags.DEFINE_integer(
     "train_steps", 500, "Number of gradient steps to run training for."
@@ -32,18 +34,16 @@ def collect_data(agent, other_agents, seed):
     key_0 = jax.random.PRNGKey(seed)
     key_1 = jax.random.PRNGKey(seed + 1)
 
-    NUM_ENVS = 2 ** int(log2(FLAGS.num_exploration_episodes))
+    NUM_ENVS = 2 ** int(log2(FLAGS.num_episodes))
     env = IteratedPrisonersDilemma(FLAGS.max_episode_length)
     buffer = ReplayBuffer(state_dim=len(State), action_dim=2)
 
     print("Iterated Prisoners Dilemma")
     print(f"Max time limit {FLAGS.max_episode_length}")
-    print(
-        f"Exploring for {FLAGS.num_exploration_episodes} episodes with {NUM_ENVS} envs"
-    )
+    print(f"Exploring for {FLAGS.num_episodes} episodes with {NUM_ENVS} envs")
     print("-----------------------")
     for other_agent in other_agents:
-        for _ in range(FLAGS.num_exploration_episodes // NUM_ENVS + 1):
+        for _ in range(FLAGS.num_episodes // NUM_ENVS + 1):
             rewards = []
             _state = _previous_state = State.START * jnp.ones((NUM_ENVS, 1))
             for _ in range(FLAGS.max_episode_length):
@@ -53,7 +53,9 @@ def collect_data(agent, other_agents, seed):
                 _action_0, _ = agent.actor_step(key_0, _obs_0, False)
                 _action_1, _ = other_agent.actor_step(key_1, _obs_1, False)
 
-                _state, _reward, _not_done = env.step(_state, _action_0, _action_1)
+                _state, _reward, _not_done = env.step(
+                    _state, _action_0, _action_1
+                )
                 rewards.append(_reward)
 
                 # add experience to buffer
@@ -97,13 +99,13 @@ def main(_):
 
     # evaluate against population of agents
     population = [agent_0, TitForTat(), Defect(), Altruistic(), Random()]
-    rewards = [
-        evaluate(agent_0, opponent, FLAGS.seed, FLAGS.max_episode_length, 1, False)[
-            :, :, 0
-        ]
+    [
+        evaluate(
+            agent_0, opponent, FLAGS.seed, FLAGS.max_episode_length, 1, False
+        )[:, :, 0]
         for opponent in population
     ]
-    total_reward = jnp.mean(jnp.asarray(rewards))
+    # total_reward = jnp.mean(jnp.asarray(rewards))
     print(policy_logger(agent_0))
 
 
@@ -116,8 +118,12 @@ def policy_logger(agent) -> None:
 
 def value_logger(agent) -> None:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
-    values = {f"value.{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)}
-    values.update({f"value.{str(s)}.defect": p[1] for (s, p) in zip(State, weights)})
+    values = {
+        f"value.{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    }
+    values.update(
+        {f"value.{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+    )
     return values
 
 

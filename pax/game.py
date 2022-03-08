@@ -1,15 +1,17 @@
 import enum
 from functools import partial
-from turtle import done
 from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-import numpy as onp
-from dm_env import Environment, TimeStep, restart, specs, termination, transition
-
-import wandb
-from pax.strategies import Altruistic, Defect, Random, TitForTat
+from dm_env import (
+    Environment,
+    TimeStep,
+    restart,
+    specs,
+    termination,
+    transition,
+)
 
 # payoffs are [(2, 2), (3,0), (0,3), (1, 1)]
 # observations are one-hot representations
@@ -70,12 +72,16 @@ class IteratedPrisonersDilemma(Environment):
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(dtype=int, num_values=len(_ACTIONS), name="action")
+        return specs.DiscreteArray(
+            dtype=int, num_values=len(_ACTIONS), name="action"
+        )
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
-        obs_1, obs_2 = self._observation(State.START * jnp.ones((self.num_envs, 1)))
+        obs_1, obs_2 = self._observation(
+            State.START * jnp.ones((self.num_envs, 1))
+        )
         self._num_steps = 0
         return restart(obs_1), restart(obs_2)
 
@@ -125,80 +131,3 @@ class IteratedPrisonersDilemma(Environment):
         return jax.nn.one_hot(o_state, len(State)).squeeze(1), jax.nn.one_hot(
             state, len(State)
         ).squeeze(1)
-
-
-def evaluate(
-    agent_0, agent_1, seed: int, episode_length: int, num_episodes: int, logging: bool
-):
-    num_envs = 1
-    key_0 = jax.random.PRNGKey(seed)
-    key_1 = jax.random.PRNGKey(seed + 1)
-    env = IteratedPrisonersDilemma(
-        episode_length,
-        num_envs,
-    )
-
-    print("Starting Prisoners Dilemma")
-    print(f"Max time limit {episode_length}")
-    print("-----------------------")
-
-    # batch_size x action_space
-    rewards_0 = []
-    rewards_1 = []
-    for _ in range(num_episodes):
-        _timestep_0, _timestep_1 = env.reset()
-        for t in range(episode_length):
-            _action_0, _ = agent_0.actor_step(key_0, _timestep_0.observation, True)
-            _action_1, _ = agent_1.actor_step(key_1, _timestep_1.observation, True)
-
-            if not logging:
-                print(
-                    f"player 1 observes: {_timestep_0.observation}, player 2 observes: {_timestep_1.observation}"
-                )
-                print(f"player 1 action: {_action_0}, player 2 action: {_action_1}")
-
-            _timestep_0, _timestep_1 = env.step((_action_0, _action_1))
-
-            if logging:
-                wandb.log(
-                    {
-                        f"Test Reward Player 1: {type(agent_0).__name__} vs {type(agent_1).__name__}": _r1,
-                        "Time Step": t,
-                    }
-                )
-            else:
-                print(f"Rewards: {_timestep_0.reward}, {_timestep_1.reward}")
-                print(f"Done: {_timestep_0.last()},  {_timestep_1.last()}")
-
-            rewards_0.append(_timestep_0.reward)
-            rewards_1.append(_timestep_1.reward)
-            # next episode
-            _, key_0 = jax.random.split(key_0)
-            _, key_1 = jax.random.split(key_0)
-
-    rewards_0 = jnp.asarray(rewards_0)
-    rewards_1 = jnp.asarray(rewards_1)
-
-    if logging:
-        wandb.log(
-            {
-                f"Mean Reward Player 1: {type(agent_0).__name__} vs {type(agent_1).__name__}": float(
-                    rewards_0[:, :].mean()
-                ),
-                f"Mean Reward Player 2: {type(agent_0).__name__} vs {type(agent_1).__name__}": float(
-                    rewards_1[:, :, 1].mean()
-                ),
-            }
-        )
-    else:
-        print(
-            f"Total Evaluation Rewards: {float(rewards_0.mean()),float(rewards_1.mean())}"
-        )
-
-    return rewards_1
-
-
-if __name__ == "__main__":
-    agent_0 = Altruistic()
-    agent_1 = TitForTat()
-    evaluate(agent_0, agent_1, 0, 50, 1, False)

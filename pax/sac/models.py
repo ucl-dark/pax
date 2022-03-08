@@ -9,7 +9,7 @@ from flax.core.frozen_dict import FrozenDict
 from haiku import PRNGSequence
 from jax import random
 
-from src.sac.utils import gaussian_likelihood
+from pax.sac.utils import gaussian_likelihood
 
 
 class CategoricalPolicy(nn.Module):
@@ -23,7 +23,9 @@ class CategoricalPolicy(nn.Module):
         # x = nn.relu(x)
         x = nn.Dense(features=self.action_dim, use_bias=False)(x)
         pi = nn.softmax(x)
-        action = jnp.argmax(pi, axis=1) if eval else jax.random.categorical(key, pi)
+        action = (
+            jnp.argmax(pi, axis=1) if eval else jax.random.categorical(key, pi)
+        )
         return jax.nn.one_hot(action, num_classes=self.action_dim), jnp.log(pi)
 
 
@@ -163,7 +165,9 @@ class Constant(nn.Module):
     @nn.compact
     def __call__(self, dtype=jnp.float32):
         value = self.param(
-            "value", lambda key, shape: jnp.full(shape, self.start_value, dtype), (1,)
+            "value",
+            lambda key, shape: jnp.full(shape, self.start_value, dtype),
+            (1,),
         )
         if self.absolute:
             value = nn.softplus(value)
@@ -191,7 +195,10 @@ def apply_constant_model(
 
 
 def build_td3_actor_model(
-    input_shapes: float, action_dim: int, max_action: float, init_rng: PRNGSequence
+    input_shapes: float,
+    action_dim: int,
+    max_action: float,
+    init_rng: PRNGSequence,
 ) -> FrozenDict:
     init_batch = jnp.ones(input_shapes, jnp.float32)
     actor = TD3Actor(action_dim=action_dim, max_action=max_action)
@@ -242,7 +249,9 @@ def apply_double_critic_model(
     return DoubleCritic().apply(dict(params=params), state, action, Q1=Q1)
 
 
-def build_gaussian_policy_model(input_shapes, action_dim, max_action, init_rng):
+def build_gaussian_policy_model(
+    input_shapes, action_dim, max_action, init_rng
+):
     init_batch = jnp.ones(input_shapes, jnp.float32)
     policy = GaussianPolicy(action_dim=action_dim, max_action=max_action)
     init_variables = policy.init(init_rng, init_batch)

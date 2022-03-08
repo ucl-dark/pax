@@ -11,8 +11,8 @@ from flax.core.frozen_dict import FrozenDict
 from haiku import PRNGSequence
 
 import wandb
-from src.sac.buffers import ReplayBuffer
-from src.sac.models import (
+from pax.sac.buffers import ReplayBuffer
+from pax.sac.models import (
     apply_categorical_policy_model,
     apply_constant_model,
     apply_discrete_double_critic_model,
@@ -20,20 +20,31 @@ from src.sac.models import (
     build_constant_model,
     build_discrete_double_critic_model,
 )
-from src.sac.saving import load_model, save_model
-from src.sac.utils import copy_params, double_mse
+from pax.sac.saving import load_model, save_model
+from pax.sac.utils import copy_params, double_mse
 
 
 def cross_entropy_loss_fn(log_p: jnp.ndarray, target: jnp.ndarray):
     return -1 * (log_p * target).sum(-1)
 
 
-def actor_loss_fn(log_alpha: jnp.ndarray, log_p: jnp.ndarray, min_q: jnp.ndarray):
-    return (jnp.exp(log_p) * (jnp.exp(log_alpha) * log_p - min_q)).sum(-1).mean()
+def actor_loss_fn(
+    log_alpha: jnp.ndarray, log_p: jnp.ndarray, min_q: jnp.ndarray
+):
+    return (
+        (jnp.exp(log_p) * (jnp.exp(log_alpha) * log_p - min_q)).sum(-1).mean()
+    )
 
 
-def alpha_loss_fn(log_alpha: jnp.ndarray, target_entropy: float, log_p: jnp.ndarray):
-    return -1 * (log_alpha * (target_entropy + (log_p * jnp.exp(log_p)).sum(-1))).mean()
+def alpha_loss_fn(
+    log_alpha: jnp.ndarray, target_entropy: float, log_p: jnp.ndarray
+):
+    return (
+        -1
+        * (
+            log_alpha * (target_entropy + (log_p * jnp.exp(log_p)).sum(-1))
+        ).mean()
+    )
 
 
 @partial(jax.jit, static_argnums=(6, 7))
@@ -60,7 +71,8 @@ def get_td_target(
     next_q = jnp.minimum(t_q1, t_q2)
     target_Q = (
         next_q
-        - jnp.exp(apply_constant_model(log_alpha_params, 0.0, False)) * next_log_p
+        - jnp.exp(apply_constant_model(log_alpha_params, 0.0, False))
+        * next_log_p
     )
     target_Q = (jnp.exp(next_log_p) * target_Q).sum(axis=-1, keepdims=True)
     target_Q = reward + not_done * discount * target_Q
@@ -110,7 +122,9 @@ def actor_step(
             evaluation,
         )
         q1, q2 = jax.lax.stop_gradient(
-            apply_discrete_double_critic_model(critic_params, action_dim, state, False)
+            apply_discrete_double_critic_model(
+                critic_params, action_dim, state, False
+            )
         )
         min_q = jnp.minimum(q1, q2)
         partial_loss_fn = jax.vmap(
@@ -183,7 +197,9 @@ class SAC:
         self.entropy_tune = entropy_tune
         log_alpha_params = build_constant_model(0.0, next(self.rng))
 
-        log_alpha_optimizer = optim.Adam(learning_rate=lr).create(log_alpha_params)
+        log_alpha_optimizer = optim.Adam(learning_rate=lr).create(
+            log_alpha_params
+        )
         self.log_alpha_optimizer = jax.device_put(log_alpha_optimizer)
         self.target_entropy = 0.8 * (-np.log(1 / action_dim))
 
@@ -207,13 +223,20 @@ class SAC:
         self, rng: PRNGSequence, state: jnp.ndarray, evaluation: bool
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         action, log_pi = apply_categorical_policy_model(
-            self.actor_optimizer.target, self.action_dim, state, rng, evaluation
+            self.actor_optimizer.target,
+            self.action_dim,
+            state,
+            rng,
+            evaluation,
         )
 
         return jnp.expand_dims(jnp.argmax(action, axis=-1), axis=-1), log_pi
 
     def train(
-        self, replay_buffer: ReplayBuffer, batch_size: int = 100, logging: bool = True
+        self,
+        replay_buffer: ReplayBuffer,
+        batch_size: int = 100,
+        logging: bool = True,
     ):
         self.total_it += 1
 
@@ -253,14 +276,18 @@ class SAC:
                     wandb.log(
                         {
                             "Alpha": float(
-                                jnp.exp(self.log_alpha_optimizer.target["value"])
+                                jnp.exp(
+                                    self.log_alpha_optimizer.target["value"]
+                                )
                             )
                         }
                     )
                     wandb.log({"Alpha Loss": float(log_alpha_loss)})
 
             self.critic_target_params = copy_params(
-                self.critic_target_params, self.critic_optimizer.target, self.tau
+                self.critic_target_params,
+                self.critic_optimizer.target,
+                self.tau,
             )
 
     def save(self, filename):
@@ -268,11 +295,15 @@ class SAC:
         save_model(filename + "_actor", self.actor_optimizer)
 
     def load(self, filename):
-        self.critic_optimizer = load_model(filename + "_critic", self.critic_optimizer)
+        self.critic_optimizer = load_model(
+            filename + "_critic", self.critic_optimizer
+        )
         self.critic_optimizer = jax.device_put(self.critic_optimizer)
         self.critic_target_params = self.critic_optimizer.target.copy({})
 
-        self.actor_optimizer = load_model(filename + "_actor", self.actor_optimizer)
+        self.actor_optimizer = load_model(
+            filename + "_actor", self.actor_optimizer
+        )
         self.actor_optimizer = jax.device_put(self.actor_optimizer)
 
     def pre_train(
@@ -284,7 +315,9 @@ class SAC:
         rng: jax.random.PRNGKey,
     ):
         _, action_dim, actor_params, _, _ = self.target_params
-        bc_optimizer = jax.device_put(optim.Adam(learning_rate=lr).create(actor_params))
+        bc_optimizer = jax.device_put(
+            optim.Adam(learning_rate=lr).create(actor_params)
+        )
 
         print("Starting Pre-Training")
         for _ in range(num_iterations):
@@ -304,5 +337,7 @@ class SAC:
             bc_optimizer = bc_optimizer.apply_gradient(grad)
 
         # this is the most sketch part
-        actor_optimizer = optim.Adam(learning_rate=lr).create(bc_optimizer.target)
+        actor_optimizer = optim.Adam(learning_rate=lr).create(
+            bc_optimizer.target
+        )
         self.actor_optimizer = jax.device_put(actor_optimizer)

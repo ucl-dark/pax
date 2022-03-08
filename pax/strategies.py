@@ -20,7 +20,7 @@ class TitForTat:
         # return [batch]
         return self._reciprocity(timestep.observation)
 
-    def train(self, *args) -> None:
+    def update(self, *args) -> None:
         pass
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
@@ -44,7 +44,7 @@ class Defect:
         batch_size, _ = timestep.observation.shape
         return jnp.ones((batch_size, 1))
 
-    def train(self, *args) -> None:
+    def update(self, *args) -> None:
         pass
 
 
@@ -62,7 +62,7 @@ class Altruistic:
         ) = timestep.observation.shape
         return jnp.zeros((batch_size, 1))
 
-    def train(self, *args) -> None:
+    def update(self, *args) -> None:
         pass
 
 
@@ -76,7 +76,7 @@ class Human:
 
         return int(text) * jnp.ones((batch_size, 1)), None
 
-    def train(self, *args) -> None:
+    def step(self, *args) -> None:
         pass
 
 

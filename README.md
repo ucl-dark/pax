@@ -7,7 +7,6 @@ PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_e
 
 ```python
 import IteratedPrisonersDilemma
-import jax.numpy as jnp 
 
 env = IteratedPrisonersDilemma(episode_length, num_envs)
 timesteps = env.reset()
