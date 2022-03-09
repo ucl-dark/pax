@@ -9,7 +9,7 @@ from flax import nn
 import wandb
 from pax.env import IteratedPrisonersDilemma, State, evaluate
 from pax.sac.buffers import ReplayBuffer
-from pax.sac.discrete_SAC import SAC
+from pax.sac.sac import SAC
 from pax.strategies import Altruistic, Defect, Human, Random, TitForTat
 
 FLAGS = flags.FLAGS
