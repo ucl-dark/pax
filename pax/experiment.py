@@ -1,11 +1,11 @@
 from absl import app, flags
 import wandb
 
-from pax.env import IteratedPrisonersDilemma
-from pax.independent_learners import IndependentLearners
-from pax.runner import evaluate_loop, train_loop
-from pax.sac.agent import SAC
-from pax.watchers import policy_logger, value_logger
+from .env import IteratedPrisonersDilemma
+from .independent_learners import IndependentLearners
+from .runner import evaluate_loop, train_loop
+from .sac.agent import SAC
+from .watchers import policy_logger, value_logger
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("seed", 0, "Random seed.")

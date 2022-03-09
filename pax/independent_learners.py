@@ -1,5 +1,5 @@
 from dm_env import TimeStep
-from typing import Callable, List, Tuple
+from typing import Callable, List
 import jax.numpy as jnp
 
 
