@@ -37,18 +37,3 @@ PAX is written in pure Python, but depends on C++ code via JAX.
 Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
 
 First, follow these instructions to install JAX with the relevant accelerator support.
-
-## Current State
-- [ ] Make eval run (with independent leaners wrapper)
-- [ ] Make train run
-- [ ] Make compatible with acme
-- [ ] Add simple examples of loggers
-- [ ] Make SAC agent work
-- [ ] Make pay-off matrix configurable
-
-
-Nice to haves:
-- [X] Batched Game Environment (with tests)
-- [x] Make environment jit-able
-- [ ] Clean up requirements
-- [ ] Add doc-strings
