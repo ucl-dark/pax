@@ -35,8 +35,12 @@ def train_loop(env, agents, num_episodes, watchers):
                 agents.log(watchers)
                 wandb.log(
                     {
-                        "Reward Player 1": float(jnp.array(r_0).mean()),
-                        "Reward Player 2": float(jnp.array(r_1).mean()),
+                        "train/step_reward/player_1": float(
+                            jnp.array(r_0).mean()
+                        ),
+                        "train/step_reward/player_2": float(
+                            jnp.array(r_1).mean()
+                        ),
                     }
                 )
 
@@ -50,8 +54,8 @@ def train_loop(env, agents, num_episodes, watchers):
         if watchers:
             wandb.log(
                 {
-                    "Episode Reward Player 1": float(rewards_0.mean()),
-                    "Episode Reward Player 2": float(rewards_1.mean()),
+                    "train/episode_reward/player_1": float(rewards_0.mean()),
+                    "train/episode_reward/player_2": float(rewards_1.mean()),
                 }
             )
     return agents
@@ -61,7 +65,9 @@ def evaluate_loop(env, agents, num_episodes, watchers):
     """Run evaluation of agents against environment"""
     print("Evaluating")
     print("-----------------------")
-    for _ in range(num_episodes // (env.num_envs + 1)):
+
+    agents.eval(True)
+    for _ in range(num_episodes // env.num_envs):
         rewards_0, rewards_1 = [], []
         timesteps = env.reset()
 
@@ -77,8 +83,12 @@ def evaluate_loop(env, agents, num_episodes, watchers):
                 agents.log(watchers)
                 wandb.log(
                     {
-                        "Reward Player 1": float(jnp.array(rewards_0).mean()),
-                        "Reward Player 2": float(jnp.array(rewards_1).mean()),
+                        "eval/step_reward/player_1": float(
+                            jnp.array(rewards_0).mean()
+                        ),
+                        "eval/step_reward/player_2": float(
+                            jnp.array(rewards_1).mean()
+                        ),
                     }
                 )
         # end of episode stats
@@ -91,10 +101,11 @@ def evaluate_loop(env, agents, num_episodes, watchers):
         if watchers:
             wandb.log(
                 {
-                    "Episode Reward Player 1": float(rewards_0.mean()),
-                    "Episode Reward Player 2": float(rewards_1.mean()),
+                    "eval/episode_reward/player_1": float(rewards_0.mean()),
+                    "eval/episode_reward/player_2": float(rewards_1.mean()),
                 }
             )
+    agents.eval(False)
     return agents
 
 

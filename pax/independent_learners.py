@@ -31,3 +31,7 @@ class IndependentLearners:
     def log(self, metrics: List[Callable]) -> None:
         for metric, agent in zip(metrics, self.agents):
             metric(agent)
+
+    def eval(self, set_flag: bool) -> None:
+        for agent in self.agents:
+            agent.eval = set_flag
