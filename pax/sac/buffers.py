@@ -58,6 +58,7 @@ class ReplayBuffer:
             self.ptr = 0
 
         new_ptr = min(self.ptr + batch_size, self.max_size)
+
         self.state[self.ptr : new_ptr] = state
         self.action[self.ptr : new_ptr] = action
         self.next_state[self.ptr : new_ptr] = next_state

@@ -209,7 +209,7 @@ class SAC:
         self.action_dim = action_dim
         self.total_it = 0
 
-        self._replay = ReplayBuffer(state_dim, action_dim)
+        self._replay = ReplayBuffer(state_dim)
         self.eval = False
         self._total_steps = 0
         self._sgd_period = 5

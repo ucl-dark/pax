@@ -9,28 +9,30 @@ from .watchers import policy_logger, value_logger
 
 FLAGS = flags.FLAGS
 flags.DEFINE_integer("seed", 0, "Random seed.")
+flags.DEFINE_string("wandb_group", "-", "wandb group")
 flags.DEFINE_integer(
-    "num_eps", 10000, "num of env episodes to run training for"
+    "num_eps", 100000, "num of env episodes to run training for"
 )
 
 flags.DEFINE_integer("num_envs", 20, "num of parallel envs")
-flags.DEFINE_integer(
-    "train_steps", 1000, "Number of gradient steps to run training for."
-)
 flags.DEFINE_integer("eval_every", 100, "evaluate performance every")
 flags.DEFINE_integer("batch_size", 256, "batch size for gradient update")
 flags.DEFINE_integer(
     "eps_length", 100, "max number of iterations in Prisoners Dilemma"
 )
-flags.DEFINE_float("learning_rate", 3e-4, "learning rate")
+flags.DEFINE_float("learning_rate", 3e-2, "learning rate")
 flags.DEFINE_float("discount_rate", 0.99, "discount rate")
 
 
 def global_setup():
+    if str(FLAGS.wandb_group) == "-":
+        print("Please provide wandb_group flag")
+        exit()
+
     wandb.init(
         project="ipd",
         entity="ucl-dark",
-        group="testing",
+        group=str(FLAGS.wandb_group),
         name=f"run-{FLAGS.seed}",
     )
     wandb.config.update(flags.FLAGS)

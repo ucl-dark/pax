@@ -1,5 +1,5 @@
-# PAX
-Here we start building PAX - a Jax Batched Environment for sequential matrix games (such as social dilemmas).
+# Pax
+Here we start building Pax - a Jax Batched Environment for sequential matrix games (such as social dilemmas).
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
@@ -32,8 +32,15 @@ timestep.reward.shape()
 ```
 
 # Installation
-PAX is written in pure Python, but depends on C++ code via JAX.
+Pax is written in pure Python, but depends on C++ code via JAX.
 
 Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
 
 First, follow these instructions to install JAX with the relevant accelerator support.
+
+# Experiments
+We present an example experimentation script at `pax/experiment.py`. We currently use `wandb` for logging.
+
+```bash
+python -m pax.experiment --wandb_group="testing"
+```

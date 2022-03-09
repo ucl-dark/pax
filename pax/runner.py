@@ -1,7 +1,5 @@
 import jax.numpy as jnp
-
 import wandb
-from .watchers import policy_logger, value_logger
 
 from .env import IteratedPrisonersDilemma
 from .strategies import Altruistic, TitForTat, Defect
