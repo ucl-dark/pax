@@ -209,8 +209,10 @@ class SAC:
         self.action_dim = action_dim
         self.total_it = 0
 
-        self.buffer = ReplayBuffer(state_dim, action_dim)
+        self._replay = ReplayBuffer(state_dim, action_dim)
         self.eval = False
+        self._total_steps = 0
+        self._sgd_period = 50
 
     @property
     def target_params(self):
@@ -235,13 +237,29 @@ class SAC:
 
         return jnp.expand_dims(jnp.argmax(action, axis=-1), axis=-1), log_pi
 
-    def select_action(self, timestep: dm_env.TimeStep) -> jnp.ndarary:
+    def select_action(self, timestep: dm_env.TimeStep) -> jnp.ndarray:
         return self.actor_step(
             next(self.rng), timestep.observation, self.eval
         )[0]
 
-    def update(self, old_timestep, new_timestep) -> None:
-        pass
+    def update(self, old_timestep, action, new_timestep, *args) -> None:
+        batch_size = 32
+        batched_done = jnp.ones_like(action) * new_timestep.last
+        self._replay.add_batch(
+            state=old_timestep.observation,
+            action=action,
+            next_state=new_timestep.observation,
+            reward=new_timestep.reward,
+            done=batched_done,  # this is not batched currently
+        )
+        self._total_steps += 1
+        if self._total_steps % self._sgd_period != 0:
+            return
+
+        if self._replay.size < batch_size:
+            return
+
+        self.train(self._replay, batch_size, True)
 
     def train(
         self,
