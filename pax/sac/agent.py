@@ -212,7 +212,7 @@ class SAC:
         self._replay = ReplayBuffer(state_dim, action_dim)
         self.eval = False
         self._total_steps = 0
-        self._sgd_period = 50
+        self._sgd_period = 5
 
     @property
     def target_params(self):
@@ -244,13 +244,13 @@ class SAC:
 
     def update(self, old_timestep, action, new_timestep, *args) -> None:
         batch_size = 32
-        batched_done = jnp.ones_like(action) * new_timestep.last
+        batched_done = jnp.ones_like(action) * new_timestep.last()
         self._replay.add_batch(
             state=old_timestep.observation,
-            action=action,
+            action=action,  # TODO change buffer to just action ints
             next_state=new_timestep.observation,
             reward=new_timestep.reward,
-            done=batched_done,  # this is not batched currently
+            done=batched_done,
         )
         self._total_steps += 1
         if self._total_steps % self._sgd_period != 0:
@@ -259,28 +259,36 @@ class SAC:
         if self._replay.size < batch_size:
             return
 
-        self.train(self._replay, batch_size, True)
+        self.train(self._replay, batch_size)
 
     def train(
         self,
         replay_buffer: ReplayBuffer,
         batch_size: int = 100,
-        logging: bool = True,
     ):
         self.total_it += 1
+        state, action, next_state, reward, not_done = replay_buffer.sample(
+            next(self.rng), batch_size
+        )
+        action = jax.nn.one_hot(action, self.action_dim).squeeze(1)
 
-        buffer_out = replay_buffer.sample(next(self.rng), batch_size)
         target_Q = jax.lax.stop_gradient(
-            get_td_target(next(self.rng), *buffer_out, *self.target_params)
+            get_td_target(
+                next(self.rng),
+                state,
+                action,
+                next_state,
+                reward,
+                not_done,
+                *self.target_params
+            )
         )
 
-        state, action, *_ = buffer_out
         critic_loss, self.critic_optimizer = critic_step(
             self.critic_optimizer, state, action, target_Q, self.action_dim
         )
 
-        if logging:
-            wandb.log({"Critic Loss": float(critic_loss)})
+        wandb.log({"loss/critic": float(critic_loss)})
 
         if self.total_it % self.policy_freq == 0:
 
@@ -293,25 +301,21 @@ class SAC:
                 self.action_dim,
                 False,
             )
-            if logging:
-                wandb.log({"Actor Loss": float(actor_loss)})
+            wandb.log({"loss/policy": float(actor_loss)})
 
             if self.entropy_tune:
                 log_alpha_loss, self.log_alpha_optimizer = alpha_step(
                     self.log_alpha_optimizer, log_p, self.target_entropy
                 )
 
-                if logging:
-                    wandb.log(
-                        {
-                            "Alpha": float(
-                                jnp.exp(
-                                    self.log_alpha_optimizer.target["value"]
-                                )
-                            )
-                        }
-                    )
-                    wandb.log({"Alpha Loss": float(log_alpha_loss)})
+                wandb.log(
+                    {
+                        "alpha": float(
+                            jnp.exp(self.log_alpha_optimizer.target["value"])
+                        )
+                    }
+                )
+                wandb.log({"loss/alpha": float(log_alpha_loss)})
 
             self.critic_target_params = copy_params(
                 self.critic_target_params,

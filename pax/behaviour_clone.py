@@ -7,9 +7,9 @@ from absl import app, flags
 from flax import nn
 
 import wandb
-from pax.env import IteratedPrisonersDilemma, State, evaluate
+from pax.env import IteratedPrisonersDilemma, State
 from pax.sac.buffers import ReplayBuffer
-from pax.sac.sac import SAC
+from pax.sac.agent import SAC
 from pax.strategies import Altruistic, Defect, Human, Random, TitForTat
 
 FLAGS = flags.FLAGS
@@ -98,15 +98,15 @@ def main(_):
     agent_0.save(f"models/experts/{type(expert).__name__}")
 
     # evaluate against population of agents
-    population = [agent_0, TitForTat(), Defect(), Altruistic(), Random()]
-    [
-        evaluate(
-            agent_0, opponent, FLAGS.seed, FLAGS.max_episode_length, 1, False
-        )[:, :, 0]
-        for opponent in population
-    ]
+    # population = [agent_0, TitForTat(), Defect(), Altruistic(), Random()]
+    # [
+    #     evaluate(
+    #         agent_0, opponent, FLAGS.seed, FLAGS.max_episode_length, 1, False
+    #     )[:, :, 0]
+    #     for opponent in population
+    # ]
     # total_reward = jnp.mean(jnp.asarray(rewards))
-    print(policy_logger(agent_0))
+    # print(policy_logger(agent_0))
 
 
 def policy_logger(agent) -> None:

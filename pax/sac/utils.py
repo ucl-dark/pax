@@ -122,6 +122,8 @@ def kl_mvg_diag(
     return 0.5 * (
         jnp.log(dqv / dpv)  # log |\Sigma_q| / |\Sigma_p|
         + (iqv * pv).sum(axis)  # + tr(\Sigma_q^{-1} * \Sigma_p)
-        + (diff * iqv * diff).sum(axis)  # + (\mu_q-\mu_p)^T\Sigma_q^{-1}(\mu_q-\mu_p)
+        + (diff * iqv * diff).sum(
+            axis
+        )  # + (\mu_q-\mu_p)^T\Sigma_q^{-1}(\mu_q-\mu_p)
         - len(pm)
     )

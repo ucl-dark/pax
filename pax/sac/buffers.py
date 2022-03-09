@@ -1,5 +1,4 @@
-# copied from https://github.com/henry-prior/jax-rl/blob/master/jax_rl/SAC.py
-
+# modified from https://github.com/henry-prior/jax-rl/blob/master/jax_rl/SAC.py
 import jax
 import numpy as onp
 from haiku import PRNGSequence
@@ -10,7 +9,6 @@ class ReplayBuffer:
     def __init__(
         self,
         state_dim: int,
-        action_dim: int,
         max_size: int = int(2e6),
     ):
         self.max_size = max_size
@@ -18,7 +16,7 @@ class ReplayBuffer:
         self.size = 0
 
         self.state = onp.empty((max_size, state_dim))
-        self.action = onp.empty((max_size, action_dim))
+        self.action = onp.empty((max_size, 1))
         self.next_state = onp.empty((max_size, state_dim))
         self.reward = onp.empty((max_size, 1))
         self.not_done = onp.empty((max_size, 1))
@@ -53,7 +51,6 @@ class ReplayBuffer:
 
         assert batch_size == batch_size_1
         assert self.state.shape[1] == state_dim
-        assert self.action.shape[1] == action_dim
 
         q, new_ptr = divmod(self.ptr + batch_size, self.max_size)
 

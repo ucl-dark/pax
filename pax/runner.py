@@ -7,19 +7,19 @@ from .env import IteratedPrisonersDilemma
 from .strategies import Altruistic, TitForTat, Defect
 from .independent_learners import IndependentLearners
 
+# TODO: make these a copy of acme
+
 
 def train_loop(env, agents, num_episodes, watchers):
-    """Run training of agents in environment
-    TODO: make this a copy of acme
-    """
+    """Run training of agents in environment"""
     print("Training ")
     print("-----------------------")
-
-    for _ in range((num_episodes // env.num_envs) + 1):
+    for _ in range(int(num_episodes // env.num_envs)):
         rewards_0, rewards_1 = [], []
         t = env.reset()
         while not (t[0].last()):
             actions = agents.select_action(t)
+
             t_prime = env.step(actions)
 
             r_0, r_1 = t_prime[0].reward, t_prime[1].reward
@@ -27,7 +27,7 @@ def train_loop(env, agents, num_episodes, watchers):
             rewards_1.append(r_1)
 
             # train model
-            agents.update(t, t_prime)
+            agents.update(t, actions, t_prime)
 
             # book keeping
             t = t_prime
@@ -104,12 +104,6 @@ if __name__ == "__main__":
     agents = IndependentLearners([Altruistic(), TitForTat()])
     env = IteratedPrisonersDilemma(50, 5)
     wandb.init(mode="offline")
-
-    def log_sac(agent) -> dict:
-        policy_dict = policy_logger(agent)
-        value_dict = value_logger(agent)
-        logger_dict = policy_dict.update(value_dict)
-        return logger_dict
 
     def log_print(agent) -> dict:
         print(agent)
