@@ -214,6 +214,8 @@ class SAC:
         self._total_steps = 0
         self._sgd_period = 5
 
+        self.name = "SAC"
+
     @property
     def target_params(self):
         return (
