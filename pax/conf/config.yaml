@@ -1,0 +1,43 @@
+
+hydra:
+  run:
+    dir: .
+  sweep:
+    dir: .
+    subdir: .
+  job_logging:
+    root:
+      level: INFO
+
+debug: false
+seed: 0
+save_dir: "./exp/${wandb.group}/${wandb.name}"
+resume: null
+print_interval: 10
+checkpoint: false
+
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: ???
+  name: run-${seed}
+  log: true
+
+agent1: 'SAC'
+agent2: 'SAC'
+
+# Env params
+num_envs: 20
+episode_length: 100
+
+# Training hyperparams
+num_episodes: 100000
+eval_every: 500
+
+# Agent params
+batch_size: 256
+lr: 3e-2
+discount: 0.99
+device: cuda
+tau: 1.0
+uniform_weight: 0.0  # Add uniform weight to speaker

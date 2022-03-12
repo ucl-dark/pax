@@ -4,6 +4,7 @@ chex
 dm-haiku
 dm-tree
 flax
+hydra-core
 isort
 jax
 jaxlib
@@ -11,7 +12,5 @@ numpy
 optax
 pytest
 regex
-scipy
-bsuite
 wandb
 pytest
