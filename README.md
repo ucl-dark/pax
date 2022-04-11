@@ -42,5 +42,5 @@ First, follow these instructions to install JAX with the relevant accelerator su
 We present an example experimentation script at `pax/experiment.py`. We currently use `wandb` for logging.
 
 ```bash
-python -m pax.experiment --wandb_group="testing"
+python -m pax.experiment wandb.group="testing"
 ```
