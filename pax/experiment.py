@@ -11,10 +11,12 @@ from .env import IteratedPrisonersDilemma
 from .independent_learners import IndependentLearners
 from .runner import evaluate_loop, train_loop
 from .sac.agent import SAC
+from .dqn.agent import QLearn
 from .watchers import policy_logger, value_logger
-
+from .strategies import TitForTat, Defect, Altruistic, Random, Human
 
 def global_setup(args):
+    '''Set up global variables.'''
     os.makedirs(args.save_dir, exist_ok=True)
     if args.seed is not None:
         random.seed(args.seed)
@@ -28,38 +30,48 @@ def global_setup(args):
             config=vars(args),
         )
 
-
 def env_setup(args, logger):
+    '''Set up env variables.'''
     train_env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
     test_env = IteratedPrisonersDilemma(args.episode_length, 1)
     return train_env, test_env
 
 
 def agent_setup(args, logger):
-    # TODO: make configurable
-    agent_0 = SAC(
+    '''Set up agent variables.'''
+    # TODO: make configurable 
+    # DONE
+
+    def get_SAC_agent(): 
+        sac_agent = SAC(
         state_dim=5,
         action_dim=2,
         discount=args.discount,
         lr=args.lr,
         seed=args.seed,
-    )
+        )
+        return sac_agent
 
-    agent_1 = SAC(
-        state_dim=5,
-        action_dim=2,
-        discount=args.discount,
-        lr=args.lr,
-        seed=args.seed,
-    )
+    strategies = {'TitForTat': TitForTat(), 
+                'Defect': Defect(), 
+                'Altruistic': Altruistic(),
+                'Human': Human(), 
+                'Random': Random(args.seed),
+                'SAC': get_SAC_agent(),
+                }
 
-    logger.info(f"Agent Pair: {agent_0.name} | {agent_1.name} ")
+    agent_0 = strategies[args.agent1]
+    agent_1 = strategies[args.agent2]
+    
+    logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
 
     return IndependentLearners([agent_0, agent_1])
 
 
 def watcher_setup(args, logger):
+    '''Set up watcher variables.'''
     # TODO: make configurable based on previous agents
+    # DONE 
 
     def sac_log(agent):
         policy_dict = policy_logger(agent)
@@ -71,12 +83,24 @@ def watcher_setup(args, logger):
     def dumb_log(agent):
         return
 
-    return [sac_log, dumb_log]
+    strategies = {'TitForTat': dumb_log, 
+                  'Defect': dumb_log, 
+                  'Altruistic': dumb_log, 
+                  'Human': dumb_log, 
+                  'Random': dumb_log, 
+                  'SAC': sac_log
+                }
 
+    agent_0_log = strategies[args.agent1]
+    agent_1_log = strategies[args.agent2]
+
+    return [agent_0_log, agent_1_log]
 
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
-    logger = logging.getLogger()
+    '''Set up main.'''
+    logger = logging.getLogger() 
+    # Adds a bunch of print statements when stuff happens
     with Section("Global setup", logger=logger):
         global_setup(args)
 

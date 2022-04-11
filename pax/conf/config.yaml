@@ -19,19 +19,20 @@ checkpoint: false
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: ???
+  group: 'april11'
   name: run-${seed}
   log: true
 
-agent1: 'SAC'
-agent2: 'SAC'
+# Agent params 
+agent1: 'TitForTat'
+agent2: 'TitForTat'
 
 # Env params
 num_envs: 20
 episode_length: 100
 
 # Training hyperparams
-num_episodes: 100000
+num_episodes: 10000
 eval_every: 500
 
 # Agent params

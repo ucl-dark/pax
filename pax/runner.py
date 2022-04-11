@@ -7,7 +7,6 @@ from .independent_learners import IndependentLearners
 
 # TODO: make these a copy of acme
 
-
 def train_loop(env, agents, num_episodes, watchers):
     """Run training of agents in environment"""
     print("Training ")
@@ -110,9 +109,10 @@ def evaluate_loop(env, agents, num_episodes, watchers):
 
 
 if __name__ == "__main__":
-    agents = IndependentLearners([Altruistic(), TitForTat()])
+    agents = IndependentLearners([Defect(), TitForTat()])
     env = IteratedPrisonersDilemma(50, 5)
-    wandb.init(mode="offline")
+    #wandb.init(mode="offline")
+    wandb.init(mode="online")
 
     def log_print(agent) -> dict:
         print(agent)
