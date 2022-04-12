@@ -28,6 +28,7 @@ agent1: 'DQN'
 agent2: 'DQN'
 
 # Env params
+# changed num_envs from 20 to 1 bc the network doesn't expect 100, 64 input size 
 num_envs: 1
 episode_length: 100
 
