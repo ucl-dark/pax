@@ -19,16 +19,16 @@ checkpoint: false
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'april11'
+  group: 'testing-dqn'
   name: run-${seed}
   log: true
 
 # Agent params 
-agent1: 'TitForTat'
-agent2: 'TitForTat'
+agent1: 'DQN'
+agent2: 'DQN'
 
 # Env params
-num_envs: 20
+num_envs: 1
 episode_length: 100
 
 # Training hyperparams

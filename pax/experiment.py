@@ -5,13 +5,22 @@ import numpy as np
 import wandb
 import hydra
 
-from pax.utils import Section
+# added some imports for DQN. not sure if they need to be here. 
+import dm_env
+from dm_env import specs
+import haiku as hk
+import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
+import rlax
 
+from pax.utils import Section
 from .env import IteratedPrisonersDilemma
 from .independent_learners import IndependentLearners
 from .runner import evaluate_loop, train_loop
 from .sac.agent import SAC
-from .dqn.agent import QLearn
+from .dqn.agent import default_agent
 from .watchers import policy_logger, value_logger
 from .strategies import TitForTat, Defect, Altruistic, Random, Human
 
@@ -52,13 +61,25 @@ def agent_setup(args, logger):
         )
         return sac_agent
 
+    def get_DQN_agent(): 
+        env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
+        dqn_agent = default_agent(
+        obs_spec=env.observation_spec(),
+        action_spec=env.action_spec()
+        )
+        return dqn_agent
+
     strategies = {'TitForTat': TitForTat(), 
                 'Defect': Defect(), 
                 'Altruistic': Altruistic(),
                 'Human': Human(), 
                 'Random': Random(args.seed),
                 'SAC': get_SAC_agent(),
+                'DQN':get_DQN_agent() 
                 }
+
+    assert args.agent1 in strategies
+    assert args.agent2 in strategies
 
     agent_0 = strategies[args.agent1]
     agent_1 = strategies[args.agent2]
@@ -79,6 +100,9 @@ def watcher_setup(args, logger):
         policy_dict.update(value_dict)
         wandb.log(policy_dict)
         return
+    
+    def dqn_log(agent):
+        return
 
     def dumb_log(agent):
         return
@@ -88,8 +112,12 @@ def watcher_setup(args, logger):
                   'Altruistic': dumb_log, 
                   'Human': dumb_log, 
                   'Random': dumb_log, 
-                  'SAC': sac_log
+                  'SAC': sac_log, 
+                  'DQN': dqn_log
                 }
+
+    assert args.agent1 in strategies
+    assert args.agent2 in strategies
 
     agent_0_log = strategies[args.agent1]
     agent_1_log = strategies[args.agent2]
