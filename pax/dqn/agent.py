@@ -72,9 +72,9 @@ class DQN(base.Agent):
       q_tm1 = network.apply(params, o_tm1)
       q_t = network.apply(target_params, o_t)
       batch_q_learning = jax.vmap(rlax.q_learning)
-      a_tm1 = a_tm1.squeeze()
-      r_t = r_t.squeeze()
-      r_t = jnp.asarray(r_t, dtype=float)
+      a_tm1 = a_tm1.squeeze() # reduce dimensionality
+      r_t = r_t.squeeze()     # reduce dimensionality
+      r_t = jnp.asarray(r_t, dtype=float) #q_learning takes floats
       td_error = batch_q_learning(q_tm1, a_tm1, r_t, discount * d_t, q_t)
       return jnp.mean(td_error**2)
 
@@ -122,15 +122,14 @@ class DQN(base.Agent):
   def select_action(self, timestep: dm_env.TimeStep) -> base.Action:
     """Selects actions according to an epsilon-greedy policy."""
     if np.random.rand() < self._epsilon:
-      # changed these to be arrays 
+      # changed from ints to arrays 
       return jnp.array([[np.random.randint(self._num_actions)]])
 
     # Greedy policy, breaking ties uniformly at random.
     observation = timestep.observation[None, ...]
-    #print("Observation", observation)
     q_values = self._forward(self._state.params, observation)
     action = np.random.choice(np.flatnonzero(q_values == q_values.max()))
-    # changed these to be arrays
+    # changed from ints to arrays
     return jnp.array([[int(action)]])
 
   def update(

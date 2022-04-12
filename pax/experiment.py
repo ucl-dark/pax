@@ -5,16 +5,6 @@ import numpy as np
 import wandb
 import hydra
 
-# added some imports for DQN. not sure if they need to be here. 
-import dm_env
-from dm_env import specs
-import haiku as hk
-import jax
-import jax.numpy as jnp
-import numpy as np
-import optax
-import rlax
-
 from pax.utils import Section
 from .env import IteratedPrisonersDilemma
 from .independent_learners import IndependentLearners
@@ -45,28 +35,25 @@ def env_setup(args, logger):
     test_env = IteratedPrisonersDilemma(args.episode_length, 1)
     return train_env, test_env
 
-
 def agent_setup(args, logger):
     '''Set up agent variables.'''
-    # TODO: make configurable 
-    # DONE
 
     def get_SAC_agent(): 
         sac_agent = SAC(
-        state_dim=5,
-        action_dim=2,
-        discount=args.discount,
-        lr=args.lr,
-        seed=args.seed,
-        )
+            state_dim=5,
+            action_dim=2,
+            discount=args.discount,
+            lr=args.lr,
+            seed=args.seed,
+            )
         return sac_agent
 
     def get_DQN_agent(): 
         env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
         dqn_agent = default_agent(
-        obs_spec=env.observation_spec(),
-        action_spec=env.action_spec()
-        )
+            obs_spec=env.observation_spec(),
+            action_spec=env.action_spec()
+            )
         return dqn_agent
 
     strategies = {'TitForTat': TitForTat(), 
@@ -91,8 +78,7 @@ def agent_setup(args, logger):
 
 def watcher_setup(args, logger):
     '''Set up watcher variables.'''
-    # TODO: make configurable based on previous agents
-    # DONE 
+    # TODO: add logging for dqn
 
     def sac_log(agent):
         policy_dict = policy_logger(agent)
@@ -147,7 +133,6 @@ def main(args):
     for _ in range(int(train_episodes // eval_every)):
         evaluate_loop(test_env, agent_pair, 1, watchers)
         train_loop(train_env, agent_pair, eval_every, watchers)
-
 
 if __name__ == "__main__":
     main()
