@@ -4,6 +4,7 @@ import random
 import numpy as np
 import wandb
 import hydra
+import jax
 
 from pax.utils import Section
 from .env import IteratedPrisonersDilemma
@@ -11,7 +12,8 @@ from .independent_learners import IndependentLearners
 from .runner import evaluate_loop, train_loop
 from .sac.agent import SAC
 from .dqn.agent import default_agent
-from .watchers import policy_logger, value_logger
+from .dqn.replay_buffer import Replay
+from .watchers import policy_logger, policy_logger_dqn, value_logger, value_logger_dqn
 from .strategies import TitForTat, Defect, Altruistic, Random, Human
 
 def global_setup(args):
@@ -21,7 +23,9 @@ def global_setup(args):
         random.seed(args.seed)
         np.random.seed(args.seed)
     if args.wandb.log:
+        print("name", str(args.wandb.name))
         wandb.init(
+            reinit=True,
             entity=str(args.wandb.entity),
             project=str(args.wandb.project),
             group=str(args.wandb.group),
@@ -31,6 +35,7 @@ def global_setup(args):
 
 def env_setup(args, logger):
     '''Set up env variables.'''
+    # Why is it not batch invariant? 
     train_env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
     test_env = IteratedPrisonersDilemma(args.episode_length, 1)
     return train_env, test_env
@@ -51,6 +56,7 @@ def agent_setup(args, logger):
     def get_DQN_agent(): 
         env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
         dqn_agent = default_agent(
+            args, 
             obs_spec=env.observation_spec(),
             action_spec=env.action_spec()
             )
@@ -88,6 +94,10 @@ def watcher_setup(args, logger):
         return
     
     def dqn_log(agent):
+        policy_dict = policy_logger_dqn(agent)
+        value_dict = value_logger_dqn(agent)
+        policy_dict.update(value_dict)
+        wandb.log(policy_dict)
         return
 
     def dumb_log(agent):
@@ -129,10 +139,17 @@ def main(args):
 
     train_episodes = args.num_episodes
     eval_every = args.eval_every
+    key = jax.random.PRNGKey(args.seed)
     assert not train_episodes % eval_every
+    if not args.wandb.log: 
+        watchers = False
+    # 10,000 / 500 = 20 loops 
     for _ in range(int(train_episodes // eval_every)):
-        evaluate_loop(test_env, agent_pair, 1, watchers)
-        train_loop(train_env, agent_pair, eval_every, watchers)
-
+        key, key2 = jax.random.split(key)
+        # evaluate for 1 episode each with 100 steps
+        evaluate_loop(test_env, agent_pair, 1, watchers, key)
+        # train for 500 episodes each with 100 steps
+        train_loop(train_env, agent_pair, eval_every, watchers, key2)
+    
 if __name__ == "__main__":
     main()

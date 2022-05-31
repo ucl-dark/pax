@@ -16,7 +16,6 @@ from dm_env import (
 # payoffs are [(2, 2), (3,0), (0,3), (1, 1)]
 # observations are one-hot representations
 
-
 class State(enum.IntEnum):
     CC = 0
     DC = 1
@@ -87,10 +86,10 @@ class IteratedPrisonersDilemma(Environment):
 
     @partial(jax.jit, static_argnums=(0,))
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
-        cc = 2 * (a1 - 1) * (a2 - 1)
+        cc = 2.0 * (a1 - 1.0) * (a2 - 1.0)
         dd = a1 * a2
-        dc = 3 * a1 * (1 - a2)
-        cd = 3 * (1 - a1) * a2
+        dc = 3.0 * a1 * (1.0 - a2)
+        cd = 3.0 * (1.0 - a1) * a2
         r1 = cc + dd + dc
         r2 = cc + dd + cd
         return r1, r2

@@ -1,4 +1,3 @@
-# python3
 # pylint: disable=g-bad-file-header
 # Copyright 2019 DeepMind Technologies Limited. All Rights Reserved.
 #
@@ -22,8 +21,13 @@ Link: https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf.
 from typing import Any, Callable, NamedTuple, Sequence
 
 from bsuite.baselines import base
-from bsuite.baselines.utils import replay
+from bsuite.environments import catch
+from pax.dqn.replay_buffer import Replay
+# from replay_buffer import Replay
 
+import logging
+import wandb
+import hydra
 import dm_env
 from dm_env import specs
 import haiku as hk
@@ -33,14 +37,12 @@ import numpy as np
 import optax
 import rlax
 
-
 class TrainingState(NamedTuple):
   """Holds the agent's training state."""
   params: hk.Params
   target_params: hk.Params
   opt_state: Any
   step: int
-
 
 class DQN(base.Agent):
   """A simple DQN agent using JAX."""
@@ -68,13 +70,14 @@ class DQN(base.Agent):
              target_params: hk.Params,
              transitions: Sequence[jnp.ndarray]) -> jnp.ndarray:
       """Computes the standard TD(0) Q-learning loss on batch of transitions."""
+      # observation, action, reward, discount, observation
       o_tm1, a_tm1, r_t, d_t, o_t = transitions
       q_tm1 = network.apply(params, o_tm1)
       q_t = network.apply(target_params, o_t)
+      # TODO: Find a cleaner solution than squeezing. 
+      a_tm1 = a_tm1.squeeze()
+      r_t = r_t.squeeze()
       batch_q_learning = jax.vmap(rlax.q_learning)
-      a_tm1 = a_tm1.squeeze() # reduce dimensionality
-      r_t = r_t.squeeze()     # reduce dimensionality
-      r_t = jnp.asarray(r_t, dtype=float) #q_learning takes floats
       td_error = batch_q_learning(q_tm1, a_tm1, r_t, discount * d_t, q_t)
       return jnp.mean(td_error**2)
 
@@ -86,7 +89,7 @@ class DQN(base.Agent):
       gradients = jax.grad(loss)(state.params, state.target_params, transitions)
       updates, new_opt_state = optimizer.update(gradients, state.opt_state)
       new_params = optax.apply_updates(state.params, updates)
-
+      # print(new_params)
       return TrainingState(
           params=new_params,
           target_params=state.target_params,
@@ -94,11 +97,11 @@ class DQN(base.Agent):
           step=state.step + 1)
 
     # Initialize the networks and optimizer.
-    #dummy_observation = np.zeros((1, *obs_spec.shape), jnp.float32)
-    dummy_observation = np.zeros((5, *obs_spec.shape), jnp.float32)
+    dummy_observation = np.zeros((1, obs_spec.num_values), jnp.float32)
     initial_params = network.init(next(rng), dummy_observation)
     initial_target_params = network.init(next(rng), dummy_observation)
     initial_opt_state = optimizer.init(initial_params)
+    
 
     # This carries the agent state relevant to training.
     self._state = TrainingState(
@@ -108,7 +111,7 @@ class DQN(base.Agent):
         step=0)
     self._sgd_step = sgd_step
     self._forward = jax.jit(network.apply)
-    self._replay = replay.Replay(capacity=replay_capacity)
+    self._replay = Replay(capacity=replay_capacity)
 
     # Store hyperparameters.
     self._num_actions = action_spec.num_values
@@ -119,35 +122,52 @@ class DQN(base.Agent):
     self._total_steps = 0
     self._min_replay_size = min_replay_size
 
-  def select_action(self, timestep: dm_env.TimeStep) -> base.Action:
-    """Selects actions according to an epsilon-greedy policy."""
-    if np.random.rand() < self._epsilon:
-      # changed from ints to arrays 
-      return jnp.array([[np.random.randint(self._num_actions)]])
+    self.train_steps = 0 
+    self.eval_steps = 0 
+    # self.eval_episodes = 0 
+    self.episodes = 0 
+    self.num_target_updates = 0 
 
+  def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
+    """Selects batched actions according to an epsilon-greedy policy."""
+    key, subkey = jax.random.split(key)
+    num_envs = len(timestep.observation)
+    mask = jax.random.uniform(key, shape = (num_envs, 1)) < self._epsilon
+    q_values = self._forward(self._state.params, timestep.observation)
+    actions = jnp.where(
+        mask==True, 
+        x = jax.random.randint(subkey, shape=(),minval=0, maxval = self._num_actions, dtype=int), 
+        y = jnp.argmax(q_values, axis=1, keepdims=True)) # keepdims=True preserves the correct shape 
+    assert actions.shape == (num_envs, 1)
+    return actions
+
+  def select_action_eval(self, timestep: dm_env.TimeStep) -> base.Action:
+    """Selects actions according to a greedy policy."""
     # Greedy policy, breaking ties uniformly at random.
     observation = timestep.observation[None, ...]
-    q_values = self._forward(self._state.params, observation)
+    q_values = self._forward(self._state.target_params, observation)
+    self.eval_steps += 1
     action = np.random.choice(np.flatnonzero(q_values == q_values.max()))
-    # changed from ints to arrays
-    return jnp.array([[int(action)]])
+    action = jnp.array([int(action)]).reshape(-1, 1)
+    return action
 
   def update(
       self,
-      timestep: dm_env.TimeStep,
-      action: base.Action,
+      timestep: dm_env.TimeStep, 
+      action: jnp.array,
       new_timestep: dm_env.TimeStep,
   ):
-    """Adds transition to replay and periodically does SGD."""
-    # Add this transition to replay.
-    self._replay.add([
+
+    self._replay.add_batch([
         timestep.observation,
         action,
         new_timestep.reward,
         new_timestep.discount,
-        new_timestep.observation,
-    ])
+        new_timestep.observation],
+        batch_size = len(timestep.observation) # num envs
+    )
 
+    self.train_steps +=1 
     self._total_steps += 1
     if self._total_steps % self._sgd_period != 0:
       return
@@ -162,16 +182,23 @@ class DQN(base.Agent):
     # Periodically update target parameters.
     if self._state.step % self._target_update_period == 0:
       self._state = self._state._replace(target_params=self._state.params)
+      self.num_target_updates += 1
 
-
-def default_agent(obs_spec: specs.Array,
-                  action_spec: specs.DiscreteArray,
-                  seed: int = 0) -> base.Agent:
+def default_agent(args, 
+                  obs_spec: specs.Array,
+                  action_spec: specs.DiscreteArray
+                  ) -> base.Agent:
   """Initialize a DQN agent with default parameters."""
 
   def network(inputs: jnp.ndarray) -> jnp.ndarray:
     flat_inputs = hk.Flatten()(inputs)
-    mlp = hk.nets.MLP([64, 64, action_spec.num_values])
+    # Original
+    # mlp = hk.nets.MLP([64, 64, action_spec.num_values]) #works alright with more layers
+    # TEST 
+    # mlp = hk.nets.MLP([action_spec.num_values], with_bias=False)
+    mlp = hk.Linear(action_spec.num_values, w_init = hk.initializers.Constant(0.5), with_bias=False)
+    # mlp = hk.Linear(action_spec.num_values, with_bias=False)
+    # mlp = hk.nets.MLP([10, action_spec.num_values], with_bias=False) #works alright with more layers
     action_values = mlp(flat_inputs)
     return action_values
 
@@ -179,13 +206,15 @@ def default_agent(obs_spec: specs.Array,
       obs_spec=obs_spec,
       action_spec=action_spec,
       network=network,
-      optimizer=optax.adam(1e-3),
-      batch_size=32,
-      discount=0.99,
-      replay_capacity=10000,
-      min_replay_size=100,
-      sgd_period=1,
-      target_update_period=4,
-      epsilon=0.05,
-      rng=hk.PRNGSequence(seed),
+      optimizer=optax.adam(args.learning_rate),
+      batch_size=args.batch_size,
+      discount=args.discount,
+      replay_capacity=args.replay_capacity,
+      min_replay_size=args.min_replay_size,
+      sgd_period=args.sgd_period,
+      target_update_period=args.target_update_period,
+      epsilon=args.epsilon,
+      rng=hk.PRNGSequence(args.seed),
   )
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
