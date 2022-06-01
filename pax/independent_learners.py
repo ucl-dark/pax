@@ -18,13 +18,6 @@ class IndependentLearners:
             agent.select_action(prngkey, t) for agent, prngkey, t in zip(self.agents, (key1, key2), timesteps)
         ]
 
-    def select_action_eval(self, timesteps: List[TimeStep]) -> List[jnp.ndarray]:
-        assert len(timesteps) == self.num_agents
-        return [
-            agent.select_action_eval(t) for agent, t in zip(self.agents, timesteps)
-        ]
-
-    # TODO: Add a random seed to this update
     def update(
         self,
         old_timesteps: List[TimeStep],

@@ -79,8 +79,8 @@ def evaluate_loop(env, agents, num_episodes, watchers, key):
         timesteps = env.reset()
 
         while not timesteps[0].last():
-            # actions = agents.select_action(timesteps)
-            actions = agents.select_action_eval(timesteps)
+            key, key2 = jax.random.split(key)
+            actions = agents.select_action(key, timesteps)
             timesteps = env.step(actions)
 
             r_0, r_1 = timesteps[0].reward, timesteps[1].reward
@@ -88,13 +88,8 @@ def evaluate_loop(env, agents, num_episodes, watchers, key):
             rewards_0.append(timesteps[0].reward)
             rewards_1.append(timesteps[1].reward)
 
-            # step logging
-            # print("evaluation step rewards")
-            # print(jnp.array(r_0).mean())
-            # print(jnp.array(r_0).mean())
             if watchers:
                 agents.log(watchers)
-                # print(r_0, r_1)
                 wandb.log(
                     {
 
@@ -120,7 +115,7 @@ def evaluate_loop(env, agents, num_episodes, watchers, key):
         if watchers:
             wandb.log(
                 {
-                   #  "eval/eval_steps": agents[0].eval_steps, 
+                   
                     "episodes": (agents.agents[0].episodes), 
                     "eval/episode_reward/player_1": float(rewards_0.mean()),
                     "eval/episode_reward/player_2": float(rewards_1.mean()),
@@ -135,7 +130,6 @@ if __name__ == "__main__":
     # TODO: accept the arguments from config file instead of hard-coding
     # 50 steps per episode for 10000 episodes makes for 50k steps
     env = IteratedPrisonersDilemma(50, 5)
-    #wandb.init(mode="offline")
     wandb.init(mode="online")
 
     def log_print(agent) -> dict:

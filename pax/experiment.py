@@ -35,7 +35,6 @@ def global_setup(args):
 
 def env_setup(args, logger):
     '''Set up env variables.'''
-    # Why is it not batch invariant? 
     train_env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
     test_env = IteratedPrisonersDilemma(args.episode_length, 1)
     return train_env, test_env

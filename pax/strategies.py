@@ -21,13 +21,6 @@ class TitForTat:
         # return [batch]
         return self._reciprocity(timestep.observation)
 
-    def select_action_eval(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        return self._reciprocity(timestep.observation)
-        # return policy
-
     def update(self, *args) -> None:
         pass
 
@@ -41,8 +34,6 @@ class TitForTat:
         action = jnp.where(obs > 1.0, 1.0, 0.0)
         action = jnp.expand_dims(action, axis=-1)
         return action
-        # return jnp.expand_dims(action, axis=-1)
-
 
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
@@ -56,20 +47,8 @@ class Defect:
         batch_size, _ = timestep.observation.shape
         return jnp.ones((batch_size, 1))
 
-    def select_action_eval(
-        self, 
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        batch_size, _ = timestep.observation.shape
-
-        policy = jnp.array([1, 0])
-        return jnp.ones((batch_size, 1))
-
     def update(self, *args) -> None:
         pass
-
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
@@ -84,15 +63,6 @@ class Altruistic:
             batch_size,
             _,
         ) = timestep.observation.shape
-        return jnp.zeros((batch_size, 1))
-
-    def select_action_eval(
-        self, 
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        batch_size, _ = timestep.observation.shape
         return jnp.zeros((batch_size, 1))
 
     def update(self, *args) -> None:

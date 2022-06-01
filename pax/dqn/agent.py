@@ -36,6 +36,7 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import rlax
+import distrax
 
 class TrainingState(NamedTuple):
   """Holds the agent's training state."""
@@ -89,7 +90,6 @@ class DQN(base.Agent):
       gradients = jax.grad(loss)(state.params, state.target_params, transitions)
       updates, new_opt_state = optimizer.update(gradients, state.opt_state)
       new_params = optax.apply_updates(state.params, updates)
-      # print(new_params)
       return TrainingState(
           params=new_params,
           target_params=state.target_params,
@@ -131,25 +131,31 @@ class DQN(base.Agent):
   def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
     """Selects batched actions according to an epsilon-greedy policy."""
     key, subkey = jax.random.split(key)
-    num_envs = len(timestep.observation)
-    mask = jax.random.uniform(key, shape = (num_envs, 1)) < self._epsilon
-    q_values = self._forward(self._state.params, timestep.observation)
-    actions = jnp.where(
-        mask==True, 
-        x = jax.random.randint(subkey, shape=(),minval=0, maxval = self._num_actions, dtype=int), 
-        y = jnp.argmax(q_values, axis=1, keepdims=True)) # keepdims=True preserves the correct shape 
-    assert actions.shape == (num_envs, 1)
-    return actions
-
-  def select_action_eval(self, timestep: dm_env.TimeStep) -> base.Action:
-    """Selects actions according to a greedy policy."""
-    # Greedy policy, breaking ties uniformly at random.
-    observation = timestep.observation[None, ...]
-    q_values = self._forward(self._state.target_params, observation)
-    self.eval_steps += 1
-    action = np.random.choice(np.flatnonzero(q_values == q_values.max()))
-    action = jnp.array([int(action)]).reshape(-1, 1)
-    return action
+    if self.eval: 
+        # Greedy policy, breaking ties uniformly at random.
+        self.eval_steps += 1
+        observation = timestep.observation[None, ...]
+        q_values = self._forward(self._state.target_params, observation)
+        greedy_dist = distrax.Greedy(q_values) #argument is preferences
+        action = greedy_dist.sample(seed=key).reshape(-1, 1)
+        # Previous version before using distrax
+        # action = np.random.choice(np.flatnonzero(q_values == q_values.max()))
+        # action = jnp.array([int(action)]).reshape(-1, 1)
+        return action
+    else:
+        # Epsilon greedy policy
+        num_envs = len(timestep.observation)
+        mask = jax.random.uniform(key, shape = (num_envs, 1)) < self._epsilon
+        q_values = self._forward(self._state.params, timestep.observation) # (num_envs, state space)
+        e_greedy_dist = distrax.EpsilonGreedy(preferences=q_values, epsilon=self._epsilon)
+        actions = e_greedy_dist.sample(seed=key).reshape(-1, 1)
+        # Previous version before using distrax
+        # actions = jnp.where(
+        #     mask==True, 
+        #     x = jax.random.randint(subkey, shape=(), minval=0, maxval=self._num_actions, dtype=int), 
+        #     y = jnp.argmax(q_values, axis=1, keepdims=True)) # keepdims=True preserves the correct shape 
+        assert actions.shape == (num_envs, 1)
+        return actions
 
   def update(
       self,
@@ -192,12 +198,13 @@ def default_agent(args,
 
   def network(inputs: jnp.ndarray) -> jnp.ndarray:
     flat_inputs = hk.Flatten()(inputs)
-    # Original
-    # mlp = hk.nets.MLP([64, 64, action_spec.num_values]) #works alright with more layers
-    # TEST 
-    # mlp = hk.nets.MLP([action_spec.num_values], with_bias=False)
-    mlp = hk.Linear(action_spec.num_values, w_init = hk.initializers.Constant(0.5), with_bias=False)
-    # mlp = hk.Linear(action_spec.num_values, with_bias=False)
+    # Below has optimistic initializations
+    # mlp = hk.Linear(action_spec.num_values, w_init = hk.initializers.Constant(0.5), with_bias=False)
+
+    # Below acts as a lookup table to make sure this works
+    mlp = hk.Linear(action_spec.num_values, with_bias=False) 
+    
+    # Below can be uncommented for a bigger network 
     # mlp = hk.nets.MLP([10, action_spec.num_values], with_bias=False) #works alright with more layers
     action_values = mlp(flat_inputs)
     return action_values
