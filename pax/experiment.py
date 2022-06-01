@@ -13,11 +13,17 @@ from .runner import evaluate_loop, train_loop
 from .sac.agent import SAC
 from .dqn.agent import default_agent
 from .dqn.replay_buffer import Replay
-from .watchers import policy_logger, policy_logger_dqn, value_logger, value_logger_dqn
+from .watchers import (
+    policy_logger,
+    policy_logger_dqn,
+    value_logger,
+    value_logger_dqn,
+)
 from .strategies import TitForTat, Defect, Altruistic, Random, Human
 
+
 def global_setup(args):
-    '''Set up global variables.'''
+    """Set up global variables."""
     os.makedirs(args.save_dir, exist_ok=True)
     if args.seed is not None:
         random.seed(args.seed)
@@ -33,56 +39,59 @@ def global_setup(args):
             config=vars(args),
         )
 
+
 def env_setup(args, logger):
-    '''Set up env variables.'''
+    """Set up env variables."""
     train_env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
     test_env = IteratedPrisonersDilemma(args.episode_length, 1)
     return train_env, test_env
 
-def agent_setup(args, logger):
-    '''Set up agent variables.'''
 
-    def get_SAC_agent(): 
+def agent_setup(args, logger):
+    """Set up agent variables."""
+
+    def get_SAC_agent():
         sac_agent = SAC(
             state_dim=5,
             action_dim=2,
             discount=args.discount,
             lr=args.lr,
             seed=args.seed,
-            )
+        )
         return sac_agent
 
-    def get_DQN_agent(): 
+    def get_DQN_agent():
         env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
         dqn_agent = default_agent(
-            args, 
+            args,
             obs_spec=env.observation_spec(),
-            action_spec=env.action_spec()
-            )
+            action_spec=env.action_spec(),
+        )
         return dqn_agent
 
-    strategies = {'TitForTat': TitForTat(), 
-                'Defect': Defect(), 
-                'Altruistic': Altruistic(),
-                'Human': Human(), 
-                'Random': Random(args.seed),
-                'SAC': get_SAC_agent(),
-                'DQN':get_DQN_agent() 
-                }
+    strategies = {
+        "TitForTat": TitForTat(),
+        "Defect": Defect(),
+        "Altruistic": Altruistic(),
+        "Human": Human(),
+        "Random": Random(args.seed),
+        "SAC": get_SAC_agent(),
+        "DQN": get_DQN_agent(),
+    }
 
     assert args.agent1 in strategies
     assert args.agent2 in strategies
 
     agent_0 = strategies[args.agent1]
     agent_1 = strategies[args.agent2]
-    
+
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
 
     return IndependentLearners([agent_0, agent_1])
 
 
 def watcher_setup(args, logger):
-    '''Set up watcher variables.'''
+    """Set up watcher variables."""
     # TODO: add logging for dqn
 
     def sac_log(agent):
@@ -91,7 +100,7 @@ def watcher_setup(args, logger):
         policy_dict.update(value_dict)
         wandb.log(policy_dict)
         return
-    
+
     def dqn_log(agent):
         policy_dict = policy_logger_dqn(agent)
         value_dict = value_logger_dqn(agent)
@@ -102,14 +111,15 @@ def watcher_setup(args, logger):
     def dumb_log(agent):
         return
 
-    strategies = {'TitForTat': dumb_log, 
-                  'Defect': dumb_log, 
-                  'Altruistic': dumb_log, 
-                  'Human': dumb_log, 
-                  'Random': dumb_log, 
-                  'SAC': sac_log, 
-                  'DQN': dqn_log
-                }
+    strategies = {
+        "TitForTat": dumb_log,
+        "Defect": dumb_log,
+        "Altruistic": dumb_log,
+        "Human": dumb_log,
+        "Random": dumb_log,
+        "SAC": sac_log,
+        "DQN": dqn_log,
+    }
 
     assert args.agent1 in strategies
     assert args.agent2 in strategies
@@ -119,10 +129,11 @@ def watcher_setup(args, logger):
 
     return [agent_0_log, agent_1_log]
 
+
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
-    '''Set up main.'''
-    logger = logging.getLogger() 
+    """Set up main."""
+    logger = logging.getLogger()
     # Adds a bunch of print statements when stuff happens
     with Section("Global setup", logger=logger):
         global_setup(args)
@@ -144,6 +155,7 @@ def main(args):
         key, key2 = jax.random.split(key)
         evaluate_loop(test_env, agent_pair, 1, watchers, key)
         train_loop(train_env, agent_pair, eval_every, watchers, key2)
-    
+
+
 if __name__ == "__main__":
     main()

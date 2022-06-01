@@ -11,11 +11,14 @@ class IndependentLearners:
         self.num_agents: int = len(agents)
         self.agents: list = agents
 
-    def select_action(self, key, timesteps: List[TimeStep]) -> List[jnp.ndarray]:
+    def select_action(
+        self, key, timesteps: List[TimeStep]
+    ) -> List[jnp.ndarray]:
         assert len(timesteps) == self.num_agents
         key1, key2 = jax.random.split(key)
         return [
-            agent.select_action(prngkey, t) for agent, prngkey, t in zip(self.agents, (key1, key2), timesteps)
+            agent.select_action(prngkey, t)
+            for agent, prngkey, t in zip(self.agents, (key1, key2), timesteps)
         ]
 
     def update(
@@ -23,7 +26,7 @@ class IndependentLearners:
         old_timesteps: List[TimeStep],
         actions: List[jnp.ndarray],
         timesteps: List[TimeStep],
-        key
+        key,
     ) -> None:
         # might have to add some centralised training to this
         for agent, t, action, t_1 in zip(

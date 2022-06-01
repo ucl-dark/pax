@@ -16,6 +16,7 @@ from dm_env import (
 # payoffs are [(2, 2), (3,0), (0,3), (1, 1)]
 # observations are one-hot representations
 
+
 class State(enum.IntEnum):
     CC = 0
     DC = 1

@@ -10,11 +10,12 @@ from dm_env import TimeStep
 # states are [CC, DC, CD, DD]
 # actions are cooperate = 0 or defect = 1
 
+
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
-        key, 
+        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
@@ -35,10 +36,11 @@ class TitForTat:
         action = jnp.expand_dims(action, axis=-1)
         return action
 
+
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
-        self, 
+        self,
         key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
@@ -50,11 +52,12 @@ class Defect:
     def update(self, *args) -> None:
         pass
 
+
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
-        key, 
+        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x state_space]
