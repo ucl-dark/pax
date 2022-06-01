@@ -140,14 +140,9 @@ def main(args):
     eval_every = args.eval_every
     key = jax.random.PRNGKey(args.seed)
     assert not train_episodes % eval_every
-    if not args.wandb.log: 
-        watchers = False
-    # 10,000 / 500 = 20 loops 
     for _ in range(int(train_episodes // eval_every)):
         key, key2 = jax.random.split(key)
-        # evaluate for 1 episode each with 100 steps
         evaluate_loop(test_env, agent_pair, 1, watchers, key)
-        # train for 500 episodes each with 100 steps
         train_loop(train_env, agent_pair, eval_every, watchers, key2)
     
 if __name__ == "__main__":

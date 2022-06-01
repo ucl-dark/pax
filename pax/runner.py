@@ -13,9 +13,6 @@ def train_loop(env, agents, num_episodes, watchers, key):
     """Run training of agents in environment"""
     print("Training ")
     print("-----------------------")
-    # NOTE: why are we using num_episodes / env.num_envs?
-    # in the case of 10000 / 20, this has episode length = 50
-
     for _ in range(int(num_episodes // env.num_envs)):
         rewards_0, rewards_1 = [], []
         t = env.reset()
@@ -25,11 +22,12 @@ def train_loop(env, agents, num_episodes, watchers, key):
             t_prime = env.step(actions)
             r_0, r_1 = t_prime[0].reward, t_prime[1].reward
             
+            # append step rewards to episode rewards
             rewards_0.append(r_0)
             rewards_1.append(r_1)
 
             # train model
-            agents.update(t, actions, t_prime)
+            agents.update(t, actions, t_prime, key2)
 
             # book keeping
             t = t_prime

@@ -23,12 +23,13 @@ class IndependentLearners:
         old_timesteps: List[TimeStep],
         actions: List[jnp.ndarray],
         timesteps: List[TimeStep],
+        key
     ) -> None:
         # might have to add some centralised training to this
         for agent, t, action, t_1 in zip(
             self.agents, old_timesteps, actions, timesteps
         ):
-            agent.update(t, action, t_1)
+            agent.update(t, action, t_1, key)
 
     def log(self, metrics: List[Callable]) -> None:
         for metric, agent in zip(metrics, self.agents):

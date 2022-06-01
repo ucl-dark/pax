@@ -23,7 +23,6 @@ from typing import Any, Callable, NamedTuple, Sequence
 from bsuite.baselines import base
 from bsuite.environments import catch
 from pax.dqn.replay_buffer import Replay
-# from replay_buffer import Replay
 
 import logging
 import wandb
@@ -124,37 +123,26 @@ class DQN(base.Agent):
 
     self.train_steps = 0 
     self.eval_steps = 0 
-    # self.eval_episodes = 0 
     self.episodes = 0 
     self.num_target_updates = 0 
 
   def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
     """Selects batched actions according to an epsilon-greedy policy."""
     key, subkey = jax.random.split(key)
-    if self.eval: 
+    if self.eval: # Evaluation mode is True 
         # Greedy policy, breaking ties uniformly at random.
-        self.eval_steps += 1
         observation = timestep.observation[None, ...]
         q_values = self._forward(self._state.target_params, observation)
         greedy_dist = distrax.Greedy(q_values) #argument is preferences
         action = greedy_dist.sample(seed=key).reshape(-1, 1)
-        # Previous version before using distrax
-        # action = np.random.choice(np.flatnonzero(q_values == q_values.max()))
-        # action = jnp.array([int(action)]).reshape(-1, 1)
+        self.eval_steps += 1
         return action
     else:
-        # Epsilon greedy policy
-        num_envs = len(timestep.observation)
-        mask = jax.random.uniform(key, shape = (num_envs, 1)) < self._epsilon
+        # Epsilon greedy policy, breaking ties uniformly at random
         q_values = self._forward(self._state.params, timestep.observation) # (num_envs, state space)
         e_greedy_dist = distrax.EpsilonGreedy(preferences=q_values, epsilon=self._epsilon)
         actions = e_greedy_dist.sample(seed=key).reshape(-1, 1)
-        # Previous version before using distrax
-        # actions = jnp.where(
-        #     mask==True, 
-        #     x = jax.random.randint(subkey, shape=(), minval=0, maxval=self._num_actions, dtype=int), 
-        #     y = jnp.argmax(q_values, axis=1, keepdims=True)) # keepdims=True preserves the correct shape 
-        assert actions.shape == (num_envs, 1)
+        assert actions.shape == (len(timestep.observation), 1)
         return actions
 
   def update(
@@ -162,6 +150,7 @@ class DQN(base.Agent):
       timestep: dm_env.TimeStep, 
       action: jnp.array,
       new_timestep: dm_env.TimeStep,
+      key
   ):
 
     self._replay.add_batch([
@@ -173,6 +162,7 @@ class DQN(base.Agent):
         batch_size = len(timestep.observation) # num envs
     )
 
+    # Increment number of training steps taken for plotting purposes
     self.train_steps +=1 
     self._total_steps += 1
     if self._total_steps % self._sgd_period != 0:
@@ -182,10 +172,11 @@ class DQN(base.Agent):
       return
 
     # Do a batch of SGD.
-    transitions = self._replay.sample(self._batch_size)
+    transitions = self._replay.sample(self._batch_size, key)
     self._state = self._sgd_step(self._state, transitions)
 
-    # Periodically update target parameters.
+    # Periodically update target parameters. 
+    # Default update period is every 4 sgd steps. 
     if self._state.step % self._target_update_period == 0:
       self._state = self._state._replace(target_params=self._state.params)
       self.num_target_updates += 1
@@ -198,13 +189,13 @@ def default_agent(args,
 
   def network(inputs: jnp.ndarray) -> jnp.ndarray:
     flat_inputs = hk.Flatten()(inputs)
-    # Below has optimistic initializations
+    # Single layer network which acts as a lookup table
+    mlp = hk.Linear(action_spec.num_values, with_bias=False) 
+
+    # Optimistic initializations (with constant weights)
     # mlp = hk.Linear(action_spec.num_values, w_init = hk.initializers.Constant(0.5), with_bias=False)
 
-    # Below acts as a lookup table to make sure this works
-    mlp = hk.Linear(action_spec.num_values, with_bias=False) 
-    
-    # Below can be uncommented for a bigger network 
+    # Larger MLP with a hidden layer of output size 10
     # mlp = hk.nets.MLP([10, action_spec.num_values], with_bias=False) #works alright with more layers
     action_values = mlp(flat_inputs)
     return action_values
@@ -223,5 +214,3 @@ def default_agent(args,
       epsilon=args.epsilon,
       rng=hk.PRNGSequence(args.seed),
   )
-def moving_average(x, w):
-    return np.convolve(x, np.ones(w), 'valid') / w
