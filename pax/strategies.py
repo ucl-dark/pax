@@ -13,6 +13,9 @@ from dm_env import TimeStep
 
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
         key,
@@ -39,6 +42,9 @@ class TitForTat:
 
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
         key,
@@ -55,6 +61,9 @@ class Defect:
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
         key,
@@ -73,6 +82,9 @@ class Altruistic:
 
 
 class Human:
+    def __init__(self, *args):
+        pass
+
     def select_action(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
         text = None
         batch_size, _ = timestep.observation.shape

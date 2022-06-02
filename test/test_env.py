@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import jax
 import pytest
 
 from pax.env import IteratedPrisonersDilemma
@@ -68,14 +69,16 @@ def test_mixed_batched_outcomes() -> None:
 
 
 def test_tit_for_tat_match() -> None:
+    key = jax.random.PRNGKey(0)
+    key1, key2 = jax.random.split(key)
     num_envs = 5
     env = IteratedPrisonersDilemma(5, num_envs)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat()
 
-    action_0 = tit_for_tat.select_action(t_0)
-    action_1 = tit_for_tat.select_action(t_1)
+    action_0 = tit_for_tat.select_action(key1, t_0)
+    action_1 = tit_for_tat.select_action(key2, t_1)
     assert jnp.array_equal(action_0, action_1)
 
     t_0, t_1 = env.step((action_0, action_1))
@@ -192,6 +195,8 @@ def test_done():
     t_0, t_1 = env.step((0 * action, 0 * action))
     assert t_0.last() == True
     assert t_1.last() == True
+    # # Testing
+    # assert 1 == 2
 
 
 def test_reset():

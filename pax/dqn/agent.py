@@ -64,6 +64,7 @@ class DQN(base.Agent):
         min_replay_size: int,
         sgd_period: int,
         target_update_period: int,
+        playerid: str,
     ):
         # Transform the (impure) network into a pure function.
         network = hk.without_apply_rng(hk.transform(network))
@@ -80,6 +81,7 @@ class DQN(base.Agent):
             q_tm1 = network.apply(params, o_tm1)
             q_t = network.apply(target_params, o_t)
             # TODO: Find a cleaner solution than squeezing.
+            # rlax takes a "hanging array" of actions i.e. (num_envs, ) rather than (num_envs, 1)
             a_tm1 = a_tm1.squeeze()
             r_t = r_t.squeeze()
             batch_q_learning = jax.vmap(rlax.q_learning)
@@ -132,10 +134,11 @@ class DQN(base.Agent):
         self._total_steps = 0
         self._min_replay_size = min_replay_size
 
-        self.train_steps = 0
-        self.eval_steps = 0
-        self.episodes = 0
-        self.num_target_updates = 0
+        # Tracks the number of target updates
+        self.target_step_updates = 0
+
+        # Uniquely identifies the player
+        self.playerid = playerid
 
     def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
         """Selects batched actions according to an epsilon-greedy policy."""
@@ -146,7 +149,6 @@ class DQN(base.Agent):
             q_values = self._forward(self._state.target_params, observation)
             greedy_dist = distrax.Greedy(q_values)  # argument is preferences
             action = greedy_dist.sample(seed=key).reshape(-1, 1)
-            self.eval_steps += 1
             return action
         else:
             # Epsilon greedy policy, breaking ties uniformly at random
@@ -180,7 +182,6 @@ class DQN(base.Agent):
         )
 
         # Increment number of training steps taken for plotting purposes
-        self.train_steps += 1
         self._total_steps += 1
         if self._total_steps % self._sgd_period != 0:
             return
@@ -198,11 +199,15 @@ class DQN(base.Agent):
             self._state = self._state._replace(
                 target_params=self._state.params
             )
-            self.num_target_updates += 1
+            self.target_step_updates += 1
 
 
 def default_agent(
-    args, obs_spec: specs.Array, action_spec: specs.DiscreteArray
+    args,
+    obs_spec: specs.Array,
+    action_spec: specs.DiscreteArray,
+    seed: int,
+    playerid: str,
 ) -> base.Agent:
     """Initialize a DQN agent with default parameters."""
 
@@ -231,5 +236,6 @@ def default_agent(
         sgd_period=args.sgd_period,
         target_update_period=args.target_update_period,
         epsilon=args.epsilon,
-        rng=hk.PRNGSequence(args.seed),
+        rng=hk.PRNGSequence(seed),
+        playerid=playerid,
     )

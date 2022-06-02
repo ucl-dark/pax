@@ -15,10 +15,10 @@ class IndependentLearners:
         self, key, timesteps: List[TimeStep]
     ) -> List[jnp.ndarray]:
         assert len(timesteps) == self.num_agents
-        key1, key2 = jax.random.split(key)
+        keys = jax.random.split(key, num=self.num_agents)
         return [
             agent.select_action(prngkey, t)
-            for agent, prngkey, t in zip(self.agents, (key1, key2), timesteps)
+            for agent, prngkey, t in zip(self.agents, keys, timesteps)
         ]
 
     def update(

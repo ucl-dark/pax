@@ -18,20 +18,19 @@ checkpoint: false
 
 # Agent params 
 agent1: 'DQN'
-agent2: 'TitForTat'
+agent2: 'DQN'
 
 # Environment parameters
-num_envs: 20
+num_envs: 50
 episode_length: 50
 
 # Training hyperparameters
-num_episodes: 1000
-eval_every: 50
+num_episodes: 10000
+eval_every: 500
 
 # Agent params
 batch_size: 256
-lr: 3e-2
-discount: 1
+discount: 0.99
 device: cuda
 tau: 1.0
 learning_rate: 1e-2
@@ -45,6 +44,6 @@ target_update_period: 4
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-testing-DQN'
-  name: turns-${episode_length},gamma-${discount}-run-${seed}-epsilon-${epsilon}
+  group: '${agent1}-vs-${agent2}-multirun'
+  name: ep-length=${episode_length},gamma=${discount},seed=${seed},epsilon=${epsilon}
   log: True

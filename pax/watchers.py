@@ -28,21 +28,35 @@ def policy_logger_dqn(agent) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    pid = agent.playerid
+    target_steps = agent.target_step_updates
+    probs = {
+        f"policy/{str(pid)}/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, pi)
+    }
     probs.update(
-        {f"policy/{str(s)}.defect": p[1] for (s, p) in zip(State, pi)}
+        {
+            f"policy/{str(pid)}/{str(s)}.defect": p[1]
+            for (s, p) in zip(State, pi)
+        }
     )
-    probs.update({"policy/target_update_steps": agent.num_target_updates})
+    probs.update({"policy/target_step_updates": target_steps})
     return probs
 
 
 def value_logger_dqn(agent) -> None:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
+    pid = agent.playerid
+    target_steps = agent.target_step_updates
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(pid)}/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, weights)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {
+            f"value/{str(pid)}/{str(s)}.defect": p[1]
+            for (s, p) in zip(State, weights)
+        }
     )
-    values.update({"value/target_update_steps": agent.num_target_updates})
+    values.update({"value/target_step_updates": target_steps})
     return values
