@@ -69,16 +69,15 @@ def test_mixed_batched_outcomes() -> None:
 
 
 def test_tit_for_tat_match() -> None:
-    key = jax.random.PRNGKey(0)
-    key1, key2 = jax.random.split(key)
+    dummy_key = jax.random.PRNGKey(0)
     num_envs = 5
     env = IteratedPrisonersDilemma(5, num_envs)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat()
 
-    action_0 = tit_for_tat.select_action(key1, t_0)
-    action_1 = tit_for_tat.select_action(key2, t_1)
+    action_0 = tit_for_tat.select_action(dummy_key, t_0)
+    action_1 = tit_for_tat.select_action(dummy_key, t_1)
     assert jnp.array_equal(action_0, action_1)
 
     t_0, t_1 = env.step((action_0, action_1))

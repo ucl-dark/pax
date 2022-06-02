@@ -45,12 +45,11 @@ class Runner:
 
                 # logging
                 if watchers:
-                    # plot against number of training steps
                     agents.log(watchers)
                     wandb.log(
                         {
                             "train/training_steps": self.train_steps,
-                            "train/step_reward/player_1": float(  # this is the avg. reward across envs
+                            "train/step_reward/player_1": float(
                                 jnp.array(r_0).mean()
                             ),
                             "train/step_reward/player_2": float(
