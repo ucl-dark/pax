@@ -2,13 +2,15 @@ import jax.numpy as jnp
 import jax
 import pytest
 
-from pax.env import IteratedPrisonersDilemma
+from pax.env import IteratedPrisonersDilemma, SocialDilemmaBaseEnvironment
 from pax.strategies import TitForTat
 
 
 def test_single_batch_rewards() -> None:
     num_envs = 1
-    env = IteratedPrisonersDilemma(5, num_envs)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     action = jnp.ones((num_envs, 1), dtype=jnp.int32)
     r_array = jnp.ones((num_envs, 1), dtype=jnp.int32)
 
@@ -46,8 +48,10 @@ testdata = [
 def test_batch_outcomes(actions, expected_rewards) -> None:
     num_envs = 3
     all_ones = jnp.ones((num_envs, 1))
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
 
-    env = IteratedPrisonersDilemma(5, num_envs)
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     env.reset()
 
     action_1, action_2 = actions
@@ -71,7 +75,9 @@ def test_mixed_batched_outcomes() -> None:
 def test_tit_for_tat_match() -> None:
     dummy_key = jax.random.PRNGKey(0)
     num_envs = 5
-    env = IteratedPrisonersDilemma(5, num_envs)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat()
@@ -86,7 +92,9 @@ def test_tit_for_tat_match() -> None:
 
 def test_observation() -> None:
     num_envs = 1
-    env = IteratedPrisonersDilemma(5, num_envs)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     initial_state = jnp.ones((num_envs, 1))
 
     # start
@@ -177,7 +185,9 @@ def test_observation() -> None:
 
 def test_done():
     num_envs = 1
-    env = IteratedPrisonersDilemma(5, num_envs)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     action = jnp.ones((num_envs, 1))
 
     # check first
@@ -200,7 +210,9 @@ def test_done():
 
 def test_reset():
     num_envs = 1
-    env = IteratedPrisonersDilemma(5, num_envs)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # env = IteratedPrisonersDilemma(5, num_envs)
+    env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     state = jnp.ones((num_envs, 1))
 
     env.reset()
