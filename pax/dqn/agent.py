@@ -64,7 +64,7 @@ class DQN(base.Agent):
         min_replay_size: int,
         sgd_period: int,
         target_update_period: int,
-        playerid: str,
+        player_id: int,
     ):
         # Transform the (impure) network into a pure function.
         network = hk.without_apply_rng(hk.transform(network))
@@ -137,8 +137,8 @@ class DQN(base.Agent):
         # Tracks the number of target updates
         self.target_step_updates = 0
 
-        # Uniquely identifies the player
-        self.playerid = playerid
+        # Uniquely identifies the player as 1 or 2
+        self.player_id = player_id
 
     def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
         """Selects batched actions according to an epsilon-greedy policy."""
@@ -207,7 +207,7 @@ def default_agent(
     obs_spec: specs.Array,
     action_spec: specs.DiscreteArray,
     seed: int,
-    playerid: str,
+    player_id: int,
 ) -> base.Agent:
     """Initialize a DQN agent with default parameters."""
 
@@ -237,5 +237,5 @@ def default_agent(
         target_update_period=args.target_update_period,
         epsilon=args.epsilon,
         rng=hk.PRNGSequence(seed),
-        playerid=playerid,
+        player_id=player_id,
     )

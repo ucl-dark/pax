@@ -64,14 +64,14 @@ def agent_setup(args, logger):
         )
         return sac_agent
 
-    def get_DQN_agent(seed, playerid):
+    def get_DQN_agent(seed, player_id):
         env = IteratedPrisonersDilemma(args.episode_length, args.num_envs)
         dqn_agent = default_agent(
             args,
             obs_spec=env.observation_spec(),
             action_spec=env.action_spec(),
             seed=seed,
-            playerid=playerid,
+            player_id=player_id,
         )
         return dqn_agent
 
@@ -89,12 +89,18 @@ def agent_setup(args, logger):
     assert args.agent2 in strategies
 
     # TODO: Is there a better way to start agents with different seeds?
-    seed1, seed2 = args.seed, args.seed + 1
-    agent_0 = strategies[args.agent1](seed1, playerid="player_1")
-    agent_1 = strategies[args.agent2](seed2, playerid="player_2")
+    num_agents = 2
+    seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
+    # Create Player IDs by normalizing seeds to 1, 2 respectively
+    pids = [
+        seed % seed + i if seed != 0 else 1
+        for seed, i in zip(seeds, range(1, num_agents + 1))
+    ]
+    agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+    agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
-    logger.info(f"Agent seeds: {seed1} | {seed2}")
+    logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     return IndependentLearners([agent_0, agent_1])
 
