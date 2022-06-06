@@ -28,7 +28,7 @@ def policy_logger_dqn(agent) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
-    pid = agent.playerid
+    pid = agent.player_id
     target_steps = agent.target_step_updates
     probs = {
         f"policy/{str(pid)}/{str(s)}.cooperate": p[0]
@@ -46,7 +46,7 @@ def policy_logger_dqn(agent) -> None:
 
 def value_logger_dqn(agent) -> None:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
-    pid = agent.playerid
+    pid = agent.player_id
     target_steps = agent.target_step_updates
     values = {
         f"value/{str(pid)}/{str(s)}.cooperate": p[0]
