@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Tuple
 from chex import PRNGKey
+import wandb
 
 import jax.numpy as jnp
 import jax.random
@@ -12,8 +13,12 @@ from dm_env import TimeStep
 
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
+        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
@@ -25,18 +30,24 @@ class TitForTat:
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # now either 0, 1, 2, 3
+        batch_size, _ = obs.shape
         obs = obs.argmax(axis=-1)
         # if 0 | 1 | 4  -> C
         # if 2 | 3 -> D
         obs = obs % 4
-        action = jnp.where(obs > 1, 1, 0)
-        return jnp.expand_dims(action, axis=-1)
+        action = jnp.where(obs > 1.0, 1.0, 0.0)
+        action = jnp.expand_dims(action, axis=-1)
+        return action
 
 
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
+        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x state_space]
@@ -50,8 +61,12 @@ class Defect:
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
     def select_action(
         self,
+        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x state_space]
@@ -67,6 +82,9 @@ class Altruistic:
 
 
 class Human:
+    def __init__(self, *args):
+        pass
+
     def select_action(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
         text = None
         batch_size, _ = timestep.observation.shape
