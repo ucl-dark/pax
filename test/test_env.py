@@ -9,6 +9,7 @@ from pax.strategies import TitForTat
 def test_single_batch_rewards() -> None:
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # payoff = [[4,4], [3,1], [1,3], [2,2]]
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     action = jnp.ones((num_envs, 1), dtype=jnp.int32)
     r_array = jnp.ones((num_envs, 1), dtype=jnp.int32)
