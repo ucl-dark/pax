@@ -7,7 +7,7 @@ import hydra
 import jax
 
 from pax.utils import Section
-from .env import IteratedPrisonersDilemma, SocialDilemmaBaseEnvironment
+from .env import SocialDilemmaBaseEnvironment
 from .independent_learners import IndependentLearners
 from .runner import Runner
 from .sac.agent import SAC

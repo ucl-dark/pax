@@ -2,14 +2,13 @@ import jax.numpy as jnp
 import jax
 import pytest
 
-from pax.env import IteratedPrisonersDilemma, SocialDilemmaBaseEnvironment
+from pax.env import SocialDilemmaBaseEnvironment
 from pax.strategies import TitForTat
 
 
 def test_single_batch_rewards() -> None:
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     action = jnp.ones((num_envs, 1), dtype=jnp.int32)
     r_array = jnp.ones((num_envs, 1), dtype=jnp.int32)
@@ -50,7 +49,6 @@ def test_batch_outcomes(actions, expected_rewards) -> None:
     all_ones = jnp.ones((num_envs, 1))
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
 
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     env.reset()
 
@@ -76,7 +74,6 @@ def test_tit_for_tat_match() -> None:
     dummy_key = jax.random.PRNGKey(0)
     num_envs = 5
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     t_0, t_1 = env.reset()
 
@@ -93,7 +90,6 @@ def test_tit_for_tat_match() -> None:
 def test_observation() -> None:
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     initial_state = jnp.ones((num_envs, 1))
 
@@ -186,7 +182,6 @@ def test_observation() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     action = jnp.ones((num_envs, 1))
 
@@ -211,7 +206,6 @@ def test_done():
 def test_reset():
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    # env = IteratedPrisonersDilemma(5, num_envs)
     env = SocialDilemmaBaseEnvironment(5, num_envs, payoff)
     state = jnp.ones((num_envs, 1))
 
