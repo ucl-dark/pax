@@ -52,11 +52,13 @@ python -m pax.experiment game="ipd" wandb.group="testing"
 ``` 
 
 The payoff matrices are as follows: 
-```     #             CC      DC     CD     DD
-        # IPD       = [[2,2], [3,0], [0,3], [1,1]]
-        # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
-        # BotS      = [[3,2], [0,0], [0,0], [2,3]]
-        # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]``` 
+```     
+#             CC      DC     CD     DD
+# IPD       = [[2,2], [3,0], [0,3], [1,1]]
+# Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
+# BotS      = [[3,2], [0,0], [0,0], [2,3]]
+# Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]
+``` 
 
 Additionally, we support the ability to specify your own payoff matrix: 
 
