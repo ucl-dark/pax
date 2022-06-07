@@ -62,5 +62,6 @@ Additionally, we support the ability to specify your own payoff matrix:
 
 ```bash 
 python -m pax.experiment payoff="[[2,2], [3,0], [0,3], [1,1]]"  wandb.group="testing"
+```
 
 
