@@ -41,6 +41,26 @@ First, follow these instructions to install JAX with the relevant accelerator su
 # Experiments
 We present an example experimentation script at `pax/experiment.py`. We currently use `wandb` for logging.
 
-```bash
+```bash 
 python -m pax.experiment wandb.group="testing"
-```
+``` 
+
+We include four default games: [Iterated Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma), [Stag Hunt](https://en.wikipedia.org/wiki/Stag_hunt), [Battle of the Sexes](https://en.wikipedia.org/wiki/Battle_of_the_sexes_(game_theory)), and [Chicken](https://en.wikipedia.org/wiki/Chicken_(game)). They can be called using the following flags: ```ipd, stag, sexes, chicken```. For example: 
+
+```bash 
+python -m pax.experiment game="ipd" wandb.group="testing"
+``` 
+
+The payoff matrices are as follows: 
+```     #             CC      DC     CD     DD
+        # IPD       = [[2,2], [3,0], [0,3], [1,1]]
+        # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
+        # BotS      = [[3,2], [0,0], [0,0], [2,3]]
+        # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]``` 
+
+Additionally, we support the ability to specify your own payoff matrix: 
+
+```bash 
+python -m pax.experiment payoff="[[2,2], [3,0], [0,3], [1,1]]"  wandb.group="testing"
+
+

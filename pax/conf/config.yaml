@@ -23,9 +23,8 @@ agent2: 'TitForTat'
 # Environment parameters
 num_envs: 100
 episode_length: 50
-payoff: [[4,4], [3,1], [1,3], [2,2]]
-game: chicken
-# payoff: [[2,2], [3,0], [0,3], [1,1]] # CC, DC, CD, DD 
+game: ipd # default to IPD
+payoff:
 
 # Training hyperparameters
 num_episodes: 10000
