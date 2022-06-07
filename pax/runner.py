@@ -3,7 +3,7 @@ import wandb
 import jax.random
 import jax
 
-from .env import SocialDilemmaBaseEnvironment
+from .env import SequentialMatrixGame, IteratedPrisonersDilemma
 from .strategies import Altruistic, TitForTat, Defect
 from .independent_learners import IndependentLearners
 
@@ -144,9 +144,8 @@ class Runner:
 if __name__ == "__main__":
     agents = IndependentLearners([Defect(), TitForTat()])
     # TODO: accept the arguments from config file instead of hard-coding
-    # 50 steps per episode for 10000 episodes makes for 50k steps
     # Default to prisoner's dilemma
-    env = SocialDilemmaBaseEnvironment(
+    env = IteratedPrisonersDilemma(
         50, 5, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
     )
     wandb.init(mode="online")

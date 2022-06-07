@@ -7,7 +7,7 @@ import hydra
 import jax
 
 from pax.utils import Section
-from .env import SocialDilemmaBaseEnvironment
+from .env import SequentialMatrixGame
 from .independent_learners import IndependentLearners
 from .runner import Runner
 from .sac.agent import SAC
@@ -42,12 +42,10 @@ def global_setup(args):
 
 def env_setup(args, logger):
     """Set up env variables."""
-    train_env = SocialDilemmaBaseEnvironment(
+    train_env = SequentialMatrixGame(
         args.episode_length, args.num_envs, args.payoff
     )
-    test_env = SocialDilemmaBaseEnvironment(
-        args.episode_length, 1, args.payoff
-    )
+    test_env = SequentialMatrixGame(args.episode_length, 1, args.payoff)
     return train_env, test_env
 
 
@@ -69,7 +67,7 @@ def agent_setup(args, logger):
         return sac_agent
 
     def get_DQN_agent(seed, player_id):
-        env = SocialDilemmaBaseEnvironment(
+        env = SequentialMatrixGame(
             args.episode_length, args.num_envs, args.payoff
         )
         dqn_agent = default_agent(
@@ -153,7 +151,6 @@ def watcher_setup(args, logger):
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
     """Set up main."""
-    print("hi")
     logger = logging.getLogger()
     with Section("Global setup", logger=logger):
         global_setup(args)
