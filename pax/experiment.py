@@ -7,7 +7,13 @@ import hydra
 import jax
 
 from pax.utils import Section
-from .env import SequentialMatrixGame
+from .env import (
+    SequentialMatrixGame,
+    IteratedPrisonersDilemma,
+    StagHunt,
+    BattleOfTheSexes,
+    Chicken,
+)
 from .independent_learners import IndependentLearners
 from .runner import Runner
 from .sac.agent import SAC
@@ -42,10 +48,23 @@ def global_setup(args):
 
 def env_setup(args, logger):
     """Set up env variables."""
-    train_env = SequentialMatrixGame(
-        args.episode_length, args.num_envs, args.payoff
-    )
-    test_env = SequentialMatrixGame(args.episode_length, 1, args.payoff)
+    games = {
+        "ipd": IteratedPrisonersDilemma,
+        "stag": StagHunt,
+        "sexes": BattleOfTheSexes,
+        "chicken": Chicken,
+    }
+    if args.game is not None:
+        assert args.game in games, f"{args.game} not in {games.keys()}"
+        train_env = games[args.game](args.episode_length, args.num_envs)
+        test_env = games[args.game](args.episode_length, 1)
+        logger.info(f"Game: {args.game} | payoff: {train_env.payoff}")
+    else:
+        train_env = SequentialMatrixGame(
+            args.episode_length, args.num_envs, args.payoff
+        )
+        test_env = SequentialMatrixGame(args.episode_length, 1, args.payoff)
+        logger.info(f"Game: Custom | payoff: {args.payoff}")
     return train_env, test_env
 
 
@@ -67,13 +86,14 @@ def agent_setup(args, logger):
         return sac_agent
 
     def get_DQN_agent(seed, player_id):
-        env = SequentialMatrixGame(
+        # dummy environment to get observation and action spec
+        dummy_env = SequentialMatrixGame(
             args.episode_length, args.num_envs, args.payoff
         )
         dqn_agent = default_agent(
             args,
-            obs_spec=env.observation_spec(),
-            action_spec=env.action_spec(),
+            obs_spec=dummy_env.observation_spec(),
+            action_spec=dummy_env.action_spec(),
             seed=seed,
             player_id=player_id,
         )

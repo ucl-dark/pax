@@ -145,9 +145,7 @@ if __name__ == "__main__":
     agents = IndependentLearners([Defect(), TitForTat()])
     # TODO: accept the arguments from config file instead of hard-coding
     # Default to prisoner's dilemma
-    env = IteratedPrisonersDilemma(
-        50, 5, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
-    )
+    env = IteratedPrisonersDilemma(50, 5)
     wandb.init(mode="online")
 
     def log_print(agent) -> dict:
