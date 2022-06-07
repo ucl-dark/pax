@@ -18,11 +18,13 @@ checkpoint: false
 
 # Agent params 
 agent1: 'DQN'
-agent2: 'DQN'
+agent2: 'TitForTat'
 
 # Environment parameters
-num_envs: 50
+num_envs: 100
 episode_length: 50
+game: ipd # default to IPD
+payoff:
 
 # Training hyperparameters
 num_episodes: 10000
@@ -44,6 +46,6 @@ target_update_period: 4
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-multirun'
+  group: '${agent1}-vs-${agent2}-testing-payoff-matrices'
   name: ep-length=${episode_length},gamma=${discount},seed=${seed},epsilon=${epsilon}
   log: True

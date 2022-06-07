@@ -31,12 +31,12 @@ def policy_logger_dqn(agent) -> None:
     pid = agent.player_id
     target_steps = agent.target_step_updates
     probs = {
-        f"policy/{str(pid)}/{str(s)}.cooperate": p[0]
+        f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
         for (s, p) in zip(State, pi)
     }
     probs.update(
         {
-            f"policy/{str(pid)}/{str(s)}.defect": p[1]
+            f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
             for (s, p) in zip(State, pi)
         }
     )
@@ -49,12 +49,12 @@ def value_logger_dqn(agent) -> None:
     pid = agent.player_id
     target_steps = agent.target_step_updates
     values = {
-        f"value/{str(pid)}/{str(s)}.cooperate": p[0]
+        f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
         for (s, p) in zip(State, weights)
     }
     values.update(
         {
-            f"value/{str(pid)}/{str(s)}.defect": p[1]
+            f"value/player_{str(pid)}/{str(s)}.defect": p[1]
             for (s, p) in zip(State, weights)
         }
     )
