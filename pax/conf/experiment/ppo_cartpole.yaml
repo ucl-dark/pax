@@ -1,0 +1,21 @@
+# Global parameters
+exp_name: ppo
+seed: 0
+total_timesteps: 25000
+
+# Environment arguments
+env_id: CartPole-v1
+num_envs: 4
+num_steps: 128
+
+# Agent parameters
+learning_rate: 2.5e-4
+eps: 1e-5
+
+# WandB parameters
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: 'testing-ppo'
+  name: run-${seed}
+  log: False
