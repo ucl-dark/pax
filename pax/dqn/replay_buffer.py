@@ -66,7 +66,9 @@ class Replay:
         """Returns a transposed/stacked minibatch. Each array has shape [B, ...]."""
         # numpy implementation w/o jax
         # indices = np.random.randint(self.size, size=size)
-        indices = jax.random.randint(key, shape=(size,), minval=0, maxval=size)
+        indices = jax.random.randint(
+            key, shape=(size,), minval=0, maxval=self.size
+        )
         return [slot[indices] for slot in self._data]
 
     def reset(
