@@ -3,9 +3,9 @@ import wandb
 import jax.random
 import jax
 
-from .env import SequentialMatrixGame, IteratedPrisonersDilemma
-from .strategies import Altruistic, TitForTat, Defect
-from .independent_learners import IndependentLearners
+from pax.env import SequentialMatrixGame, IteratedPrisonersDilemma
+from pax.strategies import Altruistic, TitForTat, Defect
+from pax.independent_learners import IndependentLearners
 
 # TODO: make these a copy of acme
 
@@ -37,6 +37,7 @@ class Runner:
                 rewards_1.append(r_1)
 
                 # train model
+
                 agents.update(t, actions, t_prime, key2)
                 self.train_steps += 1
 
@@ -78,6 +79,7 @@ class Runner:
                         ),
                     }
                 )
+        print()
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers, key):
@@ -138,6 +140,7 @@ class Runner:
                     }
                 )
         agents.eval(False)
+        print()
         return agents
 
 

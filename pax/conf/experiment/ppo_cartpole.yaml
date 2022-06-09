@@ -7,10 +7,17 @@ total_timesteps: 25000
 env_id: CartPole-v1
 num_envs: 4
 num_steps: 128
+anneal_lr: False
+num_minibatches: 4
+update_epochs: 4 
 
 # Agent parameters
 learning_rate: 2.5e-4
 eps: 1e-5
+gae: True 
+gamma: 0.99 
+gae_lambda: 0.95
+max_abs_reward: np.inf
 
 # WandB parameters
 wandb:

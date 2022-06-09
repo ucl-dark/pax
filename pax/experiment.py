@@ -7,25 +7,25 @@ import hydra
 import jax
 
 from pax.utils import Section
-from .env import (
+from pax.env import (
     SequentialMatrixGame,
     IteratedPrisonersDilemma,
     StagHunt,
     BattleOfTheSexes,
     Chicken,
 )
-from .independent_learners import IndependentLearners
-from .runner import Runner
-from .sac.agent import SAC
-from .dqn.agent import default_agent
-from .dqn.replay_buffer import Replay
-from .watchers import (
+from pax.independent_learners import IndependentLearners
+from pax.runner import Runner
+from pax.sac.agent import SAC
+from pax.dqn.agent import default_agent
+from pax.dqn.replay_buffer import Replay
+from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
     value_logger,
     value_logger_dqn,
 )
-from .strategies import TitForTat, Defect, Altruistic, Random, Human
+from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
 
 
 def global_setup(args):
@@ -159,7 +159,8 @@ def watcher_setup(args, logger):
         policy_dict = policy_logger_dqn(agent)
         value_dict = value_logger_dqn(agent)
         policy_dict.update(value_dict)
-        wandb.log(policy_dict)
+        if args.wandb.log:
+            wandb.log(policy_dict)
         return
 
     def dumb_log(agent, *args):
