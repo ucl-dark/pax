@@ -28,8 +28,8 @@ class Runner:
             t = env.reset()
             while not (t[0].last()):
                 key, key2 = jax.random.split(key)
-                actions = agents.select_action(key, t)
-                t_prime = env.step(actions)
+                actions, infos = agents.select_action(key, t)
+                t_prime = env.step(actions)  # info
                 r_0, r_1 = t_prime[0].reward, t_prime[1].reward
 
                 # append step rewards to episode rewards
@@ -37,8 +37,7 @@ class Runner:
                 rewards_1.append(r_1)
 
                 # train model
-
-                agents.update(t, actions, t_prime, key2)
+                agents.update(t, actions, infos, t_prime, key2)
                 self.train_steps += 1
 
                 # book keeping

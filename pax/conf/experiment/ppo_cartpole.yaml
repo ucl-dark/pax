@@ -1,23 +1,27 @@
 # Global parameters
 exp_name: ppo
 seed: 0
-total_timesteps: 25000
+total_timesteps: 400000
 
 # Environment arguments
 env_id: CartPole-v1
 num_envs: 4
-num_steps: 128
+num_steps: 500 #500 #128
 anneal_lr: False
-num_minibatches: 4
-update_epochs: 4 
+num_minibatches: 16
+update_epochs: 4  #4 # Number of times to re-use the same batch for SGD
 
 # Agent parameters
 learning_rate: 2.5e-4
 eps: 1e-5
-gae: True 
 gamma: 0.99 
 gae_lambda: 0.95
 max_abs_reward: np.inf
+norm_adv: True
+clip_coef: 0.2
+ent_coef: 0.01
+vf_coef: 0.5
+buffer_capacity: 100000
 
 # WandB parameters
 wandb:
@@ -25,4 +29,4 @@ wandb:
   project: ipd
   group: 'testing-ppo'
   name: run-${seed}
-  log: False
+  log: True
