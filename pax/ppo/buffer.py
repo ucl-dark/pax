@@ -1,19 +1,19 @@
 from typing import NamedTuple, Tuple
+from dm_env import TimeStep
 import jax
 import jax.numpy as jnp
-from dm_env import TimeStep
 import numpy as np
 
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
 
-    observations: jnp.ndarray  # (t+1)
-    actions: jnp.ndarray  # (t+1)
-    rewards: jnp.ndarray  # (t+1)
-    behavior_log_probs: jnp.ndarray  # (t+1)
-    behavior_values: jnp.ndarray  # (t+1)
-    dones: jnp.ndarray  # (t+1)
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
 
 
 class TrajectoryBuffer:
@@ -25,17 +25,17 @@ class TrajectoryBuffer:
 
     def __init__(
         self,
-        num_steps: int,
         num_envs: int,
+        num_steps: int,
         obs_space: Tuple[int],  # (envs.observation_spec().num_values, )
     ):
 
         # Buffer information
-        self.num_steps = (
+        self._num_envs = num_envs
+        self._num_steps = (
             num_steps + 1
         )  # Take an additional rollout step for boostrapping value
-        self.num_envs = num_envs
-        self._rollout_length = self.num_steps * num_envs
+        self._rollout_length = num_steps * num_envs
 
         # Environment and agent specs
         self.obs_space = obs_space
@@ -66,46 +66,30 @@ class TrajectoryBuffer:
         """Append a batched time step to the buffer.
         Resets buffer and ptr if the buffer is full."""
 
-        # Logic for larger buffer.
-        # update variables
-        # q, _ = divmod(self.ptr, self._capacity)
-
-        # if q:
-        #     self.ptr = 0
-
         if self.full:
             self.reset()
 
-        self.observations = self.observations.at[self.ptr].set(
+        self.observations = self.observations.at[:, self.ptr].set(
             timestep.observation
         )
-        self.actions = self.actions.at[self.ptr].set(action)
-        self.behavior_log_probs = self.behavior_log_probs.at[self.ptr].set(
+        self.actions = self.actions.at[:, self.ptr].set(action)
+        self.behavior_log_probs = self.behavior_log_probs.at[:, self.ptr].set(
             log_prob
         )
         self.behavior_values = jax.lax.stop_gradient(
-            self.behavior_values.at[self.ptr].set(value.flatten())
+            self.behavior_values.at[:, self.ptr].set(value.flatten())
         )
-        self.dones = self.dones.at[self.ptr].set(timestep.step_type)
-        self.rewards = self.rewards.at[self.ptr].set(new_timestep.reward)
+        self.dones = self.dones.at[:, self.ptr].set(timestep.step_type)
+        self.rewards = self.rewards.at[:, self.ptr].set(new_timestep.reward)
 
         self.ptr += 1
-        self._num_added += self.num_envs
+        self._num_added += self._num_envs
 
-        if self.ptr == self.num_steps:
+        if self.ptr == self._num_steps:
             self.full = True
 
     def sample(self):
         """Returns current data"""
-        # start = self.ptr - num_steps - 1 # We sample one extra step for bootstrapping
-        # return Sample(observations=self.observations[start:self.ptr],
-        #               actions=self.actions[start:self.ptr],
-        #               rewards=self.rewards[start:self.ptr],
-        #               behavior_log_probs=self.behavior_log_probs[start:self.ptr],
-        #               behavior_values=self.behavior_values[start:self.ptr],
-        #               dones=self.dones[start:self.ptr]
-        #               )
-
         return Sample(
             observations=self.observations,
             actions=self.actions,
@@ -116,56 +100,51 @@ class TrajectoryBuffer:
         )
 
     def size(self) -> int:
-        return min(self._capacity, self._num_added)
+        return min(self._rollout_length, self._num_added)
 
     def fraction_filled(self) -> float:
-        return self.size / self._capacity
+        return self.size / self._rollout_length
 
-    # TODO: implement reset()
     def reset(self):
-        """ "Resets the replay buffer
-        Called after the buffer reaches size=num_envs*step_size"""
-        # TODO: add types
+        """Resets the replay buffer. Called upon __init__ and when buffer is full"""
         self.ptr = 0
         self.full = False
 
-        # TODO: backwards compatability
-
         self.observations = jnp.zeros(
-            (self.num_steps, self.num_envs, *self.obs_space)
+            (self._num_envs, self._num_steps, *self.obs_space)
         )
 
         self.actions = jnp.zeros(
             (
-                self.num_steps,
-                self.num_envs,
+                self._num_envs,
+                self._num_steps,
             ),
             dtype="int32",
         )
 
         self.behavior_log_probs = jnp.zeros(
             (
-                self.num_steps,
-                self.num_envs,
+                self._num_envs,
+                self._num_steps,
             )
         )
         self.rewards = jnp.zeros(
             (
-                self.num_steps,
-                self.num_envs,
+                self._num_envs,
+                self._num_steps,
             )
         )
 
         self.dones = jnp.zeros(
             (
-                self.num_steps,
-                self.num_envs,
+                self._num_envs,
+                self._num_steps,
             )
         )
         self.behavior_values = jnp.zeros(
             (
-                self.num_steps,
-                self.num_envs,
+                self._num_envs,
+                self._num_steps,
             )
         )
 

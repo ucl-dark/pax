@@ -21,12 +21,11 @@ norm_adv: True
 clip_coef: 0.2
 ent_coef: 0.01
 vf_coef: 0.5
-buffer_capacity: 100000
 
 # WandB parameters
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'testing-ppo'
+  group: 'PPO-Cartpole'
   name: run-${seed}
   log: True

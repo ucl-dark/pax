@@ -49,7 +49,6 @@ class PPO:
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         obs_spec: Tuple,
-        buffer_capacity: int,
         num_envs: int,
         num_steps: int,  # Total number of steps per batch
         num_minibatches: int,
@@ -65,16 +64,15 @@ class PPO:
             params: hk.Params, observation: TimeStep, random_key: jnp.ndarray
         ):
             """Agent policy to select actions and calculate agent specific information"""
-            key = random_key
-            key1, key2 = jax.random.split(key)
+            key, subkey = jax.random.split(random_key)
             dist, values = network.apply(params, observation)
-            actions = dist.sample(seed=key1)
+            actions = dist.sample(seed=subkey)
             log_prob, entropy = dist.log_prob(actions), dist.entropy()
             info = {
                 "values": values,
                 "log_probs": log_prob,
                 "entropy": entropy,
-                "random_key": key2,
+                "random_key": key,
             }
             return actions, info
 
@@ -93,16 +91,15 @@ class PPO:
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
-            """Calculates the gae advantages"""
+            """Calculates the gae advantages from a sequence"""
             # Only need bootstrapped value
             rewards = rewards[:-1]
             dones = dones[:-1]
-            discounts = gamma * (
-                1 - dones
-            )  # product of these gives which episodes are terminated states
+            # Simplifies terminated states
+            discounts = gamma * (1 - dones)
             # advantages = rlax.truncated_generalized_advantage_estimation(
             #     rewards[:-1],
-            #     dones[:-1],
+            #     discounts[:-1],
             #     gae_lambda,
             #     values)
             delta = rewards + discounts * values[1:] - values[:-1]
@@ -196,27 +193,25 @@ class PPO:
             )
 
             # non-vmapped version:
-            advantages, target_values = gae_advantages(
+            # advantages, target_values = gae_advantages(
+            #     rewards=rewards, values=behavior_values, dones=dones
+            # )
+
+            # VMAP
+            batch_gae_advantages = jax.vmap(gae_advantages, in_axes=0)
+            advantages, target_values = batch_gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
-            # VMAP
-            # batch_gae_advantages = jax.vmap(gae_advantages, in_axes=0)
-            # advantages, target_values = batch_gae_advantages(
-            #     rewards=rewards,
-            #     values=behavior_values,
-            #     dones=dones
-            #     )
-
             # Exclude the last step - it was only used for bootstrapping.
-            # The shape is [num_steps, num_envs, ..]
+            # The shape is [num_envs, num_steps, ..]
             (
                 observations,
                 actions,
                 behavior_log_probs,
                 behavior_values,
             ) = jax.tree_map(
-                lambda x: x[:-1, :],
+                lambda x: x[:, :-1],
                 (observations, actions, behavior_log_probs, behavior_values),
             )
 
@@ -229,12 +224,12 @@ class PPO:
                 behavior_values=behavior_values,
             )
 
-            # Concatenate all trajectories. Reshape from [num_steps, num_envs,..]
+            # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # to [num_steps * num_sequences,..]
             assert len(target_values.shape) > 1
-            num_steps = target_values.shape[0]
-            num_sequences = target_values.shape[1]
-            batch_size = num_sequences * num_steps
+            num_envs = target_values.shape[0]
+            num_steps = target_values.shape[1]
+            batch_size = num_envs * num_steps
             assert batch_size % num_minibatches == 0, (
                 "Num minibatches must divide batch size. Got batch_size={}"
                 " num_minibatches={}."
@@ -334,15 +329,15 @@ class PPO:
 
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
-            key_init, key_state = jax.random.split(key)
+            key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
-            initial_params = network.init(key_init, dummy_obs)
+            initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key_state,
+                random_key=key,
             )
 
         # Initialise training state (parameters and optimiser state).
@@ -353,7 +348,7 @@ class PPO:
 
         # Initialize buffer and sgd
         self._trajectory_buffer = TrajectoryBuffer(
-            num_steps, num_envs, obs_spec
+            num_envs, num_steps, obs_spec
         )
         self._sgd_step = sgd_step
 
@@ -423,29 +418,29 @@ class PPO:
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # create a schedule for the optimizer
-    batch_size = int(args.num_envs * args.num_steps)
-    transition_steps = args.total_timesteps / batch_size * 4
+    # batch_size = int(args.num_envs * args.num_steps)
+    # transition_steps = args.total_timesteps / batch_size * 4
 
+    # THIS THING IS CURSED. IT ALWAYS MESSES UP TRAINING.
     # Scheduled learning rate
-    scheduler = optax.linear_schedule(
-        init_value=args.learning_rate,
-        end_value=0,
-        transition_steps=transition_steps,
-    )
+    # scheduler = optax.linear_schedule(
+    #     init_value=args.learning_rate,
+    #     end_value=0,
+    #     transition_steps=transition_steps,
+    # )
 
     # Fixed learning rate
-    # scheduler = args.learning_rate
+    scheduler = args.learning_rate
     optimizer = optax.adam(learning_rate=scheduler, eps=args.eps)
     network = hk.without_apply_rng(hk.transform(forward_fn))
 
     return PPO(
-        network=network,  # Transform
+        network=network,
         optimizer=optimizer,
         random_key=jax.random.PRNGKey(seed=args.seed),
         obs_spec=obs_spec,
-        buffer_capacity=args.buffer_capacity,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,  # Total number of steps per batch
+        num_steps=args.num_steps,
         num_minibatches=args.num_minibatches,
         entropy_cost=args.ent_coef,
         value_cost=args.vf_coef,

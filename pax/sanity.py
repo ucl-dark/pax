@@ -72,10 +72,7 @@ def train(agent, envs, args):
     num_updates = (
         args.total_timesteps // batch_size
     )  # equivalent to episodes / batch_size
-
-    # TODO: Find a use for these...
-    # start_time = time.time()
-    # update_epochs = 4
+    start_time = time.time()
 
     # Total number of updates = number of steps / batch_size
     for update in range(1, num_updates + 1):
@@ -113,6 +110,12 @@ def train(agent, envs, args):
                                 "train/episode_reward": float(
                                     episodic_returns[i]
                                 ),
+                                "time_elapsed_minutes": (
+                                    time.time() - start_time
+                                )
+                                / 60,
+                                "time_elapsed_seconds": time.time()
+                                - start_time,
                             }
                         )
                     # Reset the ith environment
@@ -133,7 +136,6 @@ def train(agent, envs, args):
                     # Reset the episodic return for the ith environment to 0
                     episodic_returns = episodic_returns.at[i].set(0)
 
-                # TODO: Probably remove this bc it messes up training
                 # Adds truncated episodes
                 elif step == args.num_steps - 1:
                     env_episodes += 1
