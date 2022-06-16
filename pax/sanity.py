@@ -1,18 +1,16 @@
+from dm_env import TimeStep
+
 import logging
 import gym
 import hydra
-import jax
 import jax.numpy as jnp
-import numpy as np
-from pax.utils import Section
-from pax.ppo.ppo import PPO, make_agent
 import wandb
 import time
-import rlax
-from bsuite.utils import gym_wrapper
+
 from pax.ppo.batched_envs import BatchedEnvs
-from dm_env import TimeStep
-from pax.ppo.buffer import TrajectoryBuffer
+from pax.ppo.ppo import PPO, make_agent
+from pax.utils import Section
+from bsuite.utils import gym_wrapper
 
 
 def global_setup(args):
@@ -67,6 +65,7 @@ def train(agent, envs, args):
     global_step = 0
     env_episodes = 0
     eval_episodes = 0
+    # Rollout one extra step for bootstrapping purposes
     rollout_steps = args.num_steps + 1
     batch_size = int(args.num_envs * args.num_steps)
     num_updates = (
@@ -84,15 +83,14 @@ def train(agent, envs, args):
         t = envs.reset()
         episodic_returns = jnp.zeros(shape=(args.num_envs))
 
-        # NOTE: Each policy rollout is of size: num_envs * num_steps.
-        # Start of the outer runner loop. This can be arbitrary size as long as the updates
-        # for PPO only happens when the buffer is full.
-        # TODO: I think i want to do one extra rollout_step
+        # Each policy rollout is of size = num_envs * num_steps+1
         for step in range(0, rollout_steps):
             global_step += 1 * args.num_envs
             actions = agent.select_action(t)
             t_prime = envs.step(actions)
             episodic_returns = episodic_returns.at[:].add(t_prime.reward)
+
+            # Cartpole specific logic where an episode can terminate mid-rollout
             # Check if any of the environments have terminated
             for i, done in enumerate(t_prime.step_type):
                 # Not done = 0, done = 1
@@ -190,11 +188,11 @@ def train(agent, envs, args):
                 t_prime.reward
             )
 
-            # Check termination
+            # Cartpole specific logic where an episode can terminate mid-rollout
+            # Check if any of the environments have terminated
             for i, done in enumerate(t_prime.step_type):
                 # Not done = 0, done = 1
                 if done:
-                    # Print the global time step and the episodic return of the ith episode
                     eval_episodes += 1
                     print(
                         f"Evaluation episode = {eval_episodes}, episodic_return={eval_episodic_returns[i]}"

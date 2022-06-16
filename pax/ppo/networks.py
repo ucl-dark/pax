@@ -2,7 +2,6 @@ from typing import Dict, Any, Callable, NamedTuple, Sequence, Tuple, Optional
 import distrax
 import haiku as hk
 import jax.numpy as jnp
-import jax
 
 
 class CategoricalValueHead(hk.Module):
@@ -33,6 +32,7 @@ def forward_fn(inputs):
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
             ),
+            # TODO: Remove hardcoded action space.
             CategoricalValueHead(num_values=2),
         ]
     )

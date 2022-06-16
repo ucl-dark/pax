@@ -8,8 +8,6 @@ import numpy as np
 import haiku as hk
 import optax
 import jax
-import distrax
-import rlax
 from dm_env import TimeStep
 
 
@@ -54,6 +52,7 @@ class PPO:
         num_minibatches: int,
         entropy_cost: float,
         value_cost: float,
+        clip_value: bool,
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
@@ -91,17 +90,13 @@ class PPO:
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
-            """Calculates the gae advantages from a sequence"""
-            # Only need bootstrapped value
+            """Calculates the gae advantages from a sequence. Note that the
+            arguments are of length = rollout length + 1"""
+            # Only need up to the rollout length
             rewards = rewards[:-1]
             dones = dones[:-1]
-            # Simplifies terminated states
+            # 'Zero out' the terminated states
             discounts = gamma * (1 - dones)
-            # advantages = rlax.truncated_generalized_advantage_estimation(
-            #     rewards[:-1],
-            #     discounts[:-1],
-            #     gae_lambda,
-            #     values)
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
             for t in reversed(range(delta.shape[0])):
@@ -130,15 +125,7 @@ class PPO:
             # Compute importance sampling weights: current policy / behavior policy.
             rhos = jnp.exp(log_prob - behavior_log_probs)
 
-            # Pure JAX implementation
-            # policy_loss1 = -advantages * ratio
-            # policy_loss2 = -advantages * jax.lax.clamp(min=1-args.clip_coef, x=ratio, max=1+args.clip_coef)
-            # policy_loss = jnp.mean(jnp.maximum(pg_loss1, pg_loss2))
-
-            # RLAX implementation
-            # policy_loss = rlax.clipped_surrogate_pg_loss(rhos, advantages, ppo_clipping_epsilon)
-
-            # Policy loss
+            # Policy loss: Clipping
             clipped_ratios_t = jnp.clip(
                 rhos, 1.0 - ppo_clipping_epsilon, 1.0 + ppo_clipping_epsilon
             )
@@ -147,15 +134,30 @@ class PPO:
             )
             policy_loss = -jnp.mean(clipped_objective)
 
-            # Value function loss
+            # Value function loss. Exclude the bootstrap value
             unclipped_value_error = target_values - values
             unclipped_value_loss = unclipped_value_error**2
-            value_loss = jnp.mean(unclipped_value_loss)
 
-            # Entropy loss: entropy regularizer
+            if clip_value:
+                # Clip values to reduce variablility during critic training.
+                clipped_values = behavior_values + jnp.clip(
+                    values - behavior_values,
+                    -ppo_clipping_epsilon,
+                    ppo_clipping_epsilon,
+                )
+                clipped_value_error = target_values - clipped_values
+                clipped_value_loss = clipped_value_error**2
+                value_loss = jnp.mean(
+                    jnp.fmax(unclipped_value_loss, clipped_value_loss)
+                )
+            else:
+                value_loss = jnp.mean(unclipped_value_loss)
+
+            # Entropy loss: Standard entropy term
+            # TODO: Add entropy annealing. Requires passing in step count.
             entropy_loss = -jnp.mean(entropy)
 
-            # Total loss: Minimize policy loss and value loss; maximize entropy
+            # Total loss: Minimize policy and value loss; maximize entropy
             total_loss = (
                 policy_loss
                 + entropy_cost * entropy_loss
@@ -192,12 +194,7 @@ class PPO:
                 sample.dones,
             )
 
-            # non-vmapped version:
-            # advantages, target_values = gae_advantages(
-            #     rewards=rewards, values=behavior_values, dones=dones
-            # )
-
-            # VMAP
+            # vmap
             batch_gae_advantages = jax.vmap(gae_advantages, in_axes=0)
             advantages, target_values = batch_gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
@@ -225,7 +222,7 @@ class PPO:
             )
 
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
-            # to [num_steps * num_sequences,..]
+            # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
             num_envs = target_values.shape[0]
             num_steps = target_values.shape[1]
@@ -418,20 +415,34 @@ class PPO:
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # create a schedule for the optimizer
-    # batch_size = int(args.num_envs * args.num_steps)
-    # transition_steps = args.total_timesteps / batch_size * 4
+    batch_size = int(args.num_envs * args.num_steps)
+    transition_steps = (
+        args.total_timesteps
+        / batch_size
+        * args.update_epochs
+        * args.num_minibatches
+    )
 
-    # THIS THING IS CURSED. IT ALWAYS MESSES UP TRAINING.
-    # Scheduled learning rate
-    # scheduler = optax.linear_schedule(
-    #     init_value=args.learning_rate,
-    #     end_value=0,
-    #     transition_steps=transition_steps,
-    # )
+    if args.scheduling:
+        scheduler = optax.linear_schedule(
+            init_value=args.learning_rate,
+            end_value=0,
+            transition_steps=transition_steps,
+        )
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(args.max_gradient_norm),
+            optax.scale_by_adam(eps=args.adam_epsilon),
+            optax.scale_by_schedule(scheduler),
+            optax.scale(-1),
+        )
 
-    # Fixed learning rate
-    scheduler = args.learning_rate
-    optimizer = optax.adam(learning_rate=scheduler, eps=args.eps)
+    else:
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(args.max_gradient_norm),
+            optax.scale_by_adam(eps=args.adam_epsilon),
+            optax.scale(-args.learning_rate),
+        )
+
     network = hk.without_apply_rng(hk.transform(forward_fn))
 
     return PPO(
@@ -444,6 +455,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         num_minibatches=args.num_minibatches,
         entropy_cost=args.ent_coef,
         value_cost=args.vf_coef,
+        clip_value=args.clip_value,
         ppo_clipping_epsilon=args.clip_coef,
         gamma=args.gamma,
         gae_lambda=args.gae_lambda,
