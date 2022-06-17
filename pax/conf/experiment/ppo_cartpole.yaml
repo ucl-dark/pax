@@ -20,7 +20,7 @@ clip_value: True
 anneal_entropy: True
 max_gradient_norm: 0.5
 entropy_coeff_start: 0.01
-entropy_coeff_horizon: 3000000
+entropy_coeff_horizon: 1000000
 entropy_coeff_end: 0.001
 
 # Optimizer parameters 
@@ -32,6 +32,6 @@ scheduling: False
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: "PPO-value-clip=${clip_value}-scheduling=${scheduling}-anneal_entropy=${anneal_entropy}}" # ???
+  group: "PPO-new-train-loop" #"PPO-value-clip=${clip_value}-scheduling=${scheduling}-anneal_entropy=${anneal_entropy}}" # ???
   name: run-${seed}
   log: True

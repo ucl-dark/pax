@@ -419,12 +419,15 @@ class PPO:
         # Log metrics
         self._total_steps += self._num_envs
         self._logger.metrics["total_steps"] += self._num_envs
+
+        # Update internal state with total_steps
         self._state = TrainingState(
             params=self._state.params,
             opt_state=self._state.opt_state,
             random_key=self._infos["random_key"],
             timesteps=self._total_steps,
         )
+        # Update counter until doing SGD
         self._until_sgd += 1
 
         # Rollouts still in progress

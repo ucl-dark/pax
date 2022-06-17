@@ -1,7 +1,15 @@
 from tokenize import String
-from dm_env import Environment, TimeStep, specs
+from dm_env import (
+    Environment,
+    TimeStep,
+    specs,
+    restart,
+    termination,
+    transition,
+)
 import gym
 import jax.numpy as jnp
+import numpy as np
 from bsuite.utils import gym_wrapper
 
 
@@ -10,11 +18,9 @@ class BatchedEnvs(Environment):
     Similar to OpenAIs SyncVectorEnv"""
 
     # TODO: Extend to all gym environments
-
-    def __init__(self, num_envs: int, seed: int, env_id: String):
-        seed = 0
-        env_id = "CartPole-v1"
-
+    def __init__(
+        self, num_envs: int, seed: int = 0, env_id: String = "CartPole-v1"
+    ):
         def make_env(env_id, seed):
             """Creates a gym environment and converts it to an dm_env"""
             env = gym.make(env_id)
@@ -28,17 +34,21 @@ class BatchedEnvs(Environment):
 
     def step(self, actions: jnp.ndarray) -> TimeStep:
         """Step multiple environments"""
-        observations = []
-        rewards = []
-        discounts = []
         step_types = []
+        rewards = []
+        observations = []
+        discounts = []
         for env, action in zip(self.envs, actions):
             t = env.step(int(action))
+            # Episode terminates, reset and at the first observation
             if t.step_type == 2:
-                step_types.append(1)
+                step_types.append(True)
+                t_reset = env.reset()
+                observations.append(t_reset.observation)
+            # Episode not over, so append current observation
             else:
-                step_types.append(0)
-            observations.append(t.observation)
+                step_types.append(False)
+                observations.append(t.observation)
             rewards.append(t.reward)
             discounts.append(t.discount)
         timestep = TimeStep(
@@ -58,9 +68,9 @@ class BatchedEnvs(Environment):
         for env in self.envs:
             t = env.reset()
             if t.step_type == 2:
-                step_types.append(1)
+                step_types.append(True)
             else:
-                step_types.append(0)
+                step_types.append(False)
             observations.append(t.observation)
             rewards.append(t.reward)
             discounts.append(t.discount)
