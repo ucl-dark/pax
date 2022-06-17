@@ -1,11 +1,11 @@
-import jax.numpy as jnp
-import wandb
-import jax.random
-import jax
-
 from pax.env import SequentialMatrixGame, IteratedPrisonersDilemma
-from pax.strategies import Altruistic, TitForTat, Defect
 from pax.independent_learners import IndependentLearners
+from pax.strategies import Altruistic, TitForTat, Defect
+
+import jax
+import jax.numpy as jnp
+import jax.random
+import wandb
 
 # TODO: make these a copy of acme
 

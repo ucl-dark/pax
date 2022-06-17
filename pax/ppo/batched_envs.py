@@ -1,16 +1,10 @@
 from tokenize import String
-from dm_env import (
-    Environment,
-    TimeStep,
-    specs,
-    restart,
-    termination,
-    transition,
-)
+
+from bsuite.utils import gym_wrapper
+from dm_env import Environment, specs, TimeStep
 import gym
 import jax.numpy as jnp
 import numpy as np
-from bsuite.utils import gym_wrapper
 
 
 class BatchedEnvs(Environment):

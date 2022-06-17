@@ -1,15 +1,15 @@
-from multiprocessing.dummy import Array
-from tkinter import N
 from typing import Any, NamedTuple, Tuple, Dict
-from pax.ppo.networks import make_network
-from pax.ppo.buffer import TrajectoryBuffer
+
 from pax import utils
+from pax.ppo.buffer import TrajectoryBuffer
+from pax.ppo.networks import make_network
+
+from dm_env import TimeStep
+import haiku as hk
+import jax
 import jax.numpy as jnp
 import numpy as np
-import haiku as hk
 import optax
-import jax
-from dm_env import TimeStep
 
 
 class Batch(NamedTuple):
