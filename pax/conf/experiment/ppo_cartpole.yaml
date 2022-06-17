@@ -6,10 +6,10 @@ total_timesteps: 500000
 # Environment arguments
 env_id: CartPole-v1
 num_envs: 4
-num_steps: 500 #500 #128
+num_steps: 500 
 anneal_lr: False
 num_minibatches: 16
-num_epochs: 4  #4 # Number of times to re-use the same batch for SGD
+num_epochs: 4 
 
 # Agent parameters 
 gamma: 0.99 
@@ -32,6 +32,6 @@ scheduling: False
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: "PPO-value-clip=${clip_value}-scheduling=${scheduling}-anneal_entropy=${anneal_entropy}}" #???
+  group: "PPO-value-clip=${clip_value}-scheduling=${scheduling}-anneal_entropy=${anneal_entropy}}" # ???
   name: run-${seed}
   log: True

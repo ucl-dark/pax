@@ -61,7 +61,6 @@ class BatchedEnvs(Environment):
                 step_types.append(1)
             else:
                 step_types.append(0)
-            # step_types.append(StepType(t.step_type))
             observations.append(t.observation)
             rewards.append(t.reward)
             discounts.append(t.discount)
