@@ -32,6 +32,7 @@ class TrainingState(NamedTuple):
     params: hk.Params
     opt_state: Any
     random_key: Any
+    timesteps: int
 
 
 class Logger:
@@ -47,16 +48,19 @@ class PPO:
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         obs_spec: Tuple,
-        num_envs: int,
-        num_steps: int,  # Total number of steps per batch
-        num_minibatches: int,
-        entropy_cost: float,
-        value_cost: float,
-        clip_value: bool,
+        num_envs: int = 4,
+        num_steps: int = 500,  # Total number of steps per batch
+        num_minibatches: int = 16,
+        num_epochs: int = 4,  # Number of times to use rollout data to train. ACME default = 1
+        clip_value: bool = True,
+        value_coeff: float = 0.5,
+        anneal_entropy: bool = False,
+        entropy_coeff_start: float = 0.1,
+        entropy_coeff_end: float = 0.01,
+        entropy_coeff_horizon: int = 3_000_000,
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
-        num_epochs: int = 4,  # Number of times to use rollout data to train. ACME default = 1
     ):
         @jax.jit
         def policy(
@@ -110,6 +114,7 @@ class PPO:
 
         def loss(
             params: hk.Params,
+            timesteps: int,
             observations: jnp.ndarray,
             actions: jnp.array,
             behavior_log_probs: jnp.array,
@@ -135,9 +140,11 @@ class PPO:
             policy_loss = -jnp.mean(clipped_objective)
 
             # Value function loss. Exclude the bootstrap value
+            value_cost = value_coeff
             unclipped_value_error = target_values - values
             unclipped_value_loss = unclipped_value_error**2
 
+            # Value clipping
             if clip_value:
                 # Clip values to reduce variablility during critic training.
                 clipped_values = behavior_values + jnp.clip(
@@ -154,7 +161,16 @@ class PPO:
                 value_loss = jnp.mean(unclipped_value_loss)
 
             # Entropy loss: Standard entropy term
-            # TODO: Add entropy annealing. Requires passing in step count.
+            if anneal_entropy:
+                # Calculate the new value based on linear annealing formula
+                fraction = jnp.fmax(1 - timesteps / entropy_coeff_horizon, 0)
+                entropy_cost = (
+                    fraction * entropy_coeff_start
+                    + (1 - fraction) * entropy_coeff_end
+                )
+            else:
+                # Constant entropy cost
+                entropy_cost = entropy_coeff_start
             entropy_loss = -jnp.mean(entropy)
 
             # Total loss: Minimize policy and value loss; maximize entropy
@@ -240,13 +256,13 @@ class PPO:
             grad_fn = jax.grad(loss, has_aux=True)
 
             def model_update_minibatch(
-                carry: Tuple[hk.Params, optax.OptState],
+                carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
             ) -> Tuple[
-                Tuple[hk.Params, optax.OptState], Dict[str, jnp.ndarray]
+                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
             ]:
                 """Performs model update for a single minibatch."""
-                params, opt_state = carry
+                params, opt_state, timesteps = carry
                 # Normalize advantages at the minibatch level before using them.
                 advantages = (
                     minibatch.advantages
@@ -254,6 +270,7 @@ class PPO:
                 ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
                 gradients, metrics = grad_fn(
                     params,
+                    timesteps,
                     minibatch.observations,
                     minibatch.actions,
                     minibatch.behavior_log_probs,
@@ -268,17 +285,19 @@ class PPO:
 
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
-                return (params, opt_state), metrics
+                return (params, opt_state, timesteps), metrics
 
             def model_update_epoch(
-                carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+                carry: Tuple[
+                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
+                ],
                 unused_t: Tuple[()],
             ) -> Tuple[
                 Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
                 Dict[str, jnp.ndarray],
             ]:
                 """Performs model updates based on one epoch of data."""
-                key, params, opt_state, batch = carry
+                key, params, opt_state, timesteps, batch = carry
                 key, subkey = jax.random.split(key)
                 permutation = jax.random.permutation(subkey, batch_size)
                 shuffled_batch = jax.tree_map(
@@ -291,23 +310,24 @@ class PPO:
                     shuffled_batch,
                 )
 
-                (params, opt_state), metrics = jax.lax.scan(
+                (params, opt_state, timesteps), metrics = jax.lax.scan(
                     model_update_minibatch,
-                    (params, opt_state),
+                    (params, opt_state, timesteps),
                     minibatches,
                     length=num_minibatches,
                 )
-                return (key, params, opt_state, batch), metrics
+                return (key, params, opt_state, timesteps, batch), metrics
 
             params = state.params
             opt_state = state.opt_state
+            timesteps = state.timesteps
 
             # Repeat training for the given number of epoch, taking a random
             # permutation for every epoch.
             # signature is scan(function, carry, tuple to iterate over, length)
-            (key, params, opt_state, _), metrics = jax.lax.scan(
+            (key, params, opt_state, timesteps, _), metrics = jax.lax.scan(
                 model_update_epoch,
-                (state.random_key, params, opt_state, batch),
+                (state.random_key, params, opt_state, timesteps, batch),
                 (),
                 length=num_epochs,
             )
@@ -319,7 +339,10 @@ class PPO:
             metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
 
             new_state = TrainingState(
-                params=params, opt_state=opt_state, random_key=key
+                params=params,
+                opt_state=opt_state,
+                random_key=key,
+                timesteps=timesteps,
             )
 
             return new_state, metrics
@@ -335,6 +358,7 @@ class PPO:
                 params=initial_params,
                 opt_state=initial_opt_state,
                 random_key=key,
+                timesteps=0,
             )
 
         # Initialise training state (parameters and optimiser state).
@@ -360,11 +384,17 @@ class PPO:
         self._rollouts = rollouts
 
         # Other useful hyperparameters
-        self._num_minibatches = num_minibatches
-        self._batch_size = int(num_envs * num_steps)
-        self._num_steps = num_steps
-        self._num_envs = num_envs
-        self._num_epochs = num_epochs
+        self._num_envs = num_envs  # number of environments
+        self._num_steps = num_steps  # number of steps per environment
+        self._batch_size = int(
+            num_envs * num_steps
+        )  # number elements in one batch
+        self._num_minibatches = (
+            num_minibatches  # number of minibatches during training
+        )
+        self._num_epochs = (
+            num_epochs  # number of epochs to train using a sample
+        )
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
@@ -375,6 +405,7 @@ class PPO:
             params=self._state.params,
             opt_state=self._state.opt_state,
             random_key=self._infos["random_key"],
+            timesteps=self._state.timesteps,
         )
         return utils.to_numpy(actions)
 
@@ -384,8 +415,14 @@ class PPO:
 
         # Update global count of steps taken
         self._total_steps += self._num_envs
+        self._logger.metrics["total_steps"] += self._num_envs
+        self._state = TrainingState(
+            params=self._state.params,
+            opt_state=self._state.opt_state,
+            random_key=self._infos["random_key"],
+            timesteps=self._total_steps,
+        )
         self._until_sgd += 1
-        self._logger.metrics["total_steps"] += 1 * self._num_envs
 
         # Adds agent and environment info to buffer
         self._rollouts(
@@ -412,6 +449,7 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
 
 
+# TODO: action_spec, seed, and player_id not used in CartPole
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # create a schedule for the optimizer
@@ -419,7 +457,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     transition_steps = (
         args.total_timesteps
         / batch_size
-        * args.update_epochs
+        * args.num_epochs
         * args.num_minibatches
     )
 
@@ -453,13 +491,16 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.num_minibatches,
-        entropy_cost=args.ent_coef,
-        value_cost=args.vf_coef,
+        num_epochs=args.num_epochs,
         clip_value=args.clip_value,
-        ppo_clipping_epsilon=args.clip_coef,
+        value_coeff=args.value_coeff,
+        anneal_entropy=args.anneal_entropy,
+        entropy_coeff_start=args.entropy_coeff_start,
+        entropy_coeff_end=args.entropy_coeff_end,
+        entropy_coeff_horizon=args.entropy_coeff_horizon,
+        ppo_clipping_epsilon=args.ppo_clipping_epsilon,
         gamma=args.gamma,
         gae_lambda=args.gae_lambda,
-        num_epochs=args.update_epochs,
     )
 
 

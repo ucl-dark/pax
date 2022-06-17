@@ -29,13 +29,6 @@ def global_setup(args):
 
 def env_setup(args, logger):
     train_envs = BatchedEnvs(args.num_envs, args.seed, args.env_id)
-    # test_env = BatchedEnvs(1, args.seed, args.env_id)
-    logger.info(
-        f"Training environments single observation space: {train_envs.observation_spec().shape[1:]}"
-    )
-    logger.info(
-        f"Training environments single action space: { train_envs.action_spec()}"
-    )
     return train_envs
 
 
@@ -226,7 +219,7 @@ def main(args):
         wandb.init(
             entity="ucl-dark",
             project="ipd",
-            group="cartpole-debug",
+            group="cartpole",
             name="run-0",
         )
 

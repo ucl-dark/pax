@@ -1,13 +1,5 @@
 from tokenize import String
-from dm_env import (
-    Environment,
-    TimeStep,
-    restart,
-    specs,
-    termination,
-    transition,
-    StepType,
-)
+from dm_env import Environment, TimeStep, specs
 import gym
 import jax.numpy as jnp
 from bsuite.utils import gym_wrapper
