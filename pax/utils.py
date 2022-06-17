@@ -1,4 +1,5 @@
 from time import time as tic
+
 import jax
 import jax.numpy as jnp
 import numpy as np

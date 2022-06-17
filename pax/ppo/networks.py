@@ -1,4 +1,5 @@
-from typing import Dict, Any, Callable, NamedTuple, Sequence, Tuple, Optional
+from typing import Optional
+
 import distrax
 import haiku as hk
 import jax.numpy as jnp
