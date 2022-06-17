@@ -61,7 +61,7 @@ class SequentialMatrixGame(Environment):
 
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
-            return transition(reward=r_1, observation=obs_1), termination(
+            return termination(reward=r_1, observation=obs_1), termination(
                 reward=r_2, observation=obs_2
             )
 
