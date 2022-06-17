@@ -1,6 +1,7 @@
 from multiprocessing.dummy import Array
+from tkinter import N
 from typing import Any, NamedTuple, Tuple, Dict
-from pax.ppo.networks import CategoricalValueHead, forward_fn
+from pax.ppo.networks import make_network
 from pax.ppo.buffer import TrajectoryBuffer
 from pax import utils
 import jax.numpy as jnp
@@ -139,7 +140,7 @@ class PPO:
             )
             policy_loss = -jnp.mean(clipped_objective)
 
-            # Value function loss. Exclude the bootstrap value
+            # Value loss: MSE
             value_cost = value_coeff
             unclipped_value_error = target_values - values
             unclipped_value_loss = unclipped_value_error**2
@@ -161,15 +162,15 @@ class PPO:
                 value_loss = jnp.mean(unclipped_value_loss)
 
             # Entropy loss: Standard entropy term
+            # Calculate the new value based on linear annealing formula
             if anneal_entropy:
-                # Calculate the new value based on linear annealing formula
                 fraction = jnp.fmax(1 - timesteps / entropy_coeff_horizon, 0)
                 entropy_cost = (
                     fraction * entropy_coeff_start
                     + (1 - fraction) * entropy_coeff_end
                 )
+            # Constant Entropy term
             else:
-                # Constant entropy cost
                 entropy_cost = entropy_coeff_start
             entropy_loss = -jnp.mean(entropy)
 
@@ -386,15 +387,9 @@ class PPO:
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
         self._num_steps = num_steps  # number of steps per environment
-        self._batch_size = int(
-            num_envs * num_steps
-        )  # number elements in one batch
-        self._num_minibatches = (
-            num_minibatches  # number of minibatches during training
-        )
-        self._num_epochs = (
-            num_epochs  # number of epochs to train using a sample
-        )
+        self._batch_size = int(num_envs * num_steps)  # number in one batch
+        self._num_minibatches = num_minibatches  # number of minibatches
+        self._num_epochs = num_epochs  # number of epochs to use sample
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
@@ -412,8 +407,16 @@ class PPO:
     def update(
         self, t: TimeStep, actions: np.array, infos: dict, t_prime: TimeStep
     ):
+        # Adds agent and environment info to buffer
+        self._rollouts(
+            buffer=self._trajectory_buffer,
+            t=t,
+            actions=actions,
+            t_prime=t_prime,
+            infos=infos,
+        )
 
-        # Update global count of steps taken
+        # Log metrics
         self._total_steps += self._num_envs
         self._logger.metrics["total_steps"] += self._num_envs
         self._state = TrainingState(
@@ -423,15 +426,6 @@ class PPO:
             timesteps=self._total_steps,
         )
         self._until_sgd += 1
-
-        # Adds agent and environment info to buffer
-        self._rollouts(
-            buffer=self._trajectory_buffer,
-            t=t,
-            actions=actions,
-            t_prime=t_prime,
-            infos=infos,
-        )
 
         # Rollouts still in progress
         if self._until_sgd % (self._num_steps + 1) != 0:
@@ -461,6 +455,8 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         * args.num_minibatches
     )
 
+    # TODO: make this more elegant
+    # Make optimizer
     if args.scheduling:
         scheduler = optax.linear_schedule(
             init_value=args.learning_rate,
@@ -481,7 +477,8 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
             optax.scale(-args.learning_rate),
         )
 
-    network = hk.without_apply_rng(hk.transform(forward_fn))
+    # network = hk.without_apply_rng(hk.transform(forward_fn))
+    network = make_network(action_spec)
 
     return PPO(
         network=network,

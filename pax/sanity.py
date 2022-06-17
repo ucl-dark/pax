@@ -29,6 +29,8 @@ def global_setup(args):
 
 def env_setup(args, logger):
     train_envs = BatchedEnvs(args.num_envs, args.seed, args.env_id)
+    # logger.info(f"Training environments single observation space: {train_envs.observation_spec.num_values}")
+    # logger.info(f"Training environments single action space: { train_envs.action_spec.num_values}")
     return train_envs
 
 
