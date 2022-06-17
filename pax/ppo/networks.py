@@ -31,7 +31,7 @@ class CategoricalValueHead(hk.Module):
 
 
 def make_network(num_actions: int):
-    """Creates a hk network"""
+    """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
         layers = []

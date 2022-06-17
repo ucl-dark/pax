@@ -89,17 +89,4 @@ class BatchedEnvs(Environment):
 
 
 if __name__ == "__main__":
-    seed = 0
-    env_id = "CartPole-v1"
-    num_envs = 2
-    env = BatchedEnvs(num_envs=num_envs, seed=seed, env_id=env_id)
-    print(env.observation_spec().num_values)
-    t = env.reset()
-    print(t)
-    print(t.observation.shape)
-    actions = jnp.array([0, 0])
-    while True:
-        t_prime = env.step(actions)
-        print(t_prime)
-        if t_prime.step_type[0] == True:
-            break
+    pass

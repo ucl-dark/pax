@@ -29,8 +29,12 @@ def global_setup(args):
 
 def env_setup(args, logger):
     train_envs = BatchedEnvs(args.num_envs, args.seed, args.env_id)
-    # logger.info(f"Training environments single observation space: {train_envs.observation_spec.num_values}")
-    # logger.info(f"Training environments single action space: { train_envs.action_spec.num_values}")
+    logger.info(
+        f"Training environments single observation space: {train_envs.observation_spec().num_values}"
+    )
+    logger.info(
+        f"Training environments single action space: { train_envs.action_spec().num_values}"
+    )
     return train_envs
 
 
@@ -38,11 +42,12 @@ def agent_setup(args, logger):
     # dummy environment to get the specs
     dummy_env = gym.make(args.env_id)
     dummy_player_id = 0
+    seed = args.seed
     agent = make_agent(
         args,
         obs_spec=dummy_env.observation_space.shape,
         action_spec=dummy_env.action_space.n,
-        seed=args.seed,
+        seed=seed,
         player_id=dummy_player_id,
     )
     return agent
@@ -50,22 +55,60 @@ def agent_setup(args, logger):
 
 def evaluate(agent, env, args):
     """Evaluate agent"""
-    # observation = env.reset()
+    # TODO: create a runner class to store all relevant variables
+    # print()
+    # print("Evaluation")
+    # print("--------------------")
+    # done = False
+    # env = BatchedEnvs(1, args.seed, args.env_id)
+    # num_steps = 500
+    # t = env.reset()
+    # eval_episodic_returns = jnp.zeros(shape=(1))
+    # for _step in range(num_steps):
+    #     actions = agent.select_action(t)
+    #     t_prime = env.step(actions)
+    #     eval_episodic_returns = eval_episodic_returns.at[:].add(t_prime.reward)
+
+    #     # Cartpole specific logic where an episode can terminate mid-rollout
+    #     # Check if any of the environments have terminated
+    #     for i, done in enumerate(t_prime.step_type):
+    #         # Not done = 0, done = 1
+    #         if done:
+    #             eval_episodes += 1
+    #             print(
+    #                 f"Evaluation episode = {eval_episodes}, episodic_return={eval_episodic_returns[i]}"
+    #             )
+    #             if args.wandb.log:
+    #                 wandb.log(
+    #                     {
+    #                         "Evaluation Episode": eval_episodes,
+    #                         "global_steps": global_step,
+    #                         "eval/episodic_returns": float(
+    #                             eval_episodic_returns[i]
+    #                         ),
+    #                     }
+    #                 )
+    #             eval_done = True
+    #             break
+    #     if eval_done:
+    #         break
+
+    #     # Bookkeeping
+    #     t = t_prime
+    # print()
     pass
 
 
 def train(agent, envs, args):
     """Train agent"""
-    # Initalize useful counting variables
     global_step = 0
     env_episodes = 0
     eval_episodes = 0
-    # Rollout one extra step for bootstrapping purposes
-    rollout_steps = args.num_steps + 1
+    rollout_steps = (
+        args.num_steps + 1
+    )  # Rollout an addtional step to bootstrap
     batch_size = int(args.num_envs * args.num_steps)
-    num_updates = (
-        args.total_timesteps // batch_size
-    )  # equivalent to episodes / batch_size
+    num_updates = args.total_timesteps // batch_size
     start_time = time.time()
 
     # Total number of updates = number of steps / batch_size
@@ -88,9 +131,7 @@ def train(agent, envs, args):
             # Cartpole specific logic where an episode can terminate mid-rollout
             # Check if any of the environments have terminated
             for i, done in enumerate(t_prime.step_type):
-                # Not done = 0, done = 1
                 if done:
-                    # Print the global time step and the episodic return of the ith episode
                     env_episodes += 1
                     print(
                         f"global_step={global_step}, episodic_return={episodic_returns[i]}"
@@ -129,7 +170,7 @@ def train(agent, envs, args):
                     # Reset the episodic return for the ith environment to 0
                     episodic_returns = episodic_returns.at[i].set(0)
 
-                # Adds truncated episodes
+                # Report truncated episodes
                 elif step == args.num_steps - 1:
                     env_episodes += 1
                     print(
@@ -145,6 +186,8 @@ def train(agent, envs, args):
                                 ),
                             }
                         )
+
+                # Log metrics if SGD has occured
                 if args.wandb.log and global_step % (batch_size + 1) == 0:
                     wandb.log(
                         {

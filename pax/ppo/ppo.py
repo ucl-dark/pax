@@ -443,10 +443,16 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
 
 
-# TODO: action_spec, seed, and player_id not used in CartPole
+# TODO: seed, and player_id not used in CartPole
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
-    # create a schedule for the optimizer
+
+    # Network
+    # network = hk.without_apply_rng(hk.transform(forward_fn))
+    network = make_network(action_spec)
+
+    # Optimizer
+    # useful info
     batch_size = int(args.num_envs * args.num_steps)
     transition_steps = (
         args.total_timesteps
@@ -455,8 +461,6 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         * args.num_minibatches
     )
 
-    # TODO: make this more elegant
-    # Make optimizer
     if args.scheduling:
         scheduler = optax.linear_schedule(
             init_value=args.learning_rate,
@@ -477,13 +481,13 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
             optax.scale(-args.learning_rate),
         )
 
-    # network = hk.without_apply_rng(hk.transform(forward_fn))
-    network = make_network(action_spec)
+    # Random key
+    random_key = jax.random.PRNGKey(seed=seed)
 
     return PPO(
         network=network,
         optimizer=optimizer,
-        random_key=jax.random.PRNGKey(seed=args.seed),
+        random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
