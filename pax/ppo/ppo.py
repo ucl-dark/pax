@@ -1,4 +1,4 @@
-from typing import Any, NamedTuple, Tuple, Dict
+from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
@@ -28,12 +28,13 @@ class Batch(NamedTuple):
 
 
 class TrainingState(NamedTuple):
-    """Training state consists of network parameters and optimiser state."""
+    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
     params: hk.Params
     opt_state: Any
     random_key: Any
     timesteps: int
+    extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -45,14 +46,14 @@ class PPO:
 
     def __init__(
         self,
-        network: NamedTuple,  # Transform
+        network: NamedTuple,
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         obs_spec: Tuple,
         num_envs: int = 4,
-        num_steps: int = 500,  # Total number of steps per batch
+        num_steps: int = 500,
         num_minibatches: int = 16,
-        num_epochs: int = 4,  # Number of times to use rollout data to train. ACME default = 1
+        num_epochs: int = 4,
         clip_value: bool = True,
         value_coeff: float = 0.5,
         anneal_entropy: bool = False,
@@ -65,32 +66,36 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, random_key: jnp.ndarray
+            params: hk.Params, observation: TimeStep, state: TrainingState
         ):
             """Agent policy to select actions and calculate agent specific information"""
-            key, subkey = jax.random.split(random_key)
+            key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            log_prob, entropy = dist.log_prob(actions), dist.entropy()
-            info = {
-                "values": values,
-                "log_probs": log_prob,
-                "entropy": entropy,
-                "random_key": key,
-            }
-            return actions, info
+            # log_prob, entropy = dist.log_prob(actions), dist.entropy()
+            log_prob = dist.log_prob(actions)
+            state = TrainingState(
+                params=params,
+                opt_state=state.opt_state,
+                random_key=key,
+                timesteps=state.timesteps,
+                extras={"log_probs": log_prob, "values": values},
+            )
+            return actions, state
 
         def rollouts(
             buffer: TrajectoryBuffer,
             t: TimeStep,
             actions: np.array,
             t_prime: TimeStep,
-            infos: dict,
+            state: TrainingState,
         ) -> None:
             """Stores rollout in buffer"""
-            buffer.add(
-                t, actions, infos["log_probs"], infos["values"], t_prime
+            log_probs, values = (
+                state.extras["log_probs"],
+                state.extras["values"],
             )
+            buffer.add(t, actions, log_probs, values, t_prime)
 
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
@@ -100,8 +105,10 @@ class PPO:
             # Only need up to the rollout length
             rewards = rewards[:-1]
             dones = dones[:-1]
+
             # 'Zero out' the terminated states
             discounts = gamma * (1 - dones)
+
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
             for t in reversed(range(delta.shape[0])):
@@ -344,6 +351,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
+                extras=None,
             )
 
             return new_state, metrics
@@ -360,13 +368,11 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
+                extras={"values": None, "log_probs": None},
             )
 
-        # Initialise training state (parameters and optimiser state).
+        # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
-
-        # Stores information every time an action is taken such as log_prob, values, etc...
-        self._infos = None
 
         # Initialize buffer and sgd
         self._trajectory_buffer = TrajectoryBuffer(
@@ -393,27 +399,19 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._infos = self._policy(
-            self._state.params, t.observation, self._state.random_key
-        )
-        self._state = TrainingState(
-            params=self._state.params,
-            opt_state=self._state.opt_state,
-            random_key=self._infos["random_key"],
-            timesteps=self._state.timesteps,
+        actions, self._state = self._policy(
+            self._state.params, t.observation, self._state
         )
         return utils.to_numpy(actions)
 
-    def update(
-        self, t: TimeStep, actions: np.array, infos: dict, t_prime: TimeStep
-    ):
+    def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
         # Adds agent and environment info to buffer
         self._rollouts(
             buffer=self._trajectory_buffer,
             t=t,
             actions=actions,
             t_prime=t_prime,
-            infos=infos,
+            state=self._state,
         )
 
         # Log metrics
@@ -424,9 +422,11 @@ class PPO:
         self._state = TrainingState(
             params=self._state.params,
             opt_state=self._state.opt_state,
-            random_key=self._infos["random_key"],
+            random_key=self._state.random_key,
             timesteps=self._total_steps,
+            extras=self._state.extras,
         )
+
         # Update counter until doing SGD
         self._until_sgd += 1
 
@@ -451,11 +451,9 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
     # Network
-    # network = hk.without_apply_rng(hk.transform(forward_fn))
     network = make_network(action_spec)
 
     # Optimizer
-    # useful info
     batch_size = int(args.num_envs * args.num_steps)
     transition_steps = (
         args.total_timesteps

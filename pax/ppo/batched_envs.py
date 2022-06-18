@@ -11,7 +11,6 @@ class BatchedEnvs(Environment):
     """Batches a number of cartpole environments that are called sequentially.
     Similar to OpenAIs SyncVectorEnv"""
 
-    # TODO: Extend to all gym environments
     def __init__(
         self, num_envs: int, seed: int = 0, env_id: String = "CartPole-v1"
     ):

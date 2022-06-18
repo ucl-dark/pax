@@ -55,7 +55,6 @@ class TrajectoryBuffer:
         self.full = False
         self.reset()
 
-    # TODO: implement add()
     def add(
         self,
         timestep: TimeStep,
