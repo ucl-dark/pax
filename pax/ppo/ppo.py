@@ -72,14 +72,14 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            # log_prob, entropy = dist.log_prob(actions), dist.entropy()
-            log_prob = dist.log_prob(actions)
+            state.extras["values"] = values
+            state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
                 params=params,
                 opt_state=state.opt_state,
                 random_key=key,
                 timesteps=state.timesteps,
-                extras={"log_probs": log_prob, "values": values},
+                extras=state.extras,
             )
             return actions, state
 
@@ -351,7 +351,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                extras=None,
+                extras={"log_probs": None, "values": None},
             )
 
             return new_state, metrics
