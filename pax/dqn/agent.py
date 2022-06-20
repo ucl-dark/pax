@@ -23,8 +23,8 @@ class TrainingState(NamedTuple):
 
     params: hk.Params
     target_params: hk.Params
-    opt_state: Any
-    random_key: Any
+    opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
     timesteps: int
 
 
@@ -163,7 +163,7 @@ class DQN(base.Agent):
         self.player_id = player_id
 
     def select_action(self, t: dm_env.TimeStep) -> jnp.array:
-        """Selects batched actions according to an epsilon-greedy policy."""
+        """Selects batched actions based on epsilon greedy / greedy policy"""
         if self.eval:
             # Greedy policy, breaking ties uniformly at random.
             observation = t.observation[None, ...]

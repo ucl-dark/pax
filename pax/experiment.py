@@ -175,6 +175,7 @@ def watcher_setup(args, logger):
         return
 
     def ppo_log(agent):
+        # policy_dict = policy_logger(agent)
         losses = ppo_losses(agent)
         if args.wandb.log:
             wandb.log(losses)
@@ -224,12 +225,12 @@ def main(args):
 
     # TODO: Do we need this?
     # assert not train_episodes % eval_every
-    num_episodes = args.total_timesteps / (args.num_steps * args.num_envs)
+    num_episodes = int(args.total_timesteps / (args.num_steps * args.num_envs))
     print(f"Number of training episodes = {num_episodes}")
+    print()
     for num_update in range(int(num_episodes // args.eval_every)):
-        print(
-            f"Training update period {num_update}/{int(num_episodes // args.eval_every)}"
-        )
+        print(f"Update: {num_update}/{int(num_episodes // args.eval_every)}")
+        print()
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)
         runner.train_loop(train_env, agent_pair, args.eval_every, watchers)
 

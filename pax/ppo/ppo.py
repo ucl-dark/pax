@@ -33,8 +33,8 @@ class TrainingState(NamedTuple):
     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
     params: hk.Params
-    opt_state: Any
-    random_key: Any
+    opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
     timesteps: int
     extras: Mapping[str, jnp.ndarray]
 
