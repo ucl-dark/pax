@@ -1,32 +1,13 @@
-# pylint: disable=g-bad-file-header
-# Copyright 2019 DeepMind Technologies Limited. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or  implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ============================================================================
-"""A simple JAX-based DQN implementation.
-Reference: "Playing atari with deep reinforcement learning" (Mnih et al, 2015).
-Link: https://www.cs.toronto.edu/~vmnih/docs/dqn.pdf.
-"""
+# Adapted from https://github.com/deepmind/bsuite/blob/master/bsuite/baselines/jax/dqn/agent.py
 
-from typing import Any, Callable, NamedTuple, Sequence
+from typing import Any, NamedTuple, Sequence
 
 from bsuite.baselines import base
 from bsuite.environments import catch
+from dm_env import TimeStep
 from pax.dqn.replay_buffer import Replay
 
-import logging
-import wandb
-import hydra
+import distrax
 import dm_env
 from dm_env import specs
 import haiku as hk
@@ -35,7 +16,6 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 import rlax
-import distrax
 
 
 class TrainingState(NamedTuple):
@@ -44,7 +24,8 @@ class TrainingState(NamedTuple):
     params: hk.Params
     target_params: hk.Params
     opt_state: Any
-    step: int
+    random_key: Any
+    timesteps: int
 
 
 class DQN(base.Agent):
@@ -54,11 +35,11 @@ class DQN(base.Agent):
         self,
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
-        network: Callable[[jnp.ndarray], jnp.ndarray],
+        network: NamedTuple,  # actually a Transform type
         optimizer: optax.GradientTransformation,
+        random_key: Any,
         batch_size: int,
         epsilon: float,
-        rng: hk.PRNGSequence,
         discount: float,
         replay_capacity: int,
         min_replay_size: int,
@@ -66,10 +47,49 @@ class DQN(base.Agent):
         target_update_period: int,
         player_id: int,
     ):
-        # Transform the (impure) network into a pure function.
-        network = hk.without_apply_rng(hk.transform(network))
+        @jax.jit
+        def training_policy(
+            params: hk.Params,
+            observation: TimeStep,
+            state: TrainingState,
+            epsilon: float,
+        ):
+            """Agent training policy to select actions according to epsilon greedy"""
+            key, subkey = jax.random.split(state.random_key)
+            q_values = network.apply(
+                params, observation
+            )  # (num_envs, state space)
+            e_greedy_dist = distrax.EpsilonGreedy(
+                preferences=q_values, epsilon=epsilon
+            )
+            actions = e_greedy_dist.sample(seed=subkey)
+            state = TrainingState(
+                params=state.params,
+                target_params=state.target_params,
+                opt_state=state.opt_state,
+                random_key=key,
+                timesteps=state.timesteps,
+            )
+            return actions, state
 
-        # Define loss function.
+        @jax.jit
+        def evaluation_policy(
+            params: hk.Params, observation: TimeStep, state: TrainingState
+        ):
+            """Agent evaluation policy to select actions according greedy"""
+            key, subkey = jax.random.split(state.random_key)
+            q_values = network.apply(params, observation)
+            greedy_dist = distrax.Greedy(q_values)  # argument is preferences
+            actions = greedy_dist.sample(seed=subkey)
+            state = TrainingState(
+                params=state.params,
+                target_params=state.target_params,
+                opt_state=state.opt_state,
+                random_key=key,
+                timesteps=state.timesteps,
+            )
+            return actions, state
+
         def loss(
             params: hk.Params,
             target_params: hk.Params,
@@ -80,15 +100,10 @@ class DQN(base.Agent):
             o_tm1, a_tm1, r_t, d_t, o_t = transitions
             q_tm1 = network.apply(params, o_tm1)
             q_t = network.apply(target_params, o_t)
-            # TODO: Find a cleaner solution than squeezing.
-            # rlax takes a "hanging array" of actions i.e. (num_envs, ) rather than (num_envs, 1)
-            a_tm1 = a_tm1.squeeze()
-            r_t = r_t.squeeze()
             batch_q_learning = jax.vmap(rlax.q_learning)
             td_error = batch_q_learning(q_tm1, a_tm1, r_t, discount * d_t, q_t)
             return jnp.mean(td_error**2)
 
-        # Define update function.
         @jax.jit
         def sgd_step(
             state: TrainingState, transitions: Sequence[jnp.ndarray]
@@ -105,24 +120,31 @@ class DQN(base.Agent):
                 params=new_params,
                 target_params=state.target_params,
                 opt_state=new_opt_state,
-                step=state.step + 1,
+                random_key=state.random_key,
+                timesteps=state.timesteps + 1,
             )
 
-        # Initialize the networks and optimizer.
-        dummy_observation = np.zeros((1, obs_spec.num_values), jnp.float32)
-        initial_params = network.init(next(rng), dummy_observation)
-        initial_target_params = network.init(next(rng), dummy_observation)
-        initial_opt_state = optimizer.init(initial_params)
+        def make_initial_state(key: Any, obs_spec) -> TrainingState:
+            """Initialises the training state (parameters and optimiser state)."""
+            key, subkey_1, subkey_2 = jax.random.split(key, 3)
+            dummy_observation = np.zeros((1, obs_spec.num_values), jnp.float32)
+            initial_params = network.init(subkey_1, dummy_observation)
+            initial_target_params = network.init(subkey_2, dummy_observation)
+            initial_opt_state = optimizer.init(initial_params)
+            return TrainingState(
+                params=initial_params,
+                target_params=initial_target_params,
+                opt_state=initial_opt_state,
+                random_key=key,
+                timesteps=0,
+            )
 
-        # This carries the agent state relevant to training.
-        self._state = TrainingState(
-            params=initial_params,
-            target_params=initial_target_params,
-            opt_state=initial_opt_state,
-            step=0,
-        )
+        # Initialize the state
+        self._state = make_initial_state(random_key, obs_spec)
+
         self._sgd_step = sgd_step
-        self._forward = jax.jit(network.apply)
+        self._training_policy = training_policy
+        self._evaluation_policy = evaluation_policy
         self._replay = Replay(capacity=replay_capacity)
 
         # Store hyperparameters.
@@ -140,34 +162,27 @@ class DQN(base.Agent):
         # Uniquely identifies the player as 1 or 2
         self.player_id = player_id
 
-    def select_action(self, key, timestep: dm_env.TimeStep) -> jnp.array:
+    def select_action(self, t: dm_env.TimeStep) -> jnp.array:
         """Selects batched actions according to an epsilon-greedy policy."""
-        key, subkey = jax.random.split(key)
-        if self.eval:  # Evaluation mode is True
+        if self.eval:
             # Greedy policy, breaking ties uniformly at random.
-            observation = timestep.observation[None, ...]
-            q_values = self._forward(self._state.target_params, observation)
-            greedy_dist = distrax.Greedy(q_values)  # argument is preferences
-            action = greedy_dist.sample(seed=key).reshape(-1, 1)
+            observation = t.observation[None, ...]
+            action, self._state = self._evaluation_policy(
+                self._state.target_params, observation, self._state
+            )
             return action
         else:
             # Epsilon greedy policy, breaking ties uniformly at random
-            q_values = self._forward(
-                self._state.params, timestep.observation
-            )  # (num_envs, state space)
-            e_greedy_dist = distrax.EpsilonGreedy(
-                preferences=q_values, epsilon=self._epsilon
+            action, self._state = self._training_policy(
+                self._state.params, t.observation, self._state, self._epsilon
             )
-            actions = e_greedy_dist.sample(seed=key).reshape(-1, 1)
-            assert actions.shape == (len(timestep.observation), 1)
-            return actions
+            return action
 
     def update(
         self,
         timestep: dm_env.TimeStep,
         action: jnp.array,
         new_timestep: dm_env.TimeStep,
-        key,
     ):
 
         self._replay.add_batch(
@@ -190,12 +205,15 @@ class DQN(base.Agent):
             return
 
         # Do a batch of SGD.
-        transitions = self._replay.sample(self._batch_size, key)
+        transitions, key = self._replay.sample(
+            self._batch_size, self._state.random_key
+        )
+        self._state = self._state._replace(random_key=key)
         self._state = self._sgd_step(self._state, transitions)
 
         # Periodically update target parameters.
         # Default update period is every 4 sgd steps.
-        if self._state.step % self._target_update_period == 0:
+        if self._state.timesteps % self._target_update_period == 0:
             self._state = self._state._replace(
                 target_params=self._state.params
             )
@@ -210,8 +228,9 @@ def default_agent(
     player_id: int,
 ) -> base.Agent:
     """Initialize a DQN agent with default parameters."""
+    random_key = jax.random.PRNGKey(seed=seed)
 
-    def network(inputs: jnp.ndarray) -> jnp.ndarray:
+    def forward_fn(inputs: jnp.ndarray) -> jnp.ndarray:
         flat_inputs = hk.Flatten()(inputs)
         # Single layer network which acts as a lookup table
         mlp = hk.Linear(action_spec.num_values, with_bias=False)
@@ -224,18 +243,20 @@ def default_agent(
         action_values = mlp(flat_inputs)
         return action_values
 
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+
     return DQN(
         obs_spec=obs_spec,
         action_spec=action_spec,
         network=network,
-        optimizer=optax.adam(args.learning_rate),
-        batch_size=args.batch_size,
-        discount=args.discount,
-        replay_capacity=args.replay_capacity,
-        min_replay_size=args.min_replay_size,
-        sgd_period=args.sgd_period,
-        target_update_period=args.target_update_period,
-        epsilon=args.epsilon,
-        rng=hk.PRNGSequence(seed),
+        optimizer=optax.adam(args.dqn.learning_rate),
+        random_key=random_key,
+        batch_size=args.dqn.batch_size,
+        discount=args.dqn.discount,
+        replay_capacity=args.dqn.replay_capacity,
+        min_replay_size=args.dqn.min_replay_size,
+        sgd_period=args.dqn.sgd_period,
+        target_update_period=args.dqn.target_update_period,
+        epsilon=args.dqn.epsilon,
         player_id=player_id,
     )

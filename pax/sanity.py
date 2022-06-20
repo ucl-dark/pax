@@ -92,7 +92,7 @@ class CartPoleRunner:
                         )
 
             # Update the agent
-            agent.update(t, actions, agent._infos, t_prime)
+            agent.update(t, actions, t_prime)
 
             # Final step of the sequence length.
             if step == args.num_steps:

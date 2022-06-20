@@ -1,12 +1,7 @@
 import logging
 import os
-import random
-import numpy as np
-import wandb
-import hydra
-import jax
 
-from pax.utils import Section
+from pax.dqn.agent import default_agent
 from pax.env import (
     SequentialMatrixGame,
     IteratedPrisonersDilemma,
@@ -15,25 +10,26 @@ from pax.env import (
     Chicken,
 )
 from pax.independent_learners import IndependentLearners
+from pax.ppo.ppo import make_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
-from pax.dqn.agent import default_agent
-from pax.dqn.replay_buffer import Replay
+from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
+from pax.utils import Section
 from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
     value_logger,
     value_logger_dqn,
+    ppo_losses,
 )
-from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
+
+import hydra
+import wandb
 
 
 def global_setup(args):
     """Set up global variables."""
     os.makedirs(args.save_dir, exist_ok=True)
-    if args.seed is not None:
-        random.seed(args.seed)
-        np.random.seed(args.seed)
     if args.wandb.log:
         print("name", str(args.wandb.name))
         wandb.init(
@@ -71,14 +67,14 @@ def env_setup(args, logger):
             len(args.payoff[3]) == 2
         ), f"Expected length 2 but got {len(args.payoff[3])}"
         train_env = SequentialMatrixGame(
-            args.episode_length, args.num_envs, args.payoff
+            args.num_steps, args.num_envs, args.payoff
         )
-        test_env = SequentialMatrixGame(args.episode_length, 1, args.payoff)
+        test_env = SequentialMatrixGame(args.num_steps, 1, args.payoff)
         logger.info(f"Game: Custom | payoff: {args.payoff}")
     else:
         assert args.game in games, f"{args.game} not in {games.keys()}"
-        train_env = games[args.game](args.episode_length, args.num_envs)
-        test_env = games[args.game](args.episode_length, 1)
+        train_env = games[args.game](args.num_steps, args.num_envs)
+        test_env = games[args.game](args.num_steps, 1)
         logger.info(f"Game: {args.game} | payoff: {train_env.payoff}")
 
     return train_env, test_env
@@ -104,7 +100,7 @@ def agent_setup(args, logger):
     def get_DQN_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
-            args.episode_length, args.num_envs, args.payoff
+            args.num_steps, args.num_envs, args.payoff
         )
         dqn_agent = default_agent(
             args,
@@ -115,6 +111,20 @@ def agent_setup(args, logger):
         )
         return dqn_agent
 
+    def get_PPO_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        dummy_env = SequentialMatrixGame(
+            args.num_steps, args.num_envs, args.payoff
+        )
+        ppo_agent = make_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return ppo_agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
@@ -123,6 +133,7 @@ def agent_setup(args, logger):
         "Random": Random,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
+        "PPO": get_PPO_agent,
     }
 
     assert args.agent1 in strategies
@@ -163,6 +174,12 @@ def watcher_setup(args, logger):
             wandb.log(policy_dict)
         return
 
+    def ppo_log(agent):
+        losses = ppo_losses(agent)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
     def dumb_log(agent, *args):
         return
 
@@ -174,6 +191,7 @@ def watcher_setup(args, logger):
         "Random": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
+        "PPO": ppo_log,
     }
 
     assert args.agent1 in strategies
@@ -206,13 +224,14 @@ def main(args):
 
     # TODO: Do we need this?
     # assert not train_episodes % eval_every
-    key = jax.random.PRNGKey(args.seed)
-    for _ in range(int(args.num_episodes // args.eval_every)):
-        key, key1, key2 = jax.random.split(key, num=3)
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers, key1)
-        runner.train_loop(
-            train_env, agent_pair, args.eval_every, watchers, key2
+    num_episodes = args.total_timesteps / (args.num_steps * args.num_envs)
+    print(f"Number of training episodes = {num_episodes}")
+    for num_update in range(int(num_episodes // args.eval_every)):
+        print(
+            f"Training update period {num_update}/{int(num_episodes // args.eval_every)}"
         )
+        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+        runner.train_loop(train_env, agent_pair, args.eval_every, watchers)
 
 
 if __name__ == "__main__":

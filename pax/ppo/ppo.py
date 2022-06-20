@@ -1,3 +1,5 @@
+# Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
+
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
@@ -384,7 +386,14 @@ class PPO:
         self._logger = Logger()
         self._total_steps = 0
         self._until_sgd = 0
-        self._logger.metrics = {"total_steps": 0, "sgd_steps": 0}
+        self._logger.metrics = {
+            "total_steps": 0,
+            "sgd_steps": 0,
+            "loss_total": 0,
+            "loss_policy": 0,
+            "loss_value": 0,
+            "loss_entropy": 0,
+        }
 
         # Initialize functions
         self._policy = policy
@@ -452,34 +461,35 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
 
     # Network
     network = make_network(action_spec)
+    # network = make_network(action_spec.num_values)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
     transition_steps = (
         args.total_timesteps
         / batch_size
-        * args.num_epochs
-        * args.num_minibatches
+        * args.ppo.num_epochs
+        * args.ppo.num_minibatches
     )
 
-    if args.scheduling:
+    if args.ppo.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=args.learning_rate,
+            init_value=args.ppo.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.max_gradient_norm),
-            optax.scale_by_adam(eps=args.adam_epsilon),
+            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
 
     else:
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.max_gradient_norm),
-            optax.scale_by_adam(eps=args.adam_epsilon),
-            optax.scale(-args.learning_rate),
+            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.scale(-args.ppo.learning_rate),
         )
 
     # Random key
@@ -492,17 +502,17 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         obs_spec=obs_spec,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
-        num_minibatches=args.num_minibatches,
-        num_epochs=args.num_epochs,
-        clip_value=args.clip_value,
-        value_coeff=args.value_coeff,
-        anneal_entropy=args.anneal_entropy,
-        entropy_coeff_start=args.entropy_coeff_start,
-        entropy_coeff_end=args.entropy_coeff_end,
-        entropy_coeff_horizon=args.entropy_coeff_horizon,
-        ppo_clipping_epsilon=args.ppo_clipping_epsilon,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
+        num_minibatches=args.ppo.num_minibatches,
+        num_epochs=args.ppo.num_epochs,
+        clip_value=args.ppo.clip_value,
+        value_coeff=args.ppo.value_coeff,
+        anneal_entropy=args.ppo.anneal_entropy,
+        entropy_coeff_start=args.ppo.entropy_coeff_start,
+        entropy_coeff_end=args.ppo.entropy_coeff_end,
+        entropy_coeff_horizon=args.ppo.entropy_coeff_horizon,
+        ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
+        gamma=args.ppo.gamma,
+        gae_lambda=args.ppo.gae_lambda,
     )
 
 

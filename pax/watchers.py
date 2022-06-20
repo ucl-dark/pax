@@ -60,3 +60,19 @@ def value_logger_dqn(agent) -> None:
     )
     values.update({"value/target_step_updates": target_steps})
     return values
+
+
+def ppo_losses(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    loss_entropy = agent._logger.metrics["loss_entropy"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "losses/total": loss_total,
+        "losses/policy": loss_policy,
+        "losses/value": loss_value,
+        "losses/entropy": loss_entropy,
+    }
+    return losses
