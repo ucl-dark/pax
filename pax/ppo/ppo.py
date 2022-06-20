@@ -320,6 +320,7 @@ class PPO:
                     shuffled_batch,
                 )
 
+                # Arguments: function, carry, items to iterate over, num items
                 (params, opt_state, timesteps), metrics = jax.lax.scan(
                     model_update_minibatch,
                     (params, opt_state, timesteps),

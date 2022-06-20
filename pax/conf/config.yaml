@@ -13,7 +13,7 @@ seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 
 # Agents  
-agent1: 'PPO'
+agent1: 'DQN'
 agent2: 'TitForTat'
 
 # Environment
@@ -34,7 +34,6 @@ eval_every: 500 # eval every n episodes, not timesteps
 dqn: 
   batch_size: 256
   discount: 0.99
-  tau: 1.0
   learning_rate: 1e-2
   epsilon: 0.5
   replay_capacity: 100000
