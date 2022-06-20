@@ -11,7 +11,7 @@ import IteratedPrisonersDilemma
 env = IteratedPrisonersDilemma(episode_length, num_envs)
 timesteps = env.reset()
 
-agents = IndependentLeaners(
+agents = IndependentLearners(
      agent_0,
      agent_1
 )
