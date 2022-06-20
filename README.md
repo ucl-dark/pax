@@ -28,7 +28,7 @@ timestep = timesteps[0]
 timestep.observation.shape()
 # (num_envs, num_states)
 timestep.reward.shape()
-# (num_envs, 1)
+# (num_envs, )
 ```
 
 # Installation
