@@ -1,11 +1,9 @@
+from pax.env import IteratedPrisonersDilemma
+from pax.independent_learners import IndependentLearners
+from pax.strategies import TitForTat, Defect
+
 import jax.numpy as jnp
 import wandb
-import jax.random
-import jax
-
-from .env import SequentialMatrixGame, IteratedPrisonersDilemma
-from .strategies import Altruistic, TitForTat, Defect
-from .independent_learners import IndependentLearners
 
 # TODO: make these a copy of acme
 
@@ -19,7 +17,7 @@ class Runner:
         self.train_episodes = 0
         self.eval_episodes = 0
 
-    def train_loop(self, env, agents, num_episodes, watchers, key):
+    def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
         print("Training ")
         print("-----------------------")
@@ -27,9 +25,8 @@ class Runner:
             rewards_0, rewards_1 = [], []
             t = env.reset()
             while not (t[0].last()):
-                key, key2 = jax.random.split(key)
-                actions = agents.select_action(key, t)
-                t_prime = env.step(actions)
+                actions = agents.select_action(t)
+                t_prime = env.step(actions)  # info
                 r_0, r_1 = t_prime[0].reward, t_prime[1].reward
 
                 # append step rewards to episode rewards
@@ -37,7 +34,8 @@ class Runner:
                 rewards_1.append(r_1)
 
                 # train model
-                agents.update(t, actions, t_prime, key2)
+                # agents.update(t, actions, infos, t_prime)
+                agents.update(t, actions, t_prime)
                 self.train_steps += 1
 
                 # book keeping
@@ -78,9 +76,10 @@ class Runner:
                         ),
                     }
                 )
+        print()
         return agents
 
-    def evaluate_loop(self, env, agents, num_episodes, watchers, key):
+    def evaluate_loop(self, env, agents, num_episodes, watchers):
         """Run evaluation of agents against environment"""
         print("Evaluating")
         print("-----------------------")
@@ -90,8 +89,7 @@ class Runner:
             timesteps = env.reset()
 
             while not timesteps[0].last():
-                key, key2 = jax.random.split(key)
-                actions = agents.select_action(key, timesteps)
+                actions = agents.select_action(timesteps)
                 timesteps = env.step(actions)
 
                 r_0, r_1 = timesteps[0].reward, timesteps[1].reward
@@ -138,6 +136,7 @@ class Runner:
                     }
                 )
         agents.eval(False)
+        print()
         return agents
 
 

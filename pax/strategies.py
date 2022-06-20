@@ -18,7 +18,6 @@ class TitForTat:
 
     def select_action(
         self,
-        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
@@ -36,7 +35,7 @@ class TitForTat:
         # if 2 | 3 -> D
         obs = obs % 4
         action = jnp.where(obs > 1.0, 1.0, 0.0)
-        action = jnp.expand_dims(action, axis=-1)
+        # action = jnp.expand_dims(action, axis=-1) # removing this in preference for (action, )
         return action
 
 
@@ -47,13 +46,13 @@ class Defect:
 
     def select_action(
         self,
-        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x state_space]
         # return [batch]
         batch_size, _ = timestep.observation.shape
-        return jnp.ones((batch_size, 1))
+        # return jnp.ones((batch_size, 1))
+        return jnp.ones((batch_size,))
 
     def update(self, *args) -> None:
         pass
@@ -66,7 +65,6 @@ class Altruistic:
 
     def select_action(
         self,
-        key,
         timestep: TimeStep,
     ) -> jnp.ndarray:
         # state is [batch x state_space]
@@ -75,7 +73,8 @@ class Altruistic:
             batch_size,
             _,
         ) = timestep.observation.shape
-        return jnp.zeros((batch_size, 1))
+        # return jnp.zeros((batch_size, 1))
+        return jnp.zeros((batch_size,))
 
     def update(self, *args) -> None:
         pass
@@ -92,7 +91,8 @@ class Human:
         while text not in ("0", "1"):
             text = input("Press 0 for cooperate, Press 1 for defect:\n")
 
-        return int(text) * jnp.ones((batch_size, 1)), None
+        # return int(text) * jnp.ones((batch_size, 1)), None
+        return int(text) * jnp.ones((batch_size,)), None
 
     def step(self, *args) -> None:
         pass
@@ -104,4 +104,14 @@ class Random:
 
     def actor_step(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
         batch_size, _ = timestep.observation.shape
-        return jax.random.choice(self.rng, 2, [batch_size, 1]), None
+        # return jax.random.choice(self.rng, 2, [batch_size, 1]), None
+        return (
+            jax.random.choice(
+                self.rng,
+                2,
+                [
+                    batch_size,
+                ],
+            ),
+            None,
+        )

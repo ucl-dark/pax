@@ -34,7 +34,7 @@ class SequentialMatrixGame(Environment):
     def __init__(
         self, episode_length: int, num_envs: int, payoff: list
     ) -> None:
-        self.payoff = jnp.array(payoff)  # (CC, DC, CD, DD)
+        self.payoff = jnp.array(payoff)
         self.episode_length = episode_length
         self.num_envs = num_envs
         self.n_agents = 2
@@ -53,7 +53,7 @@ class SequentialMatrixGame(Environment):
         action_1, action_2 = actions
         self._num_steps += 1
         assert action_1.shape == action_2.shape
-        assert action_1.shape == (self.num_envs, 1)
+        assert action_1.shape == (self.num_envs,)
 
         r_1, r_2 = self._get_reward(action_1, action_2)
         state = self._get_state(action_1, action_2)
@@ -83,7 +83,7 @@ class SequentialMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         obs_1, obs_2 = self._observation(
-            State.START * jnp.ones((self.num_envs, 1))
+            State.START * jnp.ones((self.num_envs,))
         )
         self._num_steps = 0
         return restart(obs_1), restart(obs_2)
@@ -147,10 +147,9 @@ class SequentialMatrixGame(Environment):
             + (4 / (4 * (-3) * (-2) * (-1))) * s0 * s1 * s2 * s3
         )
 
-        # make this one hot
-        return jax.nn.one_hot(o_state, len(State)).squeeze(1), jax.nn.one_hot(
+        return jax.nn.one_hot(o_state, len(State)), jax.nn.one_hot(
             state, len(State)
-        ).squeeze(1)
+        )
 
 
 class IteratedPrisonersDilemma(SequentialMatrixGame):

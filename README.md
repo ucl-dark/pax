@@ -11,7 +11,7 @@ import IteratedPrisonersDilemma
 env = IteratedPrisonersDilemma(episode_length, num_envs)
 timesteps = env.reset()
 
-agents = IndependentLeaners(
+agents = IndependentLearners(
      agent_0,
      agent_1
 )
@@ -28,7 +28,7 @@ timestep = timesteps[0]
 timestep.observation.shape()
 # (num_envs, num_states)
 timestep.reward.shape()
-# (num_envs, 1)
+# (num_envs, )
 ```
 
 # Installation

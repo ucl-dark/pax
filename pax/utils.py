@@ -1,5 +1,9 @@
 from time import time as tic
 
+import jax
+import jax.numpy as jnp
+import numpy as np
+
 
 class Section(object):
     """
@@ -74,3 +78,11 @@ class Section(object):
             return time / 60, "m"
         else:
             return time / 3600, "h"
+
+
+def add_batch_dim(values):
+    return jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), values)
+
+
+def to_numpy(values):
+    return jax.tree_map(np.asarray, values)
