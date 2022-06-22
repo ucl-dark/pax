@@ -34,7 +34,6 @@ eval_every: 500 # eval every n episodes, not timesteps
 dqn: 
   batch_size: 256
   discount: 0.99
-  tau: 1.0
   learning_rate: 1e-2
   epsilon: 0.5
   replay_capacity: 100000
@@ -54,11 +53,12 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 1000000
+  entropy_coeff_horizon: 200_000_000
   entropy_coeff_end: 0.001
   lr_scheduling: False
   learning_rate: 2.5e-4
   adam_epsilon: 1e-5
+  with_memory: True
 
 # LOLA agent parameters
 # lola:
@@ -68,6 +68,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}'
+  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}'
   name: run-${seed}
   log: True

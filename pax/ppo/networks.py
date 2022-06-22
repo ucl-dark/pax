@@ -1,8 +1,19 @@
-from typing import Optional
+from typing import Optional, Any, Callable, Tuple, NamedTuple
+
+from pax import utils
 
 import distrax
 import haiku as hk
+import jax
 import jax.numpy as jnp
+
+
+Logits = jnp.ndarray
+Value = jnp.ndarray
+LSTMState = Any
+RecurrentPolicyValueNet = Callable[
+    [jnp.ndarray, LSTMState], Tuple[Tuple[Logits, Value], LSTMState]
+]
 
 
 class CategoricalValueHead(hk.Module):
@@ -52,3 +63,108 @@ def make_network(num_actions: int):
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network
+
+
+def make_GRU(num_actions: int):
+    hidden_size = 5
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[Logits, Value], jnp.ndarray]:
+        """forward function"""
+        gru = hk.GRU(hidden_size)
+        embedding, state = gru(inputs, hidden_state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
+def make_lstm(num_actions: int):
+    """Create an LSTM with two linear, one LSTM, then a categorical head"""
+    hidden_size = 5
+    # this should be batch size invariant.... so not sure why this doesn't work.
+    # (num_envs, hidden_size)
+    hidden_state = hk.LSTMState(
+        hidden=jnp.zeros(
+            (1, hidden_size), dtype=jnp.float32
+        ),  # the 1 at the front should make this batch invariant ...
+        cell=jnp.zeros((1, hidden_size), dtype=jnp.float32),
+    )
+
+    def forward_fn(
+        inputs: jnp.ndarray, h_in: jnp.ndarray, c_in: jnp.ndarray
+    ) -> Tuple[Tuple[Logits, Value], LSTMState]:
+        """forward function"""
+        # TODO: I don't love the inputs because i'd prefer it to be a hidden state object
+        # rather than the jnp.arrays but i can't think of better solution.
+        lstm = hk.LSTM(hidden_size)
+        hidden = hk.LSTMState(hidden=h_in, cell=c_in)
+        embedding, state = lstm(inputs, hidden)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
+def test_lstm():
+    key = jax.random.PRNGKey(seed=0)
+    num_actions = 2
+    obs_spec = (5,)
+    key, subkey = jax.random.split(key)
+    dummy_obs = jnp.zeros(shape=obs_spec)
+    dummy_obs = utils.add_batch_dim(dummy_obs)
+    network, init_hidden_state = make_lstm(num_actions)
+    initial_params = network.init(
+        subkey, dummy_obs, init_hidden_state.hidden, init_hidden_state.cell
+    )
+    for key in initial_params.keys():
+        print(initial_params[key]["w"].shape)
+    observation = jnp.zeros(shape=(1, 5))
+    (logits, values), _ = network.apply(
+        initial_params,
+        observation,
+        init_hidden_state.hidden,
+        init_hidden_state.cell,
+    )
+    print(_)
+
+    return network
+
+
+def test_GRU():
+    key = jax.random.PRNGKey(seed=0)
+    num_actions = 2
+    obs_spec = (5,)
+    key, subkey = jax.random.split(key)
+    dummy_obs = jnp.zeros(shape=obs_spec)
+    dummy_obs = utils.add_batch_dim(dummy_obs)
+    network, hidden = make_GRU(num_actions)
+    print(hidden.shape)
+    initial_params = network.init(subkey, dummy_obs, hidden)
+    print("GRU w_i", initial_params["gru"]["w_i"].shape)
+    print("GRU w_h", initial_params["gru"]["w_h"].shape)
+    print(
+        "Policy head",
+        initial_params["categorical_value_head/~/linear"]["w"].shape,
+    )
+    print(
+        "Value head",
+        initial_params["categorical_value_head/~/linear_1"]["w"].shape,
+    )
+    observation = jnp.zeros(shape=(1, 5))
+    observation = jnp.zeros(shape=(10, 5))
+    (logits, values), hidden = network.apply(
+        initial_params, observation, hidden
+    )
+    print(hidden.shape)
+    return network
+
+
+if __name__ == "__main__":
+    # test_lstm()
+    test_GRU()
+    pass

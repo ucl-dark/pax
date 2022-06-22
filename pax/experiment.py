@@ -11,6 +11,7 @@ from pax.env import (
 )
 from pax.independent_learners import IndependentLearners
 from pax.ppo.ppo import make_agent
+from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
@@ -116,13 +117,22 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_steps, args.num_envs, args.payoff
         )
-        ppo_agent = make_agent(
-            args,
-            obs_spec=(dummy_env.observation_spec().num_values,),
-            action_spec=dummy_env.action_spec().num_values,
-            seed=seed,
-            player_id=player_id,
-        )
+        if args.ppo.with_memory:
+            ppo_agent = make_gru_agent(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().num_values,
+                seed=seed,
+                player_id=player_id,
+            )
+        else:
+            ppo_agent = make_agent(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().num_values,
+                seed=seed,
+                player_id=player_id,
+            )
         return ppo_agent
 
     strategies = {
@@ -228,6 +238,8 @@ def main(args):
     num_episodes = int(args.total_timesteps / (args.num_steps * args.num_envs))
     print(f"Number of training episodes = {num_episodes}")
     print()
+    # For testing. Remove when done testing.
+    # watchers=False
     for num_update in range(int(num_episodes // args.eval_every)):
         print(f"Update: {num_update}/{int(num_episodes // args.eval_every)}")
         print()

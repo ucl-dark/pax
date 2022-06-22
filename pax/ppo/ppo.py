@@ -43,7 +43,7 @@ class Logger:
     metrics: dict
 
 
-class PPO:
+class PPO(hk.Module):
     """A simple PPO agent using JAX"""
 
     def __init__(
