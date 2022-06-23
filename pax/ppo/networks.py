@@ -82,59 +82,6 @@ def make_GRU(num_actions: int):
     return network, hidden_state
 
 
-def make_lstm(num_actions: int):
-    """Create an LSTM with two linear, one LSTM, then a categorical head"""
-    hidden_size = 5
-    # this should be batch size invariant.... so not sure why this doesn't work.
-    # (num_envs, hidden_size)
-    hidden_state = hk.LSTMState(
-        hidden=jnp.zeros(
-            (1, hidden_size), dtype=jnp.float32
-        ),  # the 1 at the front should make this batch invariant ...
-        cell=jnp.zeros((1, hidden_size), dtype=jnp.float32),
-    )
-
-    def forward_fn(
-        inputs: jnp.ndarray, h_in: jnp.ndarray, c_in: jnp.ndarray
-    ) -> Tuple[Tuple[Logits, Value], LSTMState]:
-        """forward function"""
-        # TODO: I don't love the inputs because i'd prefer it to be a hidden state object
-        # rather than the jnp.arrays but i can't think of better solution.
-        lstm = hk.LSTM(hidden_size)
-        hidden = hk.LSTMState(hidden=h_in, cell=c_in)
-        embedding, state = lstm(inputs, hidden)
-        logits, values = CategoricalValueHead(num_actions)(embedding)
-        return (logits, values), state
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network, hidden_state
-
-
-def test_lstm():
-    key = jax.random.PRNGKey(seed=0)
-    num_actions = 2
-    obs_spec = (5,)
-    key, subkey = jax.random.split(key)
-    dummy_obs = jnp.zeros(shape=obs_spec)
-    dummy_obs = utils.add_batch_dim(dummy_obs)
-    network, init_hidden_state = make_lstm(num_actions)
-    initial_params = network.init(
-        subkey, dummy_obs, init_hidden_state.hidden, init_hidden_state.cell
-    )
-    for key in initial_params.keys():
-        print(initial_params[key]["w"].shape)
-    observation = jnp.zeros(shape=(1, 5))
-    (logits, values), _ = network.apply(
-        initial_params,
-        observation,
-        init_hidden_state.hidden,
-        init_hidden_state.cell,
-    )
-    print(_)
-
-    return network
-
-
 def test_GRU():
     key = jax.random.PRNGKey(seed=0)
     num_actions = 2
@@ -165,6 +112,4 @@ def test_GRU():
 
 
 if __name__ == "__main__":
-    # test_lstm()
     test_GRU()
-    pass

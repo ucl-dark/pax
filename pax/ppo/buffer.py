@@ -30,7 +30,7 @@ class TrajectoryBuffer:
         num_envs: int,
         num_steps: int,
         obs_space: Tuple[int],  # (envs.observation_spec().num_values, )
-        gru_dim: int = None,
+        gru_dim: int = 1,
     ):
 
         # Buffer information
@@ -43,8 +43,7 @@ class TrajectoryBuffer:
         # Environment specs
         # Optional, LSTM space
         self.obs_space = obs_space
-        if gru_dim:
-            self.gru_dim = gru_dim
+        self.gru_dim = gru_dim
 
         # Initialise pointers
         self.ptr = 0

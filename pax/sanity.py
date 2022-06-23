@@ -2,6 +2,7 @@ import time
 
 from pax.ppo.batched_envs import BatchedEnvs
 from pax.ppo.ppo import make_agent
+from pax.ppo.ppo_gru import make_gru_agent
 from pax.utils import Section
 
 from dm_env import TimeStep
@@ -195,13 +196,22 @@ def agent_setup(args, logger):
     dummy_env = gym.make(args.env_id)
     dummy_player_id = 0
     seed = args.seed
-    agent = make_agent(
-        args,
-        obs_spec=dummy_env.observation_space.shape,
-        action_spec=dummy_env.action_space.n,
-        seed=seed,
-        player_id=dummy_player_id,
-    )
+    if args.ppo.with_memory:
+        agent = make_gru_agent(
+            args,
+            obs_spec=dummy_env.observation_space.shape,
+            action_spec=dummy_env.action_space.n,
+            seed=seed,
+            player_id=dummy_player_id,
+        )
+    else:
+        agent = make_agent(
+            args,
+            obs_spec=dummy_env.observation_space.shape,
+            action_spec=dummy_env.action_space.n,
+            seed=seed,
+            player_id=dummy_player_id,
+        )
     return agent
 
 
