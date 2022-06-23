@@ -41,7 +41,6 @@ class TrajectoryBuffer:
         self._rollout_length = num_steps * num_envs
 
         # Environment specs
-        # Optional, LSTM space
         self.obs_space = obs_space
         self.gru_dim = gru_dim
 

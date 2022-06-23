@@ -8,14 +8,6 @@ import jax
 import jax.numpy as jnp
 
 
-Logits = jnp.ndarray
-Value = jnp.ndarray
-LSTMState = Any
-RecurrentPolicyValueNet = Callable[
-    [jnp.ndarray, LSTMState], Tuple[Tuple[Logits, Value], LSTMState]
-]
-
-
 class CategoricalValueHead(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
@@ -71,7 +63,7 @@ def make_GRU(num_actions: int):
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[Logits, Value], jnp.ndarray]:
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, hidden_state)
