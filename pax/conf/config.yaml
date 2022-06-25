@@ -13,7 +13,7 @@ seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 
 # Agents  
-agent1: 'PPO'
+agent1: 'DQN'
 agent2: 'TitForTat'
 
 # Environment
@@ -23,7 +23,7 @@ payoff:
 # Training hyperparameters
 num_envs: 100
 num_steps: 50 # number of steps per episode
-total_timesteps: 100_000_000
+total_timesteps: 200_000_000
 eval_every: 500 # eval every n episodes, not timesteps
 
 # Useful information
@@ -58,7 +58,7 @@ ppo:
   lr_scheduling: False
   learning_rate: 2.5e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
 
 # LOLA agent parameters
 # lola:

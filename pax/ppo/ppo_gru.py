@@ -4,7 +4,7 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_GRU
+from pax.ppo.networks import make_cartpole_GRU
 
 from dm_env import TimeStep
 import haiku as hk
@@ -418,7 +418,7 @@ class PPO:
         self._total_steps = 0
         self._until_sgd = 0
         self._logger.metrics = {
-            "total_steps": 0,
+            "total_timesteps": 0,
             "sgd_steps": 0,
             "loss_total": 0,
             "loss_policy": 0,
@@ -429,6 +429,7 @@ class PPO:
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = network.apply
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -457,7 +458,7 @@ class PPO:
 
         # Log metrics
         self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
+        self._logger.metrics["total_timesteps"] += self._num_envs
 
         # Update internal state with total_steps
         self._state = self._state._replace(timesteps=self._total_steps)
@@ -487,7 +488,7 @@ class PPO:
 def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
-    network, initial_hidden_state = make_GRU(action_spec)
+    network, initial_hidden_state = make_cartpole_GRU(action_spec)
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer

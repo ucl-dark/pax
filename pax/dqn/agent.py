@@ -146,6 +146,7 @@ class DQN(base.Agent):
         self._training_policy = training_policy
         self._evaluation_policy = evaluation_policy
         self._replay = Replay(capacity=replay_capacity)
+        self.forward = jax.jit(network.apply)
 
         # Store hyperparameters.
         self._num_actions = action_spec.num_values

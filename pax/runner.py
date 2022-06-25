@@ -101,7 +101,7 @@ class Runner:
                 self.eval_steps += 1
 
                 if watchers:
-                    agents.log(watchers)
+                    # agents.log(watchers)
                     wandb.log(
                         {
                             "eval/evaluation_steps": self.eval_steps,
@@ -123,6 +123,7 @@ class Runner:
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
             if watchers:
+                agents.log(watchers)
                 wandb.log(
                     {
                         "train/episodes": self.train_episodes,

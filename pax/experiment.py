@@ -22,6 +22,8 @@ from pax.watchers import (
     value_logger,
     value_logger_dqn,
     ppo_losses,
+    cooperation_logger_ppo,
+    # cooperation_logger_dqn
 )
 
 import hydra
@@ -180,16 +182,21 @@ def watcher_setup(args, logger):
     def dqn_log(agent):
         policy_dict = policy_logger_dqn(agent)
         value_dict = value_logger_dqn(agent)
+        # cooperation = cooperation_logger_dqn(agent)
         policy_dict.update(value_dict)
+        # policy_dict.update(cooperation)
         if args.wandb.log:
             wandb.log(policy_dict)
         return
 
     def ppo_log(agent):
         # policy_dict = policy_logger(agent)
+        cooperation = cooperation_logger_ppo(agent)
         losses = ppo_losses(agent)
+        cooperation.update(losses)
         if args.wandb.log:
-            wandb.log(losses)
+            wandb.log(cooperation)
+            # wandb.log(losses)
         return
 
     def dumb_log(agent, *args):

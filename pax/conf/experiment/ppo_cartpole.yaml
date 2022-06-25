@@ -4,7 +4,7 @@ seed: 0
 
 # Environment arguments
 env_id: CartPole-v1
-total_timesteps: 500000
+total_timesteps: 1_500_000
 num_envs: 4
 num_steps: 500 
 
@@ -20,12 +20,12 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: False
   entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 1000000
+  entropy_coeff_horizon: 3_000_000
   entropy_coeff_end: 0.001
   lr_scheduling: False
   learning_rate: 2.5e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
 
 # WandB parameters
 wandb:

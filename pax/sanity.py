@@ -94,6 +94,12 @@ class CartPoleRunner:
 
             # Update the agent
             agent.update(t, actions, t_prime)
+            for i, done in enumerate(t_prime.step_type):
+                if done:
+                    if args.ppo.with_memory:
+                        hidden = agent._state.hidden
+                        hidden = hidden.at[i].set(jnp.zeros_like(hidden[0]))
+                        agent._state = agent._state._replace(hidden=hidden)
 
             # Final step of the sequence length.
             if step == args.num_steps:

@@ -2,6 +2,8 @@
 
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
+import distrax
+
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
 from pax.ppo.networks import make_network
@@ -65,14 +67,22 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        player_id: int = 0,
     ):
+
+        # @jax.jit
+        # def forward(params: hk.Params, observation: jnp.ndarray):
+        #     """Used for calculating cooperations states"""
+        #     return network.apply(params, observation)
+
         @jax.jit
         def policy(
             params: hk.Params, observation: TimeStep, state: TrainingState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(params, observation)
+            logits, values = network.apply(params, observation)
+            dist = distrax.Categorical(logits=logits)
             actions = dist.sample(seed=subkey)
             state.extras["values"] = values
             state.extras["log_probs"] = dist.log_prob(actions)
@@ -133,7 +143,9 @@ class PPO:
             behavior_values: jnp.array,
         ):
             """Surrogate loss using clipped probability ratios."""
-            distribution, values = network.apply(params, observations)
+            # distribution, values = network.apply(params, observations)
+            logits, values = network.apply(params, observations)
+            distribution = distrax.Categorical(logits=logits)
             log_prob = distribution.log_prob(actions)
             entropy = distribution.entropy()
 
@@ -373,6 +385,9 @@ class PPO:
                 extras={"values": None, "log_probs": None},
             )
 
+        # Setup player identification to distinguish player
+        self.player_id = player_id
+
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
 
@@ -384,10 +399,10 @@ class PPO:
 
         # Set up counters and logger
         self._logger = Logger()
-        self._total_steps = 0
+        self._total_timesteps = 0
         self._until_sgd = 0
         self._logger.metrics = {
-            "total_steps": 0,
+            "total_timesteps": 0,
             "sgd_steps": 0,
             "loss_total": 0,
             "loss_policy": 0,
@@ -398,6 +413,8 @@ class PPO:
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = jax.jit(network.apply)  # used for plotting
+        # self.forward = network.apply# used for plotting
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -424,15 +441,15 @@ class PPO:
         )
 
         # Log metrics
-        self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
+        self._total_timesteps += self._num_envs
+        self._logger.metrics["total_timesteps"] += self._num_envs
 
         # Update internal state with total_steps
         self._state = TrainingState(
             params=self._state.params,
             opt_state=self._state.opt_state,
             random_key=self._state.random_key,
-            timesteps=self._total_steps,
+            timesteps=self._total_timesteps,
             extras=self._state.extras,
         )
 
@@ -513,6 +530,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
+        player_id=player_id,
     )
 
 

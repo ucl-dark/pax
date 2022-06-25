@@ -1,5 +1,16 @@
+import distrax
 from flax import linen as nn
 from .env import State
+import jax.numpy as jnp
+
+# five possible states
+START = jnp.array([[0, 0, 0, 0, 1]])
+CC = jnp.array([[1, 0, 0, 0, 0]])
+CD = jnp.array([[0, 1, 0, 0, 0]])
+DC = jnp.array([[0, 0, 1, 0, 0]])
+DD = jnp.array([[0, 0, 0, 1, 0]])
+STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
+ALL_STATES = [START, CC, CD, DC, DD]
 
 
 def policy_logger(agent) -> None:
@@ -76,3 +87,56 @@ def ppo_losses(agent) -> None:
         "losses/entropy": loss_entropy,
     }
     return losses
+
+
+# def cooperation_logger_dqn(agent) -> None:
+#     """Calculate probability of coopreation"""
+#     n = 5
+#     params = agent._state.params
+#     timesteps = agent._total_steps
+#     cooperation_probs = {"timesteps":timesteps}
+
+#     # Works when the forward function is not jitted.
+#     for state, state_name in zip(ALL_STATES, STATE_NAMES):
+#         dist, _ = agent.forward(params, state)
+#         cooperation_probs[state_name] = float(dist.probs[0][0])
+#     return cooperation_probs
+
+
+def cooperation_logger_ppo(agent) -> None:
+    """Calculate probability of coopreation"""
+    # n = 5
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(
+        agent._logger.metrics["total_timesteps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # Does not work even if explicitly stated without for loop
+    # logits, _ = agent.forward(params, ALL_STATES[0])
+    # dist = distrax.Categorical(logits=logits)
+    # cooperation_probs[STATE_NAMES[0]] = float(dist.probs[0][0])
+
+    # logits, _ = agent.forward(params, ALL_STATES[1])
+    # dist = distrax.Categorical(logits=logits)
+    # cooperation_probs[STATE_NAMES[1]] = float(dist.probs[0][0])
+
+    # logits, _ = agent.forward(params, ALL_STATES[2])
+    # dist = distrax.Categorical(logits=logits)
+    # cooperation_probs[STATE_NAMES[2]] = float(dist.probs[0][0])
+
+    # logits, _ = agent.forward(params, ALL_STATES[3])
+    # dist = distrax.Categorical(logits=logits)
+    # cooperation_probs[STATE_NAMES[3]] = float(dist.probs[0][0])
+
+    # logits, _ = agent.forward(params, ALL_STATES[4])
+    # dist = distrax.Categorical(logits=logits)
+    # cooperation_probs[STATE_NAMES[4]] = float(dist.probs[0][0])
+
+    # Works when the forward function is not jitted.
+    for state, state_name in zip(ALL_STATES, STATE_NAMES):
+        (dist, _), hidden = agent.forward(params, state, hidden)
+        cooperation_probs[state_name] = float(dist.probs[0][0])
+    return cooperation_probs
