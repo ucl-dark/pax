@@ -66,7 +66,7 @@ def make_GRU(num_actions: int):
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
-        embedding, state = gru(inputs, hidden_state)
+        embedding, state = gru(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
 
