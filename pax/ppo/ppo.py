@@ -441,9 +441,11 @@ class PPO:
         # Update counter until doing SGD
         self._until_sgd += 1
 
+        # Rollouts onging
         if self._until_sgd % (self._num_steps) != 0:
             return
 
+        # Rollouts complete -> Training begins
         # Add an additional rollout step for advantage calculation
         _, self._state = self._policy(
             self._state.params, t_prime.observation, self._state
@@ -457,12 +459,6 @@ class PPO:
             new_timestep=t_prime,
         )
 
-        # TODO: Remove
-        # Rollouts still in progress
-        # if self._until_sgd % (self._num_steps + 1) != 0:
-        #     return
-
-        # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()
         self._state, results = self._sgd_step(self._state, sample)
         self._logger.metrics["sgd_steps"] += (

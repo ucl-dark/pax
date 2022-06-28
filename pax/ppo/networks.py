@@ -48,7 +48,6 @@ def make_network(num_actions: int):
                 #     [5],
                 #     # w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                 #     w_init=hk.initializers.Constant(1),
-                #     # b_init=hk.initializers.Constant(0),
                 #     with_bias = False,
                 #     activate_final=True,
                 # ),

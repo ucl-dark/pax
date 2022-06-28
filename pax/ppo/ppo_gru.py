@@ -72,7 +72,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
     ):
-        # @jax.jit
+        @jax.jit
         def policy(
             params: hk.Params, observation: TimeStep, state: TrainingState
         ):
@@ -208,7 +208,7 @@ class PPO:
             }
             # }, new_rnn_unroll_state
 
-        # @jax.jit
+        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -468,8 +468,25 @@ class PPO:
         # if self._until_sgd % (self._num_steps + 1) != 0:
         #     return
 
-        if self._until_sgd % (self._num_steps + 1) != 0:
+        if self._until_sgd % (self._num_steps) != 0:
             return
+
+        # Add an additional rollout step for advantage calculation
+        _, self._state = self._policy(
+            self._state.params, t_prime.observation, self._state
+        )
+
+        self._trajectory_buffer.add(
+            timestep=t,
+            action=0,
+            log_prob=0,
+            value=self._state.extras["values"],
+            new_timestep=t_prime,
+        )
+
+        # TODO: Remove when working
+        # if self._until_sgd % (self._num_steps + 1) != 0:
+        #     return
 
         # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()
