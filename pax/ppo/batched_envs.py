@@ -33,12 +33,9 @@ class BatchedEnvs(Environment):
         discounts = []
         for env, action in zip(self.envs, actions):
             t = env.step(int(action))
-            # print(t.step_type)
-            # Episode terminates, reset and at the first observation
             if t.step_type == 2:
                 t_reset = env.reset()
                 observations.append(t_reset.observation)
-            # Episode not over, so append current observation
             else:
                 observations.append(t.observation)
             step_types.append(t.step_type)
@@ -61,10 +58,6 @@ class BatchedEnvs(Environment):
         for env in self.envs:
             t = env.reset()
             step_types.append(t.step_type)
-            # if t.step_type == 2:
-            #     step_types.append(True)
-            # else:
-            #     step_types.append(False)
             observations.append(t.observation)
             rewards.append(t.reward)
             discounts.append(t.discount)
