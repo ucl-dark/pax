@@ -109,7 +109,10 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * (1 - dones)
+            # discounts = gamma * (1 - dones)
+            discounts = gamma * (1 - jnp.zeros_like(dones))
+
+            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -118,6 +121,8 @@ class PPO:
                     0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
                 )
             advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+
+            # this is where the gae function will end
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values

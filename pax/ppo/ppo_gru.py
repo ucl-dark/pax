@@ -115,7 +115,9 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * (1 - dones)
+            # This might just be totally wrong?
+            # discounts = gamma * (1 - dones)
+            discounts = gamma * (1 - jnp.zeros_like(dones))
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -483,10 +485,6 @@ class PPO:
             value=self._state.extras["values"],
             new_timestep=t_prime,
         )
-
-        # TODO: Remove when working
-        # if self._until_sgd % (self._num_steps + 1) != 0:
-        #     return
 
         # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()
