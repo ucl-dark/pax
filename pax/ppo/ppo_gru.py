@@ -4,7 +4,7 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_GRU
+from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
 
 from dm_env import TimeStep
 import haiku as hk
@@ -115,9 +115,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            # This might just be totally wrong?
-            # discounts = gamma * (1 - dones)
-            discounts = gamma * (1 - jnp.zeros_like(dones))
+            discounts = gamma * jnp.where(dones < 2, 1, 0)
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -502,7 +500,14 @@ class PPO:
 def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
-    network, initial_hidden_state = make_GRU(action_spec)
+    if args.env_id == "CartPole-v1":
+        print(f"Making network for {args.env_id}")
+        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
+
+    else:
+        print(f"Making network for {args.env_id}")
+        network, initial_hidden_state = make_GRU(action_spec)
+
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer

@@ -4,7 +4,7 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_network
+from pax.ppo.networks import make_network, make_cartpole_network
 
 from dm_env import TimeStep
 import haiku as hk
@@ -110,7 +110,8 @@ class PPO:
 
             # 'Zero out' the terminated states
             # discounts = gamma * (1 - dones)
-            discounts = gamma * (1 - jnp.zeros_like(dones))
+            discounts = gamma * jnp.where(dones < 2, 1, 0)
+            # discounts = gamma * (1 - jnp.zeros_like(dones))
 
             # this is where the gae function will go.
 
@@ -370,8 +371,8 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
-            for dict_key in initial_params.keys():
-                print(initial_params[dict_key])
+            # for dict_key in initial_params.keys():
+            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -479,9 +480,13 @@ class PPO:
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    # Network
-    network = make_network(action_spec)
-    # network = make_network(action_spec.num_values)
+    if args.env_id == "CartPole-v1":
+        print(f"Making network for {args.env_id}")
+        network = make_cartpole_network(action_spec)
+
+    else:
+        print(f"Making network for {args.env_id}")
+        network = make_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
