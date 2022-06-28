@@ -22,6 +22,8 @@ from pax.watchers import (
     value_logger,
     value_logger_dqn,
     ppo_losses,
+    policy_logger_ppo,
+    value_logger_ppo,
 )
 
 import hydra
@@ -188,6 +190,10 @@ def watcher_setup(args, logger):
     def ppo_log(agent):
         # policy_dict = policy_logger(agent)
         losses = ppo_losses(agent)
+        policy = policy_logger_ppo(agent)
+        value = value_logger_ppo(agent)
+        losses.update(policy)
+        losses.update(value)
         if args.wandb.log:
             wandb.log(losses)
         return
@@ -239,8 +245,8 @@ def main(args):
     num_episodes = int(args.total_timesteps / (args.num_steps * args.num_envs))
     print(f"Number of training episodes = {num_episodes}")
     print()
-    # For testing. Remove when done testing.
-    # watchers=False
+    if not args.wandb.log:
+        watchers = False
     for num_update in range(int(num_episodes // args.eval_every)):
         print(f"Update: {num_update}/{int(num_episodes // args.eval_every)}")
         print()

@@ -19,13 +19,15 @@ class CategoricalValueHead(hk.Module):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
             num_values,
-            w_init=hk.initializers.Orthogonal(0.01),
-            b_init=hk.initializers.Constant(0),
+            # w_init=hk.initializers.Orthogonal(0.01), # baseline
+            w_init=hk.initializers.Constant(1),
+            with_bias=False,
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Orthogonal(1.0),
-            b_init=hk.initializers.Constant(0),
+            # w_init=hk.initializers.Orthogonal(1.0), # baseline
+            w_init=hk.initializers.Constant(1),
+            with_bias=False,
         )
 
     def __call__(self, inputs: jnp.ndarray):
@@ -41,12 +43,15 @@ def make_network(num_actions: int):
         layers = []
         layers.extend(
             [
-                hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                ),
+                # hk.nets.MLP(
+                #     # [64, 64],
+                #     [5],
+                #     # w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                #     w_init=hk.initializers.Constant(1),
+                #     # b_init=hk.initializers.Constant(0),
+                #     with_bias = False,
+                #     activate_final=True,
+                # ),
                 CategoricalValueHead(num_values=num_actions),
             ]
         )
@@ -71,6 +76,7 @@ def make_GRU(num_actions: int):
         return (logits, values), state
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
+
     return network, hidden_state
 
 

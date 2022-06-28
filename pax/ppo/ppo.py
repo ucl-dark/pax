@@ -365,6 +365,8 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            for dict_key in initial_params.keys():
+                print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -439,9 +441,26 @@ class PPO:
         # Update counter until doing SGD
         self._until_sgd += 1
 
-        # Rollouts still in progress
-        if self._until_sgd % (self._num_steps + 1) != 0:
+        if self._until_sgd % (self._num_steps) != 0:
             return
+
+        # Add an additional rollout step for advantage calculation
+        _, self._state = self._policy(
+            self._state.params, t_prime.observation, self._state
+        )
+
+        self._trajectory_buffer.add(
+            timestep=t,
+            action=0,
+            log_prob=0,
+            value=self._state.extras["values"],
+            new_timestep=t_prime,
+        )
+
+        # TODO: Remove
+        # Rollouts still in progress
+        # if self._until_sgd % (self._num_steps + 1) != 0:
+        #     return
 
         # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()

@@ -72,7 +72,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
     ):
-        @jax.jit
+        # @jax.jit
         def policy(
             params: hk.Params, observation: TimeStep, state: TrainingState
         ):
@@ -208,7 +208,7 @@ class PPO:
             }
             # }, new_rnn_unroll_state
 
-        @jax.jit
+        # @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -376,7 +376,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros_like(state.hidden),
+                hidden=jnp.zeros(shape=(1, 5)),
                 extras={"log_probs": None, "values": None},
             )
 
@@ -398,7 +398,7 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                hidden=initial_hidden_state,
+                hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
                 extras={"values": None, "log_probs": None},
             )
 
@@ -439,7 +439,6 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        # TODO: when using memory, the network needs the last hidden state
         actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
@@ -466,6 +465,9 @@ class PPO:
         self._until_sgd += 1
 
         # Rollouts still in progress
+        # if self._until_sgd % (self._num_steps + 1) != 0:
+        #     return
+
         if self._until_sgd % (self._num_steps + 1) != 0:
             return
 
@@ -479,8 +481,6 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        # if new_timestep.last():
-        #     self._state = self._state._replace(rnn_state=self._initial_rnn_state)
 
 
 # TODO: seed, and player_id not used in CartPole

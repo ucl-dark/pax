@@ -26,7 +26,7 @@ class Runner:
             t = env.reset()
             while not (t[0].last()):
                 actions = agents.select_action(t)
-                t_prime = env.step(actions)  # info
+                t_prime = env.step(actions)
                 r_0, r_1 = t_prime[0].reward, t_prime[1].reward
 
                 # append step rewards to episode rewards
@@ -34,7 +34,8 @@ class Runner:
                 rewards_1.append(r_1)
 
                 # train model
-                # agents.update(t, actions, infos, t_prime)
+                # TODO: Will this need to be changed to allow
+                # for centralized training?
                 agents.update(t, actions, t_prime)
                 self.train_steps += 1
 
