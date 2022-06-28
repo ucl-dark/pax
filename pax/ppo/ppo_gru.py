@@ -470,9 +470,6 @@ class PPO:
         self._until_sgd += 1
 
         # Rollouts still in progress
-        # if self._until_sgd % (self._num_steps + 1) != 0:
-        #     return
-
         if self._until_sgd % (self._num_steps) != 0:
             return
 
