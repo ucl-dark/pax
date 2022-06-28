@@ -100,8 +100,8 @@ def make_GRU_cartpole_network(num_actions: int):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = hk.nets.mlp(
-            [hidden_size],
+        torso = hk.nets.MLP(
+            [hidden_size, hidden_size],
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,

@@ -4,7 +4,11 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.ppo.networks import (
+    make_GRU,
+    make_GRU_cartpole_network,
+    make_cartpole_network,
+)
 
 from dm_env import TimeStep
 import haiku as hk
@@ -376,7 +380,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(1, 5)),
+                hidden=jnp.zeros(shape=(1,) + obs_spec),
                 extras={"log_probs": None, "values": None},
             )
 
@@ -398,7 +402,8 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
+                # hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
+                hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={"values": None, "log_probs": None},
             )
 
