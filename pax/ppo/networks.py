@@ -75,7 +75,7 @@ def make_cartpole_network(num_actions: int):
 
 
 def make_GRU(num_actions: int):
-    hidden_size = 5
+    hidden_size = 25
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(

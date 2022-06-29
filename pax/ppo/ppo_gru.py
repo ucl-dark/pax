@@ -380,7 +380,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(1,) + obs_spec),
+                hidden=jnp.zeros(shape=(1,) + (gru_dim,)),
                 extras={"log_probs": None, "values": None},
             )
 
