@@ -1,3 +1,5 @@
+import time
+
 from pax.env import IteratedPrisonersDilemma
 from pax.independent_learners import IndependentLearners
 from pax.strategies import TitForTat, Defect
@@ -16,6 +18,7 @@ class Runner:
         self.eval_steps = 0
         self.train_episodes = 0
         self.eval_episodes = 0
+        self.start_time = time.time()
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -54,6 +57,12 @@ class Runner:
                             "train/step_reward/player_2": float(
                                 jnp.array(r_1).mean()
                             ),
+                            "time_elapsed_minutes": (
+                                time.time() - self.start_time
+                            )
+                            / 60,
+                            "time_elapsed_seconds": time.time()
+                            - self.start_time,
                         }
                     )
 
