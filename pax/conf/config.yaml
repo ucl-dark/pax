@@ -57,8 +57,8 @@ ppo:
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 200_000_000
   entropy_coeff_end: 0.01
-  lr_scheduling: True
-  learning_rate: 2.5e-2
+  lr_scheduling: False #True
+  learning_rate: 1e-2
   adam_epsilon: 1e-5
   with_memory: True
 
@@ -70,6 +70,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-test'
   name: run-seed-${seed}
   log: True

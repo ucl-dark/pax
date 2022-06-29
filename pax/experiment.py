@@ -14,7 +14,14 @@ from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
-from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
+from pax.strategies import (
+    TitForTat,
+    Defect,
+    Altruistic,
+    Random,
+    Human,
+    GrimTrigger,
+)
 from pax.utils import Section
 from pax.watchers import (
     policy_logger,
@@ -143,6 +150,7 @@ def agent_setup(args, logger):
         "Altruistic": Altruistic,
         "Human": Human,
         "Random": Random,
+        "Grim": GrimTrigger,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
@@ -207,6 +215,7 @@ def watcher_setup(args, logger):
         "Altruistic": dumb_log,
         "Human": dumb_log,
         "Random": dumb_log,
+        "Grim": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,

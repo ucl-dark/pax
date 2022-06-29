@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-# states are [CC, DC, CD, DD]
+# states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1
 
 
@@ -27,11 +27,9 @@ class ZDDeterminant:
         pass
 
 
-# TODO: Add strategy. PPO should learn to ALL-C
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self.trigger = False
         pass
 
     def select_action(
@@ -43,19 +41,13 @@ class GrimTrigger:
     def update(self, *args) -> None:
         pass
 
-    # TODO: Write tests for trigger. Can you use if statements?
     def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
-        # now either 0, 1, 2, 3
         batch_size, _ = obs.shape
         obs = obs.argmax(axis=-1)
-        # if 0 | 1 | 4  -> C
-        # if 2 | 3 -> D
-        obs = obs % 4
-        action = jnp.where(obs > 1.0, 1.0, 0.0)
-        if self.trigger:
-            return 0
-        if obs > 1.0:
-            self.trigger = True
+        # if 0 | 4 -> C
+        # if 1 | 2 | 3 | -> D
+        obs = obs % 4  # now either 0, 1, 2, 3
+        action = jnp.where(obs > 0.0, 1.0, 0.0)
         return action
 
 
