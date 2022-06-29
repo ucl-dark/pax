@@ -1,5 +1,16 @@
 from flax import linen as nn
 from .env import State
+import jax.numpy as jnp
+
+
+# five possible states
+START = jnp.array([[0, 0, 0, 0, 1]])
+CC = jnp.array([[1, 0, 0, 0, 0]])
+CD = jnp.array([[0, 1, 0, 0, 0]])
+DC = jnp.array([[0, 0, 1, 0, 0]])
+DD = jnp.array([[0, 0, 0, 1, 0]])
+STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
+ALL_STATES = [START, CC, CD, DC, DD]
 
 
 def policy_logger(agent) -> None:
@@ -81,6 +92,25 @@ def value_logger_ppo(agent) -> None:
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
+
+
+def policy_logger_ppo_with_memory(agent) -> None:
+    """Calculate probability of coopreation"""
+    # n = 5
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(
+        agent._logger.metrics["total_steps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
+    for state, state_name in zip(ALL_STATES, STATE_NAMES):
+        (dist, _), hidden = agent.forward(params, state, hidden)
+        cooperation_probs[state_name] = float(dist.probs[0][0])
+    return cooperation_probs
 
 
 def ppo_losses(agent) -> None:
