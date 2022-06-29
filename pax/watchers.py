@@ -83,6 +83,27 @@ def value_logger_ppo(agent) -> None:
     return probs
 
 
+def policy_logger_ppo_with_memory(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs
+
+
+def value_logger_ppo_with_memory(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear_1"][
+        "w"
+    ]  # 5 x 1 matrix
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    }
+    probs.update({"value/total_steps": sgd_steps})
+    return probs
+
+
 def ppo_losses(agent) -> None:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
