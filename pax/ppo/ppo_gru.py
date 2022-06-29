@@ -434,6 +434,7 @@ class PPO:
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = network.apply
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments

@@ -207,12 +207,13 @@ def watcher_setup(args, logger):
         losses = ppo_losses(agent)
         if args.ppo.with_memory:
             policy = policy_logger_ppo_with_memory(agent)
-            value = value_logger_ppo_with_memory(agent)
+            # value = value_logger_ppo_with_memory(agent)
         else:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
+            losses.update(value)
         losses.update(policy)
-        losses.update(value)
+        # losses.update(value)
         if args.wandb.log:
             wandb.log(losses)
         return

@@ -28,8 +28,8 @@ class ZDExtortion:
         pass
 
     # this can be jitted now
-    @jax.jit
-    def _extortion(self, obs: jnp.array, key):
+    # @jax.jit
+    def _extortion(self, obs: jnp.ndarray, key):
         # from https://www.pnas.org/doi/epdf/10.1073/pnas.1206569109
         # TODO: Remove hard coded cooperation. Make it related to the specific payoff of the game
         # TODO: What is probability of cooperating in START? Default to 1

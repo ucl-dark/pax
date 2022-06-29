@@ -95,12 +95,21 @@ def value_logger_ppo(agent) -> None:
 
 
 def policy_logger_ppo_with_memory(agent) -> None:
-    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
-    pi = nn.softmax(weights)
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
-    probs.update({"policy/total_steps": sgd_steps})
-    return probs
+    """Calculate probability of coopreation"""
+    # n = 5
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(
+        agent._logger.metrics["total_steps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # Works when the forward function is not jitted.
+    for state, state_name in zip(ALL_STATES, STATE_NAMES):
+        (dist, _), hidden = agent.forward(params, state, hidden)
+        cooperation_probs[state_name] = float(dist.probs[0][0])
+    return cooperation_probs
 
 
 def value_logger_ppo_with_memory(agent) -> None:
