@@ -2,6 +2,7 @@ import time
 
 from pax.ppo.batched_envs import BatchedEnvs
 from pax.ppo.ppo import make_agent
+from pax.ppo.ppo_gru import make_gru_agent
 from pax.utils import Section
 
 from dm_env import TimeStep
@@ -26,7 +27,7 @@ class CartPoleRunner:
         print("Training ")
         print("-----------------------")
         sequence_length = (
-            args.num_steps + 1
+            args.num_steps
         )  # Rollout an addtional step to bootstrap
 
         # Initialize state and returns
@@ -45,8 +46,8 @@ class CartPoleRunner:
 
             # Cartpole is not batched, so need to check termination condition for
             # each environment.
-            for i, done in enumerate(t_prime.step_type):
-                if done:
+            for i, step_type in enumerate(t_prime.step_type):
+                if step_type == 2:
                     self.train_episodes += 1
                     print(
                         f"steps={self.global_steps}, return={episodic_returns[i]}"
@@ -72,8 +73,6 @@ class CartPoleRunner:
                     # Reset the episodic return for the ith environment
                     episodic_returns = episodic_returns.at[i].set(0)
 
-                # Truncate returns to penultimate step in sequence length
-                # NOTE: sequence length = num_steps + 1
                 elif step == args.num_steps - 1:
                     self.train_episodes += 1
                     print(
@@ -88,33 +87,26 @@ class CartPoleRunner:
                                 "train/episode_reward": float(
                                     episodic_returns[i]
                                 ),
+                                "sgd_steps": agent._logger.metrics[
+                                    "sgd_steps"
+                                ],
+                                "train/loss_total": float(
+                                    agent._logger.metrics["loss_total"]
+                                ),
+                                "train/loss_policy": float(
+                                    agent._logger.metrics["loss_policy"]
+                                ),
+                                "train/loss_value": float(
+                                    agent._logger.metrics["loss_value"]
+                                ),
+                                "train/loss_entropy": float(
+                                    agent._logger.metrics["loss_entropy"]
+                                ),
                             }
                         )
 
             # Update the agent
             agent.update(t, actions, t_prime)
-
-            # Final step of the sequence length.
-            if step == args.num_steps:
-                # Log information
-                if args.wandb.log:
-                    wandb.log(
-                        {
-                            "sgd_steps": agent._logger.metrics["sgd_steps"],
-                            "train/loss_total": float(
-                                agent._logger.metrics["loss_total"]
-                            ),
-                            "train/loss_policy": float(
-                                agent._logger.metrics["loss_policy"]
-                            ),
-                            "train/loss_value": float(
-                                agent._logger.metrics["loss_value"]
-                            ),
-                            "train/loss_entropy": float(
-                                agent._logger.metrics["loss_entropy"]
-                            ),
-                        }
-                    )
 
             # Bookkeeping
             t = t_prime
@@ -138,8 +130,8 @@ class CartPoleRunner:
 
             # Cartpole is not batched, so need to check termination condition for
             # each environment.
-            for i, done in enumerate(t_prime.step_type):
-                if done:
+            for i, step_type in enumerate(t_prime.step_type):
+                if step_type == 2:
                     self.eval_episodes += 1
                     print(
                         f"Episode = {self.eval_episodes}, return={episodic_returns[i]}"
@@ -195,13 +187,22 @@ def agent_setup(args, logger):
     dummy_env = gym.make(args.env_id)
     dummy_player_id = 0
     seed = args.seed
-    agent = make_agent(
-        args,
-        obs_spec=dummy_env.observation_space.shape,
-        action_spec=dummy_env.action_space.n,
-        seed=seed,
-        player_id=dummy_player_id,
-    )
+    if args.ppo.with_memory:
+        agent = make_gru_agent(
+            args,
+            obs_spec=dummy_env.observation_space.shape,
+            action_spec=dummy_env.action_space.n,
+            seed=seed,
+            player_id=dummy_player_id,
+        )
+    else:
+        agent = make_agent(
+            args,
+            obs_spec=dummy_env.observation_space.shape,
+            action_spec=dummy_env.action_space.n,
+            seed=seed,
+            player_id=dummy_player_id,
+        )
     return agent
 
 

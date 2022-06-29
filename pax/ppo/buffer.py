@@ -15,6 +15,7 @@ class Sample(NamedTuple):
     behavior_log_probs: jnp.ndarray
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
+    hiddens: jnp.ndarray
 
 
 class TrajectoryBuffer:
@@ -29,6 +30,7 @@ class TrajectoryBuffer:
         num_envs: int,
         num_steps: int,
         obs_space: Tuple[int],  # (envs.observation_spec().num_values, )
+        gru_dim: int = 1,
     ):
 
         # Buffer information
@@ -38,17 +40,12 @@ class TrajectoryBuffer:
         )  # Take an additional rollout step for boostrapping value
         self._rollout_length = num_steps * num_envs
 
-        # Environment and agent specs
+        # Environment specs
         self.obs_space = obs_space
+        self.gru_dim = gru_dim
 
         # Initialise pointers
         self.ptr = 0
-
-        # additional PPO specific
-        self.value = None
-        self.log_prob = None
-        self.returns = None
-        self.advantage = None
 
         # extra info
         self._num_added = 0
@@ -62,6 +59,7 @@ class TrajectoryBuffer:
         log_prob: jnp.ndarray,
         value: jnp.ndarray,
         new_timestep: TimeStep,
+        hidden: jnp.ndarray = None,
     ):
         """Append a batched time step to the buffer.
         Resets buffer and ptr if the buffer is full."""
@@ -82,6 +80,9 @@ class TrajectoryBuffer:
         self.dones = self.dones.at[:, self.ptr].set(timestep.step_type)
         self.rewards = self.rewards.at[:, self.ptr].set(new_timestep.reward)
 
+        if hidden is not None:
+            self.hiddens = self.hiddens.at[:, self.ptr].set(hidden)
+
         self.ptr += 1
         self._num_added += self._num_envs
 
@@ -97,6 +98,7 @@ class TrajectoryBuffer:
             behavior_log_probs=self.behavior_log_probs,
             behavior_values=self.behavior_values,
             dones=self.dones,
+            hiddens=self.hiddens,
         )
 
     def size(self) -> int:
@@ -146,6 +148,9 @@ class TrajectoryBuffer:
                 self._num_envs,
                 self._num_steps,
             )
+        )
+        self.hiddens = jnp.zeros(
+            (self._num_envs, self._num_steps, self.gru_dim)
         )
 
 
