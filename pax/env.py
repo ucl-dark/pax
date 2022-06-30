@@ -69,7 +69,7 @@ class InfiniteMatrixGame(Environment):
                 (1 - theta1) * (1 - theta2),
             ]
         )
-        # initial distibution over start
+        # initial distibution over start p0
         P = jnp.einsum("iBj -> Bij", P)
         p0 = P[:, :, 5]
         P = jnp.einsum("Bji-> Bij", P[:, :, :4])
@@ -149,12 +149,8 @@ class SequentialMatrixGame(Environment):
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        self._reset_next_step = False
-        obs_1, obs_2 = self._observation(
-            State.START * jnp.ones((self.num_envs,))
-        )
-        self._num_steps = 0
-        return restart(obs_1), restart(obs_2)
+        # TODO: need to discuss what this means - first step you don't know your opponents policy?
+        pass
 
     @partial(jax.jit, static_argnums=(0,))
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
