@@ -50,7 +50,7 @@ class InfiniteMatrixGame(Environment):
         )
         self.gamma = gamma
 
-    # @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def step(
         self, action: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
@@ -74,8 +74,8 @@ class InfiniteMatrixGame(Environment):
         p0 = P[:, :, 5]
         P = jnp.einsum("Bji-> Bij", P[:, :, :4])
         inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
-        v1 = jnp.einsum("Bi, Bij, Bj", p0, inf_sum, self.reward_1)
-        v2 = jnp.einsum("Bi, Bij, Bj", p0, inf_sum, self.reward_2)
+        v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
+        v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
         return termination(reward=v1, observation=action), termination(
             reward=v2, observation=action
         )
