@@ -1,10 +1,9 @@
 from time import time
-from tkinter.tix import TList
 import jax.numpy as jnp
 import pytest
 
 from pax.env import InfiniteMatrixGame, SequentialMatrixGame
-from pax.strategies import Altruistic, TitForTat
+from pax.strategies import TitForTat
 
 # payoff matrices for four games
 ipd = [[2, 2], [3, 0], [0, 3], [1, 1]]
