@@ -249,9 +249,9 @@ def test_infinite_game():
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
     game = InfiniteMatrixGame(1, payoff, 0.99)
-    alt_policy = jnp.ones((5))
-    def_policy = jnp.zeros((5))
-    tft_policy = jnp.array([1, 0, 1, 0, 1])
+    alt_policy = jnp.ones((1, 5))
+    def_policy = jnp.zeros((1, 5))
+    tft_policy = jnp.array([[1, 0, 1, 0, 1]])
 
     timestep_0, timestep_1 = game.step([alt_policy, alt_policy])
     assert timestep_0.reward == timestep_1.reward
@@ -264,7 +264,7 @@ def test_infinite_game():
     timestep_0, timestep_1 = game.step([def_policy, alt_policy])
     assert timestep_0.reward != timestep_1.reward
     assert jnp.isclose(300, timestep_0.reward)
-    assert jnp.isclose(0, timestep_1.reward)
+    assert jnp.isclose(0.0, timestep_1.reward, atol=0.0001)
 
     timestep_0, timestep_1 = game.step([alt_policy, tft_policy])
     assert jnp.isclose(200, timestep_0.reward)

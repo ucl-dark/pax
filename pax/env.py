@@ -34,15 +34,18 @@ class InfiniteMatrixGame(Environment):
     def __init__(self, num_envs: int, payoff: list, gamma: float) -> None:
         self.payoff = jnp.array(payoff)
         self.num_envs = num_envs
-        self.reward_1 = jnp.array([r[0] for r in payoff])
-        self.reward_2 = jnp.array([r[1] for r in payoff])
+        self.reward_1 = jnp.array([[r[0] for r in payoff] * num_envs])
+        self.reward_2 = jnp.array([[r[1] for r in payoff] * num_envs])
         self.switch = jnp.array(
             [
-                [1, 0, 0, 0, 0],
-                [0, 0, 1, 0, 0],
-                [0, 1, 0, 0, 0],
-                [0, 0, 0, 1, 0],
-                [0, 0, 0, 0, 1],
+                [
+                    [1, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 1],
+                ]
+                * num_envs
             ]
         )
         self.gamma = gamma
@@ -52,36 +55,29 @@ class InfiniteMatrixGame(Environment):
         self, action: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
         """
-        takes a tuple of policies ([0.5, 0.7, 0.4, 0.6, 0.1], [1, 1, 1, 1, 1])
-         and produce value functions from infinite game
+        takes a tuple of batched policies and produce value functions from infinite game
+        policy of form [B, 5]
         """
-
-        def _exact(theta1, theta2) -> Tuple[jnp.array, jnp.array]:
-            # actions are egocentric so swap around for player two
-            theta2 = self.switch @ theta2
-            P = jnp.array(
-                [
-                    theta1 * theta2,
-                    theta1 * (1 - theta2),
-                    (1 - theta1) * theta2,
-                    (1 - theta1) * (1 - theta2),
-                ]
-            )
-            # P has shape 4 x 5
-            # initial distibution over start
-            p0 = P[:, 5]
-            P = P[:, :4].T
-            inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
-            v1 = jnp.matmul(p0.T, jnp.matmul(inf_sum, self.reward_1))
-            v2 = jnp.matmul(p0.T, jnp.matmul(inf_sum, self.reward_2))
-            return v1, v2
-
-        theta_1, theta_2 = action
-        # _exact = jax.vmap(_exact)
-        value_1, value_2 = _exact(theta_1, theta_2)
-        print(value_1, value_2)
-        return termination(reward=value_1, observation=action), termination(
-            reward=value_2, observation=action
+        # actions are egocentric so swap around for player two
+        theta1, theta2 = action
+        theta2 = jnp.einsum("Bik,Bk -> Bi", self.switch, theta2)
+        P = jnp.array(
+            [
+                theta1 * theta2,
+                theta1 * (1 - theta2),
+                (1 - theta1) * theta2,
+                (1 - theta1) * (1 - theta2),
+            ]
+        )
+        # initial distibution over start
+        P = jnp.einsum("iBj -> Bij", P)
+        p0 = P[:, :, 5]
+        P = jnp.einsum("Bji-> Bij", P[:, :, :4])
+        inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
+        v1 = jnp.einsum("Bi, Bij, Bj", p0, inf_sum, self.reward_1)
+        v2 = jnp.einsum("Bi, Bij, Bj", p0, inf_sum, self.reward_2)
+        return termination(reward=v1, observation=action), termination(
+            reward=v2, observation=action
         )
 
     def observation_spec(self) -> specs.DiscreteArray:
