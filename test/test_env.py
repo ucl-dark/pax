@@ -17,8 +17,8 @@ test_payoffs = [ipd, stag, sexes, chicken]
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
     env = SequentialMatrixGame(5, num_envs, payoff)
-    action = jnp.ones((num_envs, 1), dtype=jnp.int32)
-    r_array = jnp.ones((num_envs, 1), dtype=jnp.int32)
+    action = jnp.ones((num_envs,), dtype=jnp.int32)
+    r_array = jnp.ones((num_envs,), dtype=jnp.int32)
 
     # payoffs
     cc_p1, cc_p2 = payoff[0][0], payoff[0][1]
@@ -71,7 +71,7 @@ testdata = [
 @pytest.mark.parametrize("actions, expected_rewards, payoff", testdata)
 def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     num_envs = 3
-    all_ones = jnp.ones((num_envs, 1))
+    all_ones = jnp.ones((num_envs,))
     env = SequentialMatrixGame(5, num_envs, payoff)
     env.reset()
 
@@ -79,12 +79,8 @@ def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     expected_r1, expected_r2 = expected_rewards
 
     tstep_0, tstep_1 = env.step((action_1 * all_ones, action_2 * all_ones))
-    assert jnp.array_equal(
-        tstep_0.reward, expected_r1 * jnp.ones((num_envs, 1))
-    )
-    assert jnp.array_equal(
-        tstep_1.reward, expected_r2 * jnp.ones((num_envs, 1))
-    )
+    assert jnp.array_equal(tstep_0.reward, expected_r1 * jnp.ones((num_envs,)))
+    assert jnp.array_equal(tstep_1.reward, expected_r2 * jnp.ones((num_envs,)))
     assert tstep_0.last() == False
     assert tstep_1.last() == False
 
@@ -94,7 +90,6 @@ def test_mixed_batched_outcomes() -> None:
 
 
 def test_tit_for_tat_match() -> None:
-    dummy_key = jax.random.PRNGKey(0)
     num_envs = 5
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(5, num_envs, payoff)
@@ -102,8 +97,8 @@ def test_tit_for_tat_match() -> None:
 
     tit_for_tat = TitForTat()
 
-    action_0 = tit_for_tat.select_action(dummy_key, t_0)
-    action_1 = tit_for_tat.select_action(dummy_key, t_1)
+    action_0 = tit_for_tat.select_action(t_0)
+    action_1 = tit_for_tat.select_action(t_1)
     assert jnp.array_equal(action_0, action_1)
 
     t_0, t_1 = env.step((action_0, action_1))
@@ -114,7 +109,7 @@ def test_observation() -> None:
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(5, num_envs, payoff)
-    initial_state = jnp.ones((num_envs, 1))
+    initial_state = jnp.ones((num_envs,))
 
     # start
     obs_1, _ = env._observation(4 * initial_state)
@@ -156,8 +151,9 @@ def test_observation() -> None:
                 [0.0, 0.0, 0.0, 0.0, 1.0],
             ]
         ),
-        env._observation(jnp.array([[0], [1], [2], [3], [4]]))[0],
+        env._observation(jnp.array([0, 1, 2, 3, 4]))[0],
     )
+
     # start
     _, obs_2 = env._observation(4 * initial_state)
     assert jnp.array_equal(
@@ -198,7 +194,7 @@ def test_observation() -> None:
                 [0.0, 0.0, 0.0, 0.0, 1.0],
             ]
         ),
-        env._observation(jnp.array([[0], [1], [2], [3], [4]]))[1],
+        env._observation(jnp.array([0, 1, 2, 3, 4]))[1],
     )
 
 
@@ -206,7 +202,7 @@ def test_done():
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(5, num_envs, payoff)
-    action = jnp.ones((num_envs, 1))
+    action = jnp.ones((num_envs,))
 
     # check first
     t_0, t_1 = env.step((0 * action, 0 * action))
@@ -230,7 +226,7 @@ def test_reset():
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(5, num_envs, payoff)
-    state = jnp.ones((num_envs, 1))
+    state = jnp.ones((num_envs,))
 
     env.reset()
 

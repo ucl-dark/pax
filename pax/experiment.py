@@ -14,7 +14,15 @@ from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
-from pax.strategies import TitForTat, Defect, Altruistic, Random, Human
+from pax.strategies import (
+    TitForTat,
+    Defect,
+    Altruistic,
+    Random,
+    Human,
+    GrimTrigger,
+    # ZDExtortion,
+)
 from pax.utils import Section
 from pax.watchers import (
     policy_logger,
@@ -24,6 +32,7 @@ from pax.watchers import (
     ppo_losses,
     policy_logger_ppo,
     value_logger_ppo,
+    policy_logger_ppo_with_memory,
 )
 
 import hydra
@@ -143,6 +152,8 @@ def agent_setup(args, logger):
         "Altruistic": Altruistic,
         "Human": Human,
         "Random": Random,
+        "Grim": GrimTrigger,
+        # "ZDExtortion": ZDExtortion,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
@@ -188,12 +199,14 @@ def watcher_setup(args, logger):
         return
 
     def ppo_log(agent):
-        # policy_dict = policy_logger(agent)
         losses = ppo_losses(agent)
-        policy = policy_logger_ppo(agent)
-        value = value_logger_ppo(agent)
+        if args.ppo.with_memory:
+            policy = policy_logger_ppo_with_memory(agent)
+        else:
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
         losses.update(policy)
-        losses.update(value)
         if args.wandb.log:
             wandb.log(losses)
         return
@@ -207,6 +220,8 @@ def watcher_setup(args, logger):
         "Altruistic": dumb_log,
         "Human": dumb_log,
         "Random": dumb_log,
+        "Grim": dumb_log,
+        # "ZDExtortion": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
