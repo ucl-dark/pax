@@ -36,7 +36,15 @@ class InfiniteMatrixGame(Environment):
         self.num_envs = num_envs
         self.reward_1 = jnp.array([r[0] for r in payoff])
         self.reward_2 = jnp.array([r[1] for r in payoff])
-        self.switch = jnp.array([[1, 0 , 0, 0, 0], [0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]])
+        self.switch = jnp.array(
+            [
+                [1, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0],
+                [0, 1, 0, 0, 0],
+                [0, 0, 0, 1, 0],
+                [0, 0, 0, 0, 1],
+            ]
+        )
         self.gamma = gamma
 
     # @partial(jax.jit, static_argnums=(0,))
@@ -44,8 +52,10 @@ class InfiniteMatrixGame(Environment):
         self, action: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
         """
-        takes a tuple of policies ([0.5, 0.7, 0.4, 0.6, 0.1], [1, 1, 1, 1, 1]) and produce output of infinite game
-        """       
+        takes a tuple of policies ([0.5, 0.7, 0.4, 0.6, 0.1], [1, 1, 1, 1, 1])
+         and produce value functions from infinite game
+        """
+
         def _exact(theta1, theta2) -> Tuple[jnp.array, jnp.array]:
             # actions are egocentric so swap around for player two
             theta2 = self.switch @ theta2
@@ -65,8 +75,7 @@ class InfiniteMatrixGame(Environment):
             v1 = jnp.matmul(p0.T, jnp.matmul(inf_sum, self.reward_1))
             v2 = jnp.matmul(p0.T, jnp.matmul(inf_sum, self.reward_2))
             return v1, v2
-        
-        
+
         theta_1, theta_2 = action
         # _exact = jax.vmap(_exact)
         value_1, value_2 = _exact(theta_1, theta_2)
@@ -74,7 +83,6 @@ class InfiniteMatrixGame(Environment):
         return termination(reward=value_1, observation=action), termination(
             reward=value_2, observation=action
         )
-    
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
