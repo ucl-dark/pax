@@ -30,6 +30,58 @@ _ACTIONS = (0, 1)  # Cooperate, Defect
 _STATES = (0, 1, 2, 3, 4)  # CC, DC, CD, DD, START
 
 
+class InfiniteMatrixGame(Environment):
+    def __init__(self, num_envs: int, payoff: list, gamma: float) -> None:
+        self.payoff = jnp.array(payoff)
+        self.num_envs = num_envs
+        self.reward_1 = jnp.array([r[0] for r in payoff])
+        self.reward_2 = jnp.array([r[1] for r in payoff])
+        self.gamma = gamma
+
+    def step(
+        self, action: Tuple[jnp.ndarray, jnp.ndarray]
+    ) -> Tuple[TimeStep, TimeStep]:
+        """
+        takes a tuple of batched policies ([1,2], [2,1]) and produce output of infinite game
+        """
+        action_1, action_2 = action
+
+        P = jnp.array(
+            [
+                action_1 * action_2,
+                action_1 * (1 - action_2),
+                (1 - action_1) * action_2,
+                (1 - action_1) * (1 - action_2),
+            ]
+        )
+        p_0 = P[:, 4]
+        P = P[:, :4]
+
+        infinte_sum = p_0 * (1 / (1 - self.gamma * P))
+        value_1 = infinte_sum * self.reward_1
+        value_2 = infinte_sum * self.reward_2
+        return termination(reward=value_1, observation=action), termination(
+            reward=value_2, observation=action
+        )
+
+    def observation_spec(self) -> specs.DiscreteArray:
+        """Returns the observation spec."""
+        return specs.DiscreteArray(num_values=len(10), name="previous policy")
+
+    def action_spec(self) -> specs.DiscreteArray:
+        """Returns the action spec."""
+        return specs.DiscreteArray(dtype=int, num_values=len(5), name="action")
+
+    def reset(self) -> Tuple[TimeStep, TimeStep]:
+        """Returns the first `TimeStep` of a new episode."""
+        self._reset_next_step = False
+        obs_1, obs_2 = self._observation(
+            State.START * jnp.ones((self.num_envs,))
+        )
+        self._num_steps = 0
+        return restart(obs_1), restart(obs_2)
+
+
 class SequentialMatrixGame(Environment):
     def __init__(
         self, episode_length: int, num_envs: int, payoff: list

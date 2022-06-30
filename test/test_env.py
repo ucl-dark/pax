@@ -2,8 +2,8 @@ import jax.numpy as jnp
 import jax
 import pytest
 
-from pax.env import SequentialMatrixGame
-from pax.strategies import TitForTat
+from pax.env import InfiniteMatrixGame, SequentialMatrixGame
+from pax.strategies import Altruistic, TitForTat
 
 # payoff matrices for four games
 ipd = [[2, 2], [3, 0], [0, 3], [1, 1]]
@@ -245,3 +245,13 @@ def test_reset():
         t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False
+
+
+def test_infinite_game():
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    game = InfiniteMatrixGame(1, payoff, 0.9)
+
+    alt_action = jnp.ones((1, 5))
+
+    timestep = game.step([alt_action, alt_action])
+    print(timestep.reward)
