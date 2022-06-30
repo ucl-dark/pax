@@ -1,5 +1,6 @@
+from time import time
+from tkinter.tix import TList
 import jax.numpy as jnp
-import jax
 import pytest
 
 from pax.env import InfiniteMatrixGame, SequentialMatrixGame
@@ -244,10 +245,39 @@ def test_reset():
 
 
 def test_infinite_game():
-    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    game = InfiniteMatrixGame(1, payoff, 0.9)
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
-    alt_action = jnp.ones((1, 5))
+    game = InfiniteMatrixGame(1, payoff, 0.99)
+    alt_policy = jnp.ones((5))
+    def_policy = jnp.zeros((5))
+    tft_policy = jnp.array([1, 0, 1, 0, 1])
 
-    timestep = game.step([alt_action, alt_action])
-    print(timestep.reward)
+    timestep_0, timestep_1 = game.step([alt_policy, alt_policy])
+    assert timestep_0.reward == timestep_1.reward
+    assert jnp.isclose(200, timestep_0.reward)
+
+    timestep_0, timestep_1 = game.step([def_policy, def_policy])
+    assert timestep_0.reward == timestep_1.reward
+    assert jnp.isclose(100, timestep_0.reward)
+
+    timestep_0, timestep_1 = game.step([def_policy, alt_policy])
+    assert timestep_0.reward != timestep_1.reward
+    assert jnp.isclose(300, timestep_0.reward)
+    assert jnp.isclose(0, timestep_1.reward)
+
+    timestep_0, timestep_1 = game.step([alt_policy, tft_policy])
+    assert jnp.isclose(200, timestep_0.reward)
+    assert jnp.isclose(200, timestep_1.reward)
+
+    timestep_0, timestep_1 = game.step([tft_policy, tft_policy])
+    assert jnp.isclose(200, timestep_0.reward)
+    assert jnp.isclose(200, timestep_1.reward)
+
+    timestep_0, timestep_1 = game.step([tft_policy, def_policy])
+    assert jnp.isclose(99, timestep_0.reward)
+    assert jnp.isclose(102, timestep_1.reward)
+
+    timestep_0, timestep_1 = game.step([def_policy, tft_policy])
+    assert jnp.isclose(102, timestep_0.reward)
+    assert jnp.isclose(99, timestep_1.reward)

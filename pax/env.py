@@ -42,24 +42,34 @@ class InfiniteMatrixGame(Environment):
         self, action: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
         """
-        takes a tuple of batched policies ([1,2], [2,1]) and produce output of infinite game
-        """
-        action_1, action_2 = action
-
+        takes a tuple of policies ([0.5, 0.7, 0.4, 0.6, 0.1], [1, 1, 1, 1, 1]) and produce output of infinite game
+        """       
+        theta_1, theta_2 = action
         P = jnp.array(
             [
-                action_1 * action_2,
-                action_1 * (1 - action_2),
-                (1 - action_1) * action_2,
-                (1 - action_1) * (1 - action_2),
+                theta_1 * theta_2,
+                theta_1 * (1 - theta_2),
+                (1 - theta_1) * theta_2,
+                (1 - theta_1) * (1 - theta_2),
             ]
         )
-        p_0 = P[:, 4]
-        P = P[:, :4]
+        # P has shape 4 x 5
+        # initial distibution over start
+        p0 = P[:, 5]
+        P = P[:, :4].T
+        print(f"s0: \n {p0}")
+        print(f"P: \n{P}")
 
-        infinte_sum = p_0 * (1 / (1 - self.gamma * P))
-        value_1 = infinte_sum * self.reward_1
-        value_2 = infinte_sum * self.reward_2
+        infinite_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
+        print(f"Infinite Sum: \n {infinite_sum}")
+        value_1 = jnp.matmul(p0.T, jnp.matmul(infinite_sum, self.reward_1))
+        value_2 = jnp.matmul(p0.T, jnp.matmul(infinite_sum, self.reward_2))
+        print(f"Transition Matrix 1:{jnp.matmul(infinite_sum, self.reward_1)}")
+        print(f"Transition Matrix 2:{jnp.matmul(infinite_sum, self.reward_2)}")
+        print(f"Reward 1: {self.reward_1}")
+        print(f"Reward 2: {self.reward_2}")
+        print(value_1, value_2)
+
         return termination(reward=value_1, observation=action), termination(
             reward=value_2, observation=action
         )
