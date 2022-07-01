@@ -83,7 +83,7 @@ class InfiniteMatrixGame(Environment):
             reward=r2, observation=obs2
         )
 
-    # @partial(jax.jit, static_argnums=(0,))
+    @partial(jax.jit, static_argnums=(0,))
     def get_reward(
         self, theta1: jnp.ndarray, theta2: jnp.ndarray
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
