@@ -90,12 +90,8 @@ class InfiniteMatrixGame(Environment):
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        self._reset_next_step = False
-        obs_1, obs_2 = self._observation(
-            State.START * jnp.ones((self.num_envs,))
-        )
-        self._num_steps = 0
-        return restart(obs_1), restart(obs_2)
+        # TODO: need to discuss what this means - first step you don't know your opponents policy?
+        pass
 
 
 class SequentialMatrixGame(Environment):
@@ -149,8 +145,12 @@ class SequentialMatrixGame(Environment):
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        # TODO: need to discuss what this means - first step you don't know your opponents policy?
-        pass
+        self._reset_next_step = False
+        obs_1, obs_2 = self._observation(
+            State.START * jnp.ones((self.num_envs,))
+        )
+        self._num_steps = 0
+        return restart(obs_1), restart(obs_2)
 
     @partial(jax.jit, static_argnums=(0,))
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
