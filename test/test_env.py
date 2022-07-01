@@ -246,37 +246,42 @@ def test_infinite_game():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
-    game = InfiniteMatrixGame(1, payoff, 0.99)
+    env = InfiniteMatrixGame(1, payoff, 0.99)
     alt_policy = jnp.ones((1, 5))
     def_policy = jnp.zeros((1, 5))
     tft_policy = jnp.array([[1, 0, 1, 0, 1]])
 
-    t0, t1 = game.step([alt_policy, alt_policy])
+    # first step
+    tstep_0, tstep_1 = env.step((alt_policy, def_policy))
+    assert tstep_0.reward is None
+    assert tstep_1.reward is None
+
+    t0, t1 = env.step([alt_policy, alt_policy])
     assert t0.reward == t1.reward
     assert jnp.isclose(200, t0.reward)
 
-    t0, t1 = game.step([def_policy, def_policy])
+    t0, t1 = env.step([def_policy, def_policy])
     assert t0.reward == t1.reward
     assert jnp.isclose(100, t0.reward)
 
-    t0, t1 = game.step([def_policy, alt_policy])
+    t0, t1 = env.step([def_policy, alt_policy])
     assert t0.reward != t1.reward
     assert jnp.isclose(300, t0.reward)
     assert jnp.isclose(0.0, t1.reward, atol=0.0001)
 
-    t0, t1 = game.step([alt_policy, tft_policy])
+    t0, t1 = env.step([alt_policy, tft_policy])
     assert jnp.isclose(200, t0.reward)
     assert jnp.isclose(200, t1.reward)
 
-    t0, t1 = game.step([tft_policy, tft_policy])
+    t0, t1 = env.step([tft_policy, tft_policy])
     assert jnp.isclose(200, t0.reward)
     assert jnp.isclose(200, t1.reward)
 
-    t0, t1 = game.step([tft_policy, def_policy])
+    t0, t1 = env.step([tft_policy, def_policy])
     assert jnp.isclose(99, t0.reward)
     assert jnp.isclose(102, t1.reward)
 
-    t0, t1 = game.step([def_policy, tft_policy])
+    t0, t1 = env.step([def_policy, tft_policy])
     assert jnp.isclose(102, t0.reward)
     assert jnp.isclose(99, t1.reward)
 
@@ -285,7 +290,7 @@ def test_batch_infinite_game():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
-    game = InfiniteMatrixGame(1, payoff, 0.99)
+    env = InfiniteMatrixGame(3, payoff, 0.99)
     alt_policy = jnp.ones((1, 5))
     def_policy = jnp.zeros((1, 5))
     tft_policy = jnp.array([[1, 0, 1, 0, 1]])
@@ -299,14 +304,19 @@ def test_batch_infinite_game():
         [def_policy, tft_policy, tft_policy], axis=0
     )
 
-    t0, t1 = game.step([batched_alt, batched_alt])
+    # first step
+    tstep_0, tstep_1 = env.step((batched_alt, batched_alt))
+    assert tstep_0.reward is None
+    assert tstep_1.reward is None
+
+    t0, t1 = env.step([batched_alt, batched_alt])
     assert jnp.isclose(t0.reward, t1.reward).all()
     assert jnp.isclose(jnp.array([200, 200, 200]), t0.reward).all()
 
-    t0, t1 = game.step([batched_alt, batched_def])
+    t0, t1 = env.step([batched_alt, batched_def])
     assert jnp.isclose(jnp.array([0, 0, 0]), t0.reward, atol=0.0001).all()
     assert jnp.isclose(jnp.array([300, 300, 300]), t1.reward).all()
 
-    t0, t1 = game.step([batch_mixed_1, batch_mixed_2])
+    t0, t1 = env.step([batch_mixed_1, batch_mixed_2])
     assert jnp.isclose(jnp.array([0, 102, 200]), t0.reward, atol=0.0001).all()
     assert jnp.isclose(jnp.array([300, 99, 200]), t1.reward).all()

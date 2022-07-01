@@ -34,8 +34,12 @@ class InfiniteMatrixGame(Environment):
     def __init__(self, num_envs: int, payoff: list, gamma: float) -> None:
         self.payoff = jnp.array(payoff)
         self.num_envs = num_envs
-        self.reward_1 = jnp.array([[r[0] for r in payoff] * num_envs])
-        self.reward_2 = jnp.array([[r[1] for r in payoff] * num_envs])
+        self.gamma = gamma
+        self.n_agents = 2
+        self.episode_length = 1000
+
+        self.reward_1 = jnp.array([[r[0] for r in payoff]] * num_envs)
+        self.reward_2 = jnp.array([[r[1] for r in payoff]] * num_envs)
         self.switch = jnp.array(
             [
                 [
@@ -45,21 +49,45 @@ class InfiniteMatrixGame(Environment):
                     [0, 0, 0, 1, 0],
                     [0, 0, 0, 0, 1],
                 ]
-                * num_envs
             ]
+            * num_envs
         )
-        self.gamma = gamma
+        self._num_steps = 0
+        self._reset_next_step = True
 
-    @partial(jax.jit, static_argnums=(0,))
     def step(
-        self, action: Tuple[jnp.ndarray, jnp.ndarray]
+        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
         """
         takes a tuple of batched policies and produce value functions from infinite game
         policy of form [B, 5]
         """
+        if self._reset_next_step:
+            return self.reset()
+
+        action_1, action_2 = actions
+        self._num_steps += 1
+        assert action_1.shape == action_2.shape
+        assert action_1.shape == (self.num_envs, 5)
+
+        r1, r2 = self.get_reward(action_1, action_2)
+        obs1 = jnp.concatenate([action_1, action_2], axis=1)
+        obs2 = jnp.concatenate([action_2, action_1], axis=1)
+
+        if self._num_steps == self.episode_length:
+            self._reset_next_step = True
+            return termination(reward=r1, observation=obs1), termination(
+                reward=r2, observation=obs2
+            )
+        return transition(reward=r1, observation=obs1), transition(
+            reward=r2, observation=obs2
+        )
+
+    # @partial(jax.jit, static_argnums=(0,))
+    def get_reward(
+        self, theta1: jnp.ndarray, theta2: jnp.ndarray
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         # actions are egocentric so swap around for player two
-        theta1, theta2 = action
         theta2 = jnp.einsum("Bik,Bk -> Bi", self.switch, theta2)
         P = jnp.array(
             [
@@ -76,9 +104,7 @@ class InfiniteMatrixGame(Environment):
         inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
         v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
         v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
-        return termination(reward=v1, observation=action), termination(
-            reward=v2, observation=action
-        )
+        return v1, v2
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
@@ -90,8 +116,11 @@ class InfiniteMatrixGame(Environment):
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        # TODO: need to discuss what this means - first step you don't know your opponents policy?
-        pass
+        self._reset_next_step = False
+        self._num_steps = 0
+        # TODO: unsure if this correct def
+        obs = 0.5 * jnp.ones((self.num_envs, 10))
+        return restart(obs), restart(obs)
 
 
 class SequentialMatrixGame(Environment):
