@@ -125,7 +125,7 @@ class InfiniteMatrixGame(Environment):
 
 class SequentialMatrixGame(Environment):
     def __init__(
-        self, episode_length: int, num_envs: int, payoff: list
+        self, num_envs: int, payoff: list, episode_length: int
     ) -> None:
         self.payoff = jnp.array(payoff)
         self.episode_length = episode_length
@@ -190,7 +190,6 @@ class SequentialMatrixGame(Environment):
         # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
         # BotS      = [[3,2], [0,0], [0,0], [2,3]]
         # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]
-
         cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
         cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
 
