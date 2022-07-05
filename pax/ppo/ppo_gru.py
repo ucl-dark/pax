@@ -4,7 +4,11 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_GRU
+from pax.ppo.networks import (
+    make_GRU,
+    make_GRU_cartpole_network,
+    make_cartpole_network,
+)
 
 from dm_env import TimeStep
 import haiku as hk
@@ -115,7 +119,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * (1 - dones)
+            discounts = gamma * jnp.where(dones < 2, 1, 0)
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -376,7 +380,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros_like(state.hidden),
+                hidden=jnp.zeros(shape=(1,) + (gru_dim,)),
                 extras={"log_probs": None, "values": None},
             )
 
@@ -398,7 +402,8 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                hidden=initial_hidden_state,
+                # hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
+                hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={"values": None, "log_probs": None},
             )
 
@@ -429,6 +434,7 @@ class PPO:
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = network.apply
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -439,7 +445,6 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        # TODO: when using memory, the network needs the last hidden state
         actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
@@ -472,8 +477,21 @@ class PPO:
         self._until_sgd += 1
 
         # Rollouts still in progress
-        if self._until_sgd % (self._num_steps + 1) != 0:
+        if self._until_sgd % (self._num_steps) != 0:
             return
+
+        # Add an additional rollout step for advantage calculation
+        _, self._state = self._policy(
+            self._state.params, t_prime.observation, self._state
+        )
+
+        self._trajectory_buffer.add(
+            timestep=t,
+            action=0,
+            log_prob=0,
+            value=self._state.extras["values"],
+            new_timestep=t_prime,
+        )
 
         # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()
@@ -485,15 +503,20 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        # if new_timestep.last():
-        #     self._state = self._state._replace(rnn_state=self._initial_rnn_state)
 
 
 # TODO: seed, and player_id not used in CartPole
 def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
-    network, initial_hidden_state = make_GRU(action_spec)
+    if args.env_id == "CartPole-v1":
+        print(f"Making network for {args.env_id}")
+        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
+
+    else:
+        print(f"Making network for {args.env_id}")
+        network, initial_hidden_state = make_GRU(action_spec)
+
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer

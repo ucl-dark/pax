@@ -190,5 +190,5 @@ class Chicken(SequentialMatrixGame):
 
 if __name__ == "__main__":
     env = SequentialMatrixGame(
-        5, 2, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
+        5, 1, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
     )

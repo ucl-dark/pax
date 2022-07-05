@@ -17,18 +17,20 @@ agent1: 'PPO'
 agent2: 'TitForTat'
 
 # Environment
+env_id: ipd
 game: ipd 
 payoff:
 
 # Training hyperparameters
 num_envs: 100
-num_steps: 50 # number of steps per episode
+num_steps: 25 # number of steps per episode
 total_timesteps: 100_000_000
 eval_every: 500 # eval every n episodes, not timesteps
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every
+# batch_size = num_envs * num_steps
 
 # DQN agent parameters
 dqn: 
@@ -45,20 +47,20 @@ dqn:
 ppo:
   num_minibatches: 10
   num_epochs: 4 
-  gamma: 0.99 
+  gamma: 0.99
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-  entropy_coeff_start: 0.01
+  entropy_coeff_start: 0.1
   entropy_coeff_horizon: 200_000_000
-  entropy_coeff_end: 0.001
-  lr_scheduling: False
-  learning_rate: 2.5e-4
+  entropy_coeff_end: 0.01
+  lr_scheduling: True
+  learning_rate: 2.5e-2
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
 
 # LOLA agent parameters
 # lola:
@@ -68,6 +70,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}'
-  name: run-${seed}
+  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  name: run-seed-${seed}
   log: True
