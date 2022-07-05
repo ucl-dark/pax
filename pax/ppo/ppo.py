@@ -4,7 +4,7 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_network
+from pax.ppo.networks import make_network, make_cartpole_network
 
 from dm_env import TimeStep
 import haiku as hk
@@ -109,7 +109,11 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * (1 - dones)
+            # discounts = gamma * (1 - dones)
+            discounts = gamma * jnp.where(dones < 2, 1, 0)
+            # discounts = gamma * (1 - jnp.zeros_like(dones))
+
+            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -118,6 +122,8 @@ class PPO:
                     0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
                 )
             advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+
+            # this is where the gae function will end
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -365,6 +371,8 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            # for dict_key in initial_params.keys():
+            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -445,11 +453,24 @@ class PPO:
         # Update counter until doing SGD
         self._until_sgd += 1
 
-        # Rollouts still in progress
-        if self._until_sgd % (self._num_steps + 1) != 0:
+        # Rollouts onging
+        if self._until_sgd % (self._num_steps) != 0:
             return
 
         # Rollouts complete -> Training begins
+        # Add an additional rollout step for advantage calculation
+        _, self._state = self._policy(
+            self._state.params, t_prime.observation, self._state
+        )
+
+        self._trajectory_buffer.add(
+            timestep=t,
+            action=0,
+            log_prob=0,
+            value=self._state.extras["values"],
+            new_timestep=t_prime,
+        )
+
         sample = self._trajectory_buffer.sample()
         self._state, results = self._sgd_step(self._state, sample)
         self._logger.metrics["sgd_steps"] += (
@@ -465,9 +486,13 @@ class PPO:
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    # Network
-    network = make_network(action_spec)
-    # network = make_network(action_spec.num_values)
+    if args.env_id == "CartPole-v1":
+        print(f"Making network for {args.env_id}")
+        network = make_cartpole_network(action_spec)
+
+    else:
+        print(f"Making network for {args.env_id}")
+        network = make_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

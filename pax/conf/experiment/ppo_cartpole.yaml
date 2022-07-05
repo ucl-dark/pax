@@ -25,7 +25,7 @@ ppo:
   lr_scheduling: False
   learning_rate: 2.5e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
 
 # WandB parameters
 wandb:

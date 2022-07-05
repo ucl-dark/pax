@@ -7,8 +7,68 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-# states are [CC, DC, CD, DD]
+# states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1
+
+
+# TODO: Add strategy. PPO should learn to ALL-C
+# class ZDExtortion:
+#     # @partial(jax.jit, static_argnums=(0,))
+#     def __init__(self, *args):
+#         self.key = jax.random.PRNGKey(args[0])
+
+#     def select_action(
+#         self,
+#         timestep: TimeStep,
+#     ) -> jnp.ndarray:
+#         action, self.key = self._extortion(timestep.observation, self.key)
+#         return action
+
+#     def update(self, *args) -> None:
+#         pass
+
+#     # @jax.jit
+#     def _extortion(self, obs: jnp.ndarray, key):
+#         # from https://www.pnas.org/doi/epdf/10.1073/pnas.1206569109
+#         # TODO: Remove hard coded cooperation. Make it related to the specific payoff of the game
+#         # TODO: What is probability of cooperating in START? Default to 1
+#         # CC, CD, DC, DD, START
+#         key, subkey = jax.random.split(self.key)
+#         samples = jax.random.uniform(
+#             subkey, shape=(obs.shape[0],), minval=0.0, maxval=1.0
+#         )
+#         # TODO: Move this outside the function
+#         p_coop = jnp.array(
+#             [11 / 13, 1 / 2, 7 / 26, 0, 1]
+#         )
+
+#         obs = obs.argmax(axis=-1)
+#         action = jnp.where(samples < p_coop[obs], 0, 1)
+#         return action, key
+
+
+class GrimTrigger:
+    @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        return self._trigger(timestep.observation)
+
+    def update(self, *args) -> None:
+        pass
+
+    def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
+        # batch_size, _ = obs.shape
+        obs = obs.argmax(axis=-1)
+        # if 0 | 4 -> C
+        # if 1 | 2 | 3 | -> D
+        obs = obs % 4  # now either 0, 1, 2, 3
+        action = jnp.where(obs > 0.0, 1.0, 0.0)
+        return action
 
 
 class TitForTat:
