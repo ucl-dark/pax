@@ -14,6 +14,7 @@ from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import (
+    HyperAltruistic,
     TitForTat,
     Defect,
     Altruistic,
@@ -26,7 +27,8 @@ from pax.utils import Section
 from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
-    policy_logger_ppo_hyper,
+    policy_logger_hyper,
+    policy_logger_hyper_gru,
     value_logger,
     value_logger_dqn,
     ppo_losses,
@@ -98,9 +100,14 @@ def env_setup(args, logger):
 
     else:
         train_env = InfiniteMatrixGame(
-            args.num_envs, payoff, args.env_discount
+            args.num_envs,
+            payoff,
+            args.num_steps,
+            args.env_discount,
         )
-        test_env = InfiniteMatrixGame(1, payoff, args.env_discount)
+        test_env = InfiniteMatrixGame(
+            1, payoff, args.num_steps, args.env_discount
+        )
         logger.info(
             f"Game Type: Infinite | Inner Discount: {args.env_discount}"
         )
@@ -134,6 +141,7 @@ def agent_setup(args, logger):
             dummy_env = InfiniteMatrixGame(
                 args.num_envs,
                 [[0, 0], [0, 0], [0, 0], [0, 0]],
+                args.num_steps,
                 args.env_discount,
             )
         # dummy environment to get observation and action spec
@@ -176,6 +184,7 @@ def agent_setup(args, logger):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
             [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.num_steps,
             args.env_discount,
         )
 
@@ -208,7 +217,9 @@ def agent_setup(args, logger):
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        # HyperNetworks
         "Hyper": get_hyper_agent,
+        "HyperAltruistic": HyperAltruistic,
     }
 
     assert args.agent1 in strategies
@@ -268,7 +279,10 @@ def watcher_setup(args, logger):
 
     def hyper_log(agent):
         losses = ppo_losses(agent)
-        policy = policy_logger_ppo_hyper(agent)
+        if args.ppo.with_memory:
+            policy = policy_logger_hyper_gru(agent)
+        else:
+            policy = policy_logger_hyper(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -286,6 +300,7 @@ def watcher_setup(args, logger):
         "DQN": dqn_log,
         "PPO": ppo_log,
         "Hyper": hyper_log,
+        "HyperAltruistic": dumb_log,
     }
 
     assert args.agent1 in strategies

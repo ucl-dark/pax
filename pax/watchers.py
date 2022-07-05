@@ -113,7 +113,7 @@ def policy_logger_ppo_with_memory(agent) -> None:
     return cooperation_probs
 
 
-def policy_logger_ppo_hyper(agent) -> None:
+def policy_logger_hyper_gru(agent) -> None:
     """Calculate probability of coopreation"""
     # n = 5
     params = agent._state.params
@@ -130,6 +130,15 @@ def policy_logger_ppo_hyper(agent) -> None:
     for i, state_name in enumerate(STATE_NAMES):
         cooperation_probs[state_name] = float(dist.mean()[0][i])
     return cooperation_probs
+
+
+def policy_logger_hyper(agent) -> None:
+    weights = agent._state.params["continuous_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs
 
 
 def ppo_losses(agent) -> None:

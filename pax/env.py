@@ -31,15 +31,17 @@ _STATES = (0, 1, 2, 3, 4)  # CC, DC, CD, DD, START
 
 
 class InfiniteMatrixGame(Environment):
-    def __init__(self, num_envs: int, payoff: list, gamma: float) -> None:
-        self.payoff = jnp.array(payoff)
+    def __init__(
+        self, num_envs: int, payoff: list, episode_length: int, gamma: float
+    ) -> None:
+        self.payoff = jnp.array([payoff[0], payoff[2], payoff[1], payoff[3]])
         self.num_envs = num_envs
         self.gamma = gamma
         self.n_agents = 2
-        self.episode_length = 1000
+        self.episode_length = episode_length
 
-        self.reward_1 = jnp.array([[r[0] for r in payoff]] * num_envs)
-        self.reward_2 = jnp.array([[r[1] for r in payoff]] * num_envs)
+        self.reward_1 = jnp.array([[r[0] for r in self.payoff]] * num_envs)
+        self.reward_2 = jnp.array([[r[1] for r in self.payoff]] * num_envs)
         self.switch = jnp.array(
             [
                 [
@@ -104,7 +106,10 @@ class InfiniteMatrixGame(Environment):
         inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
         v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
         v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
-        return v1, v2
+
+        avg_v1 = v1 * (1 - self.gamma)
+        avg_v2 = v2 * (1 - self.gamma)
+        return avg_v1, avg_v2
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

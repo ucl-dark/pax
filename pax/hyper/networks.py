@@ -8,32 +8,6 @@ import jax
 import jax.numpy as jnp
 
 
-class CategoricalValueHead(hk.Module):
-    """Network head that produces a categorical distribution and value."""
-
-    def __init__(
-        self,
-        num_values: int,
-        name: Optional[str] = None,
-    ):
-        super().__init__(name=name)
-        self._logit_layer = hk.Linear(
-            num_values,
-            w_init=hk.initializers.Orthogonal(0.01),  # baseline
-            with_bias=False,
-        )
-        self._value_layer = hk.Linear(
-            1,
-            w_init=hk.initializers.Orthogonal(1.0),  # baseline
-            with_bias=False,
-        )
-
-    def __call__(self, inputs: jnp.ndarray):
-        logits = self._logit_layer(inputs)
-        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
-        return (distrax.Categorical(logits=logits), value)
-
-
 class ContinuousValueHead(hk.Module):
     """Network head that produces a continuous distribution and value."""
 
@@ -43,7 +17,13 @@ class ContinuousValueHead(hk.Module):
         name: Optional[str] = None,
     ):
         super().__init__(name=name)
-        self._logit_layer = hk.Linear(
+        self._mu_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Orthogonal(0.01),  # baseline
+            with_bias=False,
+        )
+
+        self._var_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),  # baseline
             with_bias=False,
@@ -55,9 +35,13 @@ class ContinuousValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        logits = self._logit_layer(inputs)
+        mean = jax.nn.sigmoid(self._mu_layer(inputs))
+        variance = jax.nn.softplus(self._var_layer(inputs))
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
-        return (distrax.MultivariateNormalDiag(loc=logits), value)
+        return (
+            distrax.MultivariateNormalDiag(loc=mean, scale_diag=variance),
+            value,
+        )
 
 
 def make_network(num_actions: int):
@@ -67,7 +51,7 @@ def make_network(num_actions: int):
         layers = []
         layers.extend(
             [
-                CategoricalValueHead(num_values=num_actions),
+                ContinuousValueHead(num_values=num_actions),
             ]
         )
         policy_value_network = hk.Sequential(layers)
@@ -87,7 +71,7 @@ def make_GRU(num_actions: int):
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)
-        logits, values = CategoricalValueHead(num_actions)(embedding)
+        logits, values = ContinuousValueHead(num_actions)(embedding)
         return (logits, values), state
 
     network = hk.without_apply_rng(hk.transform(forward_fn))

@@ -74,6 +74,7 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
+            actions = jnp.clip(actions, 0, 1)
             state.extras["values"] = values
             state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(

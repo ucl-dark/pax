@@ -175,3 +175,25 @@ class Random:
             ),
             None,
         )
+
+
+class HyperAltruistic:
+    @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        # return jnp.zeros((batch_size, 1))
+        return jnp.ones((batch_size, 5))
+
+    def update(self, *args) -> None:
+        pass
