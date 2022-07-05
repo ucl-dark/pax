@@ -6,6 +6,8 @@ from pax.env import (
     InfiniteMatrixGame,
     SequentialMatrixGame,
 )
+from pax.hyper.ppo import make_hyper
+from pax.hyper.ppo_gru import make_gru_hyper
 from pax.independent_learners import IndependentLearners
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
@@ -24,6 +26,7 @@ from pax.utils import Section
 from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
+    policy_logger_ppo_hyper,
     value_logger,
     value_logger_dqn,
     ppo_losses,
@@ -129,7 +132,9 @@ def agent_setup(args, logger):
             )
         else:
             dummy_env = InfiniteMatrixGame(
-                args.num_envs, args.payoff, args.env_discount
+                args.num_envs,
+                [[0, 0], [0, 0], [0, 0], [0, 0]],
+                args.env_discount,
             )
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
@@ -146,17 +151,9 @@ def agent_setup(args, logger):
 
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "finite":
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-        else:
-            dummy_env = InfiniteMatrixGame(
-                args.num_envs,
-                args.payoff,
-                args.env_discount,
-            )
-
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
         if args.ppo.with_memory:
             ppo_agent = make_gru_agent(
                 args,
@@ -175,6 +172,31 @@ def agent_setup(args, logger):
             )
         return ppo_agent
 
+    def get_hyper_agent(seed, player_id):
+        dummy_env = InfiniteMatrixGame(
+            args.num_envs,
+            [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.env_discount,
+        )
+
+        if args.ppo.with_memory:
+            hyper_agent = make_gru_hyper(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().num_values,
+                seed=seed,
+                player_id=player_id,
+            )
+        else:
+            hyper_agent = make_hyper(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().num_values,
+                seed=seed,
+                player_id=player_id,
+            )
+        return hyper_agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
@@ -186,6 +208,7 @@ def agent_setup(args, logger):
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        "Hyper": get_hyper_agent,
     }
 
     assert args.agent1 in strategies
@@ -243,6 +266,14 @@ def watcher_setup(args, logger):
     def dumb_log(agent, *args):
         return
 
+    def hyper_log(agent):
+        losses = ppo_losses(agent)
+        policy = policy_logger_ppo_hyper(agent)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
     strategies = {
         "TitForTat": dumb_log,
         "Defect": dumb_log,
@@ -254,6 +285,7 @@ def watcher_setup(args, logger):
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
+        "Hyper": hyper_log,
     }
 
     assert args.agent1 in strategies

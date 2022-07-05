@@ -108,11 +108,11 @@ class InfiniteMatrixGame(Environment):
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
-        return specs.DiscreteArray(num_values=len(10), name="previous policy")
+        return specs.DiscreteArray(num_values=10, name="previous policy")
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(dtype=int, num_values=len(5), name="action")
+        return specs.DiscreteArray(dtype=int, num_values=5, name="action")
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
@@ -216,7 +216,7 @@ class SequentialMatrixGame(Environment):
             + 3 * (a1) * (a2)
         )
 
-    @partial(jax.jit, static_argnums=(0, 2))
+    @partial(jax.jit, static_argnums=(0,))
     def _observation(self, state: jnp.array) -> Tuple[jnp.array, jnp.array]:
         # each agent wants to assume they are agent 1 canonicaly:
         # observation also changes environment to be state space

@@ -13,13 +13,13 @@ seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 
 # Agents  
-agent1: 'PPO'
-agent2: 'TitForTat'
+agent1: 'Hyper'
+agent2: 'Hyper'
 
 # Environment
 env_id: ipd
 game: ipd 
-env_type: finite
+env_type: infinite
 env_discount: 0.99
 payoff:
 

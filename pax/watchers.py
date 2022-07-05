@@ -113,6 +113,25 @@ def policy_logger_ppo_with_memory(agent) -> None:
     return cooperation_probs
 
 
+def policy_logger_ppo_hyper(agent) -> None:
+    """Calculate probability of coopreation"""
+    # n = 5
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(
+        agent._logger.metrics["total_steps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
+    (dist, _), hidden = agent.forward(params, 0.5 * jnp.ones((1, 10)), hidden)
+    for i, state_name in enumerate(STATE_NAMES):
+        cooperation_probs[state_name] = float(dist.mean()[0][i])
+    return cooperation_probs
+
+
 def ppo_losses(agent) -> None:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
