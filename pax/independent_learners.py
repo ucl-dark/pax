@@ -5,7 +5,9 @@ import jax.numpy as jnp
 
 
 class IndependentLearners:
-    "Interface for a set of batched agents to work with environment"
+    """Interface for a set of batched agents to work with environment
+    Performs independent learning
+    """
 
     def __init__(self, agents: list):
         self.num_agents: int = len(agents)
@@ -23,8 +25,7 @@ class IndependentLearners:
         actions: List[jnp.ndarray],
         timesteps: List[TimeStep],
     ) -> None:
-        # TODO: Add centralized training for LOLA-esque algorithms
-        # (They require the parameters of the other agent at timestep i)
+
         for agent, t, action, t_1 in zip(
             self.agents, old_timesteps, actions, timesteps
         ):

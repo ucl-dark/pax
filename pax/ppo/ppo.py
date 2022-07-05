@@ -413,7 +413,13 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
-    def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
+    def update(
+        self,
+        t: TimeStep,
+        actions: np.array,
+        t_prime: TimeStep,
+        other_agents=None,
+    ):
         # Adds agent and environment info to buffer
         self._rollouts(
             buffer=self._trajectory_buffer,

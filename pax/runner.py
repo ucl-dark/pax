@@ -33,8 +33,6 @@ class Runner:
                 rewards_0.append(r_0)
                 rewards_1.append(r_1)
 
-                # train model
-                # agents.update(t, actions, infos, t_prime)
                 agents.update(t, actions, t_prime)
                 self.train_steps += 1
 

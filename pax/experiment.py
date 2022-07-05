@@ -9,6 +9,7 @@ from pax.env import (
     BattleOfTheSexes,
     Chicken,
 )
+from pax.centralized_learners import CentralizedLearners
 from pax.independent_learners import IndependentLearners
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
