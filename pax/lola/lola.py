@@ -24,11 +24,9 @@ class LOLA:
             """Determines how to choose an action"""
             key, subkey = jax.random.split(state.random_key)
             logits = network.apply(params, observation)
-            print("Logits from policy", logits)
-            print("Softmax of logits from policy", jax.nn.softmax(logits))
             actions = jax.random.categorical(subkey, logits)
             state = state._replace(random_key=key)
-            return int(actions), state
+            return actions, state
 
         def loss():
             """Loss function"""

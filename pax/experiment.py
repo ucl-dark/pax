@@ -13,6 +13,7 @@ from pax.centralized_learners import CentralizedLearners
 from pax.independent_learners import IndependentLearners
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.lola.lola import make_lola
 from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import (
@@ -147,6 +148,10 @@ def agent_setup(args, logger):
             )
         return ppo_agent
 
+    def get_LOLA_agent(seed, player_id):
+        lola_agent = make_lola(seed)
+        return lola_agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
@@ -158,6 +163,7 @@ def agent_setup(args, logger):
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        "LOLA": get_LOLA_agent,
     }
 
     assert args.agent1 in strategies
@@ -177,6 +183,9 @@ def agent_setup(args, logger):
     logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+
+    if args.centralized:
+        return CentralizedLearners([agent_0, agent_1])
 
     return IndependentLearners([agent_0, agent_1])
 
@@ -226,6 +235,7 @@ def watcher_setup(args, logger):
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
+        "LOLA": dumb_log,
     }
 
     assert args.agent1 in strategies
