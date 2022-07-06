@@ -59,22 +59,21 @@ class LOLA:
         t: TimeStep,
         actions: jnp.ndarray,
         t_prime: TimeStep,
-        other_agents=None,
+        other_agents: list = None,
     ):
         """Update agent"""
-        # an sgd step requires the parameters of the other agent.
-        # currently, the runner file doesn't have access to the other agent's gradients
-        # we could put the parameters of the agent inside the timestep
+        # for agent in other_agents:
+        #     other_agent_obs = agent._trajectory_buffer.observations
         pass
 
 
 def make_lola(seed: int) -> LOLA:
-    """ "Instantiate LOLA"""
+    """Instantiate LOLA"""
     random_key = jax.random.PRNGKey(seed)
 
     def forward(inputs):
-        """Forward pass for LOLA exact"""
-        values = hk.Linear(1, with_bias=False)
+        """Forward pass for LOLA"""
+        values = hk.Linear(2, with_bias=False)
         return values(inputs)
 
     network = hk.without_apply_rng(hk.transform(forward))

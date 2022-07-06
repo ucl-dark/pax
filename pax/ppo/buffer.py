@@ -153,6 +153,8 @@ class TrajectoryBuffer:
             (self._num_envs, self._num_steps, self.gru_dim)
         )
 
+        self.parameters = jnp.zeros((self._num_envs, self._num_steps))
+
 
 if __name__ == "__main__":
     pass

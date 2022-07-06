@@ -23,7 +23,6 @@ from pax.strategies import (
     Random,
     Human,
     GrimTrigger,
-    # ZDExtortion,
 )
 from pax.utils import Section
 from pax.watchers import (

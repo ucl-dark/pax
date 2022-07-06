@@ -6,11 +6,11 @@ import jax.numpy as jnp
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
 CC = jnp.array([[1, 0, 0, 0, 0]])
-CD = jnp.array([[0, 1, 0, 0, 0]])
-DC = jnp.array([[0, 0, 1, 0, 0]])
+DC = jnp.array([[0, 1, 0, 0, 0]])
+CD = jnp.array([[0, 0, 1, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
-STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
-ALL_STATES = [START, CC, CD, DC, DD]
+STATE_NAMES = ["START", "CC", "DC", "CD", "DD"]
+ALL_STATES = [START, CC, DC, CD, DD]
 
 
 def policy_logger(agent) -> None:
@@ -119,11 +119,13 @@ def ppo_losses(agent) -> None:
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
     loss_entropy = agent._logger.metrics["loss_entropy"]
+    entropy_coefficient = agent._logger.metrics["entropy_cost"]
     losses = {
         "sgd_steps": sgd_steps,
-        "losses/total": loss_total,
-        "losses/policy": loss_policy,
-        "losses/value": loss_value,
-        "losses/entropy": loss_entropy,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+        "train/entropy": loss_entropy,
+        "train/entropy_coefficient": entropy_coefficient,
     }
     return losses

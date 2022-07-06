@@ -209,6 +209,7 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
+                "entropy_cost": entropy_cost,
             }
             # }, new_rnn_unroll_state
 
@@ -429,6 +430,7 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
+            "entropy_cost": entropy_coeff_start,
         }
 
         # Initialize functions
@@ -503,6 +505,7 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
 
 # TODO: seed, and player_id not used in CartPole
