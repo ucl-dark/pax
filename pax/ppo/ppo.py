@@ -465,7 +465,7 @@ class PPO:
         )
 
         self._trajectory_buffer.add(
-            timestep=t,
+            timestep=t_prime,  # this should be t_prime
             action=0,
             log_prob=0,
             value=self._state.extras["values"],

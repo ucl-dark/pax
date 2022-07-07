@@ -129,3 +129,15 @@ def ppo_losses(agent) -> None:
         "train/entropy_coefficient": entropy_coefficient,
     }
     return losses
+
+
+def policy_logger_lola(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
+        for (s, p) in zip(State, pi)
+    }
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs

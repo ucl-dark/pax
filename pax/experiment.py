@@ -148,7 +148,7 @@ def agent_setup(args, logger):
         return ppo_agent
 
     def get_LOLA_agent(seed, player_id):
-        lola_agent = make_lola(seed)
+        lola_agent = make_lola(seed, player_id)
         return lola_agent
 
     strategies = {
@@ -158,7 +158,6 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": Random,
         "Grim": GrimTrigger,
-        # "ZDExtortion": ZDExtortion,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,

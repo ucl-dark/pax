@@ -17,7 +17,9 @@ class TrainingState(NamedTuple):
 class LOLA:
     """Implements LOLA with exact value functions"""
 
-    def __init__(self, network: hk.Params, random_key: jnp.ndarray):
+    def __init__(
+        self, network: hk.Params, random_key: jnp.ndarray, player_id: int
+    ):
         def policy(
             params: hk.Params, observation: jnp.ndarray, state: TrainingState
         ):
@@ -45,6 +47,8 @@ class LOLA:
 
         self.state = make_initial_state(random_key)
         self._policy = policy
+        self.player_id = player_id  # for logging
+        # self.
 
     def select_action(self, t: TimeStep):
         """Select action based on observation"""
@@ -62,12 +66,15 @@ class LOLA:
         other_agents: list = None,
     ):
         """Update agent"""
-        # for agent in other_agents:
-        #     other_agent_obs = agent._trajectory_buffer.observations
-        pass
+        for agent in other_agents:
+            other_agent_parameters = agent._trajectory_buffer.parameters
+            # print(f"other_agent_parameters: {other_agent_parameters}")
+            print(
+                f"other_agent_parameters shape: {other_agent_parameters.shape}"
+            )
 
 
-def make_lola(seed: int) -> LOLA:
+def make_lola(seed: int, player_id: int) -> LOLA:
     """Instantiate LOLA"""
     random_key = jax.random.PRNGKey(seed)
 
@@ -77,8 +84,7 @@ def make_lola(seed: int) -> LOLA:
         return values(inputs)
 
     network = hk.without_apply_rng(hk.transform(forward))
-
-    return LOLA(network=network, random_key=random_key)
+    return LOLA(network=network, random_key=random_key, player_id=player_id)
 
 
 if __name__ == "__main__":
