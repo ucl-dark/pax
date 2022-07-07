@@ -478,11 +478,17 @@ class PPO:
             self._state.params, t_prime.observation, self._state
         )
 
+        bootstrap_value = (
+            self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"])
+        )
+
         self._trajectory_buffer.add(
-            timestep=t,
+            timestep=t_prime,
             action=0,
             log_prob=0,
-            value=self._state.extras["values"],
+            value=bootstrap_value,
             new_timestep=t_prime,
         )
 
