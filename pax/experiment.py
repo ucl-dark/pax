@@ -15,6 +15,8 @@ from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import (
     HyperAltruistic,
+    HyperDefect,
+    HyperTFT,
     TitForTat,
     Defect,
     Altruistic,
@@ -27,7 +29,7 @@ from pax.utils import Section
 from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
-    policy_logger_hyper,
+    logger_hyper,
     policy_logger_hyper_gru,
     value_logger,
     value_logger_dqn,
@@ -200,7 +202,7 @@ def agent_setup(args, logger):
             hyper_agent = make_hyper(
                 args,
                 obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
+                action_spec=dummy_env.action_spec().shape[1],
                 seed=seed,
                 player_id=player_id,
             )
@@ -220,6 +222,8 @@ def agent_setup(args, logger):
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "HyperAltruistic": HyperAltruistic,
+        "HyperDefect": HyperDefect,
+        "HyperTFT": HyperTFT,
     }
 
     assert args.agent1 in strategies
@@ -282,7 +286,7 @@ def watcher_setup(args, logger):
         if args.ppo.with_memory:
             policy = policy_logger_hyper_gru(agent)
         else:
-            policy = policy_logger_hyper(agent)
+            policy = logger_hyper(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -301,6 +305,8 @@ def watcher_setup(args, logger):
         "PPO": ppo_log,
         "Hyper": hyper_log,
         "HyperAltruistic": dumb_log,
+        "HyperDefect": dumb_log,
+        "HyperTFT": dumb_log,
     }
 
     assert args.agent1 in strategies
@@ -333,16 +339,18 @@ def main(args):
 
     # TODO: Do we need this?
     # assert not train_episodes % eval_every
-    num_episodes = int(args.total_timesteps / (args.num_steps * args.num_envs))
+    num_episodes = int(args.total_timesteps / (args.num_steps))
+    eval_every = int(args.eval_every / (args.num_steps))
     print(f"Number of training episodes = {num_episodes}")
-    print()
+    print(f"Evaluating every {eval_every} episodes")
     if not args.wandb.log:
         watchers = False
-    for num_update in range(int(num_episodes // args.eval_every)):
-        print(f"Update: {num_update}/{int(num_episodes // args.eval_every)}")
+    for num_update in range(int(num_episodes // eval_every)):
+        print(f"Update: {num_update}/{int(num_episodes // eval_every)}")
         print()
+
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)
-        runner.train_loop(train_env, agent_pair, args.eval_every, watchers)
+        runner.train_loop(train_env, agent_pair, eval_every, watchers)
 
 
 if __name__ == "__main__":

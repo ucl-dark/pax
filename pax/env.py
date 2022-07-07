@@ -72,7 +72,9 @@ class InfiniteMatrixGame(Environment):
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 5)
 
+        action_1, action_2 = jnp.clip(action_1, 0, 1), jnp.clip(action_2, 0, 1)
         r1, r2 = self.get_reward(action_1, action_2)
+
         obs1 = jnp.concatenate([action_1, action_2], axis=1)
         obs2 = jnp.concatenate([action_2, action_1], axis=1)
 
@@ -117,7 +119,9 @@ class InfiniteMatrixGame(Environment):
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(dtype=int, num_values=5, name="action")
+        return specs.BoundedArray(
+            shape=(self.num_envs, 5), minimum=0, maximum=1, name="action"
+        )
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""

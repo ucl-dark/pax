@@ -74,7 +74,6 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            actions = jnp.clip(actions, 0, 1)
             state.extras["values"] = values
             state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
@@ -202,6 +201,7 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
+                "entropy_coeff": entropy_cost,
             }
 
         @jax.jit
@@ -402,11 +402,13 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
+            "entropy_coeff": entropy_coeff_start,
         }
 
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = network.apply
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -459,10 +461,12 @@ class PPO:
         )
 
         self._trajectory_buffer.add(
-            timestep=t,
+            timestep=t_prime,
             action=0,
             log_prob=0,
-            value=self._state.extras["values"],
+            value=self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"]),
             new_timestep=t_prime,
         )
 
@@ -475,6 +479,7 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_coeff"] = results["entropy_coeff"]
 
 
 # TODO: seed, and player_id not used in CartPole

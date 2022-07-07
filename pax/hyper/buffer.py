@@ -78,7 +78,7 @@ class TrajectoryBuffer:
         self.behavior_values = jax.lax.stop_gradient(
             self.behavior_values.at[:, self.ptr].set(value.flatten())
         )
-        self.dones = self.dones.at[:, self.ptr].set(timestep.step_type)
+        self.dones = self.dones.at[:, self.ptr].set(new_timestep.step_type)
         self.rewards = self.rewards.at[:, self.ptr].set(new_timestep.reward)
 
         if hidden is not None:
@@ -123,7 +123,6 @@ class TrajectoryBuffer:
                 self._num_steps,
                 *self.action_space,
             ),
-            dtype="int32",
         )
 
         self.behavior_log_probs = jnp.zeros(
@@ -143,7 +142,7 @@ class TrajectoryBuffer:
             (
                 self._num_envs,
                 self._num_steps,
-            )
+            ),
         )
         self.behavior_values = jnp.zeros(
             (

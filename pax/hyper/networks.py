@@ -21,12 +21,14 @@ class ContinuousValueHead(hk.Module):
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),  # baseline
             with_bias=False,
+            name="mu",
         )
 
         self._var_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),  # baseline
             with_bias=False,
+            name="var",
         )
         self._value_layer = hk.Linear(
             1,
@@ -35,7 +37,7 @@ class ContinuousValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        mean = jax.nn.sigmoid(self._mu_layer(inputs))
+        mean = self._mu_layer(inputs)
         variance = jax.nn.softplus(self._var_layer(inputs))
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (

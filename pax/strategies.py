@@ -197,3 +197,47 @@ class HyperAltruistic:
 
     def update(self, *args) -> None:
         pass
+
+
+class HyperDefect:
+    @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        # return jnp.zeros((batch_size, 1))
+        return jnp.zeros((batch_size, 5))
+
+    def update(self, *args) -> None:
+        pass
+
+
+class HyperTFT:
+    @partial(jax.jit, static_argnums=(0,))
+    def __init__(self, *args):
+        pass
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        # return jnp.zeros((batch_size, 1))
+        return jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_size, 1))
+
+    def update(self, *args) -> None:
+        pass
