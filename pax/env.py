@@ -74,7 +74,6 @@ class InfiniteMatrixGame(Environment):
 
         action_1, action_2 = jnp.clip(action_1, 0, 1), jnp.clip(action_2, 0, 1)
         r1, r2 = self.get_reward(action_1, action_2)
-
         obs1 = jnp.concatenate([action_1, action_2], axis=1)
         obs2 = jnp.concatenate([action_2, action_1], axis=1)
 

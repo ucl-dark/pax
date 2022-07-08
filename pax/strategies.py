@@ -7,6 +7,8 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
+from pax.env import InfiniteMatrixGame
+
 # states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1
 
@@ -246,11 +248,17 @@ class HyperTFT:
 class MetaNaiveLearner:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
-    def __init__(self, action_space, envs, *args):
+    def __init__(
+        self, action_dim: int, env: InfiniteMatrixGame, lr: float, seed: int
+    ):
         self.num_steps = 0
-        self.lr = 0.001
-        self.env = envs
-        self.params = jnp.random((envs.num_envs, action_space))
+        self.lr = lr
+        self.env = env
+        self.num_agents = env.num_envs
+        self.random_key = jax.random.PRNGKey(seed=seed)
+        self.params = jax.random.uniform(
+            self.random_key, (self.num_agents, action_dim)
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -264,17 +272,18 @@ class MetaNaiveLearner:
         self, timestep: TimeStep, action: jnp.array, next_timestep: TimeStep
     ) -> None:
         # things i need:
-        # copy of env
         env = self.env  # i dunno how i get this or make sure the state is good
-        other_action = timestep.observation[:, 5:]
+        env.reset()
+        other_action = next_timestep.observation[:, 5:]
 
         def loss_fn(pi, other_pi, env):
-            t1, _ = env.step(pi, other_pi)
-            return t1.reward
+            t1, _ = env.step([pi, other_pi])
+            return t1.reward.mean()
 
-        grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+        grad_fn = jax.value_and_grad(loss_fn)
         reward, grad = grad_fn(action, other_action, env)
 
-        assert reward == next_timestep.reward
+        assert reward == next_timestep.reward.mean()
         # old school gradient descent
-        self.param -= jnp.multiply(grad[0], self.lr)
+        self.params -= jnp.multiply(grad[0], self.lr)
+        self.num_steps += 1
