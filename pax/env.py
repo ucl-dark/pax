@@ -34,7 +34,7 @@ class InfiniteMatrixGame(Environment):
     def __init__(
         self, num_envs: int, payoff: list, episode_length: int, gamma: float
     ) -> None:
-        self.payoff = jnp.array([payoff[0], payoff[2], payoff[1], payoff[3]])
+        self.payoff = jnp.array(payoff)
         self.num_envs = num_envs
         self.gamma = gamma
         self.n_agents = 2
