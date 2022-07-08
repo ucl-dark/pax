@@ -244,44 +244,37 @@ class HyperTFT:
 
 
 class NaiveLearner:
-    """A Naive Learner which backprops through the game and updates every step"""
+    """A Batch of Naive Learners which backprops through the game and updates every step"""
 
-    def __init__(self, action_space, *args):
+    def __init__(self, action_space, envs, *args):
         self.num_steps = 0
         self.lr = 0.001
-        self.params = jnp.random((1, action_space))
+        self.env = envs
+        self.params = jnp.random((envs.num_envs, action_space))
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
     ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        # return jnp.zeros((batch_size, 1))
-        action = jnp.tile(self.params, (batch_size, 1))
-        return action
 
-    def update(self, *args) -> None:
-        "Don't do anything when update is normally called (end of trajectory)"
-        pass
+        return self.params
 
-    def gradient_update(self, *args) -> None:
+    def update(
+        self, timestep: TimeStep, action: jnp.array, next_timestep: TimeStep
+    ) -> None:
         # things i need:
-        # other players action
         # copy of env
-        other_pi, env = args
+        env = self.env  # i dunno how i get this or make sure the state is good
+        other_action = timestep.observation[:, 5:]
 
-        def loss(pi, other_pi, env):
+        def loss_fn(pi, other_pi, env):
             t1, _ = env.step(pi, other_pi)
             return t1.reward
 
-        grad_fn = jax.value_and_grad(loss, has_aux=True)
-        reward, grad = grad_fn(self.params, other_pi, env)
+        grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+        reward, grad = grad_fn(action, other_action, env)
 
+        assert reward == next_timestep.reward
         # old school gradient descent
         self.param -= jnp.multiply(grad[0], self.lr)
