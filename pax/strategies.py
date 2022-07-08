@@ -243,7 +243,7 @@ class HyperTFT:
         pass
 
 
-class NaiveLearner:
+class MetaNaiveLearner:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(self, action_space, envs, *args):
