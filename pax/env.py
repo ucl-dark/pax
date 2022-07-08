@@ -20,14 +20,14 @@ from dm_env import (
 
 class State(enum.IntEnum):
     CC = 0
-    DC = 1
-    CD = 2
+    CD = 1
+    DC = 2
     DD = 3
     START = 4
 
 
 _ACTIONS = (0, 1)  # Cooperate, Defect
-_STATES = (0, 1, 2, 3, 4)  # CC, DC, CD, DD, START
+_STATES = (0, 1, 2, 3, 4)  # CC, CD, DC, DD, START
 
 
 class SequentialMatrixGame(Environment):
@@ -92,20 +92,20 @@ class SequentialMatrixGame(Environment):
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
         """Returns the rewards of a step"""
         # Example payoffs
-        #             CC      DC     CD     DD
-        # IPD       = [[2,2], [3,0], [0,3], [1,1]]
-        # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
+        #             CC      CD     DC     DD
+        # IPD       = [[2,2], [0,3], [3,0], [1,1]]
+        # Stag hunt = [[4,4], [1,3], [3,1], [2,2]]
         # BotS      = [[3,2], [0,0], [0,0], [2,3]]
-        # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]
+        # Chicken   = [[0,0], [-1,1],[1,-1],[-2,-2]]
 
         cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
         cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
 
-        dc_p1 = self.payoff[1][0] * a1 * (1.0 - a2)
-        dc_p2 = self.payoff[1][1] * a1 * (1.0 - a2)
+        cd_p1 = self.payoff[1][0] * (1.0 - a1) * a2
+        cd_p2 = self.payoff[1][1] * (1.0 - a1) * a2
 
-        cd_p1 = self.payoff[2][0] * (1.0 - a1) * a2
-        cd_p2 = self.payoff[2][1] * (1.0 - a1) * a2
+        dc_p1 = self.payoff[2][0] * a1 * (1.0 - a2)
+        dc_p2 = self.payoff[2][1] * a1 * (1.0 - a2)
 
         dd_p1 = self.payoff[3][0] * a1 * a2
         dd_p2 = self.payoff[3][1] * a1 * a2
@@ -133,8 +133,8 @@ class SequentialMatrixGame(Environment):
         # switch the assymetric states (CD and DC)
         # 0 -> 0, 1 -> 2, 2 -> 1, 3 -> 3
         s0 = state
-        s1 = State.DC - state
-        s2 = State.CD - state
+        s1 = State.CD - state
+        s2 = State.DC - state
         s3 = State.DD - state
         s4 = State.START - state
 
@@ -156,8 +156,8 @@ class IteratedPrisonersDilemma(SequentialMatrixGame):
     """Define iterated prisoner's dilemma"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, DC, CD, DD)
-        self.payoff = jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
+        # (CC, CD, DC, DD)
+        self.payoff = jnp.array([[2, 2], [0, 3], [3, 0], [1, 1]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
@@ -165,8 +165,8 @@ class StagHunt(SequentialMatrixGame):
     """Define stag hunt"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, DC, CD, DD)
-        self.payoff = jnp.array([[4, 4], [3, 1], [1, 3], [2, 2]])
+        # (CC, CD, DC, DD)
+        self.payoff = jnp.array([[4, 4], [1, 3], [3, 1], [2, 2]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
@@ -174,7 +174,7 @@ class BattleOfTheSexes(SequentialMatrixGame):
     """Define Battle of the Sexes"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, DC, CD, DD)
+        # (CC, CD, DC, DD)
         self.payoff = jnp.array([[3, 2], [0, 0], [0, 0], [2, 3]])
         super().__init__(episode_length, num_envs, self.payoff)
 
@@ -183,12 +183,12 @@ class Chicken(SequentialMatrixGame):
     """Define Chicken"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, DC, CD, DD)
-        self.payoff = jnp.array([[0, 0], [1, -1], [-1, 1], [-2, -2]])
+        # (CC, CD, DC, DD)
+        self.payoff = jnp.array([[0, 0], [-1, 1], [1, -1], [-2, -2]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
 if __name__ == "__main__":
     env = SequentialMatrixGame(
-        5, 1, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
+        5, 1, jnp.array([[2, 2], [0, 3], [3, 0], [1, 1]])
     )
