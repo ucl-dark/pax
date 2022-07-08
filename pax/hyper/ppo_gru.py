@@ -5,7 +5,6 @@ from typing import Any, Mapping, NamedTuple, Tuple, Dict
 from pax import utils
 from pax.hyper.buffer import TrajectoryBuffer
 from pax.hyper.networks import (
-    make_GRU,
     make_GRU_hypernetwork,
 )
 
@@ -508,13 +507,8 @@ class PPO:
 def make_gru_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
-    if args.env_type == "infinite":
-        print(f"Making network for {args.env_type}")
-        network, initial_hidden_state = make_GRU_hypernetwork(action_spec)
-    else:
-        print(f"Making network for {args.env_id}")
-        network, initial_hidden_state = make_GRU(action_spec)
-
+    print(f"Making network for {args.env_type}")
+    network, initial_hidden_state = make_GRU_hypernetwork(action_spec)
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer

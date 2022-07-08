@@ -99,35 +99,6 @@ def make_GRU_hypernetwork(num_actions: int):
     return network, hidden_state
 
 
-def test_GRU():
-    key = jax.random.PRNGKey(seed=0)
-    num_actions = 2
-    obs_spec = (5,)
-    key, subkey = jax.random.split(key)
-    dummy_obs = jnp.zeros(shape=obs_spec)
-    dummy_obs = utils.add_batch_dim(dummy_obs)
-    network, hidden = make_GRU(num_actions)
-    print(hidden.shape)
-    initial_params = network.init(subkey, dummy_obs, hidden)
-    print("GRU w_i", initial_params["gru"]["w_i"].shape)
-    print("GRU w_h", initial_params["gru"]["w_h"].shape)
-    print(
-        "Policy head",
-        initial_params["categorical_value_head/~/linear"]["w"].shape,
-    )
-    print(
-        "Value head",
-        initial_params["categorical_value_head/~/linear_1"]["w"].shape,
-    )
-    observation = jnp.zeros(shape=(1, 5))
-    observation = jnp.zeros(shape=(10, 5))
-    (logits, values), hidden = network.apply(
-        initial_params, observation, hidden
-    )
-    print(hidden.shape)
-    return network
-
-
 def test_GRU_hyper():
     key = jax.random.PRNGKey(seed=0)
     num_actions = 5
@@ -158,5 +129,4 @@ def test_GRU_hyper():
 
 
 if __name__ == "__main__":
-    test_GRU()
     test_GRU_hyper()
