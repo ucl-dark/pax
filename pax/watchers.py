@@ -6,8 +6,8 @@ import jax.numpy as jnp
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
 CC = jnp.array([[1, 0, 0, 0, 0]])
-CD = jnp.array([[0, 1, 0, 0, 0]])
-DC = jnp.array([[0, 0, 1, 0, 0]])
+CD = jnp.array([[0, 0, 1, 0, 0]])
+DC = jnp.array([[0, 1, 0, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
@@ -109,7 +109,48 @@ def policy_logger_ppo_with_memory(agent) -> None:
     # Works when the forward function is not jitted.
     for state, state_name in zip(ALL_STATES, STATE_NAMES):
         (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[state_name] = float(dist.probs[0][0])
+        cooperation_probs[f"policy/{state_name}"] = float(dist.probs[0][0])
+    return cooperation_probs
+
+
+def policy_logger_hyper_gru(agent) -> None:
+    """Calculate probability of coopreation"""
+    # n = 5
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(
+        agent._logger.metrics["total_steps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
+    (dist, _), hidden = agent.forward(params, 0.5 * jnp.ones((1, 10)), hidden)
+    mu, var = dist.mean(), dist.variance()
+    for i, state_name in enumerate(STATE_NAMES):
+        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
+        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
+    return cooperation_probs
+
+
+def logger_hyper(agent) -> None:
+    params = agent._state.params
+    episode = int(
+        agent._logger.metrics["total_steps"]
+        / (agent._num_steps * agent._num_envs)
+    )
+    cooperation_probs = {"episode": episode}
+
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
+    (dist, value) = agent.forward(params, 0.5 * jnp.ones((1, 10)))
+    mu, var = dist.mean(), dist.variance()
+    for i, state_name in enumerate(STATE_NAMES):
+        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
+        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
+    cooperation_probs["value/noisy"] = float(value[0])
+
     return cooperation_probs
 
 
@@ -119,11 +160,13 @@ def ppo_losses(agent) -> None:
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
     loss_entropy = agent._logger.metrics["loss_entropy"]
+    entropy_coefficient = agent._logger.metrics["entropy_coeff"]
     losses = {
         "sgd_steps": sgd_steps,
-        "losses/total": loss_total,
-        "losses/policy": loss_policy,
-        "losses/value": loss_value,
-        "losses/entropy": loss_entropy,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+        "train/entropy": loss_entropy,
+        "train/entropy_coefficient": entropy_coefficient,
     }
     return losses
