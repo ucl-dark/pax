@@ -16,6 +16,7 @@ test_payoffs = [ipd, stag, sexes, chicken]
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
+    # self, num_envs: int, payoff: list, episode_length: int
     env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,), dtype=jnp.int32)
     r_array = jnp.ones((num_envs,), dtype=jnp.int32)
@@ -201,7 +202,7 @@ def test_observation() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,))
 
     # check first
@@ -225,7 +226,7 @@ def test_done():
 def test_reset():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     state = jnp.ones((num_envs,))
 
     env.reset()
