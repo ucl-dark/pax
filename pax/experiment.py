@@ -135,17 +135,6 @@ def agent_setup(args, logger):
         return sac_agent
 
     def get_DQN_agent(seed, player_id):
-        if args.env_type == "finite":
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-        else:
-            dummy_env = InfiniteMatrixGame(
-                args.num_envs,
-                [[0, 0], [0, 0], [0, 0], [0, 0]],
-                args.num_steps,
-                args.env_discount,
-            )
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
