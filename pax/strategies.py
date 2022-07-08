@@ -200,10 +200,10 @@ class HyperAltruistic:
 
 
 class HyperDefect:
-    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -222,10 +222,10 @@ class HyperDefect:
 
 
 class HyperTFT:
-    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -241,3 +241,47 @@ class HyperTFT:
 
     def update(self, *args) -> None:
         pass
+
+
+class NaiveLearner:
+    """A Naive Learner which backprops through the game and updates every step"""
+
+    def __init__(self, action_space, *args):
+        self.num_steps = 0
+        self.lr = 0.001
+        self.params = jnp.random((1, action_space))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        # return jnp.zeros((batch_size, 1))
+        action = jnp.tile(self.params, (batch_size, 1))
+        return action
+
+    def update(self, *args) -> None:
+        "Don't do anything when update is normally called (end of trajectory)"
+        pass
+
+    def gradient_update(self, *args) -> None:
+        # things i need:
+        # other players action
+        # copy of env
+        other_pi, env = args
+
+        def loss(pi, other_pi, env):
+            t1, _ = env.step(pi, other_pi)
+            return t1.reward
+
+        grad_fn = jax.value_and_grad(loss, has_aux=True)
+        reward, grad = grad_fn(self.params, other_pi, env)
+
+        # old school gradient descent
+        self.param -= jnp.multiply(grad[0], self.lr)
