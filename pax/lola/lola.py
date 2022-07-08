@@ -2,7 +2,7 @@
 # https://arxiv.org/pdf/1709.04326.pdf
 
 from typing import NamedTuple, Any
-
+from pax.lola.buffer import TrajectoryBuffer
 from dm_env import TimeStep
 import haiku as hk
 import jax
@@ -48,7 +48,9 @@ class LOLA:
         self.state = make_initial_state(random_key)
         self._policy = policy
         self.player_id = player_id  # for logging
-        # self.
+        # self._trajectory_buffer = TrajectoryBuffer(
+        #     num_envs, num_steps, obs_spec
+        # )
 
     def select_action(self, t: TimeStep):
         """Select action based on observation"""
