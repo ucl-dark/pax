@@ -72,10 +72,14 @@ class InfiniteMatrixGame(Environment):
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 5)
 
-        action_1, action_2 = jnp.clip(action_1, 0, 1), jnp.clip(action_2, 0, 1)
-        r1, r2 = self.get_reward(action_1, action_2)
-        obs1 = jnp.concatenate([action_1, action_2], axis=1)
-        obs2 = jnp.concatenate([action_2, action_1], axis=1)
+        r1, r2, obs1, obs2 = self._step(
+            action_1,
+            action_2,
+            self.gamma,
+            self.reward_1,
+            self.reward_2,
+            self.switch,
+        )
 
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
@@ -86,31 +90,53 @@ class InfiniteMatrixGame(Environment):
             reward=r2, observation=obs2
         )
 
-    @partial(jax.jit, static_argnums=(0,))
-    def get_reward(
-        self, theta1: jnp.ndarray, theta2: jnp.ndarray
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+    # @partial(jax.jit, static_argnums=(0,))
+    def _step(self, theta1, theta2, gamma, payoff1, payoff2, switch):
+        theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+
+        # reward
         # actions are egocentric so swap around for player two
-        theta2 = jnp.einsum("Bik,Bk -> Bi", self.switch, theta2)
-        P = jnp.array(
+        theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
+        P = jnp.concatenate(
             [
                 theta1 * theta2,
                 theta1 * (1 - theta2),
                 (1 - theta1) * theta2,
                 (1 - theta1) * (1 - theta2),
-            ]
+            ],
+            axis=-1,
         )
         # initial distibution over start p0
-        P = jnp.einsum("iBj -> Bij", P)
+        # P = jnp.einsum("Bji -> Bij", P)
+        P = jnp.reshape(P, (P.shape[0], 4, 5))
         p0 = P[:, :, 5]
         P = jnp.einsum("Bji-> Bij", P[:, :, :4])
-        inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
-        v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
-        v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
+        inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
+        v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
+        v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
 
-        avg_v1 = v1 * (1 - self.gamma)
-        avg_v2 = v2 * (1 - self.gamma)
-        return avg_v1, avg_v2
+        r1 = v1 * (1 - gamma)
+        r2 = v2 * (1 - gamma)
+        obs1 = jnp.concatenate([theta1, theta2], axis=1)
+        obs2 = jnp.concatenate([theta2, theta1], axis=1)
+        return r1, r2, obs1, obs2
+
+    # TODO: for comparison on differntiation
+    # def _flair_step(self, theta1, theta2, gamma, payoff1, payoff2, switch):
+    #     gamma=0.96
+    #     dims = [5, 5]
+    #     payout_mat_1 = jnp.array([[-1,-3],[0,-2]])
+    #     payout_mat_2 = payout_mat_1.T
+    #     p_1_0 = jax.nn.sigmoid(theta1[4:5])
+    #     p_2_0 = jax.nn.sigmoid(theta2[4:5])
+    #     p = jnp.concatenate([p_1_0*p_2_0, p_1_0*(1-p_2_0), (1-p_1_0)*p_2_0, (1-p_1_0)*(1-p_2_0)])
+    #     p_1 = jnp.reshape(jax.nn.sigmoid(theta1[0][0:4]), (4, 1))
+    #     p_2 = jnp.reshape(jax.nn.sigmoid(theta2[1][0:4]), (4, 1))
+    #     P = jnp.concatenate([p_1*p_2, p_1*(1-p_2), (1-p_1)*p_2, (1-p_1)*(1-p_2)], axis=1)
+    #     M = -jnp.matmul(p, jnp.linalg.inv(jnp.eye(4)-gamma*P))
+    #     L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
+    #     L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
+    #     return L_1.mean
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

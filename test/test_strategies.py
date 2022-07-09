@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 from pax.env import InfiniteMatrixGame
 from pax.strategies import MetaNaiveLearner, TitForTat, GrimTrigger
@@ -79,25 +80,31 @@ def test_grim():
 
 
 def test_naive():
-    batch_number = 3
+    batch_number = 1
     env = InfiniteMatrixGame(
         num_envs=batch_number,
-        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
+        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
     )
-    agent = MetaNaiveLearner(action_dim=5, env=env, lr=0.1, seed=0)
+    agent = MetaNaiveLearner(
+        action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
+    )
 
-    alt_action = jnp.ones((batch_number, 5))
+    alt_action = jnp.zeros((batch_number, 5))
 
     timestep = env.reset()
 
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 
-    for _ in range(1000):
+    for _ in range(5):
+        action = agent.select_action(timestep)
         next_timestep = env.step([action, alt_action])
+        print("Reward", next_timestep[0].reward)
+
         agent.update(timestep[0], action, next_timestep[0])
         timestep = next_timestep
 
-    print(agent.params)
+    action = agent.select_action(timestep)
+    print(env.step([action, alt_action])[0].reward)

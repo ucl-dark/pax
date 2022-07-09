@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Tuple
+from typing import Any, NamedTuple, Tuple
 from chex import PRNGKey
 import wandb
 
@@ -245,45 +245,93 @@ class HyperTFT:
         pass
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    random_key: jnp.ndarray
+    timesteps: int
+    env: InfiniteMatrixGame
+
+
 class MetaNaiveLearner:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(
         self, action_dim: int, env: InfiniteMatrixGame, lr: float, seed: int
     ):
-        self.num_steps = 0
-        self.lr = lr
-        self.env = env
-        self.num_agents = env.num_envs
-        self.random_key = jax.random.PRNGKey(seed=seed)
-        self.params = jax.random.uniform(
-            self.random_key, (self.num_agents, action_dim)
-        )
 
-    @partial(jax.jit, static_argnums=(0,))
+        # Initialise training state (parameters, optimiser state, extras).
+        def make_initial_state(
+            key: Any, action_dim: int, env: InfiniteMatrixGame
+        ) -> TrainingState:
+            key, subkey = jax.random.split(key)
+            params = jax.random.uniform(key, (env.num_envs, action_dim))
+            return TrainingState(params, key, timesteps=0, env=env)
+
+        self.lr = lr
+        self._state = make_initial_state(seed, action_dim, env)
+
     def select_action(
         self,
-        timestep: TimeStep,
+        t: TimeStep,
     ) -> jnp.ndarray:
-
-        return self.params
+        return self._state.params
 
     def update(
-        self, timestep: TimeStep, action: jnp.array, next_timestep: TimeStep
+        self, t: TimeStep, action: jnp.array, t_prime: TimeStep
     ) -> None:
-        # things i need:
-        env = self.env  # i dunno how i get this or make sure the state is good
+        env = self._state.env
         env.reset()
-        other_action = next_timestep.observation[:, 5:]
+        other_action = t_prime.observation[:, 5:]
 
-        def loss_fn(pi, other_pi, env):
-            t1, _ = env.step([pi, other_pi])
-            return t1.reward.mean()
+        def loss_fn(theta1, theta2, gamma, payoff1, payoff2, switch):
+            # can you just use env._step but debugging atm.
+            # return env._step(theta1, theta2, gamma, payoff1, payoff2, switch)[0].mean()
+            theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+            # reward
+            # actions are egocentric so swap around for player two
+            theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
+            P_full = jnp.array(
+                [
+                    theta1 * theta2,
+                    theta1 * (1 - theta2),
+                    (1 - theta1) * theta2,
+                    (1 - theta1) * (1 - theta2),
+                ]
+            )
+            # initial distibution over start p0
+            P_full = jnp.einsum("iBj -> Bij", P_full)
+            # P = jnp.reshape(P, (P.shape[0], 4, 5))
+            p0 = P_full[:, :, 5]
+            P = jnp.einsum("Bji-> Bij", P_full[:, :, :4])
+            inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
+            v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
+            # v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
+            r1 = v1 * (1 - gamma)
+            # r2 = v2 * (1 - gamma)
+            return r1.mean()
 
         grad_fn = jax.value_and_grad(loss_fn)
-        reward, grad = grad_fn(action, other_action, env)
+        val, grad = grad_fn(
+            action,
+            other_action,
+            env.gamma,
+            env.reward_1,
+            env.reward_2,
+            env.switch,
+        )
+        # assert val == t_prime.reward.mean()
+        # gradient ascent
+        print(f"Action: {action}")
+        delta = jnp.multiply(grad, self.lr)
+        new_params = self._state.params + delta
+        print(f"Delta: {delta}")
+        print(f"New params: {new_params}")
 
-        assert reward == next_timestep.reward.mean()
-        # old school gradient descent
-        self.params -= jnp.multiply(grad[0], self.lr)
-        self.num_steps += 1
+        # update state
+        self._state = TrainingState(
+            params=new_params,
+            random_key=self._state.random_key,
+            timesteps=self._state.timesteps + 1,
+            env=env,
+        )
