@@ -91,7 +91,7 @@ def test_naive():
         action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
     )
 
-    alt_action = jnp.zeros((batch_number, 5))
+    alt_action = jnp.ones((batch_number, 5))
 
     timestep = env.reset()
 
@@ -107,4 +107,5 @@ def test_naive():
         timestep = next_timestep
 
     action = agent.select_action(timestep)
-    print(env.step([action, alt_action])[0].reward)
+
+    assert env.step([action, alt_action])[0].reward == 3.0
