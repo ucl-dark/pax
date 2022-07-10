@@ -278,12 +278,12 @@ def test_infinite_game():
     assert jnp.isclose(2, t1.reward)
 
     t0, t1 = env.step([tft_policy, def_policy])
-    assert jnp.isclose(0.99, t0.reward)
-    assert jnp.isclose(1.02, t1.reward)
+    assert jnp.isclose(0.96, t0.reward)
+    assert jnp.isclose(1.08, t1.reward)
 
     t0, t1 = env.step([def_policy, tft_policy])
-    assert jnp.isclose(1.02, t0.reward)
-    assert jnp.isclose(0.99, t1.reward)
+    assert jnp.isclose(1.08, t0.reward)
+    assert jnp.isclose(0.96, t1.reward)
 
 
 def test_batch_infinite_game():
@@ -315,8 +315,12 @@ def test_batch_infinite_game():
 
     t0, t1 = env.step([batched_alt, batched_def])
     assert jnp.isclose(jnp.array([0, 0, 0]), t0.reward, atol=0.0001).all()
-    assert jnp.isclose(jnp.array([3, 3, 3]), t1.reward).all()
+    assert jnp.isclose(jnp.array([3, 3, 3]), t1.reward, atol=0.01).all()
 
     t0, t1 = env.step([batch_mixed_1, batch_mixed_2])
-    assert jnp.isclose(jnp.array([0, 1.02, 2]), t0.reward, atol=0.0001).all()
-    assert jnp.isclose(jnp.array([3, 0.99, 2]), t1.reward).all()
+    assert jnp.allclose(jnp.array([0.0, 1.08, 2]), t0.reward, atol=1).all()
+    assert jnp.allclose(jnp.array([3, 0.96, 2]), t1.reward, atol=1).all()
+
+    t0, t1 = env.step([batch_mixed_2, batch_mixed_1])
+    assert jnp.allclose(jnp.array([3, 0.959, 2]), t0.reward, atol=0.01).all()
+    assert jnp.allclose(jnp.array([0, 1.079, 2]), t1.reward, atol=0.01).all()

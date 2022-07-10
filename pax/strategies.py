@@ -281,52 +281,53 @@ class MetaNaiveLearner:
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
     ) -> None:
         env = self._state.env
-        env.reset()
         other_action = t_prime.observation[:, 5:]
 
-        def loss_fn(theta1, theta2, gamma, payoff1, payoff2, switch):
+        def loss_fn(theta1, theta2, env):
+            env.reset()
             # can you just use env._step but debugging atm.
-            # return env._step(theta1, theta2, gamma, payoff1, payoff2, switch)[0].mean()
-            theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
-            # reward
-            # actions are egocentric so swap around for player two
-            theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
-            P_full = jnp.array(
-                [
-                    theta1 * theta2,
-                    theta1 * (1 - theta2),
-                    (1 - theta1) * theta2,
-                    (1 - theta1) * (1 - theta2),
-                ]
-            )
-            # initial distibution over start p0
-            P_full = jnp.einsum("iBj -> Bij", P_full)
-            # P = jnp.reshape(P, (P.shape[0], 4, 5))
-            p0 = P_full[:, :, 5]
-            P = jnp.einsum("Bji-> Bij", P_full[:, :, :4])
-            inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
-            v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
-            # v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
-            r1 = v1 * (1 - gamma)
-            # r2 = v2 * (1 - gamma)
-            return r1.mean()
+            return env.step([theta1, theta2])[0].reward.sum()
 
-        grad_fn = jax.value_and_grad(loss_fn)
-        val, grad = grad_fn(
-            action,
-            other_action,
-            env.gamma,
-            env.reward_1,
-            env.reward_2,
-            env.switch,
-        )
-        # assert val == t_prime.reward.mean()
+        # def loss_fn(theta1, theta2):
+        #     env.reset()
+        #     # can you just use env._step but debugging atm.
+        #     return env.step([theta1, theta2])[0].reward.sum()
+        #     theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+        #     # reward
+        #     # actions are egocentric so swap around for player two
+        #     theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
+        #     P_full = jnp.array(
+        #         [
+        #             theta1 * theta2,
+        #             theta1 * (1 - theta2),
+        #             (1 - theta1) * theta2,
+        #             (1 - theta1) * (1 - theta2),
+        #         ]
+        #     )
+        #     # initial distibution over start p0
+        #     P_full = jnp.einsum("iBj -> Bij", P_full)
+        #     # P = jnp.reshape(P, (P.shape[0], 4, 5))
+        #     p0 = P_full[:, :, 5]
+        #     P = jnp.einsum("Bji-> Bij", P_full[:, :, :4])
+        #     inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
+        #     v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
+        #     # v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
+        #     r1 = v1 * (1 - gamma)
+        #     # r2 = v2 * (1 - gamma)
+        #     return r1.mean()
+
+        # grad_fn = jax.jit(jax.value_and_grad(loss_fn))
+        print(f"Update Action: {action}")
+        print(f"Other aciton: {other_action}")
+        val, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
+        print(val, t_prime.reward.sum())
+        assert val == t_prime.reward.sum()
         # gradient ascent
-        print(f"Action: {action}")
+        # print(f"Action: {action}")
         delta = jnp.multiply(grad, self.lr)
         new_params = self._state.params + delta
-        print(f"Delta: {delta}")
-        print(f"New params: {new_params}")
+        # print(f"Delta: {delta}")
+        # print(f"New params: {new_params}")
 
         # update state
         self._state = TrainingState(

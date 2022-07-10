@@ -79,7 +79,7 @@ def test_grim():
     assert jnp.array_equal(cooperate_action, action)
 
 
-def test_naive():
+def test_naive_alt():
     batch_number = 1
     env = InfiniteMatrixGame(
         num_envs=batch_number,
@@ -92,20 +92,81 @@ def test_naive():
     )
 
     alt_action = jnp.ones((batch_number, 5))
-
     timestep = env.reset()
-
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 
-    for _ in range(5):
+    for _ in range(50):
         action = agent.select_action(timestep)
-        next_timestep = env.step([action, alt_action])
-        print("Reward", next_timestep[0].reward)
-
-        agent.update(timestep[0], action, next_timestep[0])
+        next_timestep, _ = env.step([action, alt_action])
+        agent.update(timestep, action, next_timestep)
         timestep = next_timestep
 
     action = agent.select_action(timestep)
+    assert jnp.allclose(
+        3.0, env.step([action, alt_action])[0].reward, atol=0.01
+    )
 
-    assert env.step([action, alt_action])[0].reward == 3.0
+
+def test_naive_defect():
+    batch_number = 5
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+    )
+    agent = MetaNaiveLearner(
+        action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
+    )
+
+    defect_action = jnp.zeros((batch_number, 5))
+    timestep = env.reset()
+    action = agent.select_action(timestep)
+    assert action.shape == (batch_number, 5)
+
+    for _ in range(50):
+        action = agent.select_action(timestep)
+        next_timestep, _ = env.step([action, defect_action])
+        agent.update(timestep, action, next_timestep)
+        timestep = next_timestep
+
+    action = agent.select_action(timestep)
+    # assert jnp.allclose(action, jnp.zeros((batch_number, 5)))
+    assert jnp.allclose(
+        0.99, env.step([action, defect_action])[0].reward, atol=0.01
+    )
+
+
+def test_naive_tft():
+    batch_number = 1
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+    )
+    agent = MetaNaiveLearner(
+        action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
+    )
+
+    tft_action = jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_number, 1))
+    timestep = env.reset()
+    action = agent.select_action(timestep)
+    assert action.shape == (batch_number, 5)
+
+    for _ in range(50):
+        action = agent.select_action(timestep)
+        print(f"Runner Action: {action}")
+        next_timestep, _ = env.step([action, tft_action])
+        agent.update(timestep, action, next_timestep)
+        timestep = next_timestep
+
+    action = agent.select_action(timestep)
+    print(env.step([action, tft_action])[0].reward)
+    print(action)
+    print(env.step([tft_action, tft_action])[0].reward)
+    # assert jnp.allclose(action, jnp.zeros((batch_number, 5)))
+    assert jnp.allclose(
+        env.step([action, tft_action])[0].reward, 1.99, atol=0.01
+    )
