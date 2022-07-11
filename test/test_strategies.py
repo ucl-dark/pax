@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 from pax.env import InfiniteMatrixGame
-from pax.strategies import MetaNaiveLearner, TitForTat, GrimTrigger
+from pax.strategies import NaiveLearner, TitForTat, GrimTrigger
 from dm_env import TimeStep, transition, termination
 
 
@@ -87,7 +87,7 @@ def test_naive_alt():
         episode_length=jnp.inf,
         gamma=0.96,
     )
-    agent = MetaNaiveLearner(
+    agent = NaiveLearner(
         action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
     )
 
@@ -116,7 +116,7 @@ def test_naive_defect():
         episode_length=jnp.inf,
         gamma=0.96,
     )
-    agent = MetaNaiveLearner(
+    agent = NaiveLearner(
         action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
     )
 
@@ -146,7 +146,7 @@ def test_naive_tft():
         episode_length=jnp.inf,
         gamma=0.96,
     )
-    agent = MetaNaiveLearner(
+    agent = NaiveLearner(
         action_dim=5, env=env, lr=1, seed=jax.random.PRNGKey(0)
     )
 

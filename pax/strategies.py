@@ -253,7 +253,11 @@ class TrainingState(NamedTuple):
     env: InfiniteMatrixGame
 
 
-class MetaNaiveLearner:
+class Logger:
+    metrics: dict
+
+
+class NaiveLearner:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(
@@ -264,12 +268,20 @@ class MetaNaiveLearner:
         def make_initial_state(
             key: Any, action_dim: int, env: InfiniteMatrixGame
         ) -> TrainingState:
-            key, subkey = jax.random.split(key)
+            key, _ = jax.random.split(key)
             params = jax.random.uniform(key, (env.num_envs, action_dim))
             return TrainingState(params, key, timesteps=0, env=env)
 
         self.lr = lr
         self._state = make_initial_state(seed, action_dim, env)
+        # Set up counters and logger
+        self._logger = Logger()
+        self._total_steps = 0
+        self._until_sgd = 0
+        self._logger.metrics = {
+            "total_steps": 0,
+            "sgd_steps": 0,
+        }
 
     def select_action(
         self,
@@ -288,43 +300,10 @@ class MetaNaiveLearner:
             # can you just use env._step but debugging atm.
             return env.step([theta1, theta2])[0].reward.sum()
 
-        # def loss_fn(theta1, theta2):
-        #     env.reset()
-        #     # can you just use env._step but debugging atm.
-        #     return env.step([theta1, theta2])[0].reward.sum()
-        #     theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
-        #     # reward
-        #     # actions are egocentric so swap around for player two
-        #     theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
-        #     P_full = jnp.array(
-        #         [
-        #             theta1 * theta2,
-        #             theta1 * (1 - theta2),
-        #             (1 - theta1) * theta2,
-        #             (1 - theta1) * (1 - theta2),
-        #         ]
-        #     )
-        #     # initial distibution over start p0
-        #     P_full = jnp.einsum("iBj -> Bij", P_full)
-        #     # P = jnp.reshape(P, (P.shape[0], 4, 5))
-        #     p0 = P_full[:, :, 5]
-        #     P = jnp.einsum("Bji-> Bij", P_full[:, :, :4])
-        #     inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
-        #     v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
-        #     # v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
-        #     r1 = v1 * (1 - gamma)
-        #     # r2 = v2 * (1 - gamma)
-        #     return r1.mean()
-
-        # grad_fn = jax.jit(jax.value_and_grad(loss_fn))
-
-        _, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
+        loss, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
         # gradient ascent
-        # print(f"Action: {action}")
         delta = jnp.multiply(grad, self.lr)
         new_params = self._state.params + delta
-        # print(f"Delta: {delta}")
-        # print(f"New params: {new_params}")
 
         # update state
         self._state = TrainingState(
@@ -333,3 +312,8 @@ class MetaNaiveLearner:
             timesteps=self._state.timesteps + 1,
             env=env,
         )
+
+        self._total_steps += 1
+        self._logger.metrics["sgd_steps"] += 1
+        self._logger.metrics["loss_total"] = loss
+        return

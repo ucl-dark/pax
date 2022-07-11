@@ -311,10 +311,10 @@ def test_batch_infinite_game():
 
     t0, t1 = env.step([batched_alt, batched_alt])
     assert jnp.allclose(t0.reward, t1.reward)
-    assert jnp.allclose(jnp.array([2, 2, 2]), t0.reward)
+    assert jnp.allclose(jnp.array([2, 2, 2]), t0.reward, atol=0.01)
 
     t0, t1 = env.step([batched_alt, batched_def])
-    assert jnp.allclose(jnp.array([0, 0, 0]), t0.reward, atol=0.0001)
+    assert jnp.allclose(jnp.array([0, 0, 0]), t0.reward, atol=0.01)
     assert jnp.allclose(jnp.array([3, 3, 3]), t1.reward, atol=0.01)
 
     t0, t1 = env.step([batch_mixed_1, batch_mixed_2])
