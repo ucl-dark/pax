@@ -6,10 +6,10 @@ from pax.strategies import TitForTat
 
 # payoff matrices for four games
 # CC, CD, DC, DD
-ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]
-stag = [[4, 4], [1, 3], [3, 1], [2, 2]]
+ipd = [[2, 2], [3, 0], [0, 3], [1, 1]]
+stag = [[4, 4], [3, 1], [1, 3], [2, 2]]
 sexes = [[3, 2], [0, 0], [0, 0], [2, 3]]
-chicken = [[0, 0], [-1, 1], [1, -1], [-2, -2]]
+chicken = [[0, 0], [1, -1], [-1, 1], [-2, -2]]
 test_payoffs = [ipd, stag, sexes, chicken]
 
 
@@ -23,8 +23,8 @@ def test_single_batch_rewards(payoff) -> None:
 
     # payoffs
     cc_p1, cc_p2 = payoff[0][0], payoff[0][1]
-    cd_p1, cd_p2 = payoff[1][0], payoff[1][1]
-    dc_p1, dc_p2 = payoff[2][0], payoff[2][1]
+    dc_p1, dc_p2 = payoff[1][0], payoff[1][1]
+    cd_p1, cd_p2 = payoff[2][0], payoff[2][1]
     dd_p1, dd_p2 = payoff[3][0], payoff[3][1]
 
     # first step
@@ -51,20 +51,20 @@ def test_single_batch_rewards(payoff) -> None:
 
 testdata = [
     ((0, 0), (2, 2), ipd),
-    ((0, 1), (0, 3), ipd),
     ((1, 0), (3, 0), ipd),
+    ((0, 1), (0, 3), ipd),
     ((1, 1), (1, 1), ipd),
     ((0, 0), (4, 4), stag),
-    ((0, 1), (1, 3), stag),
     ((1, 0), (3, 1), stag),
+    ((0, 1), (1, 3), stag),
     ((1, 1), (2, 2), stag),
     ((0, 0), (3, 2), sexes),
-    ((0, 1), (0, 0), sexes),
     ((1, 0), (0, 0), sexes),
+    ((0, 1), (0, 0), sexes),
     ((1, 1), (2, 3), sexes),
     ((0, 0), (0, 0), chicken),
-    ((0, 1), (-1, 1), chicken),
     ((1, 0), (1, -1), chicken),
+    ((0, 1), (-1, 1), chicken),
     ((1, 1), (-2, -2), chicken),
 ]
 
@@ -92,7 +92,7 @@ def test_mixed_batched_outcomes() -> None:
 
 def test_tit_for_tat_match() -> None:
     num_envs = 5
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     t_0, t_1 = env.reset()
 
@@ -108,7 +108,7 @@ def test_tit_for_tat_match() -> None:
 
 def test_observation() -> None:
     num_envs = 1
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     initial_state = jnp.ones((num_envs,))
 
@@ -201,7 +201,7 @@ def test_observation() -> None:
 
 def test_done():
     num_envs = 1
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,))
 
@@ -225,7 +225,7 @@ def test_done():
 
 def test_reset():
     num_envs = 1
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     state = jnp.ones((num_envs,))
 
@@ -245,7 +245,7 @@ def test_reset():
 
 
 def test_infinite_game():
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
     env = InfiniteMatrixGame(1, payoff, 10, 0.99)
@@ -289,7 +289,7 @@ def test_infinite_game():
 
 
 def test_batch_infinite_game():
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
     env = InfiniteMatrixGame(3, payoff, 10, 0.99)

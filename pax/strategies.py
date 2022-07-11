@@ -25,12 +25,11 @@ class GrimTrigger:
         pass
 
     def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
-        # CC, CD, DC, DD, START
-        # if 0 | 4     -> C
-        # if 1 | 2 | 3 -> D
+        # if 0 | 4 -> C
+        # if 1 | 2 | 3 | -> D
         obs = obs.argmax(axis=-1)
-        obs = obs % 4
-        action = jnp.where(obs > 0, 1, 0)
+        obs = obs % 4  # now either 0, 1, 2, 3
+        action = jnp.where(obs > 0.0, 1.0, 0.0)
         return action
 
 
@@ -49,12 +48,12 @@ class TitForTat:
         pass
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
-        # CC, CD, DC, DD, START
-        # if 0, 2, 4 -> C
-        # if 1, 3    -> D
+        # if 0 | 1 | 4  -> C
+        # if 2 | 3 -> D
         obs = obs.argmax(axis=-1)
-        obs = obs % 2
-        action = jnp.where(obs > 0, 1, 0)
+        obs = obs % 4
+        action = jnp.where(obs > 1.0, 1.0, 0.0)
+        # action = jnp.expand_dims(action, axis=-1) # removing this in preference for (action, )
         return action
 
 

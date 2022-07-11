@@ -6,8 +6,8 @@ import jax.numpy as jnp
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
 CC = jnp.array([[1, 0, 0, 0, 0]])
-CD = jnp.array([[0, 1, 0, 0, 0]])
-DC = jnp.array([[0, 0, 1, 0, 0]])
+CD = jnp.array([[0, 0, 1, 0, 0]])
+DC = jnp.array([[0, 1, 0, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]

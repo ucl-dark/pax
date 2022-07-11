@@ -9,8 +9,8 @@ def test_titfortat():
 
     # all obs are only of final state e.g batch x dim.
     cc_obs = jnp.asarray(batch_number * [[1, 0, 0, 0, 0]])
-    cd_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
-    dc_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
+    dc_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
+    cd_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
     dd_obs = jnp.asarray(batch_number * [[0, 0, 0, 1, 0]])
     initial_obs = jnp.asarray(batch_number * [[0, 0, 0, 0, 1]])
 
@@ -44,8 +44,8 @@ def test_grim():
 
     # all obs are only of final state e.g batch x dim.
     cc_obs = jnp.asarray(batch_number * [[1, 0, 0, 0, 0]])
-    cd_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
-    dc_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
+    dc_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
+    cd_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
     dd_obs = jnp.asarray(batch_number * [[0, 0, 0, 1, 0]])
     initial_obs = jnp.asarray(batch_number * [[0, 0, 0, 0, 1]])
 
