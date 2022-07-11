@@ -21,7 +21,7 @@ env_id: ipd
 game: ipd 
 env_type: infinite
 env_discount: 0.99
-payoff: 
+payoff:
 
 # Training hyperparameters
 num_envs: 50

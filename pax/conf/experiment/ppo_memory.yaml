@@ -18,14 +18,14 @@ total_timesteps: 1_000_000
 eval_every: 50_000 # timesteps
 
 # Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
+# num_episodes = total_timesteps / num_steps
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 4
-  num_epochs: 1 
+  num_minibatches: 10
+  num_epochs: 4 
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
