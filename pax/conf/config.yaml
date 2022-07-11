@@ -25,9 +25,9 @@ payoff:
 
 # Training hyperparameters
 num_envs: 50
-num_steps: 1 # number of steps per episode
-total_timesteps: 5_000
-eval_every: 50 # timesteps
+num_steps: 20 # number of steps per episode
+total_timesteps: 1_000_000
+eval_every: 10_000 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
@@ -63,6 +63,10 @@ ppo:
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
   with_memory: False
+
+# Naive Learner parameters
+naive:
+  lr: 0.5
 
 # LOLA agent parameters
 # lola:

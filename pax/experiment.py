@@ -17,6 +17,7 @@ from pax.strategies import (
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
+    NaiveLearner,
     TitForTat,
     Defect,
     Altruistic,
@@ -27,13 +28,15 @@ from pax.strategies import (
 )
 from pax.utils import Section
 from pax.watchers import (
+    logger_naive,
+    losses_naive,
     policy_logger,
     policy_logger_dqn,
     logger_hyper,
     policy_logger_hyper_gru,
     value_logger,
     value_logger_dqn,
-    ppo_losses,
+    losses_ppo,
     policy_logger_ppo,
     value_logger_ppo,
     policy_logger_ppo_with_memory,
@@ -108,7 +111,7 @@ def env_setup(args, logger):
             args.env_discount,
         )
         test_env = InfiniteMatrixGame(
-            1, payoff, args.num_steps, args.env_discount
+            args.num_envs, payoff, args.num_steps, args.env_discount
         )
         logger.info(
             f"Game Type: Infinite | Inner Discount: {args.env_discount}"
@@ -183,7 +186,7 @@ def agent_setup(args, logger):
             hyper_agent = make_gru_hyper(
                 args,
                 obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
+                action_spec=dummy_env.action_spec().shape[1],
                 seed=seed,
                 player_id=player_id,
             )
@@ -196,6 +199,23 @@ def agent_setup(args, logger):
                 player_id=player_id,
             )
         return hyper_agent
+
+    def get_naive_learner(seed, player_id):
+        dummy_env = InfiniteMatrixGame(
+            args.num_envs,
+            [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.num_steps,
+            args.env_discount,
+        )
+
+        agent = NaiveLearner(
+            action_dim=dummy_env.action_spec().shape[1],
+            env=dummy_env,
+            lr=args.naive.lr,
+            seed=seed,
+            player_id=player_id,
+        )
+        return agent
 
     strategies = {
         "TitForTat": TitForTat,
@@ -210,6 +230,7 @@ def agent_setup(args, logger):
         "PPO": get_PPO_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
+        "NaiveLearner": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -255,7 +276,7 @@ def watcher_setup(args, logger):
         return
 
     def ppo_log(agent):
-        losses = ppo_losses(agent)
+        losses = losses_ppo(agent)
         if args.ppo.with_memory:
             policy = policy_logger_ppo_with_memory(agent)
         else:
@@ -271,11 +292,19 @@ def watcher_setup(args, logger):
         return
 
     def hyper_log(agent):
-        losses = ppo_losses(agent)
+        losses = losses_ppo(agent)
         if args.ppo.with_memory:
             policy = policy_logger_hyper_gru(agent)
         else:
             policy = logger_hyper(agent)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def naive_logger(agent):
+        losses = losses_naive(agent)
+        policy = logger_naive(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -293,6 +322,7 @@ def watcher_setup(args, logger):
         "DQN": dqn_log,
         "PPO": ppo_log,
         "Hyper": hyper_log,
+        "NaiveLearner": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,

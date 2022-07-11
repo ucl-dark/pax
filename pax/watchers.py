@@ -3,9 +3,9 @@ from flax import linen as nn
 from pax.strategies import NaiveLearner
 from .env import State
 import jax.numpy as jnp
-import hyper.ppo as HyperPPO
-import hyper.ppo_gru as HyperPPOMemory
-import ppo.ppo as PPO
+import pax.hyper.ppo as HyperPPO
+import pax.hyper.ppo_gru as HyperPPOMemory
+import pax.ppo.ppo as PPO
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -158,7 +158,7 @@ def logger_hyper(agent: HyperPPO) -> dict:
     return cooperation_probs
 
 
-def ppo_losses(agent: PPO) -> dict:
+def losses_ppo(agent: PPO) -> dict:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]
@@ -176,12 +176,25 @@ def ppo_losses(agent: PPO) -> dict:
     return losses
 
 
-def naive_losses(agent: NaiveLearner) -> dict:
+def losses_naive(agent: NaiveLearner) -> dict:
+    pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "loss_total": 0,
+        f"train/naive_learner_{pid}/sgd_steps": sgd_steps,
+        f"train/naive_learner_{pid}/total": loss_total,
+        f"train/naive_learner_{pid}/total": loss_total,
     }
     return losses
+
+
+def logger_naive(agent: NaiveLearner) -> dict:
+    params = agent._state.params
+    pid = agent.player_id
+    params = params.mean(axis=0)
+    cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
+    for i, state_name in enumerate(STATE_NAMES):
+        cooperation_probs[
+            f"policy/naive_learner_{pid}/avg/{state_name}"
+        ] = float(params[i])
+    return cooperation_probs

@@ -252,38 +252,74 @@ def test_infinite_game():
     tft_policy = jnp.array([[1, 0, 1, 0, 1]])
 
     # first step
-    tstep_0, tstep_1 = env.step((alt_policy, def_policy))
-    assert tstep_0.reward is None
-    assert tstep_1.reward is None
+    t0, t1 = env.step((alt_policy, def_policy))
+    assert t0.reward is None
+    assert t1.reward is None
+    assert jnp.allclose(t0.observation, 0.5 * jnp.ones((1, 10)))
+    assert jnp.allclose(t1.observation, 0.5 * jnp.ones((1, 10)))
 
     t0, t1 = env.step([alt_policy, alt_policy])
     assert t0.reward == t1.reward
     assert jnp.isclose(2, t0.reward)
+    assert jnp.allclose(t0.observation, jnp.ones((1, 10)))
+    assert jnp.allclose(t1.observation, jnp.ones((1, 10)))
 
     t0, t1 = env.step([def_policy, def_policy])
     assert t0.reward == t1.reward
     assert jnp.isclose(1, t0.reward)
+    assert jnp.allclose(t0.observation, jnp.zeros((1, 10)))
+    assert jnp.allclose(t1.observation, jnp.zeros((1, 10)))
 
     t0, t1 = env.step([def_policy, alt_policy])
     assert t0.reward != t1.reward
     assert jnp.isclose(3, t0.reward)
     assert jnp.isclose(0.0, t1.reward, atol=0.0001)
+    assert jnp.allclose(
+        t0.observation, jnp.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
+    )
 
     t0, t1 = env.step([alt_policy, tft_policy])
     assert jnp.isclose(2, t0.reward)
     assert jnp.isclose(2, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 1, 1, 1, 1, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 1, 1, 1, 1, 1])
+    )
 
     t0, t1 = env.step([tft_policy, tft_policy])
     assert jnp.isclose(2, t0.reward)
     assert jnp.isclose(2, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+    )
 
     t0, t1 = env.step([tft_policy, def_policy])
     assert jnp.isclose(0.99, t0.reward)
     assert jnp.isclose(1.02, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 1])
+    )
 
     t0, t1 = env.step([def_policy, tft_policy])
     assert jnp.isclose(1.02, t0.reward)
     assert jnp.isclose(0.99, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+    )
 
 
 def test_batch_infinite_game():

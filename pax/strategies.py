@@ -1,7 +1,7 @@
 from functools import partial
 from typing import Any, NamedTuple, Tuple
 from chex import PRNGKey
-import wandb
+import optax
 
 import jax.numpy as jnp
 import jax.random
@@ -261,18 +261,24 @@ class NaiveLearner:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(
-        self, action_dim: int, env: InfiniteMatrixGame, lr: float, seed: int
+        self,
+        action_dim: int,
+        env: InfiniteMatrixGame,
+        lr: float,
+        seed: int,
+        player_id: int,
     ):
 
         # Initialise training state (parameters, optimiser state, extras).
         def make_initial_state(
             key: Any, action_dim: int, env: InfiniteMatrixGame
         ) -> TrainingState:
-            key, _ = jax.random.split(key)
+            key = jax.random.PRNGKey(seed=seed)
             params = jax.random.uniform(key, (env.num_envs, action_dim))
             return TrainingState(params, key, timesteps=0, env=env)
 
         self.lr = lr
+        self.player_id = player_id
         self._state = make_initial_state(seed, action_dim, env)
         # Set up counters and logger
         self._logger = Logger()
@@ -297,7 +303,6 @@ class NaiveLearner:
 
         def loss_fn(theta1, theta2, env):
             env.reset()
-            # can you just use env._step but debugging atm.
             return env.step([theta1, theta2])[0].reward.sum()
 
         loss, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
@@ -316,4 +321,5 @@ class NaiveLearner:
         self._total_steps += 1
         self._logger.metrics["sgd_steps"] += 1
         self._logger.metrics["loss_total"] = loss
-        return
+        self._logger.metrics["grad_norm"] = optax.global_norm(delta)
+        print(self._logger.metrics["grad_norm"])

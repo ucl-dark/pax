@@ -91,6 +91,10 @@ class InfiniteMatrixGame(Environment):
             action_1,
             action_2,
         )
+
+        # unwrap rewards for buffer
+        r1 = r1[:, 0]
+        r2 = r2[:, 0]
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
             return termination(reward=r1, observation=obs1), termination(
@@ -154,7 +158,11 @@ class InfiniteMatrixGame(Environment):
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
         return specs.BoundedArray(
-            shape=(self.num_envs, 5), minimum=0, maximum=1, name="action"
+            shape=(self.num_envs, 5),
+            minimum=0,
+            maximum=1,
+            name="action",
+            dtype=float,
         )
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
