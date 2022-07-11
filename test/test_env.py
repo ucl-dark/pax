@@ -243,7 +243,7 @@ def test_reset():
 
 
 def test_infinite_game():
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
     env = InfiniteMatrixGame(1, payoff, 10, 0.99)
@@ -287,7 +287,7 @@ def test_infinite_game():
 
 
 def test_batch_infinite_game():
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
     env = InfiniteMatrixGame(3, payoff, 10, 0.99)

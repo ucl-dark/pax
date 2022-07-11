@@ -109,11 +109,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            # discounts = gamma * (1 - dones)
             discounts = gamma * jnp.where(dones < 2, 1, 0)
-            # discounts = gamma * (1 - jnp.zeros_like(dones))
-
-            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -201,6 +197,7 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
+                "entropy_cost": entropy_cost,
             }
 
         @jax.jit
@@ -401,6 +398,7 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
+            "entropy_cost": entropy_coeff_start,
         }
 
         # Initialize functions
@@ -458,10 +456,12 @@ class PPO:
         )
 
         self._trajectory_buffer.add(
-            timestep=t,
+            timestep=t_prime,
             action=0,
             log_prob=0,
-            value=self._state.extras["values"],
+            value=self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"]),
             new_timestep=t_prime,
         )
 
@@ -474,9 +474,9 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
 
-# TODO: seed, and player_id not used in CartPole
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 

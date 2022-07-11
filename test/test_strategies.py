@@ -36,9 +36,8 @@ def test_titfortat():
     action = agent.select_action(cd_timestep)
     assert jnp.array_equal(defect_action, action)
 
-    # test initial conditions
-    cd_timestep = transition(observation=initial_obs, reward=0)
-    action = agent.select_action(cd_timestep)
+    start_timestep = transition(observation=initial_obs, reward=0)
+    action = agent.select_action(start_timestep)
     assert jnp.array_equal(cooperate_action, action)
 
 
