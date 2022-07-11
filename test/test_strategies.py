@@ -157,16 +157,11 @@ def test_naive_tft():
 
     for _ in range(50):
         action = agent.select_action(timestep)
-        print(f"Runner Action: {action}")
         next_timestep, _ = env.step([action, tft_action])
         agent.update(timestep, action, next_timestep)
         timestep = next_timestep
 
     action = agent.select_action(timestep)
-    print(env.step([action, tft_action])[0].reward)
-    print(action)
-    print(env.step([tft_action, tft_action])[0].reward)
-    # assert jnp.allclose(action, jnp.zeros((batch_number, 5)))
     assert jnp.allclose(
         env.step([action, tft_action])[0].reward, 1.99, atol=0.01
     )

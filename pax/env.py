@@ -68,19 +68,6 @@ class InfiniteMatrixGame(Environment):
         self._step_2 = jax.vmap(_step)
         self._num_steps = 0
         self._reset_next_step = True
-        self._switch = jnp.array(
-            [
-                [
-                    [1, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 1],
-                ]
-            ]
-            * num_envs
-        )
-
         self.num_envs = num_envs
         self.n_agents = 2
         self.episode_length = episode_length
@@ -103,7 +90,6 @@ class InfiniteMatrixGame(Environment):
         r1, r2, obs1, obs2 = self._step(
             action_1,
             action_2,
-            self._switch,
         )
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
@@ -115,10 +101,23 @@ class InfiniteMatrixGame(Environment):
         )
 
     @partial(jax.jit, static_argnums=(0,))
-    def _step(self, theta1, theta2, switch):
+    def _step(self, theta1, theta2):
         th1, th2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+
         # actions are egocentric so swap around for player two
-        _th2 = jnp.einsum("Bik,Bk -> Bi", switch, th2)
+        _switch = jnp.array(
+            [
+                [
+                    [1, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 1],
+                ]
+            ]
+            * th1.shape[0]
+        )
+        _th2 = jnp.einsum("Bik,Bk -> Bi", _switch, th2)
         v1, v2 = self._step_2(th1, _th2)
 
         # reward
