@@ -3,12 +3,8 @@
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
-from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import (
-    make_GRU,
-    make_GRU_cartpole_network,
-    make_cartpole_network,
-)
+from pax.hyper.buffer import TrajectoryBuffer
+from pax.hyper.networks import make_network
 
 from dm_env import TimeStep
 import haiku as hk
@@ -32,9 +28,6 @@ class Batch(NamedTuple):
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
 
-    # GRU specific
-    hiddens: jnp.ndarray
-
 
 class TrainingState(NamedTuple):
     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
@@ -43,7 +36,6 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    hidden: jnp.ndarray
     extras: Mapping[str, jnp.ndarray]
 
 
@@ -52,15 +44,13 @@ class Logger:
 
 
 class PPO:
-    """A simple PPO agent with memory using JAX"""
+    """A simple PPO agent using JAX"""
 
     def __init__(
         self,
         network: NamedTuple,
-        initial_hidden_state: jnp.ndarray,
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
-        gru_dim: int,
         obs_spec: Tuple,
         num_envs: int = 4,
         num_steps: int = 500,
@@ -82,14 +72,16 @@ class PPO:
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            (dist, values), hidden_state = network.apply(
-                params, observation, state.hidden
-            )
+            dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
             state.extras["values"] = values
             state.extras["log_probs"] = dist.log_prob(actions)
-            state = state._replace(
-                random_key=key, hidden=hidden_state, extras=state.extras
+            state = TrainingState(
+                params=params,
+                opt_state=state.opt_state,
+                random_key=key,
+                timesteps=state.timesteps,
+                extras=state.extras,
             )
             return actions, state
 
@@ -101,13 +93,11 @@ class PPO:
             state: TrainingState,
         ) -> None:
             """Stores rollout in buffer"""
-            log_probs, values, hiddens = (
+            log_probs, values = (
                 state.extras["log_probs"],
                 state.extras["values"],
-                state.hidden,
             )
-
-            buffer.add(t, actions, log_probs, values, t_prime, hiddens)
+            buffer.add(t, actions, log_probs, values, t_prime)
 
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
@@ -119,7 +109,11 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
+            # discounts = gamma * (1 - dones)
             discounts = gamma * jnp.where(dones < 2, 1, 0)
+            # discounts = gamma * (1 - jnp.zeros_like(dones))
+
+            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -128,6 +122,8 @@ class PPO:
                     0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
                 )
             advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+
+            # this is where the gae function will end
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -141,13 +137,9 @@ class PPO:
             target_values: jnp.array,
             advantages: jnp.array,
             behavior_values: jnp.array,
-            hiddens: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
-            (distribution, values), _ = network.apply(
-                params, observations, hiddens
-            )
-
+            distribution, values = network.apply(params, observations)
             log_prob = distribution.log_prob(actions)
             entropy = distribution.entropy()
 
@@ -209,9 +201,8 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
-                "entropy_cost": entropy_cost,
+                "entropy_coeff": entropy_cost,
             }
-            # }, new_rnn_unroll_state
 
         @jax.jit
         def sgd_step(
@@ -227,7 +218,6 @@ class PPO:
                 behavior_log_probs,
                 behavior_values,
                 dones,
-                hiddens,
             ) = (
                 sample.observations,
                 sample.actions,
@@ -235,7 +225,6 @@ class PPO:
                 sample.behavior_log_probs,
                 sample.behavior_values,
                 sample.dones,
-                sample.hiddens,
             )
 
             # vmap
@@ -251,16 +240,9 @@ class PPO:
                 actions,
                 behavior_log_probs,
                 behavior_values,
-                hiddens,
             ) = jax.tree_map(
                 lambda x: x[:, :-1],
-                (
-                    observations,
-                    actions,
-                    behavior_log_probs,
-                    behavior_values,
-                    hiddens,
-                ),
+                (observations, actions, behavior_log_probs, behavior_values),
             )
 
             trajectories = Batch(
@@ -270,7 +252,6 @@ class PPO:
                 behavior_log_probs=behavior_log_probs,
                 target_values=target_values,
                 behavior_values=behavior_values,
-                hiddens=hiddens,
             )
 
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
@@ -313,7 +294,6 @@ class PPO:
                     minibatch.target_values,
                     advantages,
                     minibatch.behavior_values,
-                    minibatch.hiddens,
                 )
 
                 # Apply updates
@@ -375,47 +355,39 @@ class PPO:
             )
             metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
 
-            # Reset the memory
             new_state = TrainingState(
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(1,) + (gru_dim,)),
                 extras={"log_probs": None, "values": None},
             )
 
             return new_state, metrics
 
-        def make_initial_state(
-            key: Any, obs_spec: Tuple, initial_hidden_state
-        ) -> TrainingState:
+        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
-            initial_params = network.init(
-                subkey, dummy_obs, initial_hidden_state
-            )
+            initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            # for dict_key in initial_params.keys():
+            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                # hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
-                hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={"values": None, "log_probs": None},
             )
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state = make_initial_state(
-            random_key, obs_spec, initial_hidden_state
-        )
+        self._state = make_initial_state(random_key, obs_spec)
 
         # Initialize buffer and sgd
         self._trajectory_buffer = TrajectoryBuffer(
-            num_envs, num_steps, obs_spec, gru_dim
+            num_envs, num_steps, obs_spec
         )
         self._sgd_step = sgd_step
 
@@ -430,7 +402,7 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
-            "entropy_cost": entropy_coeff_start,
+            "entropy_coeff": entropy_coeff_start,
         }
 
         # Initialize functions
@@ -467,15 +439,22 @@ class PPO:
         self._logger.metrics["total_steps"] += self._num_envs
 
         # Update internal state with total_steps
-        self._state = self._state._replace(timesteps=self._total_steps)
+        self._state = TrainingState(
+            params=self._state.params,
+            opt_state=self._state.opt_state,
+            random_key=self._state.random_key,
+            timesteps=self._total_steps,
+            extras=self._state.extras,
+        )
 
         # Update counter until doing SGD
         self._until_sgd += 1
 
-        # Rollouts still in progress
+        # Rollouts onging
         if self._until_sgd % (self._num_steps) != 0:
             return
 
+        # Rollouts complete -> Training begins
         # Add an additional rollout step for advantage calculation
         _, self._state = self._policy(
             self._state.params, t_prime.observation, self._state
@@ -485,14 +464,12 @@ class PPO:
             timestep=t_prime,
             action=0,
             log_prob=0,
-            # value=self._state.extras["values"],
             value=self._state.extras["values"]
             if not t_prime.last()
             else jnp.zeros_like(self._state.extras["values"]),
             new_timestep=t_prime,
         )
 
-        # Rollouts complete -> Training begins
         sample = self._trajectory_buffer.sample()
         self._state, results = self._sgd_step(self._state, sample)
         self._logger.metrics["sgd_steps"] += (
@@ -502,22 +479,15 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+        self._logger.metrics["entropy_coeff"] = results["entropy_coeff"]
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
-    # Network
-    if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
-        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
 
-    else:
-        print(f"Making network for {args.env_id}")
-        network, initial_hidden_state = make_GRU(action_spec)
-
-    gru_dim = initial_hidden_state.shape[1]
+    print(f"Making network for {args.env_id}")
+    network = make_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
@@ -553,10 +523,8 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
 
     return PPO(
         network=network,
-        initial_hidden_state=initial_hidden_state,
         optimizer=optimizer,
         random_key=random_key,
-        gru_dim=gru_dim,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
         num_steps=args.num_steps,

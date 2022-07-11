@@ -3,11 +3,9 @@
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
-from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import (
-    make_GRU,
-    make_GRU_cartpole_network,
-    make_cartpole_network,
+from pax.hyper.buffer import TrajectoryBuffer
+from pax.hyper.networks import (
+    make_GRU_hypernetwork,
 )
 
 from dm_env import TimeStep
@@ -209,7 +207,6 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
-                "entropy_cost": entropy_cost,
             }
             # }, new_rnn_unroll_state
 
@@ -430,7 +427,6 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
-            "entropy_cost": entropy_coeff_start,
         }
 
         # Initialize functions
@@ -481,14 +477,17 @@ class PPO:
             self._state.params, t_prime.observation, self._state
         )
 
+        bootstrap_value = (
+            self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"])
+        )
+
         self._trajectory_buffer.add(
             timestep=t_prime,
             action=0,
             log_prob=0,
-            # value=self._state.extras["values"],
-            value=self._state.extras["values"]
-            if not t_prime.last()
-            else jnp.zeros_like(self._state.extras["values"]),
+            value=bootstrap_value,
             new_timestep=t_prime,
         )
 
@@ -502,21 +501,14 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_gru_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
-    if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
-        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
-
-    else:
-        print(f"Making network for {args.env_id}")
-        network, initial_hidden_state = make_GRU(action_spec)
-
+    print(f"Making network for {args.env_type}")
+    network, initial_hidden_state = make_GRU_hypernetwork(action_spec)
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer

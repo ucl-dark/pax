@@ -3,7 +3,6 @@ from typing import NamedTuple, Tuple
 from dm_env import TimeStep
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 
 class Sample(NamedTuple):
@@ -30,6 +29,7 @@ class TrajectoryBuffer:
         num_envs: int,
         num_steps: int,
         obs_space: Tuple[int],  # (envs.observation_spec().num_values, )
+        # action_space: Tuple[int],
         gru_dim: int = 1,
     ):
 
@@ -42,6 +42,7 @@ class TrajectoryBuffer:
 
         # Environment specs
         self.obs_space = obs_space
+        self.action_space = [5]
         self.gru_dim = gru_dim
 
         # Initialise pointers
@@ -120,8 +121,8 @@ class TrajectoryBuffer:
             (
                 self._num_envs,
                 self._num_steps,
+                *self.action_space,
             ),
-            dtype="int32",
         )
 
         self.behavior_log_probs = jnp.zeros(
@@ -141,7 +142,7 @@ class TrajectoryBuffer:
             (
                 self._num_envs,
                 self._num_steps,
-            )
+            ),
         )
         self.behavior_values = jnp.zeros(
             (

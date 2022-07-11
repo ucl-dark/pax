@@ -1,16 +1,4 @@
-hydra:
-  run:
-    dir: .
-  sweep:
-    dir: .
-    subdir: .
-  job_logging:
-    root:
-      level: INFO
-
-# Global variables 
-seed: 0
-save_dir: "./exp/${wandb.group}/${wandb.name}"
+# @package _global_
 
 # Agents  
 agent1: 'Hyper'
@@ -47,7 +35,7 @@ dqn:
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 5
+  num_minibatches: 4
   num_epochs: 1 
   gamma: 0.96
   gae_lambda: 0.95

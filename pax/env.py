@@ -20,19 +20,121 @@ from dm_env import (
 
 class State(enum.IntEnum):
     CC = 0
-    CD = 1
-    DC = 2
+    DC = 1
+    CD = 2
     DD = 3
     START = 4
 
 
 _ACTIONS = (0, 1)  # Cooperate, Defect
-_STATES = (0, 1, 2, 3, 4)  # CC, CD, DC, DD, START
+_STATES = (0, 1, 2, 3, 4)  # CC, DC, CD, DD, START
+
+
+class InfiniteMatrixGame(Environment):
+    def __init__(
+        self, num_envs: int, payoff: list, episode_length: int, gamma: float
+    ) -> None:
+        self.payoff = jnp.array([payoff[0], payoff[2], payoff[1], payoff[3]])
+        self.num_envs = num_envs
+        self.gamma = gamma
+        self.n_agents = 2
+        self.episode_length = episode_length
+
+        self.reward_1 = jnp.array([[r[0] for r in self.payoff]] * num_envs)
+        self.reward_2 = jnp.array([[r[1] for r in self.payoff]] * num_envs)
+        self.switch = jnp.array(
+            [
+                [
+                    [1, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0],
+                    [0, 1, 0, 0, 0],
+                    [0, 0, 0, 1, 0],
+                    [0, 0, 0, 0, 1],
+                ]
+            ]
+            * num_envs
+        )
+        self._num_steps = 0
+        self._reset_next_step = True
+
+    def step(
+        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
+    ) -> Tuple[TimeStep, TimeStep]:
+        """
+        takes a tuple of batched policies and produce value functions from infinite game
+        policy of form [B, 5]
+        """
+        if self._reset_next_step:
+            return self.reset()
+
+        action_1, action_2 = actions
+        self._num_steps += 1
+        assert action_1.shape == action_2.shape
+        assert action_1.shape == (self.num_envs, 5)
+
+        action_1, action_2 = jnp.clip(action_1, 0, 1), jnp.clip(action_2, 0, 1)
+        r1, r2 = self.get_reward(action_1, action_2)
+
+        obs1 = jnp.concatenate([action_1, action_2], axis=1)
+        obs2 = jnp.concatenate([action_2, action_1], axis=1)
+
+        if self._num_steps == self.episode_length:
+            self._reset_next_step = True
+            return termination(reward=r1, observation=obs1), termination(
+                reward=r2, observation=obs2
+            )
+        return transition(reward=r1, observation=obs1), transition(
+            reward=r2, observation=obs2
+        )
+
+    @partial(jax.jit, static_argnums=(0,))
+    def get_reward(
+        self, theta1: jnp.ndarray, theta2: jnp.ndarray
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
+        # actions are egocentric so swap around for player two
+        theta2 = jnp.einsum("Bik,Bk -> Bi", self.switch, theta2)
+        P = jnp.array(
+            [
+                theta1 * theta2,
+                theta1 * (1 - theta2),
+                (1 - theta1) * theta2,
+                (1 - theta1) * (1 - theta2),
+            ]
+        )
+        # initial distibution over start p0
+        P = jnp.einsum("iBj -> Bij", P)
+        p0 = P[:, :, 5]
+        P = jnp.einsum("Bji-> Bij", P[:, :, :4])
+        inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
+        v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
+        v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
+
+        avg_v1 = v1 * (1 - self.gamma)
+        avg_v2 = v2 * (1 - self.gamma)
+        return avg_v1, avg_v2
+
+    def observation_spec(self) -> specs.DiscreteArray:
+        """Returns the observation spec."""
+        return specs.DiscreteArray(num_values=10, name="previous policy")
+
+    def action_spec(self) -> specs.DiscreteArray:
+        """Returns the action spec."""
+        return specs.BoundedArray(
+            shape=(self.num_envs, 5), minimum=0, maximum=1, name="action"
+        )
+
+    def reset(self) -> Tuple[TimeStep, TimeStep]:
+        """Returns the first `TimeStep` of a new episode."""
+        self._reset_next_step = False
+        self._num_steps = 0
+        # TODO: unsure if this correct def
+        obs = 0.5 * jnp.ones((self.num_envs, 10))
+        return restart(obs), restart(obs)
 
 
 class SequentialMatrixGame(Environment):
     def __init__(
-        self, episode_length: int, num_envs: int, payoff: list
+        self, num_envs: int, payoff: list, episode_length: int
     ) -> None:
         self.payoff = jnp.array(payoff)
         self.episode_length = episode_length
@@ -92,20 +194,19 @@ class SequentialMatrixGame(Environment):
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
         """Returns the rewards of a step"""
         # Example payoffs
-        #             CC      CD     DC     DD
-        # IPD       = [[2,2], [0,3], [3,0], [1,1]]
-        # Stag hunt = [[4,4], [1,3], [3,1], [2,2]]
+        #             CC      DC     CD     DD
+        # IPD       = [[2,2], [3,0], [0,3], [1,1]]
+        # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
         # BotS      = [[3,2], [0,0], [0,0], [2,3]]
-        # Chicken   = [[0,0], [-1,1],[1,-1],[-2,-2]]
-
+        # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]
         cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
         cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
 
-        cd_p1 = self.payoff[1][0] * (1.0 - a1) * a2
-        cd_p2 = self.payoff[1][1] * (1.0 - a1) * a2
+        dc_p1 = self.payoff[1][0] * a1 * (1.0 - a2)
+        dc_p2 = self.payoff[1][1] * a1 * (1.0 - a2)
 
-        dc_p1 = self.payoff[2][0] * a1 * (1.0 - a2)
-        dc_p2 = self.payoff[2][1] * a1 * (1.0 - a2)
+        cd_p1 = self.payoff[2][0] * (1.0 - a1) * a2
+        cd_p2 = self.payoff[2][1] * (1.0 - a1) * a2
 
         dd_p1 = self.payoff[3][0] * a1 * a2
         dd_p2 = self.payoff[3][1] * a1 * a2
@@ -124,7 +225,7 @@ class SequentialMatrixGame(Environment):
             + 3 * (a1) * (a2)
         )
 
-    @partial(jax.jit, static_argnums=(0, 2))
+    @partial(jax.jit, static_argnums=(0,))
     def _observation(self, state: jnp.array) -> Tuple[jnp.array, jnp.array]:
         # each agent wants to assume they are agent 1 canonicaly:
         # observation also changes environment to be state space
@@ -133,8 +234,8 @@ class SequentialMatrixGame(Environment):
         # switch the assymetric states (CD and DC)
         # 0 -> 0, 1 -> 2, 2 -> 1, 3 -> 3
         s0 = state
-        s1 = State.CD - state
-        s2 = State.DC - state
+        s1 = State.DC - state
+        s2 = State.CD - state
         s3 = State.DD - state
         s4 = State.START - state
 
@@ -156,8 +257,8 @@ class IteratedPrisonersDilemma(SequentialMatrixGame):
     """Define iterated prisoner's dilemma"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, CD, DC, DD)
-        self.payoff = jnp.array([[2, 2], [0, 3], [3, 0], [1, 1]])
+        # (CC, DC, CD, DD)
+        self.payoff = jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
@@ -165,8 +266,8 @@ class StagHunt(SequentialMatrixGame):
     """Define stag hunt"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, CD, DC, DD)
-        self.payoff = jnp.array([[4, 4], [1, 3], [3, 1], [2, 2]])
+        # (CC, DC, CD, DD)
+        self.payoff = jnp.array([[4, 4], [3, 1], [1, 3], [2, 2]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
@@ -174,7 +275,7 @@ class BattleOfTheSexes(SequentialMatrixGame):
     """Define Battle of the Sexes"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, CD, DC, DD)
+        # (CC, DC, CD, DD)
         self.payoff = jnp.array([[3, 2], [0, 0], [0, 0], [2, 3]])
         super().__init__(episode_length, num_envs, self.payoff)
 
@@ -183,12 +284,12 @@ class Chicken(SequentialMatrixGame):
     """Define Chicken"""
 
     def __init__(self, episode_length: int, num_envs: int) -> None:
-        # (CC, CD, DC, DD)
-        self.payoff = jnp.array([[0, 0], [-1, 1], [1, -1], [-2, -2]])
+        # (CC, DC, CD, DD)
+        self.payoff = jnp.array([[0, 0], [1, -1], [-1, 1], [-2, -2]])
         super().__init__(episode_length, num_envs, self.payoff)
 
 
 if __name__ == "__main__":
     env = SequentialMatrixGame(
-        5, 1, jnp.array([[2, 2], [0, 3], [3, 0], [1, 1]])
+        5, 1, jnp.array([[2, 2], [3, 0], [0, 3], [1, 1]])
     )

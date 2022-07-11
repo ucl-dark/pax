@@ -1,30 +1,28 @@
 import jax.numpy as jnp
-import jax
 import pytest
 
-from pax.env import SequentialMatrixGame
+from pax.env import InfiniteMatrixGame, SequentialMatrixGame
 from pax.strategies import TitForTat
 
 # payoff matrices for four games
-# CC, CD, DC, DD
-ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]
-stag = [[4, 4], [1, 3], [3, 1], [2, 2]]
+ipd = [[2, 2], [3, 0], [0, 3], [1, 1]]
+stag = [[4, 4], [3, 1], [1, 3], [2, 2]]
 sexes = [[3, 2], [0, 0], [0, 0], [2, 3]]
-chicken = [[0, 0], [-1, 1], [1, -1], [-2, -2]]
+chicken = [[0, 0], [1, -1], [-1, 1], [-2, -2]]
 test_payoffs = [ipd, stag, sexes, chicken]
 
 
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,), dtype=jnp.int32)
     r_array = jnp.ones((num_envs,), dtype=jnp.int32)
 
     # payoffs
     cc_p1, cc_p2 = payoff[0][0], payoff[0][1]
-    cd_p1, cd_p2 = payoff[1][0], payoff[1][1]
-    dc_p1, dc_p2 = payoff[2][0], payoff[2][1]
+    dc_p1, dc_p2 = payoff[1][0], payoff[1][1]
+    cd_p1, cd_p2 = payoff[2][0], payoff[2][1]
     dd_p1, dd_p2 = payoff[3][0], payoff[3][1]
 
     # first step
@@ -36,13 +34,13 @@ def test_single_batch_rewards(payoff) -> None:
     assert jnp.array_equal(tstep_0.reward, cc_p1 * r_array)
     assert jnp.array_equal(tstep_1.reward, cc_p2 * r_array)
 
-    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
-    assert jnp.array_equal(tstep_0.reward, cd_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, cd_p2 * r_array)
-
     tstep_0, tstep_1 = env.step((1 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, dc_p1 * r_array)
     assert jnp.array_equal(tstep_1.reward, dc_p2 * r_array)
+
+    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
+    assert jnp.array_equal(tstep_0.reward, cd_p1 * r_array)
+    assert jnp.array_equal(tstep_1.reward, cd_p2 * r_array)
 
     tstep_0, tstep_1 = env.step((1 * action, 1 * action))
     assert jnp.array_equal(tstep_0.reward, dd_p1 * r_array)
@@ -51,20 +49,20 @@ def test_single_batch_rewards(payoff) -> None:
 
 testdata = [
     ((0, 0), (2, 2), ipd),
-    ((0, 1), (0, 3), ipd),
     ((1, 0), (3, 0), ipd),
+    ((0, 1), (0, 3), ipd),
     ((1, 1), (1, 1), ipd),
     ((0, 0), (4, 4), stag),
-    ((0, 1), (1, 3), stag),
     ((1, 0), (3, 1), stag),
+    ((0, 1), (1, 3), stag),
     ((1, 1), (2, 2), stag),
     ((0, 0), (3, 2), sexes),
-    ((0, 1), (0, 0), sexes),
     ((1, 0), (0, 0), sexes),
+    ((0, 1), (0, 0), sexes),
     ((1, 1), (2, 3), sexes),
     ((0, 0), (0, 0), chicken),
-    ((0, 1), (-1, 1), chicken),
     ((1, 0), (1, -1), chicken),
+    ((0, 1), (-1, 1), chicken),
     ((1, 1), (-2, -2), chicken),
 ]
 
@@ -73,7 +71,7 @@ testdata = [
 def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     num_envs = 3
     all_ones = jnp.ones((num_envs,))
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     env.reset()
 
     action_1, action_2 = actions
@@ -93,7 +91,7 @@ def test_mixed_batched_outcomes() -> None:
 def test_tit_for_tat_match() -> None:
     num_envs = 5
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat()
@@ -109,7 +107,7 @@ def test_tit_for_tat_match() -> None:
 def test_observation() -> None:
     num_envs = 1
     payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     initial_state = jnp.ones((num_envs,))
 
     # start
@@ -201,8 +199,8 @@ def test_observation() -> None:
 
 def test_done():
     num_envs = 1
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,))
 
     # check first
@@ -225,8 +223,8 @@ def test_done():
 
 def test_reset():
     num_envs = 1
-    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = SequentialMatrixGame(5, num_envs, payoff)
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    env = SequentialMatrixGame(num_envs, payoff, 5)
     state = jnp.ones((num_envs,))
 
     env.reset()
@@ -242,3 +240,83 @@ def test_reset():
         t_0, t_1 = env.step((0 * state, 0 * state))
         assert t_0.last() == False
         assert t_1.last() == False
+
+
+def test_infinite_game():
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # discount of 0.99 -> 1/(0.001) ~ 100 timestep
+
+    env = InfiniteMatrixGame(1, payoff, 10, 0.99)
+    alt_policy = jnp.ones((1, 5))
+    def_policy = jnp.zeros((1, 5))
+    tft_policy = jnp.array([[1, 0, 1, 0, 1]])
+
+    # first step
+    tstep_0, tstep_1 = env.step((alt_policy, def_policy))
+    assert tstep_0.reward is None
+    assert tstep_1.reward is None
+
+    t0, t1 = env.step([alt_policy, alt_policy])
+    assert t0.reward == t1.reward
+    assert jnp.isclose(2, t0.reward)
+
+    t0, t1 = env.step([def_policy, def_policy])
+    assert t0.reward == t1.reward
+    assert jnp.isclose(1, t0.reward)
+
+    t0, t1 = env.step([def_policy, alt_policy])
+    assert t0.reward != t1.reward
+    assert jnp.isclose(3, t0.reward)
+    assert jnp.isclose(0.0, t1.reward, atol=0.0001)
+
+    t0, t1 = env.step([alt_policy, tft_policy])
+    assert jnp.isclose(2, t0.reward)
+    assert jnp.isclose(2, t1.reward)
+
+    t0, t1 = env.step([tft_policy, tft_policy])
+    assert jnp.isclose(2, t0.reward)
+    assert jnp.isclose(2, t1.reward)
+
+    t0, t1 = env.step([tft_policy, def_policy])
+    assert jnp.isclose(0.99, t0.reward)
+    assert jnp.isclose(1.02, t1.reward)
+
+    t0, t1 = env.step([def_policy, tft_policy])
+    assert jnp.isclose(1.02, t0.reward)
+    assert jnp.isclose(0.99, t1.reward)
+
+
+def test_batch_infinite_game():
+    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    # discount of 0.99 -> 1/(0.001) ~ 100 timestep
+
+    env = InfiniteMatrixGame(3, payoff, 10, 0.99)
+    alt_policy = jnp.ones((1, 5))
+    def_policy = jnp.zeros((1, 5))
+    tft_policy = jnp.array([[1, 0, 1, 0, 1]])
+
+    batched_alt = jnp.concatenate([alt_policy, alt_policy, alt_policy], axis=0)
+    batched_def = jnp.concatenate([def_policy, def_policy, def_policy], axis=0)
+    batch_mixed_1 = jnp.concatenate(
+        [alt_policy, def_policy, tft_policy], axis=0
+    )
+    batch_mixed_2 = jnp.concatenate(
+        [def_policy, tft_policy, tft_policy], axis=0
+    )
+
+    # first step
+    tstep_0, tstep_1 = env.step((batched_alt, batched_alt))
+    assert tstep_0.reward is None
+    assert tstep_1.reward is None
+
+    t0, t1 = env.step([batched_alt, batched_alt])
+    assert jnp.isclose(t0.reward, t1.reward).all()
+    assert jnp.isclose(jnp.array([2, 2, 2]), t0.reward).all()
+
+    t0, t1 = env.step([batched_alt, batched_def])
+    assert jnp.isclose(jnp.array([0, 0, 0]), t0.reward, atol=0.0001).all()
+    assert jnp.isclose(jnp.array([3, 3, 3]), t1.reward).all()
+
+    t0, t1 = env.step([batch_mixed_1, batch_mixed_2])
+    assert jnp.isclose(jnp.array([0, 1.02, 2]), t0.reward, atol=0.0001).all()
+    assert jnp.isclose(jnp.array([3, 0.99, 2]), t1.reward).all()
