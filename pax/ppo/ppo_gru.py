@@ -485,10 +485,10 @@ class PPO:
             timestep=t_prime,
             action=0,
             log_prob=0,
-            value=self._state.extras["values"],
-            # value=self._state.extras["values"]
-            # if not t_prime.last()
-            # else jnp.zeros_like(self._state.extras["values"]),
+            # value=self._state.extras["values"],
+            value=self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"]),
             new_timestep=t_prime,
         )
 
