@@ -142,7 +142,6 @@ class SequentialMatrixGame(Environment):
         self._num_steps = 0
         self._reset_next_step = True
 
-    @partial(jax.jit, static_argnums=(0,))
     def step(
         self,
         actions: Tuple[jnp.ndarray, jnp.ndarray],

@@ -339,8 +339,6 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup()
 
-    # TODO: Do we need this?
-    # assert not train_episodes % eval_every
     num_episodes = int(args.total_timesteps / (args.num_steps))
     eval_every = int(args.eval_every / (args.num_steps))
     print(f"Number of training episodes = {num_episodes}")

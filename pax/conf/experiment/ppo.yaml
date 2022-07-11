@@ -1,37 +1,26 @@
 # @package _global_
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent1: 'PPO'
+agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
 game: ipd 
-env_type: infinite
+env_type: finite
 env_discount: 0.99
-payoff:
+payoff: 
 
 # Training hyperparameters
-num_envs: 50
-num_steps: 1 # number of steps per episode
-total_timesteps: 5_000
-eval_every: 50 # timesteps
+num_envs: 100
+num_steps: 25 # number of steps per episode
+total_timesteps: 1_000_000
+eval_every: 10_000 # timesteps
 
 # Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
+# num_episodes = total_timesteps / num_steps
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
-
-# DQN agent parameters
-dqn: 
-  batch_size: 256
-  discount: 0.99
-  learning_rate: 1e-2
-  epsilon: 0.5
-  replay_capacity: 100000
-  min_replay_size: 1000
-  sgd_period: 1 
-  target_update_period: 4 
 
 # PPO agent parameters
 ppo:
@@ -45,21 +34,17 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 5_000
+  entropy_coeff_horizon: 500_000
   entropy_coeff_end: 0.001
   lr_scheduling: True
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
   with_memory: False
 
-# LOLA agent parameters
-# lola:
-#   ... 
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  group: 'PPO-vs-${agent2}-${game}'
   name: run-seed-${seed}
   log: True

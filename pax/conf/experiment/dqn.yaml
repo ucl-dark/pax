@@ -1,13 +1,13 @@
 # @package _global_
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent1: 'DQN'
+agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
 game: ipd 
-env_type: infinite
+env_type: finite
 env_discount: 0.99
 payoff:
 
@@ -33,33 +33,10 @@ dqn:
   sgd_period: 1 
   target_update_period: 4 
 
-# PPO agent parameters
-ppo:
-  num_minibatches: 4
-  num_epochs: 1 
-  gamma: 0.96
-  gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
-  max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 5_000
-  entropy_coeff_end: 0.001
-  lr_scheduling: True
-  learning_rate: 2.5e-3
-  adam_epsilon: 1e-5
-  with_memory: False
-
-# LOLA agent parameters
-# lola:
-#   ... 
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  group: '${agent1}-vs-${agent2}-${game}-final'
   name: run-seed-${seed}
   log: True

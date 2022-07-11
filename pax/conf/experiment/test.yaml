@@ -1,0 +1,5 @@
+# @package _global_
+
+# Agents  
+agent1: 'PPO'
+agent2: 'PPO'

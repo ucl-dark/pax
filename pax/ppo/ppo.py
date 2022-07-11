@@ -109,11 +109,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            # discounts = gamma * (1 - dones)
             discounts = gamma * jnp.where(dones < 2, 1, 0)
-            # discounts = gamma * (1 - jnp.zeros_like(dones))
-
-            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -481,7 +477,6 @@ class PPO:
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
 
-# TODO: seed, and player_id not used in CartPole
 def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
