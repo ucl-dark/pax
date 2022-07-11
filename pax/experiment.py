@@ -23,7 +23,6 @@ from pax.strategies import (
     Random,
     Human,
     GrimTrigger,
-    # ZDExtortion,
 )
 from pax.utils import Section
 from pax.watchers import (
@@ -148,6 +147,20 @@ def agent_setup(args, logger):
         )
         return dqn_agent
 
+    def get_PPO_memory_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
+        ppo_memory_agent = make_gru_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return ppo_memory_agent
+
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
@@ -204,10 +217,10 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": Random,
         "Grim": GrimTrigger,
-        # "ZDExtortion": ZDExtortion,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        "PPO_memory": get_PPO_memory_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "HyperAltruistic": HyperAltruistic,
@@ -288,10 +301,10 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
-        # "ZDExtortion": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
+        "PPO_memory": ppo_log,
         "Hyper": hyper_log,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,

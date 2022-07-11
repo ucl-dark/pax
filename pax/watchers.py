@@ -160,13 +160,13 @@ def ppo_losses(agent) -> None:
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
     loss_entropy = agent._logger.metrics["loss_entropy"]
-    entropy_coefficient = agent._logger.metrics["entropy_coeff"]
+    entropy_cost = agent._logger.metrics["entropy_cost"]
     losses = {
         "sgd_steps": sgd_steps,
         "train/total": loss_total,
         "train/policy": loss_policy,
         "train/value": loss_value,
         "train/entropy": loss_entropy,
-        "train/entropy_coefficient": entropy_coefficient,
+        "train/entropy_coefficient": entropy_cost,
     }
     return losses
