@@ -13,15 +13,15 @@ seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent1: 'PPO_memory'
+agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
 game: ipd 
-env_type: infinite
+env_type: finite
 env_discount: 0.99
-payoff:
+payoff: 
 
 # Training hyperparameters
 num_envs: 50
@@ -47,7 +47,7 @@ dqn:
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 5
+  num_minibatches: 4
   num_epochs: 1 
   gamma: 0.96
   gae_lambda: 0.95
@@ -57,12 +57,12 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 5_000
+  entropy_coeff_horizon: 500_000
   entropy_coeff_end: 0.001
   lr_scheduling: True
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
 
 # LOLA agent parameters
 # lola:
