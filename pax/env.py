@@ -35,14 +35,40 @@ class InfiniteMatrixGame(Environment):
         self, num_envs: int, payoff: list, episode_length: int, gamma: float
     ) -> None:
         self.payoff = jnp.array([payoff[0], payoff[2], payoff[1], payoff[3]])
-        self.num_envs = num_envs
-        self.gamma = gamma
-        self.n_agents = 2
-        self.episode_length = episode_length
+        payout_mat_1 = jnp.array([[r[0] for r in self.payoff]])
+        payout_mat_2 = jnp.array([[r[1] for r in self.payoff]])
 
-        self.reward_1 = jnp.array([[r[0] for r in self.payoff]] * num_envs)
-        self.reward_2 = jnp.array([[r[1] for r in self.payoff]] * num_envs)
-        self.switch = jnp.array(
+        def _step(theta1, theta2):
+            p_1_0 = theta1[4:5]
+            p_2_0 = theta2[4:5]
+            p = jnp.concatenate(
+                [
+                    p_1_0 * p_2_0,
+                    p_1_0 * (1 - p_2_0),
+                    (1 - p_1_0) * p_2_0,
+                    (1 - p_1_0) * (1 - p_2_0),
+                ]
+            )
+            p_1 = jnp.reshape(theta1[0:4], (4, 1))
+            p_2 = jnp.reshape(theta2[0:4], (4, 1))
+            P = jnp.concatenate(
+                [
+                    p_1 * p_2,
+                    p_1 * (1 - p_2),
+                    (1 - p_1) * p_2,
+                    (1 - p_1) * (1 - p_2),
+                ],
+                axis=1,
+            )
+            M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
+            L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
+            L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
+            return L_1 * (1 - gamma), L_2 * (1 - gamma)
+
+        self._step_2 = jax.vmap(_step)
+        self._num_steps = 0
+        self._reset_next_step = True
+        self._switch = jnp.array(
             [
                 [
                     [1, 0, 0, 0, 0],
@@ -54,10 +80,10 @@ class InfiniteMatrixGame(Environment):
             ]
             * num_envs
         )
-        self._num_steps = 0
-        self._reset_next_step = True
 
-        self._step_2 = jax.vmap(self._flair_step)
+        self.num_envs = num_envs
+        self.n_agents = 2
+        self.episode_length = episode_length
 
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]
@@ -77,12 +103,8 @@ class InfiniteMatrixGame(Environment):
         r1, r2, obs1, obs2 = self._step(
             action_1,
             action_2,
-            self.gamma,
-            self.reward_1,
-            self.reward_2,
-            self.switch,
+            self._switch,
         )
-
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
             return termination(reward=r1, observation=obs1), termination(
@@ -92,8 +114,8 @@ class InfiniteMatrixGame(Environment):
             reward=r2, observation=obs2
         )
 
-    # @partial(jax.jit, static_argnums=(0,))
-    def _step(self, theta1, theta2, gamma, payoff1, payoff2, switch):
+    @partial(jax.jit, static_argnums=(0,))
+    def _step(self, theta1, theta2, switch):
         th1, th2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
         # actions are egocentric so swap around for player two
         _th2 = jnp.einsum("Bik,Bk -> Bi", switch, th2)
@@ -125,35 +147,6 @@ class InfiniteMatrixGame(Environment):
         return v1, v2, obs1, obs2
 
     # TODO: for comparison on differntiation
-    def _flair_step(self, theta1, theta2):
-        gamma = 0.96
-        payout_mat_1 = jnp.array([[2, 0], [3, 1]])
-        payout_mat_2 = payout_mat_1.T
-        p_1_0 = theta1[4:5]
-        p_2_0 = theta2[4:5]
-        p = jnp.concatenate(
-            [
-                p_1_0 * p_2_0,
-                p_1_0 * (1 - p_2_0),
-                (1 - p_1_0) * p_2_0,
-                (1 - p_1_0) * (1 - p_2_0),
-            ]
-        )
-        p_1 = jnp.reshape(theta1[0:4], (4, 1))
-        p_2 = jnp.reshape(theta2[0:4], (4, 1))
-        P = jnp.concatenate(
-            [
-                p_1 * p_2,
-                p_1 * (1 - p_2),
-                (1 - p_1) * p_2,
-                (1 - p_1) * (1 - p_2),
-            ],
-            axis=1,
-        )
-        M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
-        L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
-        L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
-        return L_1 * (1 - gamma), L_2 * (1 - gamma)
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

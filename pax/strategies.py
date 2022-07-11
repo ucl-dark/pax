@@ -317,11 +317,8 @@ class MetaNaiveLearner:
         #     return r1.mean()
 
         # grad_fn = jax.jit(jax.value_and_grad(loss_fn))
-        print(f"Update Action: {action}")
-        print(f"Other aciton: {other_action}")
-        val, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
-        print(val, t_prime.reward.sum())
-        assert val == t_prime.reward.sum()
+
+        _, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
         # gradient ascent
         # print(f"Action: {action}")
         delta = jnp.multiply(grad, self.lr)
