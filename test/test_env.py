@@ -92,7 +92,7 @@ def test_mixed_batched_outcomes() -> None:
 
 def test_tit_for_tat_match() -> None:
     num_envs = 5
-    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     t_0, t_1 = env.reset()
 
@@ -108,7 +108,7 @@ def test_tit_for_tat_match() -> None:
 
 def test_observation() -> None:
     num_envs = 1
-    payoff = [[2, 2], [3, 0], [0, 3], [1, 1]]
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     env = SequentialMatrixGame(num_envs, payoff, 5)
     initial_state = jnp.ones((num_envs,))
 

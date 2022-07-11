@@ -220,8 +220,8 @@ class SequentialMatrixGame(Environment):
     def _get_state(self, a1: jnp.array, a2: jnp.array) -> jnp.array:
         return (
             0 * (1 - a1) * (1 - a2)
-            + 1 * (a1) * (1 - a2)
-            + 2 * (1 - a1) * (a2)
+            + 1 * (1 - a1) * (a2)
+            + 2 * (a1) * (1 - a2)
             + 3 * (a1) * (a2)
         )
 
