@@ -5,7 +5,6 @@ from pax.env import InfiniteMatrixGame, SequentialMatrixGame
 from pax.strategies import TitForTat
 
 # payoff matrices for four games
-# CC, CD, DC, DD
 ipd = [[2, 2], [3, 0], [0, 3], [1, 1]]
 stag = [[4, 4], [3, 1], [1, 3], [2, 2]]
 sexes = [[3, 2], [0, 0], [0, 0], [2, 3]]
@@ -16,7 +15,6 @@ test_payoffs = [ipd, stag, sexes, chicken]
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
-    # self, num_envs: int, payoff: list, episode_length: int
     env = SequentialMatrixGame(num_envs, payoff, 5)
     action = jnp.ones((num_envs,), dtype=jnp.int32)
     r_array = jnp.ones((num_envs,), dtype=jnp.int32)
@@ -36,13 +34,13 @@ def test_single_batch_rewards(payoff) -> None:
     assert jnp.array_equal(tstep_0.reward, cc_p1 * r_array)
     assert jnp.array_equal(tstep_1.reward, cc_p2 * r_array)
 
-    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
-    assert jnp.array_equal(tstep_0.reward, cd_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, cd_p2 * r_array)
-
     tstep_0, tstep_1 = env.step((1 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, dc_p1 * r_array)
     assert jnp.array_equal(tstep_1.reward, dc_p2 * r_array)
+
+    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
+    assert jnp.array_equal(tstep_0.reward, cd_p1 * r_array)
+    assert jnp.array_equal(tstep_1.reward, cd_p2 * r_array)
 
     tstep_0, tstep_1 = env.step((1 * action, 1 * action))
     assert jnp.array_equal(tstep_0.reward, dd_p1 * r_array)

@@ -106,6 +106,8 @@ def policy_logger_ppo_with_memory(agent) -> None:
     episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
     cooperation_probs = {"episode": episode}
 
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
     for state, state_name in zip(ALL_STATES, STATE_NAMES):
         (dist, _), hidden = agent.forward(params, state, hidden)
         cooperation_probs[f"policy/{state_name}"] = float(dist.probs[0][0])

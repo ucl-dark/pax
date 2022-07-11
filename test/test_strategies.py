@@ -19,18 +19,20 @@ def test_titfortat():
 
     cc_timestep = transition(observation=cc_obs, reward=0)
     action = agent.select_action(cc_timestep)
-    assert jnp.array_equal(cooperate_action, action)
+    assert jnp.array_equal(
+        cooperate_action, action
+    )  # , f"cooperate_action = {cooperate_action}, action = {action}"
 
-    cd_timestep = transition(observation=cd_obs, reward=0)
-    action = agent.select_action(cd_timestep)
+    dd_timestep = transition(observation=dd_obs, reward=0)
+    action = agent.select_action(dd_timestep)
     assert jnp.array_equal(defect_action, action)
 
     dc_timestep = transition(observation=dc_obs, reward=0)
     action = agent.select_action(dc_timestep)
     assert jnp.array_equal(cooperate_action, action)
 
-    dd_timestep = transition(observation=dd_obs, reward=0)
-    action = agent.select_action(dd_timestep)
+    cd_timestep = transition(observation=cd_obs, reward=0)
+    action = agent.select_action(cd_timestep)
     assert jnp.array_equal(defect_action, action)
 
     start_timestep = transition(observation=initial_obs, reward=0)
