@@ -29,6 +29,7 @@ def test_titfortat():
 
     dc_timestep = transition(observation=dc_obs, reward=0)
     action = agent.select_action(dc_timestep)
+    # expect first player to cooperate, expect second player to defect
     assert jnp.array_equal(cooperate_action, action)
 
     cd_timestep = transition(observation=cd_obs, reward=0)
