@@ -25,9 +25,10 @@ class GrimTrigger:
         pass
 
     def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
+        # batch_size, _ = obs.shape
+        obs = obs.argmax(axis=-1)
         # if 0 | 4 -> C
         # if 1 | 2 | 3 | -> D
-        obs = obs.argmax(axis=-1)
         obs = obs % 4  # now either 0, 1, 2, 3
         action = jnp.where(obs > 0.0, 1.0, 0.0)
         return action
@@ -42,15 +43,19 @@ class TitForTat:
         self,
         timestep: TimeStep,
     ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
         return self._reciprocity(timestep.observation)
 
     def update(self, *args) -> None:
         pass
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
+        # now either 0, 1, 2, 3
+        batch_size, _ = obs.shape
+        obs = obs.argmax(axis=-1)
         # if 0 | 1 | 4  -> C
         # if 2 | 3 -> D
-        obs = obs.argmax(axis=-1)
         obs = obs % 4
         action = jnp.where(obs > 1.0, 1.0, 0.0)
         # action = jnp.expand_dims(action, axis=-1) # removing this in preference for (action, )

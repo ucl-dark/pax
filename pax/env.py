@@ -193,12 +193,12 @@ class SequentialMatrixGame(Environment):
     @partial(jax.jit, static_argnums=(0,))
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:
         """Returns the rewards of a step"""
+        # Example payoffs
         #             CC      DC     CD     DD
         # IPD       = [[2,2], [3,0], [0,3], [1,1]]
         # Stag hunt = [[4,4], [3,1], [1,3], [2,2]]
         # BotS      = [[3,2], [0,0], [0,0], [2,3]]
         # Chicken   = [[0,0], [1,-1],[-1,1],[-2,-2]]
-
         cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
         cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
 
