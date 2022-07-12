@@ -91,7 +91,6 @@ class InfiniteMatrixGame(Environment):
             action_1,
             action_2,
         )
-
         # unwrap rewards for buffer
         r1 = r1[:, 0]
         r2 = r2[:, 0]

@@ -53,6 +53,7 @@ def make_network(num_actions: int):
         layers = []
         layers.extend(
             [
+                hk.Linear(256),
                 ContinuousValueHead(num_values=num_actions),
             ]
         )

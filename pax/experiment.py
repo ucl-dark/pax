@@ -61,8 +61,8 @@ def global_setup(args):
         )
 
 
-def env_setup(args, logger):
-    """Set up env variables."""
+def payoff_setup(args, logger):
+    """Set up payoff"""
     games = {
         "ipd": [[2, 2], [3, 0], [0, 3], [1, 1]],
         "stag": [[4, 4], [3, 1], [1, 3], [2, 2]],
@@ -91,31 +91,39 @@ def env_setup(args, logger):
 
     else:
         assert args.game in games, f"{args.game} not in {games.keys()}"
-        payoff = games[args.game]
-        logger.info(f"Game: {args.game} | payoff: {payoff}")
+        args.payoff = games[args.game]
+        logger.info(f"Game: {args.game} | payoff: {args.payoff}")
 
+
+def env_setup(args, logger=None):
+    """Set up env variables."""
+    payoff_setup(args, logger)
     if args.env_type == "finite":
         train_env = SequentialMatrixGame(
             args.num_envs,
-            payoff,
+            args.payoff,
             args.num_steps,
         )
-        test_env = SequentialMatrixGame(1, payoff, args.num_steps)
-        logger.info(f"Game Type: Finite | Episode Length: {args.num_steps}")
+        test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
+        if logger:
+            logger.info(
+                f"Game Type: Finite | Episode Length: {args.num_steps}"
+            )
 
     else:
         train_env = InfiniteMatrixGame(
             args.num_envs,
-            payoff,
+            args.payoff,
             args.num_steps,
             args.env_discount,
         )
         test_env = InfiniteMatrixGame(
-            args.num_envs, payoff, args.num_steps, args.env_discount
+            args.num_envs, args.payoff, args.num_steps, args.env_discount
         )
-        logger.info(
-            f"Game Type: Infinite | Inner Discount: {args.env_discount}"
-        )
+        if logger:
+            logger.info(
+                f"Game Type: Infinite | Inner Discount: {args.env_discount}"
+            )
 
     return train_env, test_env
 
@@ -177,7 +185,7 @@ def agent_setup(args, logger):
     def get_hyper_agent(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
-            [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.payoff,
             args.num_steps,
             args.env_discount,
         )
@@ -203,7 +211,7 @@ def agent_setup(args, logger):
     def get_naive_learner(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
-            [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.payoff,
             args.num_steps,
             args.env_discount,
         )

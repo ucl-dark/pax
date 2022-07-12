@@ -14,20 +14,20 @@ save_dir: "./exp/${wandb.group}/${wandb.name}"
 
 # Agents  
 agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent2: 'NaiveLearner'
 
 # Environment
 env_id: ipd
 game: ipd 
 env_type: infinite
-env_discount: 0.99
+env_discount: 0.96
 payoff:
 
 # Training hyperparameters
 num_envs: 50
-num_steps: 20 # number of steps per episode
+num_steps: 100 # number of steps per episode
 total_timesteps: 1_000_000
-eval_every: 10_000 # timesteps
+eval_every: 10_000 # timesteps for update
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
@@ -47,9 +47,9 @@ dqn:
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 5
-  num_epochs: 1 
-  gamma: 0.96
+  num_minibatches: 1
+  num_epochs: 4
+  gamma: 0.99
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
@@ -58,15 +58,15 @@ ppo:
   anneal_entropy: True
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 5_000
-  entropy_coeff_end: 0.001
+  entropy_coeff_end: 0.1
   lr_scheduling: True
-  learning_rate: 2.5e-3
+  learning_rate: 2e-3 
   adam_epsilon: 1e-5
   with_memory: False
 
 # Naive Learner parameters
 naive:
-  lr: 0.5
+  lr: 1.0
 
 # LOLA agent parameters
 # lola:

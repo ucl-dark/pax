@@ -250,6 +250,7 @@ class TrainingState(NamedTuple):
     params: jnp.ndarray
     random_key: jnp.ndarray
     timesteps: int
+    num_episodes: int
     env: InfiniteMatrixGame
 
 
@@ -270,23 +271,33 @@ class NaiveLearner:
     ):
 
         # Initialise training state (parameters, optimiser state, extras).
+
+        def reset_params(key: Any):
+            return jax.random.uniform(key, (env.num_envs, action_dim))
+
+        self.reset_params = jax.jit(reset_params)
+
         def make_initial_state(
-            key: Any, action_dim: int, env: InfiniteMatrixGame
+            key: Any, env: InfiniteMatrixGame
         ) -> TrainingState:
-            key = jax.random.PRNGKey(seed=seed)
-            params = jax.random.uniform(key, (env.num_envs, action_dim))
-            return TrainingState(params, key, timesteps=0, env=env)
+            key, _ = jax.random.split(key)
+            params = self.reset_params(key)
+            return TrainingState(
+                params, key, timesteps=0, num_episodes=0, env=env
+            )
 
         self.lr = lr
         self.player_id = player_id
-        self._state = make_initial_state(seed, action_dim, env)
+        self.action_dim = action_dim
+
         # Set up counters and logger
+        self._state = make_initial_state(jax.random.PRNGKey(seed=seed), env)
         self._logger = Logger()
         self._total_steps = 0
-        self._until_sgd = 0
         self._logger.metrics = {
             "total_steps": 0,
             "sgd_steps": 0,
+            "num_episodes": 0,
         }
 
     def select_action(
@@ -298,28 +309,44 @@ class NaiveLearner:
     def update(
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
     ) -> None:
-        env = self._state.env
-        other_action = t_prime.observation[:, 5:]
-
-        def loss_fn(theta1, theta2, env):
-            env.reset()
-            return env.step([theta1, theta2])[0].reward.sum()
-
-        loss, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
-        # gradient ascent
-        delta = jnp.multiply(grad, self.lr)
-        new_params = self._state.params + delta
-
-        # update state
-        self._state = TrainingState(
-            params=new_params,
-            random_key=self._state.random_key,
-            timesteps=self._state.timesteps + 1,
-            env=env,
-        )
 
         self._total_steps += 1
-        self._logger.metrics["sgd_steps"] += 1
-        self._logger.metrics["loss_total"] = loss
-        self._logger.metrics["grad_norm"] = optax.global_norm(delta)
-        print(self._logger.metrics["grad_norm"])
+        self._logger.metrics["total_steps"] = self._total_steps
+
+        if t_prime.last():
+            # end of trial so reset naive learners
+            key, _ = jax.random.split(self._state.random_key)
+            self._state = TrainingState(
+                params=self.reset_params(key),
+                random_key=key,
+                timesteps=self._state.timesteps + 1,
+                num_episodes=self._state.num_episodes + 1,
+                env=self._state.env,
+            )
+            self._logger.metrics["num_episodes"] += self._state.num_episodes
+
+        else:
+            env = self._state.env
+            other_action = t_prime.observation[:, 5:]
+
+            def loss_fn(theta1, theta2, env):
+                env.reset()
+                return env.step([theta1, theta2])[0].reward.sum()
+
+            loss, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
+            # gradient ascent
+            delta = jnp.multiply(grad, self.lr)
+            new_params = self._state.params + delta
+
+            # update state
+            self._state = TrainingState(
+                params=new_params,
+                random_key=self._state.random_key,
+                timesteps=self._state.timesteps + 1,
+                num_episodes=self._state.num_episodes,
+                env=env,
+            )
+
+            self._logger.metrics["sgd_steps"] += 1
+            self._logger.metrics["loss_total"] = loss
+            self._logger.metrics["grad_norm"] = optax.global_norm(grad)
