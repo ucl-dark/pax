@@ -1,3 +1,5 @@
+# @package _global_
+
 # Global parameters
 exp_name: ppo
 seed: 0
@@ -31,6 +33,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: "ppo-cartpole-with-memory=${ppo.with_memory}"
+  group: "PPO_memory-cartpole"
   name: run-${seed}
   log: True

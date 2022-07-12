@@ -19,8 +19,33 @@ class CategoricalValueHead(hk.Module):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
             num_values,
-            # w_init=hk.initializers.Orthogonal(0.01),  # baseline
             w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+
+    def __call__(self, inputs: jnp.ndarray):
+        logits = self._logit_layer(inputs)
+        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
+        return (distrax.Categorical(logits=logits), value)
+
+
+class ContinuousValueHead(hk.Module):
+    """Network head that produces a continuous distribution and value."""
+
+    def __init__(
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+    ):
+        super().__init__(name=name)
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Orthogonal(0.01),  # baseline
             with_bias=False,
         )
         self._value_layer = hk.Linear(
@@ -33,7 +58,7 @@ class CategoricalValueHead(hk.Module):
     def __call__(self, inputs: jnp.ndarray):
         logits = self._logit_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
-        return (distrax.Categorical(logits=logits), value)
+        return (distrax.MultivariateNormalDiag(loc=logits), value)
 
 
 def make_network(num_actions: int):

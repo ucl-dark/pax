@@ -3,8 +3,8 @@
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
-from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_network, make_cartpole_network
+from pax.hyper.buffer import TrajectoryBuffer
+from pax.hyper.networks import make_network
 
 from dm_env import TimeStep
 import haiku as hk
@@ -109,7 +109,11 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
+            # discounts = gamma * (1 - dones)
             discounts = gamma * jnp.where(dones < 2, 1, 0)
+            # discounts = gamma * (1 - jnp.zeros_like(dones))
+
+            # this is where the gae function will go.
 
             delta = rewards + discounts * values[1:] - values[:-1]
             advantage_t = [0.0]
@@ -180,10 +184,9 @@ class PPO:
                     fraction * entropy_coeff_start
                     + (1 - fraction) * entropy_coeff_end
                 )
-
             # Constant Entropy term
-            # else:
-            #     entropy_cost = entropy_coeff_start
+            else:
+                entropy_cost = entropy_coeff_start
             entropy_loss = -jnp.mean(entropy)
 
             # Total loss: Minimize policy and value loss; maximize entropy
@@ -198,7 +201,7 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
-                "entropy_cost": entropy_cost,
+                "entropy_coeff": entropy_cost,
             }
 
         @jax.jit
@@ -369,6 +372,8 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            # for dict_key in initial_params.keys():
+            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -397,12 +402,13 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
-            "entropy_cost": entropy_coeff_start,
+            "entropy_coeff": entropy_coeff_start,
         }
 
         # Initialize functions
         self._policy = policy
         self._rollouts = rollouts
+        self.forward = network.apply
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -418,13 +424,7 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
-    def update(
-        self,
-        t: TimeStep,
-        actions: np.array,
-        t_prime: TimeStep,
-        other_agents=None,
-    ):
+    def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
         # Adds agent and environment info to buffer
         self._rollouts(
             buffer=self._trajectory_buffer,
@@ -479,19 +479,15 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+        self._logger.metrics["entropy_coeff"] = results["entropy_coeff"]
 
 
-def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+# TODO: seed, and player_id not used in CartPole
+def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
-        network = make_cartpole_network(action_spec)
-
-    else:
-        print(f"Making network for {args.env_id}")
-        network = make_network(action_spec)
+    print(f"Making network for {args.env_id}")
+    network = make_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

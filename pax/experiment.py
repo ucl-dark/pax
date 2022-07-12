@@ -3,13 +3,13 @@ import os
 
 from pax.dqn.agent import default_agent
 from pax.env import (
+    InfiniteMatrixGame,
     SequentialMatrixGame,
-    IteratedPrisonersDilemma,
-    StagHunt,
-    BattleOfTheSexes,
-    Chicken,
 )
+
 from pax.centralized_learners import CentralizedLearners
+from pax.hyper.ppo import make_hyper
+from pax.hyper.ppo_gru import make_gru_hyper
 from pax.independent_learners import IndependentLearners
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
@@ -17,6 +17,9 @@ from pax.lola.lola import make_lola
 from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import (
+    HyperAltruistic,
+    HyperDefect,
+    HyperTFT,
     TitForTat,
     Defect,
     Altruistic,
@@ -28,6 +31,8 @@ from pax.utils import Section
 from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
+    logger_hyper,
+    policy_logger_hyper_gru,
     value_logger,
     value_logger_dqn,
     ppo_losses,
@@ -58,10 +63,10 @@ def global_setup(args):
 def env_setup(args, logger):
     """Set up env variables."""
     games = {
-        "ipd": IteratedPrisonersDilemma,
-        "stag": StagHunt,
-        "sexes": BattleOfTheSexes,
-        "chicken": Chicken,
+        "ipd": [[2, 2], [3, 0], [0, 3], [1, 1]],
+        "stag": [[4, 4], [3, 1], [1, 3], [2, 2]],
+        "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
+        "chicken": [[0, 0], [1, -1], [-1, 1], [-2, -2]],
     }
     if args.payoff is not None:
         assert (
@@ -79,16 +84,37 @@ def env_setup(args, logger):
         assert (
             len(args.payoff[3]) == 2
         ), f"Expected length 2 but got {len(args.payoff[3])}"
-        train_env = SequentialMatrixGame(
-            args.num_steps, args.num_envs, args.payoff
-        )
-        test_env = SequentialMatrixGame(args.num_steps, 1, args.payoff)
-        logger.info(f"Game: Custom | payoff: {args.payoff}")
+
+        payoff = args.payoff
+        logger.info(f"Game: Custom | payoff: {payoff}")
+
     else:
         assert args.game in games, f"{args.game} not in {games.keys()}"
-        train_env = games[args.game](args.num_steps, args.num_envs)
-        test_env = games[args.game](args.num_steps, 1)
-        logger.info(f"Game: {args.game} | payoff: {train_env.payoff}")
+        payoff = games[args.game]
+        logger.info(f"Game: {args.game} | payoff: {payoff}")
+
+    if args.env_type == "finite":
+        train_env = SequentialMatrixGame(
+            args.num_envs,
+            payoff,
+            args.num_steps,
+        )
+        test_env = SequentialMatrixGame(1, payoff, args.num_steps)
+        logger.info(f"Game Type: Finite | Episode Length: {args.num_steps}")
+
+    else:
+        train_env = InfiniteMatrixGame(
+            args.num_envs,
+            payoff,
+            args.num_steps,
+            args.env_discount,
+        )
+        test_env = InfiniteMatrixGame(
+            1, payoff, args.num_steps, args.env_discount
+        )
+        logger.info(
+            f"Game Type: Infinite | Inner Discount: {args.env_discount}"
+        )
 
     return train_env, test_env
 
@@ -113,7 +139,7 @@ def agent_setup(args, logger):
     def get_DQN_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
-            args.num_steps, args.num_envs, args.payoff
+            args.num_envs, args.payoff, args.num_steps
         )
         dqn_agent = default_agent(
             args,
@@ -124,10 +150,24 @@ def agent_setup(args, logger):
         )
         return dqn_agent
 
+    def get_PPO_memory_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
+        ppo_memory_agent = make_gru_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return ppo_memory_agent
+
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
-            args.num_steps, args.num_envs, args.payoff
+            args.num_envs, args.payoff, args.num_steps
         )
         if args.ppo.with_memory:
             ppo_agent = make_gru_agent(
@@ -151,6 +191,32 @@ def agent_setup(args, logger):
         lola_agent = make_lola(seed, player_id)
         return lola_agent
 
+    def get_hyper_agent(seed, player_id):
+        dummy_env = InfiniteMatrixGame(
+            args.num_envs,
+            [[0, 0], [0, 0], [0, 0], [0, 0]],
+            args.num_steps,
+            args.env_discount,
+        )
+
+        if args.ppo.with_memory:
+            hyper_agent = make_gru_hyper(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().num_values,
+                seed=seed,
+                player_id=player_id,
+            )
+        else:
+            hyper_agent = make_hyper(
+                args,
+                obs_spec=(dummy_env.observation_spec().num_values,),
+                action_spec=dummy_env.action_spec().shape[1],
+                seed=seed,
+                player_id=player_id,
+            )
+        return hyper_agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
@@ -162,6 +228,12 @@ def agent_setup(args, logger):
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
         "LOLA": get_LOLA_agent,
+        "PPO_memory": get_PPO_memory_agent,
+        # HyperNetworks
+        "Hyper": get_hyper_agent,
+        "HyperAltruistic": HyperAltruistic,
+        "HyperDefect": HyperDefect,
+        "HyperTFT": HyperTFT,
     }
 
     assert args.agent1 in strategies
@@ -222,6 +294,17 @@ def watcher_setup(args, logger):
     def dumb_log(agent, *args):
         return
 
+    def hyper_log(agent):
+        losses = ppo_losses(agent)
+        if args.ppo.with_memory:
+            policy = policy_logger_hyper_gru(agent)
+        else:
+            policy = logger_hyper(agent)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
     strategies = {
         "TitForTat": dumb_log,
         "Defect": dumb_log,
@@ -229,11 +312,15 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
-        # "ZDExtortion": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
         "LOLA": dumb_log,
+        "PPO_memory": ppo_log,
+        "Hyper": hyper_log,
+        "HyperAltruistic": dumb_log,
+        "HyperDefect": dumb_log,
+        "HyperTFT": dumb_log,
     }
 
     assert args.agent1 in strategies
@@ -264,18 +351,18 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup()
 
-    # TODO: Do we need this?
-    # assert not train_episodes % eval_every
-    num_episodes = int(args.total_timesteps / (args.num_steps * args.num_envs))
+    num_episodes = int(args.total_timesteps / (args.num_steps))
+    eval_every = int(args.eval_every / (args.num_steps))
     print(f"Number of training episodes = {num_episodes}")
-    print()
+    print(f"Evaluating every {eval_every} episodes")
     if not args.wandb.log:
         watchers = False
-    for num_update in range(int(num_episodes // args.eval_every)):
-        print(f"Update: {num_update}/{int(num_episodes // args.eval_every)}")
+    for num_update in range(int(num_episodes // eval_every)):
+        print(f"Update: {num_update}/{int(num_episodes // eval_every)}")
         print()
+
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)
-        runner.train_loop(train_env, agent_pair, args.eval_every, watchers)
+        runner.train_loop(train_env, agent_pair, eval_every, watchers)
 
 
 if __name__ == "__main__":

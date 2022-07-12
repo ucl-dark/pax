@@ -94,13 +94,10 @@ class Runner:
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()
-
             while not timesteps[0].last():
                 actions = agents.select_action(timesteps)
                 timesteps = env.step(actions)
-
                 r_0, r_1 = timesteps[0].reward, timesteps[1].reward
-
                 rewards_0.append(timesteps[0].reward)
                 rewards_1.append(timesteps[1].reward)
 

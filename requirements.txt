@@ -1,6 +1,8 @@
 absl-py
+bsuite
 black
 chex
+distrax
 dm-haiku
 dm-tree
 flax
@@ -11,6 +13,6 @@ jaxlib
 numpy
 optax
 pytest
-regex
+rlax
 wandb
 pytest
