@@ -11,8 +11,8 @@ def test_titfortat():
 
     # all obs are only of final state e.g batch x dim.
     cc_obs = jnp.asarray(batch_number * [[1, 0, 0, 0, 0]])
-    dc_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
-    cd_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
+    cd_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
+    dc_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
     dd_obs = jnp.asarray(batch_number * [[0, 0, 0, 1, 0]])
     initial_obs = jnp.asarray(batch_number * [[0, 0, 0, 0, 1]])
 
@@ -38,9 +38,8 @@ def test_titfortat():
     action = agent.select_action(cd_timestep)
     assert jnp.array_equal(defect_action, action)
 
-    # test initial conditions
-    cd_timestep = transition(observation=initial_obs, reward=0)
-    action = agent.select_action(cd_timestep)
+    start_timestep = transition(observation=initial_obs, reward=0)
+    action = agent.select_action(start_timestep)
     assert jnp.array_equal(cooperate_action, action)
 
 
@@ -50,8 +49,8 @@ def test_grim():
 
     # all obs are only of final state e.g batch x dim.
     cc_obs = jnp.asarray(batch_number * [[1, 0, 0, 0, 0]])
-    dc_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
-    cd_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
+    cd_obs = jnp.asarray(batch_number * [[0, 1, 0, 0, 0]])
+    dc_obs = jnp.asarray(batch_number * [[0, 0, 1, 0, 0]])
     dd_obs = jnp.asarray(batch_number * [[0, 0, 0, 1, 0]])
     initial_obs = jnp.asarray(batch_number * [[0, 0, 0, 0, 1]])
 
@@ -110,7 +109,7 @@ def test_naive_defect():
     batch_number = 5
     env = InfiniteMatrixGame(
         num_envs=batch_number,
-        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
     )
@@ -138,7 +137,7 @@ def test_naive_tft():
     batch_number = 1
     env = InfiniteMatrixGame(
         num_envs=batch_number,
-        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
     )
@@ -165,7 +164,7 @@ def test_naive_tft_as_second_player():
     batch_number = 1
     env = InfiniteMatrixGame(
         num_envs=batch_number,
-        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
     )

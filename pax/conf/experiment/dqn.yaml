@@ -1,0 +1,42 @@
+# @package _global_
+
+# Agents  
+agent1: 'DQN'
+agent2: 'TitForTat'
+
+# Environment
+env_id: ipd
+game: ipd 
+env_type: finite
+env_discount: 0.99
+payoff:
+
+# Training hyperparameters
+num_envs: 100
+num_steps: 25 # number of steps per episode
+total_timesteps: 1_000_000
+eval_every: 50_000 # timesteps
+
+# Useful information
+# num_episodes = total_timesteps / (num_steps * num_envs) 
+# num_updates = num_episodes / eval_every
+# batch_size = num_envs * num_steps
+
+# DQN agent parameters
+dqn: 
+  batch_size: 256
+  discount: 0.99
+  learning_rate: 1e-2
+  epsilon: 0.5
+  replay_capacity: 100000
+  min_replay_size: 1000
+  sgd_period: 1 
+  target_update_period: 4 
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: '${agent1}-vs-${agent2}-${game}-final'
+  name: run-seed-${seed}
+  log: True

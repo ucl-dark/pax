@@ -10,8 +10,8 @@ import pax.ppo.ppo as PPO
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
 CC = jnp.array([[1, 0, 0, 0, 0]])
-CD = jnp.array([[0, 0, 1, 0, 0]])
-DC = jnp.array([[0, 1, 0, 0, 0]])
+CD = jnp.array([[0, 1, 0, 0, 0]])
+DC = jnp.array([[0, 0, 1, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
@@ -103,10 +103,11 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     # n = 5
     params = agent._state.params
     hidden = agent._state.hidden
-    episode = int(
-        agent._logger.metrics["total_steps"]
-        / (agent._num_steps * agent._num_envs)
-    )
+    # episode = int(
+    #     agent._logger.metrics["total_steps"]
+    #     / (agent._num_steps * agent._num_envs)
+    # )
+    episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
     cooperation_probs = {"episode": episode}
 
     # TODO: Figure out how to JIT the forward function
@@ -127,14 +128,19 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
         / (agent._num_steps * agent._num_envs)
     )
     cooperation_probs = {"episode": episode}
+    pid = agent.player_id
 
     # TODO: Figure out how to JIT the forward function
     # Works when the forward function is not jitted.
     (dist, _), hidden = agent.forward(params, 0.5 * jnp.ones((1, 10)), hidden)
     mu, var = dist.mean(), dist.variance()
     for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
-        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
+        cooperation_probs[f"policy/hyper_{pid}/mu/{state_name}"] = float(
+            mu[0][i]
+        )
+        cooperation_probs[f"policy/hyper_{pid}/var/{state_name}"] = float(
+            var[0][i]
+        )
     return cooperation_probs
 
 
@@ -145,33 +151,39 @@ def logger_hyper(agent: HyperPPO) -> dict:
         / (agent._num_steps * agent._num_envs)
     )
     cooperation_probs = {"episode": episode}
+    pid = agent.player_id
 
     # TODO: Figure out how to JIT the forward function
     # Works when the forward function is not jitted.
     (dist, value) = agent.forward(params, 0.5 * jnp.ones((1, 10)))
     mu, var = dist.mean(), dist.variance()
     for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
-        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
+        cooperation_probs[f"policy/hyper_{pid}/mu/{state_name}"] = float(
+            mu[0][i]
+        )
+        cooperation_probs[f"policy/hyper_{pid}/var/{state_name}"] = float(
+            var[0][i]
+        )
     cooperation_probs["value/noisy"] = float(value[0])
 
     return cooperation_probs
 
 
 def losses_ppo(agent: PPO) -> dict:
+    pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
     loss_entropy = agent._logger.metrics["loss_entropy"]
-    entropy_coefficient = agent._logger.metrics["entropy_coeff"]
+    entropy_cost = agent._logger.metrics["entropy_cost"]
     losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "train/policy": loss_policy,
-        "train/value": loss_value,
-        "train/entropy": loss_entropy,
-        "train/entropy_coefficient": entropy_coefficient,
+        f"train/ppo_{pid}/sgd_steps": sgd_steps,
+        f"train/ppo_{pid}/total": loss_total,
+        f"train/ppo_{pid}/policy": loss_policy,
+        f"train/ppo_{pid}/value": loss_value,
+        f"train/ppo_{pid}/entropy": loss_entropy,
+        f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
     }
     return losses
 

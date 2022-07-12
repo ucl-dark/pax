@@ -93,10 +93,10 @@ class TitForTat:
         # now either 0, 1, 2, 3
         batch_size, _ = obs.shape
         obs = obs.argmax(axis=-1)
-        # if 0 | 1 | 4  -> C
-        # if 2 | 3 -> D
-        obs = obs % 4
-        action = jnp.where(obs > 1.0, 1.0, 0.0)
+        # if 0 | 2 | 4  -> C
+        # if 1 | 3 -> D
+        obs = obs % 2
+        action = jnp.where(obs > 0.0, 1.0, 0.0)
         # action = jnp.expand_dims(action, axis=-1) # removing this in preference for (action, )
         return action
 

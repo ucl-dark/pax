@@ -1,3 +1,5 @@
+# @package _global_
+
 # Agents  
 agent1: 'Hyper'
 agent2: 'HyperTFT'

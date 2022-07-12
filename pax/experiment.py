@@ -24,7 +24,6 @@ from pax.strategies import (
     Random,
     Human,
     GrimTrigger,
-    # ZDExtortion,
 )
 from pax.utils import Section
 from pax.watchers import (
@@ -64,10 +63,10 @@ def global_setup(args):
 def payoff_setup(args, logger):
     """Set up payoff"""
     games = {
-        "ipd": [[2, 2], [3, 0], [0, 3], [1, 1]],
-        "stag": [[4, 4], [3, 1], [1, 3], [2, 2]],
+        "ipd": [[2, 2], [0, 3], [3, 0], [1, 1]],
+        "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
         "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
-        "chicken": [[0, 0], [1, -1], [-1, 1], [-2, -2]],
+        "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
     }
     if args.payoff is not None:
         assert (
@@ -159,6 +158,20 @@ def agent_setup(args, logger):
         )
         return dqn_agent
 
+    def get_PPO_memory_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
+        ppo_memory_agent = make_gru_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return ppo_memory_agent
+
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
@@ -232,10 +245,10 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": Random,
         "Grim": GrimTrigger,
-        # "ZDExtortion": ZDExtortion,
         "SAC": get_SAC_agent,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        "PPO_memory": get_PPO_memory_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveLearner": get_naive_learner,
@@ -325,10 +338,10 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
-        # "ZDExtortion": dumb_log,
         "SAC": sac_log,
         "DQN": dqn_log,
         "PPO": ppo_log,
+        "PPO_memory": ppo_log,
         "Hyper": hyper_log,
         "NaiveLearner": naive_logger,
         "HyperAltruistic": dumb_log,
@@ -364,8 +377,6 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup()
 
-    # TODO: Do we need this?
-    # assert not train_episodes % eval_every
     num_episodes = int(args.total_timesteps / (args.num_steps))
     eval_every = int(args.eval_every / (args.num_steps))
     print(f"Number of training episodes = {num_episodes}")

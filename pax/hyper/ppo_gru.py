@@ -73,6 +73,7 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        player_id: int = 0,
     ):
         @jax.jit
         def policy(
@@ -433,6 +434,7 @@ class PPO:
         self._policy = policy
         self._rollouts = rollouts
         self.forward = network.apply
+        self.player_id = player_id
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -563,6 +565,7 @@ def make_gru_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
+        player_id=args.player_id,
     )
 
 
