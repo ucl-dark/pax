@@ -81,7 +81,6 @@ class InfiniteMatrixGame(Environment):
         self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss)))
 
         self.num_envs = num_envs
-        self.n_agents = 2
         self.episode_length = episode_length
         self._num_steps = 0
         self._reset_next_step = True
