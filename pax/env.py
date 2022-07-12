@@ -198,7 +198,7 @@ class SequentialMatrixGame(Environment):
         # IPD       = [[2,2], [0,3], [3,0], [1,1]]
         # Stag hunt = [[4,4], [1,3], [3,1], [2,2]]
         # BotS      = [[3,2], [0,0], [0,0], [2,3]]
-        # Chicken   = [[0,0], [-1,1],[1,1],[-2,-2]]
+        # Chicken   = [[0,0], [-1,1],[1,-1],[-2,-2]]
         cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
         cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
 
