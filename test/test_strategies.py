@@ -82,7 +82,7 @@ def test_naive_alt():
     batch_number = 1
     env = InfiniteMatrixGame(
         num_envs=batch_number,
-        payoff=[[2, 2], [3, 0], [0, 3], [1, 1]],
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
     )

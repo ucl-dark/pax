@@ -37,14 +37,18 @@ class InfiniteMatrixGame(Environment):
         self.payoff = jnp.array(payoff)
         payout_mat_1 = jnp.array([[r[0] for r in self.payoff]])
         payout_mat_2 = jnp.array([[r[1] for r in self.payoff]])
-        self.num_envs = num_envs
-        self.gamma = gamma
-        self.n_agents = 2
-        self.episode_length = episode_length
 
         def _step(theta1, theta2):
+            theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+
+            obs1 = jnp.concatenate([theta1, theta2])
+            obs2 = jnp.concatenate([theta2, theta1])
+
+            _theta2 = jnp.array(
+                [theta2[0], theta2[2], theta2[1], theta2[3], theta2[4]]
+            )
             p_1_0 = theta1[4:5]
-            p_2_0 = theta2[4:5]
+            p_2_0 = _theta2[4:5]
             p = jnp.concatenate(
                 [
                     p_1_0 * p_2_0,
@@ -54,7 +58,7 @@ class InfiniteMatrixGame(Environment):
                 ]
             )
             p_1 = jnp.reshape(theta1[0:4], (4, 1))
-            p_2 = jnp.reshape(theta2[0:4], (4, 1))
+            p_2 = jnp.reshape(_theta2[0:4], (4, 1))
             P = jnp.concatenate(
                 [
                     p_1 * p_2,
@@ -67,14 +71,20 @@ class InfiniteMatrixGame(Environment):
             M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
             L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
             L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
-            return L_1 * (1 - gamma), L_2 * (1 - gamma)
+            return L_1 * (1 - gamma), L_2 * (1 - gamma), obs1, obs2
 
-        self._step_2 = jax.vmap(_step)
-        self._num_steps = 0
-        self._reset_next_step = True
+        def _loss(theta1, theta2):
+            loss = _step(theta1, theta2)
+            return loss[0].sum()
+
+        self._step = jax.jit(jax.vmap(_step))
+        self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss)))
+
         self.num_envs = num_envs
         self.n_agents = 2
         self.episode_length = episode_length
+        self._num_steps = 0
+        self._reset_next_step = True
 
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]
@@ -106,53 +116,6 @@ class InfiniteMatrixGame(Environment):
         return transition(reward=r1, observation=obs1), transition(
             reward=r2, observation=obs2
         )
-
-    @partial(jax.jit, static_argnums=(0,))
-    def _step(self, theta1, theta2):
-        th1, th2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
-
-        # actions are egocentric so swap around for player two
-        _switch = jnp.array(
-            [
-                [
-                    [1, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 1],
-                ]
-            ]
-            * th1.shape[0]
-        )
-        _th2 = jnp.einsum("Bik,Bk -> Bi", _switch, th2)
-        v1, v2 = self._step_2(th1, _th2)
-
-        # reward
-        # actions are egocentric so swap around for player two
-        # theta2 = jnp.einsum("Bik,Bk -> Bi", switch, theta2)
-        # P = jnp.concatenate(
-        #     [
-        #         theta1 * theta2,
-        #         theta1 * (1 - theta2),
-        #         (1 - theta1) * theta2,
-        #         (1 - theta1) * (1 - theta2),
-        #     ],
-        #     axis=-1,
-        # )
-        # # initial distibution over start p0
-        # # P = jnp.einsum("Bji -> Bij", P)
-        # P = jnp.reshape(P, (P.shape[0], 4, 5))
-        # p0 = P[:, :, 5]
-        # P = jnp.einsum("Bji-> Bij", P[:, :, :4])
-        # inf_sum = jnp.linalg.inv(jnp.eye(4) - P * gamma)
-        # v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff1)
-        # v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, payoff2)
-
-        obs1 = jnp.concatenate([th1, th2], axis=1)
-        obs2 = jnp.concatenate([th2, th1], axis=1)
-        return v1, v2, obs1, obs2
-
-    # TODO: for comparison on differntiation
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

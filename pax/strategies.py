@@ -326,14 +326,8 @@ class NaiveLearner:
             self._logger.metrics["num_episodes"] += self._state.num_episodes
 
         else:
-            env = self._state.env
             other_action = t_prime.observation[:, 5:]
-
-            def loss_fn(theta1, theta2, env):
-                env.reset()
-                return env.step([theta1, theta2])[0].reward.sum()
-
-            loss, grad = jax.value_and_grad(loss_fn)(action, other_action, env)
+            loss, grad = self._state.env.grad(action, other_action)
             # gradient ascent
             delta = jnp.multiply(grad, self.lr)
             new_params = self._state.params + delta
@@ -344,7 +338,7 @@ class NaiveLearner:
                 random_key=self._state.random_key,
                 timesteps=self._state.timesteps + 1,
                 num_episodes=self._state.num_episodes,
-                env=env,
+                env=self._state.env,
             )
 
             self._logger.metrics["sgd_steps"] += 1
