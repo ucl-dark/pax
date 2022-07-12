@@ -14,7 +14,7 @@ from dm_env import (
 )
 
 #              CC      CD     DC     DD
-# payoffs are [(2, 2), (3,0), (0,3), (1, 1)]
+# payoffs are [(2, 2), (0,3), (3,0), (1, 1)]
 # observations are one-hot representations
 
 
