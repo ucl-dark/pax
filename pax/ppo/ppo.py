@@ -182,8 +182,8 @@ class PPO:
                 )
 
             # Constant Entropy term
-            # else:
-            #     entropy_cost = entropy_coeff_start
+            else:
+                entropy_cost = entropy_coeff_start
             entropy_loss = -jnp.mean(entropy)
 
             # Total loss: Minimize policy and value loss; maximize entropy
