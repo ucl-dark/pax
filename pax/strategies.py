@@ -298,12 +298,33 @@ class NaiveLearner:
             "total_steps": 0,
             "sgd_steps": 0,
             "num_episodes": 0,
+            "loss_total": 0,
+            "grad_norm": 0,
         }
 
     def select_action(
         self,
         t: TimeStep,
     ) -> jnp.ndarray:
+        other_action = t.observation[:, 5:]
+        loss, grad = self._state.env.grad(self._state.params, other_action)
+        # gradient ascent
+        delta = jnp.multiply(grad, self.lr)
+        new_params = self._state.params + delta
+
+        # update state
+        self._state = TrainingState(
+            params=new_params,
+            random_key=self._state.random_key,
+            timesteps=self._state.timesteps + 1,
+            num_episodes=self._state.num_episodes,
+            env=self._state.env,
+        )
+
+        self._logger.metrics["sgd_steps"] += 1
+        self._logger.metrics["loss_total"] = loss
+        self._logger.metrics["grad_norm"] = optax.global_norm(grad)
+
         return self._state.params
 
     def update(
@@ -324,23 +345,3 @@ class NaiveLearner:
                 env=self._state.env,
             )
             self._logger.metrics["num_episodes"] += self._state.num_episodes
-
-        else:
-            other_action = t_prime.observation[:, 5:]
-            loss, grad = self._state.env.grad(action, other_action)
-            # gradient ascent
-            delta = jnp.multiply(grad, self.lr)
-            new_params = self._state.params + delta
-
-            # update state
-            self._state = TrainingState(
-                params=new_params,
-                random_key=self._state.random_key,
-                timesteps=self._state.timesteps + 1,
-                num_episodes=self._state.num_episodes,
-                env=self._state.env,
-            )
-
-            self._logger.metrics["sgd_steps"] += 1
-            self._logger.metrics["loss_total"] = loss
-            self._logger.metrics["grad_norm"] = optax.global_norm(grad)

@@ -377,18 +377,20 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup()
 
-    num_episodes = int(args.total_timesteps / (args.num_steps))
-    eval_every = int(args.eval_every / (args.num_steps))
-    print(f"Number of training episodes = {num_episodes}")
-    print(f"Evaluating every {eval_every} episodes")
+    # num episodes
+    total_num_ep = int(args.total_timesteps / (args.num_steps))
+    train_num_ep = int(args.eval_every / (args.num_steps))
+
+    print(f"Number of training episodes = {total_num_ep}")
+    print(f"Evaluating every {train_num_ep} episodes")
     if not args.wandb.log:
         watchers = False
-    for num_update in range(int(num_episodes // eval_every)):
-        print(f"Update: {num_update}/{int(num_episodes // eval_every)}")
+    for num_update in range(int(total_num_ep // train_num_ep)):
+        print(f"Update: {num_update}/{int(total_num_ep // train_num_ep)}")
         print()
 
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
-        runner.train_loop(train_env, agent_pair, eval_every, watchers)
+        runner.evaluate_loop(test_env, agent_pair, args.num_envs, watchers)
+        runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
 
 
 if __name__ == "__main__":

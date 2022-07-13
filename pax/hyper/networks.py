@@ -37,11 +37,11 @@ class ContinuousValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        mean = self._mu_layer(inputs)
-        variance = jax.nn.softplus(self._var_layer(inputs))
+        loc = self._mu_layer(inputs)
+        scale = jax.nn.softplus(self._var_layer(inputs))
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (
-            distrax.MultivariateNormalDiag(loc=mean, scale_diag=variance),
+            distrax.MultivariateNormalDiag(loc=loc, scale_diag=scale),
             value,
         )
 
@@ -54,6 +54,7 @@ def make_network(num_actions: int):
         layers.extend(
             [
                 hk.Linear(256),
+                lambda x: jax.nn.tanh(x),
                 ContinuousValueHead(num_values=num_actions),
             ]
         )

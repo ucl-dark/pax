@@ -89,7 +89,7 @@ def test_naive_alt():
     agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     alt_action = jnp.ones((batch_number, 5))
-    timestep = env.reset()
+    timestep, _ = env.reset()
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 
@@ -116,7 +116,7 @@ def test_naive_defect():
     agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     defect_action = jnp.zeros((batch_number, 5))
-    timestep = env.reset()
+    timestep, _ = env.reset()
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 
@@ -144,7 +144,7 @@ def test_naive_tft():
     agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     tft_action = jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_number, 1))
-    timestep = env.reset()
+    timestep, _ = env.reset()
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 
@@ -171,7 +171,7 @@ def test_naive_tft_as_second_player():
     agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     tft_action = jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_number, 1))
-    timestep = env.reset()
+    timestep, _ = env.reset()
     action = agent.select_action(timestep)
     assert action.shape == (batch_number, 5)
 

@@ -40,6 +40,7 @@ class InfiniteMatrixGame(Environment):
 
         def _step(theta1, theta2):
             theta1, theta2 = jnp.clip(theta1, 0, 1), jnp.clip(theta2, 0, 1)
+            # theta1, theta2 = jax.nn.sigmoid(theta1), jax.nn.sigmoid(theta2)
 
             obs1 = jnp.concatenate([theta1, theta2])
             obs2 = jnp.concatenate([theta2, theta1])
