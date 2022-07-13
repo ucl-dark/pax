@@ -11,6 +11,7 @@ hydra:
 # Global variables 
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
+debug: False
 
 # Agents  
 agent1: 'Hyper'
