@@ -24,10 +24,10 @@ env_discount: 0.96
 payoff:
 
 # Training hyperparameters
-num_envs: 50
+num_envs: 4096
 num_steps: 100 # number of steps per episode
-total_timesteps: 1_000_000
-eval_every: 10_000 # timesteps for update
+total_timesteps: 1_000_000_00
+eval_every: 10_000_00 # timesteps for update
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
