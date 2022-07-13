@@ -1,8 +1,5 @@
 # @package _global_
 
-# debug 
-debug: False 
-
 # Agents  
 agent1: 'PPO_memory'
 agent2: 'TitForTat'
