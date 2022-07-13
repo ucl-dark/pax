@@ -64,7 +64,7 @@ class Runner:
                     )
 
             # end of episode stats
-            self.train_episodes += 1
+            self.train_episodes += env.num_envs
             rewards_0 = jnp.array(rewards_0)
             rewards_1 = jnp.array(rewards_1)
 

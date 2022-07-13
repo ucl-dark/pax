@@ -188,7 +188,16 @@ def agent_setup(args, logger):
         return ppo_agent
 
     def get_LOLA_agent(seed, player_id):
-        lola_agent = make_lola(seed, player_id)
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
+        lola_agent = make_lola(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
         return lola_agent
 
     def get_hyper_agent(seed, player_id):

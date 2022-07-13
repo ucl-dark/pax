@@ -19,7 +19,7 @@ agent2: 'LOLA'
 # Environment
 env_id: ipd
 game: ipd 
-env_type: infinite
+env_type: finite
 env_discount: 0.99
 payoff:
 centralized: True
@@ -76,4 +76,4 @@ wandb:
   project: ipd
   group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-v3'
   name: run-seed-${seed}
-  log: True
+  log: False
