@@ -47,6 +47,8 @@ def global_setup(args):
     os.makedirs(args.save_dir, exist_ok=True)
     if args.wandb.log:
         print("name", str(args.wandb.name))
+        if args.debug:
+            args.wandb.group = "debug-" + args.wandb.group
         wandb.init(
             reinit=True,
             entity=str(args.wandb.entity),
