@@ -27,7 +27,8 @@ class Runner:
         for _ in range(int(num_episodes // env.num_envs)):
             rewards_0, rewards_1 = [], []
             t = env.reset()
-            agents.log(watchers)
+            if watchers:
+                agents.log(watchers)
             while not (t[0].last()):
                 actions = agents.select_action(t)
                 t_prime = env.step(actions)
