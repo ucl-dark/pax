@@ -27,6 +27,8 @@ class Runner:
         for _ in range(int(num_episodes // env.num_envs)):
             rewards_0, rewards_1 = [], []
             t = env.reset()
+            if watchers:
+                agents.log(watchers)
             while not (t[0].last()):
                 actions = agents.select_action(t)
                 t_prime = env.step(actions)
@@ -108,7 +110,7 @@ class Runner:
                 self.eval_steps += 1
 
                 if watchers:
-                    agents.log(watchers)
+                    # agents.log(watchers)
                     wandb.log(
                         {
                             "eval/evaluation_steps": self.eval_steps,
