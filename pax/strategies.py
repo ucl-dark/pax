@@ -195,7 +195,7 @@ class HyperAltruistic:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.ones((batch_size, 5))
+        return 20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
         pass
@@ -216,8 +216,7 @@ class HyperDefect:
             batch_size,
             _,
         ) = timestep.observation.shape
-        # return jnp.zeros((batch_size, 1))
-        return jnp.zeros((batch_size, 5))
+        return -20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
         pass
@@ -239,7 +238,7 @@ class HyperTFT:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_size, 1))
+        return jnp.tile(jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
 
     def update(self, *args) -> None:
         pass
@@ -248,7 +247,6 @@ class HyperTFT:
 class TrainingState(NamedTuple):
     # Training state consists of network parameters, random key, timesteps
     params: jnp.ndarray
-    random_key: jnp.ndarray
     timesteps: int
     num_episodes: int
     env: InfiniteMatrixGame
@@ -272,26 +270,13 @@ class NaiveLearner:
 
         # Initialise training state (parameters, optimiser state, extras).
 
-        def reset_params(key: Any):
-            return jax.random.uniform(key, (env.num_envs, action_dim))
-
-        self.reset_params = jax.jit(reset_params)
-
-        def make_initial_state(
-            key: Any, env: InfiniteMatrixGame
-        ) -> TrainingState:
-            key, _ = jax.random.split(key)
-            params = self.reset_params(key)
-            return TrainingState(
-                params, key, timesteps=0, num_episodes=0, env=env
-            )
-
         self.lr = lr
         self.player_id = player_id
         self.action_dim = action_dim
-
+        self.eval = False
+        self.num_agents = env.num_envs
+        self._state = TrainingState(0, timesteps=0, num_episodes=0, env=env)
         # Set up counters and logger
-        self._state = make_initial_state(jax.random.PRNGKey(seed=seed), env)
         self._logger = Logger()
         self._total_steps = 0
         self._logger.metrics = {
@@ -299,49 +284,41 @@ class NaiveLearner:
             "sgd_steps": 0,
             "num_episodes": 0,
             "loss_total": 0,
-            "grad_norm": 0,
         }
 
     def select_action(
         self,
         t: TimeStep,
     ) -> jnp.ndarray:
+
+        if t.first():
+            # use the random init provided by env (and seen by other agent)
+            action = t.observation[:, :5]
+            self._logger.metrics["num_episodes"] += self._state.num_episodes
+
+        else:
+            action = self._state.params
         other_action = t.observation[:, 5:]
-        loss, grad = self._state.env.grad(self._state.params, other_action)
+        (loss, _), grad = self._state.env.grad(action, other_action)
+
         # gradient ascent
-        delta = jnp.multiply(grad, self.lr)
-        new_params = self._state.params + delta
+        new_params = action + jnp.multiply(grad, self.lr)
 
         # update state
         self._state = TrainingState(
             params=new_params,
-            random_key=self._state.random_key,
             timesteps=self._state.timesteps + 1,
             num_episodes=self._state.num_episodes,
             env=self._state.env,
         )
 
         self._logger.metrics["sgd_steps"] += 1
-        self._logger.metrics["loss_total"] = loss
-        self._logger.metrics["grad_norm"] = optax.global_norm(grad)
-
+        self._logger.metrics["loss_total"] = loss.mean(axis=0)
+        self._total_steps += 1
+        self._logger.metrics["total_steps"] = self._total_steps
         return self._state.params
 
     def update(
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
     ) -> None:
-
-        self._total_steps += 1
-        self._logger.metrics["total_steps"] = self._total_steps
-
-        if t_prime.last():
-            # end of trial so reset naive learners
-            key, _ = jax.random.split(self._state.random_key)
-            self._state = TrainingState(
-                params=self.reset_params(key),
-                random_key=key,
-                timesteps=self._state.timesteps + 1,
-                num_episodes=self._state.num_episodes + 1,
-                env=self._state.env,
-            )
-            self._logger.metrics["num_episodes"] += self._state.num_episodes
+        pass

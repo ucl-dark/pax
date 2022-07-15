@@ -117,9 +117,14 @@ def env_setup(args, logger=None):
             args.payoff,
             args.num_steps,
             args.env_discount,
+            args.seed,
         )
         test_env = InfiniteMatrixGame(
-            args.num_envs, args.payoff, args.num_steps, args.env_discount
+            1,
+            args.payoff,
+            args.num_steps,
+            args.env_discount,
+            args.seed + 1,
         )
         if logger:
             logger.info(
@@ -203,6 +208,7 @@ def agent_setup(args, logger):
             args.payoff,
             args.num_steps,
             args.env_discount,
+            args.seed,
         )
 
         if args.ppo.with_memory:
@@ -229,6 +235,7 @@ def agent_setup(args, logger):
             args.payoff,
             args.num_steps,
             args.env_discount,
+            args.seed,
         )
 
         agent = NaiveLearner(
@@ -316,10 +323,7 @@ def watcher_setup(args, logger):
 
     def hyper_log(agent):
         losses = losses_ppo(agent)
-        if args.ppo.with_memory:
-            policy = policy_logger_hyper_gru(agent)
-        else:
-            policy = logger_hyper(agent)
+        policy = logger_hyper(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -391,7 +395,7 @@ def main(args):
         print(f"Update: {num_update}/{int(total_num_ep // train_num_ep)}")
         print()
 
-        runner.evaluate_loop(test_env, agent_pair, args.num_envs, watchers)
+        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
 
 

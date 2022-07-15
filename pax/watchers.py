@@ -145,27 +145,11 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
 
 
 def logger_hyper(agent: HyperPPO) -> dict:
-    params = agent._state.params
     episode = int(
         agent._logger.metrics["total_steps"]
         / (agent._num_steps * agent._num_envs)
     )
     cooperation_probs = {"episode": episode}
-    pid = agent.player_id
-
-    # TODO: Figure out how to JIT the forward function
-    # Works when the forward function is not jitted.
-    (dist, value) = agent.forward(params, 0.5 * jnp.ones((1, 10)))
-    mu, var = dist.mean(), dist.variance()
-    for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[f"policy/hyper_{pid}/mu/{state_name}"] = float(
-            mu[0][i]
-        )
-        cooperation_probs[f"policy/hyper_{pid}/var/{state_name}"] = float(
-            var[0][i]
-        )
-    cooperation_probs["value/noisy"] = float(value[0])
-
     return cooperation_probs
 
 
@@ -193,13 +177,10 @@ def losses_naive(agent: NaiveLearner) -> dict:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     num_episodes = agent._logger.metrics["num_episodes"]
-    grad_norm = agent._logger.metrics["grad_norm"]
-
     losses = {
         f"train/naive_learner_{pid}/sgd_steps": sgd_steps,
-        f"train/naive_learner_{pid}/total": loss_total,
+        f"train/naive_learner_{pid}/loss": loss_total,
         f"train/naive_learner_{pid}/num_episodes": num_episodes,
-        f"train/naive_learner_{pid}/grad_norm": grad_norm,
     }
     return losses
 

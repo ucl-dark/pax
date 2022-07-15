@@ -7,6 +7,8 @@ from pax.strategies import TitForTat, Defect
 import jax.numpy as jnp
 import wandb
 
+from pax.watchers import STATE_NAMES
+
 # TODO: make these a copy of acme
 
 
@@ -24,11 +26,10 @@ class Runner:
         """Run training of agents in environment"""
         print("Training ")
         print("-----------------------")
-        for _ in range(int(num_episodes // env.num_envs)):
+        for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             rewards_0, rewards_1 = [], []
             t = env.reset()
-            if watchers:
-                agents.log(watchers)
+
             while not (t[0].last()):
                 actions = agents.select_action(t)
                 t_prime = env.step(actions)
@@ -48,25 +49,25 @@ class Runner:
                 t = t_prime
 
                 # logging
-                if watchers:
-                    agents.log(watchers)
-                    wandb.log(
-                        {
-                            "train/training_steps": self.train_steps,
-                            "train/step_reward/player_1": float(
-                                jnp.array(r_0).mean()
-                            ),
-                            "train/step_reward/player_2": float(
-                                jnp.array(r_1).mean()
-                            ),
-                            "time_elapsed_minutes": (
-                                time.time() - self.start_time
-                            )
-                            / 60,
-                            "time_elapsed_seconds": time.time()
-                            - self.start_time,
-                        }
-                    )
+                # if watchers:
+                #     agents.log(watchers, None)
+                #     wandb.log(
+                #         {
+                #             "train/training_steps": self.train_steps,
+                #             "train/step_reward/player_1": float(
+                #                 jnp.array(r_0).mean()
+                #             ),
+                #             "train/step_reward/player_2": float(
+                #                 jnp.array(r_1).mean()
+                #             ),
+                #             "time_elapsed_minutes": (
+                #                 time.time() - self.start_time
+                #             )
+                #             / 60,
+                #             "time_elapsed_seconds": time.time()
+                #             - self.start_time,
+                #         }
+                #     )
 
             # end of episode stats
             self.train_episodes += 1
@@ -110,18 +111,23 @@ class Runner:
                 self.eval_steps += 1
 
                 if watchers:
-                    # agents.log(watchers)
-                    wandb.log(
-                        {
-                            "eval/evaluation_steps": self.eval_steps,
-                            "eval/step_reward/player_1": float(
-                                jnp.array(r_0).mean()
-                            ),
-                            "eval/step_reward/player_2": float(
-                                jnp.array(r_1).mean()
-                            ),
-                        }
-                    )
+                    agents.log(watchers)
+                    env_info = {
+                        "eval/evaluation_steps": self.eval_steps,
+                        "eval/step_reward/player_1": float(
+                            jnp.array(r_0).mean()
+                        ),
+                        "eval/step_reward/player_2": float(
+                            jnp.array(r_1).mean()
+                        ),
+                    }
+                    for i, state in enumerate(STATE_NAMES):
+                        a_0, a_1 = actions[0].mean(axis=0), actions[1].mean(
+                            axis=0
+                        )
+                        env_info[f"eval/action/player_1/{state}"] = a_0[i]
+                        env_info[f"eval/action/player_2/{state}"] = a_1[i]
+                    wandb.log(env_info)
 
             # end of episode stats
             self.eval_episodes += 1

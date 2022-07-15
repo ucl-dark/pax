@@ -17,29 +17,34 @@ class ContinuousValueHead(hk.Module):
         name: Optional[str] = None,
     ):
         super().__init__(name=name)
-        self._mu_layer = hk.Linear(
-            num_values,
+
+        self._hidden_actor = hk.Linear(256)
+        self._policy_layer = hk.Linear(
+            2 * num_values,
             w_init=hk.initializers.Orthogonal(0.01),  # baseline
-            with_bias=False,
-            name="mu",
+            b_init=hk.initializers.Constant(0.0),
+            name="critic",
         )
 
-        self._var_layer = hk.Linear(
-            num_values,
-            w_init=hk.initializers.Orthogonal(0.01),  # baseline
-            with_bias=False,
-            name="var",
-        )
-        self._value_layer = hk.Linear(
+        self._hidden_critic = hk.Linear(256)
+
+        self._critic_layer = hk.Linear(
             1,
             w_init=hk.initializers.Orthogonal(1.0),  # baseline
             with_bias=False,
         )
 
+        self.num_outputs = num_values
+
     def __call__(self, inputs: jnp.ndarray):
-        loc = self._mu_layer(inputs)
-        scale = jax.nn.softplus(self._var_layer(inputs))
-        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
+
+        h1 = jax.nn.tanh(self._hidden_actor(inputs))
+        pi = self._policy_layer(h1)
+        loc, scale = jnp.split(pi, [self.num_outputs], axis=-1)
+        scale = jax.nn.softplus(scale)
+
+        h1 = jax.nn.tanh(self._hidden_critic(inputs))
+        value = jnp.squeeze(self._critic_layer(h1), axis=-1)
         return (
             distrax.MultivariateNormalDiag(loc=loc, scale_diag=scale),
             value,
@@ -53,8 +58,6 @@ def make_network(num_actions: int):
         layers = []
         layers.extend(
             [
-                hk.Linear(256),
-                lambda x: jax.nn.tanh(x),
                 ContinuousValueHead(num_values=num_actions),
             ]
         )
