@@ -13,8 +13,8 @@ payoff:
 
 # Training hyperparameters
 num_envs: 100
-num_steps: 100 # number of steps per episode
-total_timesteps: 1_000_000
+num_steps: 25 # number of steps per episode
+total_timesteps: 2_000_000
 eval_every: 50_000 # timesteps
 
 # Useful information
@@ -34,10 +34,10 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.2
-  entropy_coeff_horizon: 500_000
+  entropy_coeff_horizon: 1_000_000
   entropy_coeff_end: 0.001
   lr_scheduling: True
-  learning_rate: 2.5e-3
+  learning_rate: 2.5e-2
   adam_epsilon: 1e-5
   with_memory: True
 
@@ -45,6 +45,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'PPO_memory-vs-${agent2}-${game}'
+  group: 'PPO_memory-vs-${agent2}-${game}-${entropy_coeff_horizon}'
   name: run-seed-${seed}
   log: True

@@ -1,0 +1,38 @@
+# @package _global_
+
+# Agents  
+agent1: 'LOLA'
+agent2: 'LOLA'
+
+# Environment
+env_id: ipd
+game: ipd 
+env_type: finite
+env_discount: 0.99
+payoff: 
+
+# Training hyperparameters
+num_envs: 2
+num_steps: 10 # number of steps per episode
+total_timesteps: 10000
+eval_every: 50 # timesteps
+
+# Useful information
+# num_episodes = total_timesteps / num_steps
+# num_updates = num_episodes / eval_every
+# batch_size = num_envs * num_steps
+
+# LOLA agent parameters
+lola: 
+  replay_capacity: 100000 #args.lola.replay_capacity, 
+  min_replay_size: 50   #args.lola.min_replay_size, 
+  sgd_period: 1           #args.dqn.sgd_period,
+  batch_size: 2         #args.dqn.batch_size
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: 'LOLA-vs-${agent2}-${game}'
+  name: run-seed-${seed}
+  log: False
