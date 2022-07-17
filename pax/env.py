@@ -120,7 +120,11 @@ class InfiniteMatrixGame(Environment):
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
         return specs.BoundedArray(
-            shape=(self.num_envs, 5), minimum=0, maximum=1, name="action"
+            shape=(self.num_envs, 5),
+            minimum=0,
+            maximum=1,
+            name="action",
+            dtype=float,
         )
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
@@ -129,7 +133,9 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         # TODO: unsure if this correct def
         obs = 0.5 * jnp.ones((self.num_envs, 10))
-        return restart(obs), restart(obs)
+        return transition(reward=0, observation=obs), transition(
+            reward=0, observation=obs
+        )
 
 
 class SequentialMatrixGame(Environment):

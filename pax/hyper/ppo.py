@@ -201,7 +201,7 @@ class PPO:
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
                 "loss_entropy": entropy_loss,
-                "entropy_coeff": entropy_cost,
+                "entropy_cost": entropy_cost,
             }
 
         @jax.jit
@@ -372,8 +372,6 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
-            # for dict_key in initial_params.keys():
-            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -402,7 +400,7 @@ class PPO:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
-            "entropy_coeff": entropy_coeff_start,
+            "entropy_cost": entropy_coeff_start,
         }
 
         # Initialize functions
@@ -422,7 +420,7 @@ class PPO:
         actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
-        return utils.to_numpy(actions)
+        return actions
 
     def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
         # Adds agent and environment info to buffer

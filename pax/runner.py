@@ -1,5 +1,7 @@
 import time
 
+import jax
+
 from pax.env import IteratedPrisonersDilemma
 from pax.independent_learners import IndependentLearners
 from pax.strategies import TitForTat, Defect
@@ -26,9 +28,31 @@ class Runner:
         print("-----------------------")
         for _ in range(int(num_episodes // env.num_envs)):
             rewards_0, rewards_1 = [], []
-            t = env.reset()
+            t_init = env.reset()
+            print(t_init)
             if watchers:
                 agents.log(watchers)
+
+            agent1, agent2 = agents.agents
+
+            def _env_step(carry, unused):
+                t1, t2, a1_state = carry
+                a1, a1_state = agent1._policy(
+                    a1_state.params, t1.observation, a1_state
+                )
+                a2 = agent2.select_action(t2)
+                t_prime = env.step([a1, a2])
+                traj = ((t1, t2), (a1, a2), t_prime)
+                return (*t_prime, a1_state), traj
+
+            # val = (train_state, env_state, obsv, _rng)
+            vals, trajectories = jax.lax.scan(
+                _env_step, (*t_init, agent1._state), None, length=100
+            )
+
+            print(trajectories)
+            agents.traj_update(trajectories, watchers)
+            t = t_init
             while not (t[0].last()):
                 actions = agents.select_action(t)
                 t_prime = env.step(actions)
