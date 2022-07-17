@@ -7,7 +7,6 @@ from pax.strategies import TitForTat, Defect
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import STATE_NAMES
 
 # TODO: make these a copy of acme
 
@@ -121,12 +120,6 @@ class Runner:
                             jnp.array(r_1).mean()
                         ),
                     }
-                    for i, state in enumerate(STATE_NAMES):
-                        a_0, a_1 = actions[0].mean(axis=0), actions[1].mean(
-                            axis=0
-                        )
-                        env_info[f"eval/action/player_1/{state}"] = a_0[i]
-                        env_info[f"eval/action/player_2/{state}"] = a_1[i]
                     wandb.log(env_info)
 
             # end of episode stats

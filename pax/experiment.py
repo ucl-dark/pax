@@ -1,6 +1,8 @@
 import logging
 import os
 
+import omegaconf
+
 from pax.dqn.agent import default_agent
 from pax.env import (
     InfiniteMatrixGame,
@@ -58,7 +60,9 @@ def global_setup(args):
             project=str(args.wandb.project),
             group=str(args.wandb.group),
             name=str(args.wandb.name),
-            config=vars(args),
+            config=omegaconf.OmegaConf.to_container(
+                args, resolve=True, throw_on_missing=True
+            ),
         )
 
 

@@ -1,17 +1,4 @@
-hydra:
-  run:
-    dir: .
-  sweep:
-    dir: .
-    subdir: .
-  job_logging:
-    root:
-      level: INFO
 
-# Global variables 
-seed: 0
-save_dir: "./exp/${wandb.group}/${wandb.name}"
-debug: False
 
 # Agents  
 agent1: 'Hyper'
@@ -35,17 +22,6 @@ eval_every: 0.4e9 # timesteps for update
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
-# DQN agent parameters
-dqn: 
-  batch_size: 256
-  discount: 0.99
-  learning_rate: 1e-2
-  epsilon: 0.5
-  replay_capacity: 100000
-  min_replay_size: 1000
-  sgd_period: 1 
-  target_update_period: 4 
-
 # PPO agent parameters
 ppo:
   num_minibatches: 1
@@ -58,12 +34,11 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: False
   entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 0.8e9
-  entropy_coeff_end: 0.001
+  entropy_coeff_horizon: 100_000_000
+  entropy_coeff_end: 0.01
   lr_scheduling: False
-  learning_rate: 4e-3
-  adam_epsilon: 1e-5
-  adam_eps_root: 0.
+  learning_rate: 0.5
+  adam_epsilon: 0.2
   with_memory: False
 
 # Naive Learner parameters
