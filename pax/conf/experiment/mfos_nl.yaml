@@ -1,4 +1,4 @@
-
+# @package _global_
 
 # Agents  
 agent1: 'Hyper'
@@ -37,8 +37,8 @@ ppo:
   entropy_coeff_horizon: 100_000_000
   entropy_coeff_end: 0.01
   lr_scheduling: False
-  learning_rate: 0.5
-  adam_epsilon: 0.2
+  learning_rate: 4e-3
+  adam_epsilon: 1e-5
   with_memory: False
 
 # Naive Learner parameters
