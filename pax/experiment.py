@@ -11,6 +11,7 @@ from pax.env import (
 from pax.hyper.ppo import make_hyper
 from pax.hyper.ppo_gru import make_gru_hyper
 from pax.independent_learners import IndependentLearners
+from pax.naive_learners import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
@@ -19,7 +20,6 @@ from pax.strategies import (
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
-    NaiveLearner,
     TitForTat,
     Defect,
     Altruistic,
@@ -34,7 +34,6 @@ from pax.watchers import (
     policy_logger,
     policy_logger_dqn,
     logger_hyper,
-    policy_logger_hyper_gru,
     value_logger,
     value_logger_dqn,
     losses_ppo,
@@ -242,7 +241,7 @@ def agent_setup(args, logger):
             args.seed,
         )
 
-        agent = NaiveLearner(
+        agent = NaiveLearnerEx(
             action_dim=dummy_env.action_spec().shape[1],
             env=dummy_env,
             lr=args.naive.lr,

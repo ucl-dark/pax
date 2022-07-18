@@ -1,6 +1,6 @@
 from flax import linen as nn
 
-from pax.strategies import NaiveLearner
+from pax.naive_learners import NaiveLearnerEx
 from .env import State
 import jax.numpy as jnp
 import pax.hyper.ppo as HyperPPO
@@ -172,7 +172,7 @@ def losses_ppo(agent: PPO) -> dict:
     return losses
 
 
-def losses_naive(agent: NaiveLearner) -> dict:
+def losses_naive(agent: NaiveLearnerEx) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
@@ -185,7 +185,7 @@ def losses_naive(agent: NaiveLearner) -> dict:
     return losses
 
 
-def logger_naive(agent: NaiveLearner) -> dict:
+def logger_naive(agent: NaiveLearnerEx) -> dict:
     params = agent._state.params
     pid = agent.player_id
     params = params.mean(axis=0)
