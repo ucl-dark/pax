@@ -8,8 +8,23 @@ from pax.strategies import TitForTat, Defect
 
 import jax.numpy as jnp
 import wandb
+from typing import NamedTuple
 
 # TODO: make these a copy of acme
+
+
+class Transition(NamedTuple):
+    done: jnp.ndarray
+    action1: jnp.ndarray
+    action2: jnp.ndarray
+    value1: jnp.ndarray
+    value2: jnp.ndarray
+    reward1: jnp.ndarray
+    reward2: jnp.ndarray
+    log_prob1: jnp.ndarray
+    log_prob2: jnp.ndarray
+    obs1: jnp.ndarray
+    obs2: jnp.ndarray
 
 
 class Runner:
@@ -41,15 +56,30 @@ class Runner:
                 )
                 a2 = agent2.select_action(t2)
                 t_prime = env.step([a1, a2])
-                traj = ((t1, t2), (a1, a2), t_prime)
+                traj = Transition(
+                    t1.last(),
+                    a1,
+                    a2,
+                    a1_extras[0],
+                    None,
+                    t1.reward,
+                    t2.reward,
+                    a1_extras[0],
+                    None,
+                    t1.observation,
+                    t2.observation,
+                )
                 return (*t_prime, a1_state), traj
 
             # val = (train_state, env_state, obsv, _rng)
             vals, trajectories = jax.lax.scan(
-                _env_step, (*t_init, agent1._state), None, length=100
+                _env_step, (*t_init, agent1._state), None, length=10
             )
 
-            print(trajectories)
+            for traj in trajectories:
+                print(traj[0])
+                (t1, t2), (a1, a2), t_prime = traj
+                print(t1.observation, t2.observation)
             agents.traj_update(trajectories, watchers)
             t = t_init
             while not (t[0].last()):
