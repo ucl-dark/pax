@@ -73,13 +73,11 @@ class Runner:
 
             # val = (train_state, env_state, obsv, _rng)
             vals, trajectories = jax.lax.scan(
-                _env_step, (*t_init, agent1._state), None, length=10
+                _env_step, (*t_init, agent1._state), None, length=5
             )
 
             for traj in trajectories:
-                print(traj[0])
-                (t1, t2), (a1, a2), t_prime = traj
-                print(t1.observation, t2.observation)
+                print(traj.obs1, traj.obs2)
             agents.traj_update(trajectories, watchers)
             t = t_init
             while not (t[0].last()):
