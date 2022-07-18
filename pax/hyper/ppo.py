@@ -65,6 +65,7 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        player_id: int = 0,
     ):
         @jax.jit
         def policy(
@@ -407,6 +408,7 @@ class PPO:
         self._policy = policy
         self._rollouts = rollouts
         self.forward = network.apply
+        self.player_id = player_id
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -477,7 +479,7 @@ class PPO:
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_coeff"] = results["entropy_coeff"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
 
 # TODO: seed, and player_id not used in CartPole
