@@ -63,6 +63,7 @@ ppo:
   lr_scheduling: True
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
+  adam_eps_root: 0
   with_memory: False
 
 # LOLA agent parameters

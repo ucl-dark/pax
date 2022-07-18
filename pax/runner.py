@@ -29,7 +29,6 @@ class Runner:
         for _ in range(int(num_episodes // env.num_envs)):
             rewards_0, rewards_1 = [], []
             t_init = env.reset()
-            print(t_init)
             if watchers:
                 agents.log(watchers)
 

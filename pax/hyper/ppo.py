@@ -36,7 +36,7 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    extras: Mapping[str, jnp.ndarray]
+    # extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -74,16 +74,16 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
+            # state.extras["values"] = values
+            # state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
                 params=params,
                 opt_state=state.opt_state,
                 random_key=key,
                 timesteps=state.timesteps,
-                extras=state.extras,
+                # extras=state.extras,
             )
-            return actions, state
+            return actions, state, (values, dist.log_prob(actions))
 
         def rollouts(
             buffer: TrajectoryBuffer,
@@ -377,7 +377,7 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                extras={"values": None, "log_probs": None},
+                # extras={"values": None, "log_probs": None},
             )
 
         # Initialise training state (parameters, optimiser state, extras).
@@ -417,7 +417,7 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
+        actions, self._state, extras = self._policy(
             self._state.params, t.observation, self._state
         )
         return actions
@@ -442,7 +442,7 @@ class PPO:
             opt_state=self._state.opt_state,
             random_key=self._state.random_key,
             timesteps=self._total_steps,
-            extras=self._state.extras,
+            # extras=self._state.extras,
         )
 
         # Update counter until doing SGD

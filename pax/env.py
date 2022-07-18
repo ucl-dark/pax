@@ -133,8 +133,8 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         # TODO: unsure if this correct def
         obs = 0.5 * jnp.ones((self.num_envs, 10))
-        return transition(reward=0, observation=obs), transition(
-            reward=0, observation=obs
+        return transition(reward=0.0, observation=obs), transition(
+            reward=0.0, observation=obs
         )
 
 
@@ -191,7 +191,7 @@ class SequentialMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         obs_1, obs_2 = self._observation(
-            State.START * jnp.ones((self.num_envs,))
+            State.START * jnp.ones((self.num_envs,), dtype=float)
         )
         self._num_steps = 0
         return restart(obs_1), restart(obs_2)
