@@ -37,7 +37,7 @@ class Runner:
 
             def _env_step(carry, unused):
                 t1, t2, a1_state = carry
-                a1, a1_state = agent1._policy(
+                a1, a1_state, a1_extras = agent1._policy(
                     a1_state.params, t1.observation, a1_state
                 )
                 a2 = agent2.select_action(t2)

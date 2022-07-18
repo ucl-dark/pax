@@ -504,7 +504,9 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
         )
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.scale_by_adam(
+                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
+            ),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
@@ -512,7 +514,9 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     else:
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.scale_by_adam(
+                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
+            ),
             optax.scale(-args.ppo.learning_rate),
         )
 
