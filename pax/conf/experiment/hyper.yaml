@@ -13,7 +13,7 @@ payoff:
 
 # Training hyperparameters
 num_envs: 50
-num_steps: 100 # number of steps per episode
+num_steps: 1 # number of steps per episode
 total_timesteps: 5000
 eval_every: 500 # timesteps
 
@@ -24,8 +24,8 @@ eval_every: 500 # timesteps
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 1
-  num_epochs: 4 
+  num_minibatches: 5
+  num_epochs: 2 
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -49,6 +49,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}-parity'
+  group: 'MFOS-${agent1}-vs-${agent2}-${game}-debug'
   name: run-seed-${seed}
   log: True

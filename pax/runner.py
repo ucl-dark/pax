@@ -113,7 +113,7 @@ class Runner:
                     },
                 )
         print()
-        agent1.state = a1_state
+        agents.agents[1]._state = a1_state
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):

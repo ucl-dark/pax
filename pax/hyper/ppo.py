@@ -385,6 +385,7 @@ class PPO:
                 # extras={"values": None, "log_probs": None},
             )
 
+        @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
         ):
@@ -483,7 +484,7 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-
+        self._state = state
         return state
 
 
