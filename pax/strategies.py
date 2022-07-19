@@ -1,11 +1,13 @@
 from functools import partial
-from typing import Tuple
+from typing import Any, NamedTuple, Tuple
 from chex import PRNGKey
-import wandb
+import optax
 
 import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
+
+from pax.env import InfiniteMatrixGame
 
 # states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1
@@ -193,17 +195,17 @@ class HyperAltruistic:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.ones((batch_size, 5))
+        return 20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
         pass
 
 
 class HyperDefect:
-    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -214,18 +216,17 @@ class HyperDefect:
             batch_size,
             _,
         ) = timestep.observation.shape
-        # return jnp.zeros((batch_size, 1))
-        return jnp.zeros((batch_size, 5))
+        return -20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
         pass
 
 
 class HyperTFT:
-    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -237,7 +238,7 @@ class HyperTFT:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.tile(jnp.array([[1, 0, 1, 0, 1]]), (batch_size, 1))
+        return jnp.tile(jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
 
     def update(self, *args) -> None:
         pass

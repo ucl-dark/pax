@@ -15,20 +15,20 @@ debug: False
 
 # Agents  
 agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent2: 'NaiveLearner'
 
 # Environment
 env_id: ipd
 game: ipd 
 env_type: infinite
-env_discount: 0.99
-payoff:
+env_discount: 0.96
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Training hyperparameters
-num_envs: 50
-num_steps: 1 # number of steps per episode
-total_timesteps: 5_000
-eval_every: 50 # timesteps
+num_envs: 4000
+num_steps: 100 # number of steps per episode
+total_timesteps: 1.6e9
+eval_every: 0.4e9 # timesteps for update
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
@@ -48,22 +48,27 @@ dqn:
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 5
-  num_epochs: 1 
+  num_minibatches: 1
+  num_epochs: 4 
   gamma: 0.96
-  gae_lambda: 0.95
+  gae_lambda: 0.99
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 5_000
+  anneal_entropy: False
+  entropy_coeff_start: 0.01
+  entropy_coeff_horizon: 0.8e9
   entropy_coeff_end: 0.001
-  lr_scheduling: True
-  learning_rate: 2.5e-3
+  lr_scheduling: False
+  learning_rate: 4e-3
   adam_epsilon: 1e-5
+  adam_eps_root: 0.
   with_memory: False
+
+# Naive Learner parameters
+naive:
+  lr: 1.0
 
 # LOLA agent parameters
 # lola:
@@ -73,6 +78,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  group: 'MFOS-${agent1}-vs-${agent2}-${game}'
   name: run-seed-${seed}
   log: True

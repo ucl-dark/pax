@@ -32,28 +32,90 @@ _STATES = (0, 1, 2, 3, 4)  # CC, CD, DC, DD, START
 
 class InfiniteMatrixGame(Environment):
     def __init__(
-        self, num_envs: int, payoff: list, episode_length: int, gamma: float
+        self,
+        num_envs: int,
+        payoff: list,
+        episode_length: int,
+        gamma: float,
+        seed: int,
     ) -> None:
         self.payoff = jnp.array(payoff)
-        self.num_envs = num_envs
-        self.gamma = gamma
-        self.n_agents = 2
-        self.episode_length = episode_length
+        payout_mat_1 = jnp.array([[r[0] for r in self.payoff]])
+        payout_mat_2 = jnp.array([[r[1] for r in self.payoff]])
 
-        self.reward_1 = jnp.array([[r[0] for r in self.payoff]] * num_envs)
-        self.reward_2 = jnp.array([[r[1] for r in self.payoff]] * num_envs)
-        self.switch = jnp.array(
-            [
+        def _step(theta1, theta2):
+            theta1, theta2 = jax.nn.sigmoid(theta1), jax.nn.sigmoid(theta2)
+            obs1 = jnp.concatenate([theta1, theta2])
+            obs2 = jnp.concatenate([theta2, theta1])
+
+            _th2 = jnp.array(
+                [theta2[0], theta2[2], theta2[1], theta2[3], theta2[4]]
+            )
+
+            p_1_0 = theta1[4:5]
+            p_2_0 = _th2[4:5]
+            p = jnp.concatenate(
                 [
-                    [1, 0, 0, 0, 0],
-                    [0, 0, 1, 0, 0],
-                    [0, 1, 0, 0, 0],
-                    [0, 0, 0, 1, 0],
-                    [0, 0, 0, 0, 1],
+                    p_1_0 * p_2_0,
+                    p_1_0 * (1 - p_2_0),
+                    (1 - p_1_0) * p_2_0,
+                    (1 - p_1_0) * (1 - p_2_0),
                 ]
-            ]
-            * num_envs
-        )
+            )
+            p_1 = jnp.reshape(theta1[0:4], (4, 1))
+            p_2 = jnp.reshape(_th2[0:4], (4, 1))
+            P = jnp.concatenate(
+                [
+                    p_1 * p_2,
+                    p_1 * (1 - p_2),
+                    (1 - p_1) * p_2,
+                    (1 - p_1) * (1 - p_2),
+                ],
+                axis=1,
+            )
+            M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
+            L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
+            L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
+            return L_1.sum(), L_2.sum(), obs1, obs2, M
+
+        def _loss(theta1, theta2):
+            theta1 = jax.nn.sigmoid(theta1)
+            _th2 = jnp.array(
+                [theta2[0], theta2[2], theta2[1], theta2[3], theta2[4]]
+            )
+
+            p_1_0 = theta1[4:5]
+            p_2_0 = _th2[4:5]
+            p = jnp.concatenate(
+                [
+                    p_1_0 * p_2_0,
+                    p_1_0 * (1 - p_2_0),
+                    (1 - p_1_0) * p_2_0,
+                    (1 - p_1_0) * (1 - p_2_0),
+                ]
+            )
+            p_1 = jnp.reshape(theta1[0:4], (4, 1))
+            p_2 = jnp.reshape(_th2[0:4], (4, 1))
+            P = jnp.concatenate(
+                [
+                    p_1 * p_2,
+                    p_1 * (1 - p_2),
+                    (1 - p_1) * p_2,
+                    (1 - p_1) * (1 - p_2),
+                ],
+                axis=1,
+            )
+            M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
+            L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
+            return L_1.sum(), M
+
+        self._jit_step = jax.jit(jax.vmap(_step))
+        self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
+        self.gamma = gamma
+
+        self.num_envs = num_envs
+        self.episode_length = episode_length
+        self.key = jax.random.PRNGKey(seed=seed)
         self._num_steps = 0
         self._reset_next_step = True
 
@@ -72,11 +134,11 @@ class InfiniteMatrixGame(Environment):
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 5)
 
-        action_1, action_2 = jnp.clip(action_1, 0, 1), jnp.clip(action_2, 0, 1)
-        r1, r2 = self.get_reward(action_1, action_2)
-
-        obs1 = jnp.concatenate([action_1, action_2], axis=1)
-        obs2 = jnp.concatenate([action_2, action_1], axis=1)
+        r1, r2, obs1, obs2, _ = self._jit_step(
+            action_1,
+            action_2,
+        )
+        r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
 
         if self._num_steps == self.episode_length:
             self._reset_next_step = True
@@ -87,32 +149,6 @@ class InfiniteMatrixGame(Environment):
             reward=r2, observation=obs2
         )
 
-    @partial(jax.jit, static_argnums=(0,))
-    def get_reward(
-        self, theta1: jnp.ndarray, theta2: jnp.ndarray
-    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
-        # actions are egocentric so swap around for player two
-        theta2 = jnp.einsum("Bik,Bk -> Bi", self.switch, theta2)
-        P = jnp.array(
-            [
-                theta1 * theta2,
-                theta1 * (1 - theta2),
-                (1 - theta1) * theta2,
-                (1 - theta1) * (1 - theta2),
-            ]
-        )
-        # initial distibution over start p0
-        P = jnp.einsum("iBj -> Bij", P)
-        p0 = P[:, :, 5]
-        P = jnp.einsum("Bji-> Bij", P[:, :, :4])
-        inf_sum = jnp.linalg.inv(jnp.eye(4) - P * self.gamma)
-        v1 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_1)
-        v2 = jnp.einsum("Bi, Bij, Bj -> B", p0, inf_sum, self.reward_2)
-
-        avg_v1 = v1 * (1 - self.gamma)
-        avg_v2 = v2 * (1 - self.gamma)
-        return avg_v1, avg_v2
-
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
         return specs.DiscreteArray(num_values=10, name="previous policy")
@@ -120,15 +156,19 @@ class InfiniteMatrixGame(Environment):
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
         return specs.BoundedArray(
-            shape=(self.num_envs, 5), minimum=0, maximum=1, name="action"
+            shape=(self.num_envs, 5),
+            minimum=0,
+            maximum=1,
+            name="action",
+            dtype=float,
         )
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         self._num_steps = 0
-        # TODO: unsure if this correct def
-        obs = 0.5 * jnp.ones((self.num_envs, 10))
+        self.key, _ = jax.random.split(self.key)
+        obs = jax.nn.sigmoid(jax.random.uniform(self.key, (self.num_envs, 10)))
         return restart(obs), restart(obs)
 
 
