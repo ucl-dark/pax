@@ -24,8 +24,8 @@ eval_every: 5000 # timesteps
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 4
-  num_epochs: 1 
+  num_minibatches: 1
+  num_epochs: 4 
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -49,6 +49,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-final'
+  group: 'MFOS-${agent1}-vs-${agent2}-${game}-parity'
   name: run-seed-${seed}
   log: True

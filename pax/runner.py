@@ -40,67 +40,66 @@ class Runner:
         """Run training of agents in environment"""
         print("Training ")
         print("-----------------------")
+        agent1, agent2 = agents.agents
+        a1_state, a2_state = agent1._state, None
+
+        def _env_rollout(carry, unused):
+            t1, t2, a1_state, a2_state = carry
+            a1, a1_state, a1_extras = agent1._policy(
+                a1_state.params, t1.observation, a1_state
+            )
+            a2 = agent2.select_action(t2)
+            tprime_1, tprime_2 = env.runner_step(
+                [
+                    a1,
+                    a2,
+                ]
+            )
+            traj1 = Sample(
+                t1.observation,
+                a1,
+                tprime_1.reward,
+                a1_extras["log_probs"],
+                a1_extras["values"],
+                tprime_1.last() * jnp.zeros(env.num_envs),
+                None,
+            )
+            traj2 = Sample(
+                t2.observation,
+                a2,
+                tprime_2.reward,
+                None,
+                None,
+                tprime_2.last() * jnp.zeros(env.num_envs),
+                None,
+            )
+            return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
+
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
-            if watchers:
-                agents.log(watchers)
-
-            agent1, agent2 = agents.agents
-            a1_state, a2_state = agent1._state, None
-
-            def _env_step(carry, unused):
-                t1, t2, a1_state, _ = carry
-                a1, a1_state, a1_extras = agent1._policy(
-                    a1_state.params, t1.observation, a1_state
-                )
-                a2 = agent2.select_action(t2)
-                tprime_1, tprime_2 = env.runner_step(
-                    [
-                        a1,
-                        a2,
-                    ]
-                )
-                traj1 = Sample(
-                    t1.observation,
-                    a1,
-                    tprime_1.reward,
-                    a1_extras["log_probs"],
-                    a1_extras["values"],
-                    tprime_1.last() * jnp.zeros(env.num_envs),
-                    None,
-                )
-                traj2 = Sample(
-                    t2.observation,
-                    a2,
-                    tprime_2.reward,
-                    None,
-                    None,
-                    tprime_2.last() * jnp.zeros(env.num_envs),
-                    None,
-                )
-                return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
-
+            # rollout episode
             vals, trajectories = jax.lax.scan(
-                _env_step,
-                (*t_init, a1_state, None),
+                _env_rollout,
+                (*t_init, a1_state, a2_state),
                 None,
                 length=env.episode_length,
             )
 
-            final_t1 = vals[0]
-            a1_state = vals[2]
-
-            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
-
-            # end of episode stats
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
 
+            # update agent / add final trajectory
+            final_t1 = vals[0]
+            final_t1 = final_t1._replace(step_type=2)
+            a1_state = vals[2]
+            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
+
             if watchers:
+                agents.log(watchers)
                 wandb.log(
                     {
                         "episodes": self.train_episodes,
@@ -110,9 +109,10 @@ class Runner:
                         "train/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
-                    }
+                    },
                 )
         print()
+        agent1.state = a1_state
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):

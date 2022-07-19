@@ -212,7 +212,7 @@ class PPO:
                 "entropy_cost": entropy_cost,
             }
 
-        @jax.jit
+        # @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -385,9 +385,44 @@ class PPO:
                 # extras={"values": None, "log_probs": None},
             )
 
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                action_extras["values"],
+                jnp.zeros_like(action_extras["values"]),
+            )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+
+            return traj_batch
+
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
-
+        self.prepare_batch = prepare_batch
         # Initialize buffer and sgd
         self._trajectory_buffer = TrajectoryBuffer(
             num_envs, num_steps, obs_spec
@@ -434,40 +469,11 @@ class PPO:
         t_prime: TimeStep,
         state,
     ):
-
-        # Rollouts complete -> Training begins
-        # Add an additional rollout step for advantage calculation
-        _, state, action_extras = self._policy(
+        _, _, action_extras = self._policy(
             state.params, t_prime.observation, state
         )
 
-        _value = jax.lax.select(
-            t_prime.last(),
-            action_extras["values"],
-            jnp.zeros_like(action_extras["values"]),
-        )
-
-        _value = jax.lax.expand_dims(_value, [0])
-        _reward = jax.lax.expand_dims(t_prime.reward, [0])
-        _done = jax.lax.select(
-            t_prime.last(),
-            2 * jnp.ones_like(_value),
-            jnp.zeros_like(_value),
-        )
-
-        # need to add final value here
-        traj_batch = traj_batch._replace(
-            behavior_values=jnp.concatenate(
-                [traj_batch.behavior_values, _value], axis=0
-            )
-        )
-        traj_batch = traj_batch._replace(
-            rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-        )
-        traj_batch = traj_batch._replace(
-            dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-        )
-
+        traj_batch = self.prepare_batch(traj_batch, t_prime, action_extras)
         state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
