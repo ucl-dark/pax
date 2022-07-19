@@ -1,5 +1,7 @@
+import jax
 import jax.numpy as jnp
-from pax.strategies import TitForTat, GrimTrigger
+from pax.env import InfiniteMatrixGame
+from pax.strategies import NaiveLearner, TitForTat, GrimTrigger
 from dm_env import TimeStep, transition, termination
 
 
@@ -74,3 +76,110 @@ def test_grim():
     start_timestep = transition(observation=initial_obs, reward=0)
     action = agent.select_action(start_timestep)
     assert jnp.array_equal(cooperate_action, action)
+
+
+def test_naive_alt():
+    batch_number = 1
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+        seed=0,
+    )
+    agent = NaiveLearner(action_dim=5, env=env, lr=10, seed=0, player_id=0)
+
+    alt_action = 20 * jnp.ones((batch_number, 5))
+    timestep, _ = env.reset()
+
+    for _ in range(500):
+        action = agent.select_action(timestep)
+        print(jax.nn.sigmoid(action))
+        next_timestep, _ = env.step([action, alt_action])
+        agent.update(timestep, action, next_timestep)
+        timestep = next_timestep
+
+    action = agent.select_action(timestep)
+    assert jnp.allclose(
+        3.0, env.step([action, alt_action])[0].reward, atol=0.01
+    )
+
+
+def test_naive_defect():
+    batch_number = 5
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+        seed=0,
+    )
+    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+
+    defect_action = -20 * jnp.ones((batch_number, 5))
+    timestep, _ = env.reset()
+
+    for _ in range(50):
+        action = agent.select_action(timestep)
+        next_timestep, _ = env.step([action, defect_action])
+        agent.update(timestep, action, next_timestep)
+        timestep = next_timestep
+
+    action = agent.select_action(timestep)
+    # assert jnp.allclose(action, jnp.zeros((batch_number, 5)))
+    assert jnp.allclose(
+        0.99, env.step([action, defect_action])[0].reward, atol=0.01
+    )
+
+
+def test_naive_tft():
+    batch_number = 1
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+        seed=0,
+    )
+    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    tft_action = jnp.tile(
+        20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)
+    )
+    timestep, _ = env.reset()
+
+    for _ in range(50):
+        action = agent.select_action(timestep)
+        next_timestep, _ = env.step([action, tft_action])
+        agent.update(timestep, action, next_timestep)
+        timestep = next_timestep
+
+    action = agent.select_action(timestep)
+    assert jnp.allclose(
+        env.step([action, tft_action])[0].reward, 2.0, atol=0.01
+    )
+
+
+def test_naive_tft_as_second_player():
+    batch_number = 1
+    env = InfiniteMatrixGame(
+        num_envs=batch_number,
+        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
+        episode_length=jnp.inf,
+        gamma=0.96,
+        seed=0,
+    )
+    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+
+    tft_action = jnp.tile(
+        20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)
+    )
+    _, timestep = env.reset()
+
+    for _ in range(50):
+        action = agent.select_action(timestep)
+        _, next_timestep = env.step([tft_action, action])
+        timestep = next_timestep
+
+    assert jnp.allclose(
+        env.step([tft_action, action])[1].reward, 2.0, atol=0.01
+    )
