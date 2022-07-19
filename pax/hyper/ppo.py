@@ -1,5 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
+from re import T
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
@@ -84,21 +85,27 @@ class PPO:
                 timesteps=state.timesteps,
                 # extras=state.extras,
             )
-            return actions, state, (values, dist.log_prob(actions))
+            return (
+                actions,
+                state,
+                {"values": values, "log_probs": dist.log_prob(actions)},
+            )
 
         def rollouts(
             buffer: TrajectoryBuffer,
             t: TimeStep,
             actions: np.array,
             t_prime: TimeStep,
-            state: TrainingState,
+            action_extras: Tuple[jnp.array],
         ) -> None:
             """Stores rollout in buffer"""
-            log_probs, values = (
-                state.extras["log_probs"],
-                state.extras["values"],
+            buffer.add(
+                t,
+                actions,
+                action_extras["log_probs"],
+                action_extras["values"],
+                t_prime,
             )
-            buffer.add(t, actions, log_probs, values, t_prime)
 
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
@@ -229,22 +236,20 @@ class PPO:
             )
 
             # vmap
-            batch_gae_advantages = jax.vmap(gae_advantages, in_axes=0)
-            advantages, target_values = batch_gae_advantages(
+            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
+            advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
             # Exclude the last step - it was only used for bootstrapping.
-            # The shape is [num_envs, num_steps, ..]
-            (
-                observations,
-                actions,
-                behavior_log_probs,
-                behavior_values,
-            ) = jax.tree_map(
-                lambda x: x[:, :-1],
-                (observations, actions, behavior_log_probs, behavior_values),
-            )
+            # The shape is [num_steps, num_envs, ..]
+            behavior_values = behavior_values[:-1, :]
+            # (
+            #     behavior_values,
+            # ) = jax.tree_map(
+            #     lambda x: x[:-1, :],
+            #     (behavior_values),
+            # )
 
             trajectories = Batch(
                 observations=observations,
@@ -258,14 +263,13 @@ class PPO:
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
-            num_envs = target_values.shape[0]
-            num_steps = target_values.shape[1]
+            num_envs = target_values.shape[1]
+            num_steps = target_values.shape[0]
             batch_size = num_envs * num_steps
             assert batch_size % num_minibatches == 0, (
                 "Num minibatches must divide batch size. Got batch_size={}"
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
-
             batch = jax.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
@@ -361,7 +365,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                extras={"log_probs": None, "values": None},
+                # extras={"log_probs": None, "values": None},
             )
 
             return new_state, metrics
@@ -424,54 +428,47 @@ class PPO:
         )
         return actions
 
-    def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
-        # Adds agent and environment info to buffer
-        self._rollouts(
-            buffer=self._trajectory_buffer,
-            t=t,
-            actions=actions,
-            t_prime=t_prime,
-            state=self._state,
-        )
-
-        # Log metrics
-        self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
-
-        # Update internal state with total_steps
-        self._state = TrainingState(
-            params=self._state.params,
-            opt_state=self._state.opt_state,
-            random_key=self._state.random_key,
-            timesteps=self._total_steps,
-            # extras=self._state.extras,
-        )
-
-        # Update counter until doing SGD
-        self._until_sgd += 1
-
-        # Rollouts onging
-        if self._until_sgd % (self._num_steps) != 0:
-            return
+    def update(
+        self,
+        traj_batch,
+        t_prime: TimeStep,
+        state,
+    ):
 
         # Rollouts complete -> Training begins
         # Add an additional rollout step for advantage calculation
-        _, self._state = self._policy(
-            self._state.params, t_prime.observation, self._state
+        _, state, action_extras = self._policy(
+            state.params, t_prime.observation, state
         )
 
-        self._trajectory_buffer.add(
-            timestep=t_prime,
-            action=0,
-            log_prob=0,
-            value=self._state.extras["values"]
-            if not t_prime.last()
-            else jnp.zeros_like(self._state.extras["values"]),
-            new_timestep=t_prime,
+        _value = jax.lax.select(
+            t_prime.last(),
+            action_extras["values"],
+            jnp.zeros_like(action_extras["values"]),
         )
 
-        sample = self._trajectory_buffer.sample()
-        self._state, results = self._sgd_step(self._state, sample)
+        _value = jax.lax.expand_dims(_value, [0])
+        _reward = jax.lax.expand_dims(t_prime.reward, [0])
+        _done = jax.lax.select(
+            t_prime.last(),
+            2 * jnp.ones_like(_value),
+            jnp.zeros_like(_value),
+        )
+
+        # need to add final value here
+        traj_batch = traj_batch._replace(
+            behavior_values=jnp.concatenate(
+                [traj_batch.behavior_values, _value], axis=0
+            )
+        )
+        traj_batch = traj_batch._replace(
+            rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+        )
+        traj_batch = traj_batch._replace(
+            dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+        )
+
+        state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -480,6 +477,8 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+
+        return state
 
 
 # TODO: seed, and player_id not used in CartPole

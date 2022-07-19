@@ -9,23 +9,21 @@ from pax.strategies import TitForTat, Defect
 import jax.numpy as jnp
 import wandb
 from typing import NamedTuple
-
+from dm_env import transition
 
 # TODO: make these a copy of acme
 
 
-class Transition(NamedTuple):
-    done: jnp.ndarray
-    action1: jnp.ndarray
-    action2: jnp.ndarray
-    value1: jnp.ndarray
-    value2: jnp.ndarray
-    reward1: jnp.ndarray
-    reward2: jnp.ndarray
-    log_prob1: jnp.ndarray
-    log_prob2: jnp.ndarray
-    obs1: jnp.ndarray
-    obs2: jnp.ndarray
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
 
 
 class Runner:
@@ -43,87 +41,61 @@ class Runner:
         print("Training ")
         print("-----------------------")
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
-            rewards_0, rewards_1 = [], []
             t_init = env.reset()
             if watchers:
                 agents.log(watchers)
 
             agent1, agent2 = agents.agents
+            a1_state, a2_state = agent1._state, None
 
             def _env_step(carry, unused):
-                t1, t2, a1_state = carry
+                t1, t2, a1_state, _ = carry
                 a1, a1_state, a1_extras = agent1._policy(
                     a1_state.params, t1.observation, a1_state
                 )
                 a2 = agent2.select_action(t2)
-                t_prime = env.step([a1, a2])
-                traj = Transition(
-                    t1.last(),
-                    a1,
-                    a2,
-                    a1_extras[0],
-                    None,
-                    t1.reward,
-                    t2.reward,
-                    a1_extras[0],
-                    None,
-                    t1.observation,
-                    t2.observation,
+                tprime_1, tprime_2 = env.runner_step(
+                    [
+                        a1,
+                        a2,
+                    ]
                 )
-                return (*t_prime, a1_state), traj
+                traj1 = Sample(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    a1_extras["log_probs"],
+                    a1_extras["values"],
+                    tprime_1.last() * jnp.zeros(env.num_envs),
+                    None,
+                )
+                traj2 = Sample(
+                    t2.observation,
+                    a2,
+                    tprime_2.reward,
+                    None,
+                    None,
+                    tprime_2.last() * jnp.zeros(env.num_envs),
+                    None,
+                )
+                return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
 
-            # val = (train_state, env_state, obsv, _rng)
             vals, trajectories = jax.lax.scan(
-                _env_step, (*t_init, agent1._state), None, length=5
+                _env_step,
+                (*t_init, a1_state, None),
+                None,
+                length=env.episode_length,
             )
 
-            for traj in trajectories:
-                print(traj.obs1, traj.obs2)
-            agents.traj_update(trajectories, watchers)
-            t = t_init
-            while not (t[0].last()):
-                actions = agents.select_action(t)
-                t_prime = env.step(actions)
-                r_0, r_1 = t_prime[0].reward, t_prime[1].reward
+            final_t1 = vals[0]
+            a1_state = vals[2]
 
-                # append step rewards to episode rewards
-                rewards_0.append(r_0)
-                rewards_1.append(r_1)
-
-                # train model
-                # TODO: Will this need to be changed to allow
-                # for centralized training?
-                agents.update(t, actions, t_prime)
-                self.train_steps += 1
-
-                # book keeping
-                t = t_prime
-
-                # logging
-                # if watchers:
-                #     agents.log(watchers, None)
-                #     wandb.log(
-                #         {
-                #             "train/training_steps": self.train_steps,
-                #             "train/step_reward/player_1": float(
-                #                 jnp.array(r_0).mean()
-                #             ),
-                #             "train/step_reward/player_2": float(
-                #                 jnp.array(r_1).mean()
-                #             ),
-                #             "time_elapsed_minutes": (
-                #                 time.time() - self.start_time
-                #             )
-                #             / 60,
-                #             "time_elapsed_seconds": time.time()
-                #             - self.start_time,
-                #         }
-                #     )
+            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
 
             # end of episode stats
             self.train_episodes += 1
-            rewards_0 = jnp.array(rewards_0)
-            rewards_1 = jnp.array(rewards_1)
+            rewards_0 = trajectories[0].rewards.mean()
+            rewards_1 = trajectories[1].rewards.mean()
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"

@@ -11,6 +11,7 @@ from dm_env import (
     specs,
     termination,
     transition,
+    StepType,
 )
 
 #              CC      CD     DC     DD
@@ -149,6 +150,19 @@ class InfiniteMatrixGame(Environment):
             reward=r2, observation=obs2
         )
 
+    def runner_step(
+        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
+    ) -> Tuple[TimeStep, TimeStep]:
+
+        r1, r2, obs1, obs2, _ = self._jit_step(
+            actions[0],
+            actions[1],
+        )
+        r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
+        return transition(reward=r1, observation=obs1), transition(
+            reward=r2, observation=obs2
+        )
+
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
         return specs.DiscreteArray(num_values=10, name="previous policy")
@@ -169,8 +183,8 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         self.key, _ = jax.random.split(self.key)
         obs = jax.nn.sigmoid(jax.random.uniform(self.key, (self.num_envs, 10)))
-        return transition(reward=0.0, observation=obs), transition(
-            reward=0.0, observation=obs
+        return TimeStep(0, jnp.zeros(self.num_envs), 0.0, obs), TimeStep(
+            0, jnp.zeros(self.num_envs), 0.0, obs
         )
 
 
