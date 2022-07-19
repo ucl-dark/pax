@@ -155,6 +155,20 @@ def logger_hyper(agent) -> None:
     return cooperation_probs
 
 
+def naive_losses(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+    }
+    return losses
+
+
 def ppo_losses(agent) -> None:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
@@ -173,7 +187,7 @@ def ppo_losses(agent) -> None:
     return losses
 
 
-def policy_logger_lola(agent) -> None:
+def policy_logger_naive(agent) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
