@@ -15,7 +15,7 @@ debug: False
 
 # Agents  
 agent1: 'Hyper'
-agent2: 'HyperTFT'
+agent2: 'NaiveLearner'
 
 # Environment
 env_id: ipd
