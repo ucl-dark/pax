@@ -224,7 +224,7 @@ class HyperDefect:
 
 class HyperTFT:
     def __init__(self, *args):
-        pass
+        self._state = None
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -240,5 +240,22 @@ class HyperTFT:
         # return jnp.zeros((batch_size, 1))
         return jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self, observation: jnp.array, state: NamedTuple
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = observation.shape
+        # return jnp.zeros((batch_size, 1))
+        action = jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        return action, state
+
     def update(self, *args) -> None:
+        pass
+
+    def reset_state(self, *args) -> None:
         pass

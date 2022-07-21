@@ -123,7 +123,7 @@ def env_setup(args, logger=None):
             args.seed,
         )
         test_env = InfiniteMatrixGame(
-            1,
+            args.num_envs,
             args.payoff,
             args.num_steps,
             args.env_discount,
