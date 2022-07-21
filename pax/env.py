@@ -79,39 +79,7 @@ class InfiniteMatrixGame(Environment):
             L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
             return L_1.sum(), L_2.sum(), obs1, obs2, M
 
-        def _loss(theta1, theta2):
-            theta1 = jax.nn.sigmoid(theta1)
-            _th2 = jnp.array(
-                [theta2[0], theta2[2], theta2[1], theta2[3], theta2[4]]
-            )
-
-            p_1_0 = theta1[4:5]
-            p_2_0 = _th2[4:5]
-            p = jnp.concatenate(
-                [
-                    p_1_0 * p_2_0,
-                    p_1_0 * (1 - p_2_0),
-                    (1 - p_1_0) * p_2_0,
-                    (1 - p_1_0) * (1 - p_2_0),
-                ]
-            )
-            p_1 = jnp.reshape(theta1[0:4], (4, 1))
-            p_2 = jnp.reshape(_th2[0:4], (4, 1))
-            P = jnp.concatenate(
-                [
-                    p_1 * p_2,
-                    p_1 * (1 - p_2),
-                    (1 - p_1) * p_2,
-                    (1 - p_1) * (1 - p_2),
-                ],
-                axis=1,
-            )
-            M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
-            L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
-            return L_1.sum(), M
-
         self._jit_step = jax.jit(jax.vmap(_step))
-        self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
         self.gamma = gamma
 
         self.num_envs = num_envs
