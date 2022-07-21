@@ -40,10 +40,6 @@ class MetaFiniteGame:
                 + 2 * (1 - a1) * a2
                 + 3 * (a1) * (a2)
             )
-
-            print(f"state: {s1}")
-            print(f"inner t: {inner_t}")
-
             # if first step then return START state.
             s1 = jax.lax.select(inner_t == 0, 4.0, s1)
             s2 = jax.lax.select(inner_t == 0, 4.0, s2)
