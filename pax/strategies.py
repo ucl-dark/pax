@@ -179,6 +179,13 @@ class Random:
         )
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    timesteps: int
+    num_episodes: int
+
+
 class HyperAltruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
@@ -224,7 +231,7 @@ class HyperDefect:
 
 class HyperTFT:
     def __init__(self, *args):
-        self._state = None
+        self._state = TrainingState(None, None, None)
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -242,7 +249,7 @@ class HyperTFT:
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
-        self, observation: jnp.array, state: NamedTuple
+        self, params: jnp.array, observation: jnp.array, state: NamedTuple
     ) -> jnp.ndarray:
         # state is [batch x state_space]
         # return [batch]
@@ -258,4 +265,4 @@ class HyperTFT:
         pass
 
     def reset_state(self, *args) -> None:
-        pass
+        return self._state
