@@ -1,11 +1,7 @@
 from flax import linen as nn
-
-from pax.naive_learners import NaiveLearnerEx
 from .env import State
 import jax.numpy as jnp
-import pax.hyper.ppo as HyperPPO
-import pax.hyper.ppo_gru as HyperPPOMemory
-import pax.ppo.ppo as PPO
+
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -13,11 +9,11 @@ CC = jnp.array([[1, 0, 0, 0, 0]])
 CD = jnp.array([[0, 1, 0, 0, 0]])
 DC = jnp.array([[0, 0, 1, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
-STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
-ALL_STATES = [START, CC, CD, DC, DD]
+STATE_NAMES = ["START", "CC", "DC", "CD", "DD"]
+ALL_STATES = [START, CC, DC, CD, DD]
 
 
-def policy_logger(agent) -> dict:
+def policy_logger(agent) -> None:
     weights = agent.actor_optimizer.target["Dense_0"][
         "kernel"
     ]  # [layer_name]['w']
@@ -28,7 +24,7 @@ def policy_logger(agent) -> dict:
     return probs
 
 
-def value_logger(agent) -> dict:
+def value_logger(agent) -> None:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
     values = {
         f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
@@ -59,7 +55,7 @@ def policy_logger_dqn(agent) -> None:
     return probs
 
 
-def value_logger_dqn(agent) -> dict:
+def value_logger_dqn(agent) -> None:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pid = agent.player_id
     target_steps = agent.target_step_updates
@@ -77,7 +73,7 @@ def value_logger_dqn(agent) -> dict:
     return values
 
 
-def policy_logger_ppo(agent: PPO) -> dict:
+def policy_logger_ppo(agent) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
@@ -86,7 +82,7 @@ def policy_logger_ppo(agent: PPO) -> dict:
     return probs
 
 
-def value_logger_ppo(agent: PPO) -> dict:
+def value_logger_ppo(agent) -> None:
     weights = agent._state.params["categorical_value_head/~/linear_1"][
         "w"
     ]  # 5 x 1 matrix
@@ -98,7 +94,7 @@ def value_logger_ppo(agent: PPO) -> dict:
     return probs
 
 
-def policy_logger_ppo_with_memory(agent) -> dict:
+def policy_logger_ppo_with_memory(agent) -> None:
     """Calculate probability of coopreation"""
     # n = 5
     params = agent._state.params
@@ -118,7 +114,7 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     return cooperation_probs
 
 
-def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
+def policy_logger_hyper_gru(agent) -> None:
     """Calculate probability of coopreation"""
     # n = 5
     params = agent._state.params
@@ -128,33 +124,52 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
         / (agent._num_steps * agent._num_envs)
     )
     cooperation_probs = {"episode": episode}
-    pid = agent.player_id
 
     # TODO: Figure out how to JIT the forward function
     # Works when the forward function is not jitted.
     (dist, _), hidden = agent.forward(params, 0.5 * jnp.ones((1, 10)), hidden)
     mu, var = dist.mean(), dist.variance()
     for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[f"policy/hyper_{pid}/mu/{state_name}"] = float(
-            mu[0][i]
-        )
-        cooperation_probs[f"policy/hyper_{pid}/var/{state_name}"] = float(
-            var[0][i]
-        )
+        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
+        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
     return cooperation_probs
 
 
-def logger_hyper(agent: HyperPPO) -> dict:
+def logger_hyper(agent) -> None:
+    params = agent._state.params
     episode = int(
         agent._logger.metrics["total_steps"]
         / (agent._num_steps * agent._num_envs)
     )
     cooperation_probs = {"episode": episode}
+
+    # TODO: Figure out how to JIT the forward function
+    # Works when the forward function is not jitted.
+    (dist, value) = agent.forward(params, 0.5 * jnp.ones((1, 10)))
+    mu, var = dist.mean(), dist.variance()
+    for i, state_name in enumerate(STATE_NAMES):
+        cooperation_probs[f"policy/mu/{state_name}"] = float(mu[0][i])
+        cooperation_probs[f"policy/var/{state_name}"] = float(var[0][i])
+    cooperation_probs["value/noisy"] = float(value[0])
+
     return cooperation_probs
 
 
-def losses_ppo(agent: PPO) -> dict:
-    pid = agent.player_id
+def naive_losses(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+    }
+    return losses
+
+
+def ppo_losses(agent) -> None:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]
@@ -162,36 +177,23 @@ def losses_ppo(agent: PPO) -> dict:
     loss_entropy = agent._logger.metrics["loss_entropy"]
     entropy_cost = agent._logger.metrics["entropy_cost"]
     losses = {
-        f"train/ppo_{pid}/sgd_steps": sgd_steps,
-        f"train/ppo_{pid}/total": loss_total,
-        f"train/ppo_{pid}/policy": loss_policy,
-        f"train/ppo_{pid}/value": loss_value,
-        f"train/ppo_{pid}/entropy": loss_entropy,
-        f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+        "train/entropy": loss_entropy,
+        "train/entropy_coefficient": entropy_cost,
     }
     return losses
 
 
-def losses_naive(agent: NaiveLearnerEx) -> dict:
-    pid = agent.player_id
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    num_episodes = agent._logger.metrics["num_episodes"]
-    losses = {
-        f"train/naive_learner_{pid}/sgd_steps": sgd_steps,
-        f"train/naive_learner_{pid}/loss": loss_total,
-        f"train/naive_learner_{pid}/num_episodes": num_episodes,
+def policy_logger_naive(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
+        for (s, p) in zip(State, pi)
     }
-    return losses
-
-
-def logger_naive(agent: NaiveLearnerEx) -> dict:
-    params = agent._state.params
-    pid = agent.player_id
-    params = params.mean(axis=0)
-    cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
-    for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[
-            f"policy/naive_learner_{pid}/avg/{state_name}"
-        ] = float(params[i])
-    return cooperation_probs
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs
