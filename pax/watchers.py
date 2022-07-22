@@ -144,6 +144,20 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
     return cooperation_probs
 
 
+def naive_pg_losses(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+    }
+    return losses
+
+
 def logger_hyper(agent: HyperPPO) -> dict:
     episode = int(
         agent._logger.metrics["total_steps"]
@@ -195,3 +209,15 @@ def logger_naive(agent: NaiveLearnerEx) -> dict:
             f"policy/naive_learner_{pid}/avg/{state_name}"
         ] = float(params[i])
     return cooperation_probs
+
+
+def policy_logger_naive(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
+        for (s, p) in zip(State, pi)
+    }
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs
