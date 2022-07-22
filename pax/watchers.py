@@ -170,6 +170,20 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
     return cooperation_probs
 
 
+def naive_pg_losses(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+    }
+    return losses
+
+
 def logger_hyper(agent: HyperPPO) -> dict:
     episode = int(
         agent._logger.metrics["total_steps"]

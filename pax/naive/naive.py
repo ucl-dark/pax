@@ -427,7 +427,7 @@ class NaiveLearner:
         self._logger.metrics["loss_value"] = results["loss_value"]
 
 
-def make_naive(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
 
     print(f"Making network for {args.env_id}")
@@ -438,28 +438,28 @@ def make_naive(args, obs_spec, action_spec, seed: int, player_id: int):
     transition_steps = (
         args.total_timesteps
         / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
+        * args.naive.num_epochs
+        * args.naive.num_minibatches
     )
 
-    if args.ppo.lr_scheduling:
+    if args.naive.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=args.ppo.learning_rate,
+            init_value=args.naive.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.clip_by_global_norm(args.naive.max_gradient_norm),
+            optax.scale_by_adam(eps=args.naive.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
 
     else:
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
-            optax.scale(-args.ppo.learning_rate),
+            optax.clip_by_global_norm(args.naive.max_gradient_norm),
+            optax.scale_by_adam(eps=args.naive.adam_epsilon),
+            optax.scale(-args.naive.learning_rate),
         )
 
     # Random key
@@ -472,10 +472,10 @@ def make_naive(args, obs_spec, action_spec, seed: int, player_id: int):
         obs_spec=obs_spec,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
-        num_minibatches=args.ppo.num_minibatches,
-        num_epochs=args.ppo.num_epochs,
-        gamma=args.ppo.gamma,
-        gae_lambda=args.ppo.gae_lambda,
+        num_minibatches=args.naive.num_minibatches,
+        num_epochs=args.naive.num_epochs,
+        gamma=args.naive.gamma,
+        gae_lambda=args.naive.gae_lambda,
     )
 
 

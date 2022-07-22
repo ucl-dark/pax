@@ -238,7 +238,7 @@ class HyperTFT:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.tile(jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        return jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
 
     def update(self, *args) -> None:
         pass
