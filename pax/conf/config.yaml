@@ -22,7 +22,7 @@ env_id: ipd
 game: ipd 
 env_type: finite
 env_discount: 0.99
-payoff:
+payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 centralized: True
 
 # Training hyperparameters
@@ -74,13 +74,16 @@ naive:
   lr: 1.0
 
 # LOLA agent parameters
-# lola:
-#   ... 
+lola: 
+  replay_capacity: 100000 #args.lola.replay_capacity, 
+  min_replay_size: 50   #args.lola.min_replay_size, 
+  sgd_period: 1           #args.dqn.sgd_period,
+  batch_size: 2         #args.dqn.batch_size
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-with-memory=${ppo.with_memory}-v3'
+  group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}
   log: False

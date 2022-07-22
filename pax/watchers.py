@@ -1,6 +1,8 @@
 from flax import linen as nn
 
 from pax.naive_learners import NaiveLearnerEx
+from pax.naive.naive import NaiveLearner
+from pax.lola.lola import LOLA
 from .env import State
 import jax.numpy as jnp
 import pax.hyper.ppo as HyperPPO
@@ -98,6 +100,30 @@ def value_logger_ppo(agent: PPO) -> dict:
     return probs
 
 
+def value_logger_naive(agent: NaiveLearner) -> dict:
+    weights = agent._state.params["categorical_value_head/~/linear_1"][
+        "w"
+    ]  # 5 x 1 matrix
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    }
+    probs.update({"value/total_steps": sgd_steps})
+    return probs
+
+
+def value_logger_lola(agent: LOLA) -> dict:
+    weights = agent._state.params["categorical_value_head/~/linear_1"][
+        "w"
+    ]  # 5 x 1 matrix
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    }
+    probs.update({"value/total_steps": sgd_steps})
+    return probs
+
+
 def policy_logger_ppo_with_memory(agent) -> dict:
     """Calculate probability of coopreation"""
     # n = 5
@@ -167,6 +193,20 @@ def naive_losses(agent) -> None:
     return losses
 
 
+def losses_lola(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        "train/total": loss_total,
+        "train/policy": loss_policy,
+        "train/value": loss_value,
+    }
+    return losses
+
+
 def losses_ppo(agent: PPO) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
@@ -191,7 +231,23 @@ def policy_logger_naive(agent) -> None:
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
-        f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
+        f"policy/{str(s)}/{agent.player_id}/player_{agent.player_id}.cooperate": p[
+            0
+        ]
+        for (s, p) in zip(State, pi)
+    }
+    probs.update({"policy/total_steps": sgd_steps})
+    return probs
+
+
+def policy_logger_lola(agent) -> None:
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"policy/{str(s)}/{agent.player_id}/player_{agent.player_id}.cooperate": p[
+            0
+        ]
         for (s, p) in zip(State, pi)
     }
     probs.update({"policy/total_steps": sgd_steps})

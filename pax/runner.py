@@ -26,9 +26,15 @@ class Runner:
         print("Training ")
         print("-----------------------")
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+            # TODO: Inner rollout
+            # 1. Get other agents' parameters
+            # 2. Do a rollout
+            # 3. Simulate gradient update
+            agents.lookahead(env)
+
+            # NOTE: Outer for loop begins
             rewards_0, rewards_1 = [], []
             t = env.reset()
-
             while not (t[0].last()):
                 actions = agents.select_action(t)
                 t_prime = env.step(actions)

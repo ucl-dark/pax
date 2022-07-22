@@ -45,6 +45,11 @@ from pax.watchers import (
     value_logger_ppo,
     policy_logger_ppo_with_memory,
     naive_losses,
+    policy_logger_naive,
+    policy_logger_lola,
+    losses_lola,
+    value_logger_lola,
+    value_logger_naive,
 )
 
 import hydra
@@ -321,6 +326,7 @@ def agent_setup(args, logger):
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     if args.centralized:
+        logger.info("Training: Centralized")
         return CentralizedLearners([agent_0, agent_1])
 
     return IndependentLearners([agent_0, agent_1])
@@ -359,8 +365,18 @@ def watcher_setup(args, logger):
 
     def naive_log(agent):
         losses = naive_losses(agent)
-        policy = policy_logger_ppo(agent)
-        value = value_logger_ppo(agent)
+        policy = policy_logger_naive(agent)
+        value = value_logger_naive(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def lola_log(agent):
+        losses = losses_lola(agent)
+        policy = policy_logger_lola(agent)
+        value = value_logger_lola(agent)
         losses.update(value)
         losses.update(policy)
         if args.wandb.log:
@@ -397,7 +413,7 @@ def watcher_setup(args, logger):
         "DQN": dqn_log,
         "PPO": ppo_log,
         "Naive": naive_log,
-        "LOLA": dumb_log,
+        "LOLA": lola_log,
         "PPO_memory": ppo_log,
         "Hyper": hyper_log,
         "NaiveLearner": naive_logger,
