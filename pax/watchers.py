@@ -144,7 +144,7 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
     return cooperation_probs
 
 
-def naive_losses(agent) -> None:
+def naive_pg_losses(agent) -> None:
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]

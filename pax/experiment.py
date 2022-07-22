@@ -41,7 +41,7 @@ from pax.watchers import (
     policy_logger_ppo,
     value_logger_ppo,
     policy_logger_ppo_with_memory,
-    naive_losses,
+    naive_pg_losses,
 )
 
 import hydra
@@ -356,8 +356,8 @@ def watcher_setup(args, logger):
             wandb.log(losses)
         return
 
-    def naive_log(agent):
-        losses = naive_losses(agent)
+    def naive_pg_log(agent):
+        losses = naive_pg_losses(agent)
         policy = policy_logger_ppo(agent)
         value = value_logger_ppo(agent)
         losses.update(value)
@@ -377,7 +377,7 @@ def watcher_setup(args, logger):
         "DQN": dqn_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
-        "Naive": naive_log,
+        "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveLearner": naive_logger,
         "HyperAltruistic": dumb_log,
