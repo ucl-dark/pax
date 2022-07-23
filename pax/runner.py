@@ -45,10 +45,10 @@ class Runner:
 
         def _env_rollout(carry, unused):
             t1, t2, a1_state, a2_state = carry
-            a1, a1_state, a1_extras = agent1._policy(
+            a1, new_a1_state, a1_extras = agent1._policy(
                 a1_state.params, t1.observation, a1_state
             )
-            a2, a2_state = agent2._policy(
+            a2, new_a2_state = agent2._policy(
                 a2_state.params, t2.observation, a2_state
             )
             tprime_1, tprime_2 = env.runner_step(
@@ -64,7 +64,7 @@ class Runner:
                 a1_extras["log_probs"],
                 a1_extras["values"],
                 tprime_1.last() * jnp.zeros(env.num_envs),
-                None,
+                a1_state.hiddens,
             )
             traj2 = Sample(
                 t2.observation,
@@ -75,13 +75,21 @@ class Runner:
                 tprime_2.last() * jnp.zeros(env.num_envs),
                 None,
             )
-            return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
+            return (tprime_1, tprime_2, new_a1_state, new_a2_state), (
+                traj1,
+                traj2,
+            )
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
 
             # uniquely nl code required here.
             a1_state = agent1._state
+
+            # changes to make -
+            # 1. PPO Can't loss memory after an Update
+            # 2. has to take in new batch
+            # 3.
             a2_state = agent2.reset_state(t_init[1])
 
             # rollout episode
