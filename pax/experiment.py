@@ -11,6 +11,7 @@ from pax.env import (
 from pax.hyper.ppo import make_hyper
 from pax.hyper.ppo_gru import make_gru_hyper
 from pax.independent_learners import IndependentLearners
+from pax.meta_env import MetaFiniteGame
 from pax.naive_learners import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
@@ -104,6 +105,18 @@ def env_setup(args, logger=None):
     payoff_setup(args, logger)
     if args.env_type == "finite":
         train_env = SequentialMatrixGame(
+            args.num_envs,
+            args.payoff,
+            args.num_steps,
+        )
+        test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
+        if logger:
+            logger.info(
+                f"Game Type: Finite | Episode Length: {args.num_steps}"
+            )
+
+    elif args.env_type == "meta":
+        train_env = MetaFiniteGame(
             args.num_envs,
             args.payoff,
             args.num_steps,

@@ -14,8 +14,8 @@ save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'NaiveLearner'
+agent1: 'PPO'
+agent2: 'PPO'
 
 # Environment
 env_id: ipd
@@ -64,7 +64,7 @@ ppo:
   learning_rate: 4e-3
   adam_epsilon: 1e-5
   adam_eps_root: 0.
-  with_memory: False
+  with_memory: True
 
 # Naive Learner parameters
 naive:
