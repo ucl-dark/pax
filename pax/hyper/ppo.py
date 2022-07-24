@@ -365,7 +365,6 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                # extras={"log_probs": None, "values": None},
             )
 
             return new_state, metrics

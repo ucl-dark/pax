@@ -121,9 +121,15 @@ def env_setup(args, logger=None):
         train_env = MetaFiniteGame(
             args.num_envs,
             args.payoff,
-            args.num_steps,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
         )
-        test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
+        test_env = MetaFiniteGame(
+            args.num_envs,
+            args.payoff,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
+        )
         if logger:
             logger.info(
                 f"Game Type: Finite | Episode Length: {args.num_steps}"
@@ -427,8 +433,8 @@ def main(args):
         runner = runner_setup()
 
     # num episodes
-    total_num_ep = int(args.total_timesteps / (args.num_steps))
-    train_num_ep = int(args.eval_every / (args.num_steps))
+    total_num_ep = int(args.total_timesteps / args.num_steps)
+    train_num_ep = int(args.eval_every / args.num_steps)
 
     print(f"Number of training episodes = {total_num_ep}")
     print(f"Evaluating every {train_num_ep} episodes")

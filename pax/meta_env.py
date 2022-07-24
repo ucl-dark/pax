@@ -11,7 +11,7 @@ class MetaFiniteGame:
         num_envs: int,
         payoff: list,
         inner_ep_length: int,
-        episode_length: int,
+        num_steps: int,
     ) -> None:
 
         self.payoff = jnp.array(payoff)
@@ -52,7 +52,7 @@ class MetaFiniteGame:
             )
             s2 = jax.lax.select(inner_t == 0.0, jnp.float32(4.0), s2)
 
-            obs = jax.nn.one_hot(s1, 4), jax.nn.one_hot(s2, 4)
+            obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
 
             # out step keeping
@@ -61,14 +61,16 @@ class MetaFiniteGame:
             outer_t_new = outer_t + 1
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
 
-            t1 = TimeStep(done, r1, 0.0, obs[0])
-            t2 = TimeStep(done, r2, 0.0, obs[1])
+            t1 = TimeStep(done, r1, 0, obs[0])
+            t2 = TimeStep(done, r2, 0, obs[1])
 
             return (t1, t2), (inner_t, outer_t)
 
         self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
         self.num_envs = num_envs
-        self.num_trials = episode_length
+        self.inner_episode_length = inner_ep_length
+        self.num_trials = num_steps / inner_ep_length
+        self.episode_length = num_steps
         self.state = (0.0, 0.0)
         self._reset_next_step = True
 
@@ -80,8 +82,18 @@ class MetaFiniteGame:
         if self.state[1] == self.num_trials:
             self._reset_next_step = True
             output = (
-                TimeStep(2, output[0].reward, 0, output[0].observation),
-                TimeStep(2, output[1].reward, 0, output[1].observation),
+                TimeStep(
+                    2 * jnp.ones(self.num_envs),
+                    output[0].reward,
+                    0,
+                    output[0].observation,
+                ),
+                TimeStep(
+                    2 * jnp.ones(self.num_envs),
+                    output[1].reward,
+                    0,
+                    output[1].observation,
+                ),
             )
         return output
 
@@ -98,6 +110,8 @@ class MetaFiniteGame:
         self.state = (0.0, 0.0)
         self._reset_next_step = False
         obs = obs = jax.nn.one_hot(jnp.ones(self.num_envs), 5)
-        return TimeStep(0, jnp.zeros(self.num_envs), 0.0, obs), TimeStep(
-            0, jnp.zeros(self.num_envs), 0.0, obs
-        )
+        discount = jnp.zeros(self.num_envs, dtype=int)
+        step_type = jnp.zeros(self.num_envs, dtype=int)
+        return TimeStep(
+            step_type, jnp.zeros(self.num_envs), discount, obs
+        ), TimeStep(step_type, jnp.zeros(self.num_envs), discount, obs)

@@ -44,7 +44,7 @@ class TrainingState(NamedTuple):
     random_key: jnp.ndarray
     timesteps: int
     hidden: jnp.ndarray
-    extras: Mapping[str, jnp.ndarray]
+    # extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -86,12 +86,22 @@ class PPO:
                 params, observation, state.hidden
             )
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = state._replace(
-                random_key=key, hidden=hidden_state, extras=state.extras
+            # state = state._replace(
+            #     random_key=key, hidden=hidden_state, extras=state.extras
+            # )
+
+            state = TrainingState(
+                params=params,
+                opt_state=state.opt_state,
+                random_key=key,
+                timesteps=state.timesteps,
+                hidden=hidden_state,
             )
-            return actions, state
+            return (
+                actions,
+                state,
+                {"values": values, "log_probs": dist.log_prob(actions)},
+            )
 
         def rollouts(
             buffer: TrajectoryBuffer,
@@ -239,29 +249,31 @@ class PPO:
             )
 
             # vmap
-            batch_gae_advantages = jax.vmap(gae_advantages, in_axes=0)
+            batch_gae_advantages = gae_advantages
             advantages, target_values = batch_gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
             # Exclude the last step - it was only used for bootstrapping.
             # The shape is [num_envs, num_steps, ..]
-            (
-                observations,
-                actions,
-                behavior_log_probs,
-                behavior_values,
-                hiddens,
-            ) = jax.tree_map(
-                lambda x: x[:, :-1],
-                (
-                    observations,
-                    actions,
-                    behavior_log_probs,
-                    behavior_values,
-                    hiddens,
-                ),
-            )
+            behavior_values = behavior_values[:-1, :]
+
+            # (
+            #     observations,
+            #     actions,
+            #     behavior_log_probs,
+            #     behavior_values,
+            #     hiddens,
+            # ) = jax.tree_map(
+            #     lambda x: x[:, :-1],
+            #     (
+            #         observations,
+            #         actions,
+            #         behavior_log_probs,
+            #         behavior_values,
+            #         hiddens,
+            #     ),
+            # )
 
             trajectories = Batch(
                 observations=observations,
@@ -381,8 +393,7 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(1,) + (gru_dim,)),
-                extras={"log_probs": None, "values": None},
+                hidden=initial_hidden_state,
             )
 
             return new_state, metrics
@@ -405,14 +416,53 @@ class PPO:
                 timesteps=0,
                 # hidden=jnp.zeros(shape=(1, 5)),  # initial_hidden_state,
                 hidden=initial_hidden_state,  # initial_hidden_state,
-                extras={"values": None, "log_probs": None},
+                # extras={"values": None, "log_probs": None},
             )
+
+        @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                action_extras["values"],
+                jnp.zeros_like(action_extras["values"]),
+            )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+
+            return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(
             random_key, obs_spec, initial_hidden_state
         )
 
+        self.initial_hidden_state = initial_hidden_state
+
+        self.prepare_batch = prepare_batch
         # Initialize buffer and sgd
         self._trajectory_buffer = TrajectoryBuffer(
             num_envs, num_steps, obs_spec, gru_dim
@@ -447,54 +497,19 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
+        actions, self._state, extras = self._policy(
             self._state.params, t.observation, self._state
         )
         return utils.to_numpy(actions)
 
-    def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
+    def update(self, traj_batch, t_prime: TimeStep, state):
         # Adds agent and environment info to buffer
-        self._rollouts(
-            buffer=self._trajectory_buffer,
-            t=t,
-            actions=actions,
-            t_prime=t_prime,
-            state=self._state,
+        _, _, action_extras = self._policy(
+            state.params, t_prime.observation, state
         )
 
-        # Log metrics
-        self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
-
-        # Update internal state with total_steps
-        self._state = self._state._replace(timesteps=self._total_steps)
-
-        # Update counter until doing SGD
-        self._until_sgd += 1
-
-        # Rollouts still in progress
-        if self._until_sgd % (self._num_steps) != 0:
-            return
-
-        # Add an additional rollout step for advantage calculation
-        _, self._state = self._policy(
-            self._state.params, t_prime.observation, self._state
-        )
-
-        self._trajectory_buffer.add(
-            timestep=t_prime,
-            action=0,
-            log_prob=0,
-            # value=self._state.extras["values"],
-            value=self._state.extras["values"]
-            if not t_prime.last()
-            else jnp.zeros_like(self._state.extras["values"]),
-            new_timestep=t_prime,
-        )
-
-        # Rollouts complete -> Training begins
-        sample = self._trajectory_buffer.sample()
-        self._state, results = self._sgd_step(self._state, sample)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, action_extras)
+        state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -503,6 +518,8 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+        self._state = state
+        return state
 
 
 # TODO: seed, and player_id not used in CartPole
@@ -518,6 +535,10 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         network, initial_hidden_state = make_GRU(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
+
+    initial_hidden_state = jnp.zeros(
+        (args.num_envs, initial_hidden_state.shape[1])
+    )
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
@@ -551,7 +572,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
-    return PPO(
+    agent = PPO(
         network=network,
         initial_hidden_state=initial_hidden_state,
         optimizer=optimizer,
@@ -572,6 +593,9 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
     )
+
+    agent.player_id = player_id
+    return agent
 
 
 if __name__ == "__main__":

@@ -49,6 +49,13 @@ from pax.env import InfiniteMatrixGame
 #         return action, key
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    timesteps: int
+    num_episodes: int
+
+
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
@@ -76,8 +83,9 @@ class GrimTrigger:
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -88,6 +96,17 @@ class TitForTat:
 
     def update(self, *args) -> None:
         pass
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        return self._reciprocity(obs), self._state
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # now either 0, 1, 2, 3
@@ -177,13 +196,6 @@ class Random:
             ),
             None,
         )
-
-
-class TrainingState(NamedTuple):
-    # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
-    timesteps: int
-    num_episodes: int
 
 
 class HyperAltruistic:

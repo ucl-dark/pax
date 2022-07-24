@@ -44,18 +44,20 @@ class Runner:
         agent1, agent2 = agents.agents
 
         def _env_rollout(carry, unused):
-            t1, t2, a1_state, a2_state = carry
+            t1, t2, a1_state, a2_state, env_state = carry
             a1, new_a1_state, a1_extras = agent1._policy(
                 a1_state.params, t1.observation, a1_state
             )
             a2, new_a2_state = agent2._policy(
                 a2_state.params, t2.observation, a2_state
             )
-            tprime_1, tprime_2 = env.runner_step(
+
+            (tprime_1, tprime_2), env_state = env.runner_step(
                 [
                     a1,
                     a2,
-                ]
+                ],
+                env_state,
             )
             traj1 = Sample(
                 t1.observation,
@@ -64,7 +66,7 @@ class Runner:
                 a1_extras["log_probs"],
                 a1_extras["values"],
                 tprime_1.last() * jnp.zeros(env.num_envs),
-                a1_state.hiddens,
+                a1_state.hidden,
             )
             traj2 = Sample(
                 t2.observation,
@@ -75,27 +77,33 @@ class Runner:
                 tprime_2.last() * jnp.zeros(env.num_envs),
                 None,
             )
-            return (tprime_1, tprime_2, new_a1_state, new_a2_state), (
+            return (
+                tprime_1,
+                tprime_2,
+                new_a1_state,
+                new_a2_state,
+                env_state,
+            ), (
                 traj1,
                 traj2,
             )
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
+            env_state = env.state
 
             # uniquely nl code required here.
             a1_state = agent1._state
-
+            a2_state = agent2._state
             # changes to make -
             # 1. PPO Can't loss memory after an Update
             # 2. has to take in new batch
             # 3.
-            a2_state = agent2.reset_state(t_init[1])
 
             # rollout episode
             vals, trajectories = jax.lax.scan(
                 _env_rollout,
-                (*t_init, a1_state, a2_state),
+                (*t_init, a1_state, a2_state, env_state),
                 None,
                 length=env.episode_length,
             )
@@ -134,10 +142,10 @@ class Runner:
         print("Evaluating")
         print("-----------------------")
         agents.eval(True)
-        for _ in range(num_episodes // env.num_envs):
+        for _ in range(max(num_episodes // env.num_envs, 1)):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()
-            while not timesteps[0].last():
+            for _ in range(env.episode_length):
                 actions = agents.select_action(timesteps)
                 timesteps = env.step(actions)
                 r_0, r_1 = timesteps[0].reward, timesteps[1].reward
