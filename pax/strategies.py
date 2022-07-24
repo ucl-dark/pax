@@ -123,7 +123,7 @@ class TitForTat:
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
     def select_action(
         self,
@@ -138,11 +138,23 @@ class Defect:
     def update(self, *args) -> None:
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        batch_size = obs.shape[0]
+        return jnp.ones((batch_size,)), self._state
+
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
     def select_action(
         self,
@@ -156,6 +168,18 @@ class Altruistic:
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
         return jnp.zeros((batch_size,))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        batch_size = obs.shape[0]
+        return jnp.zeros((batch_size,)), self._state
 
     def update(self, *args) -> None:
         pass
