@@ -298,7 +298,7 @@ def agent_setup(args, logger):
         "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearner": get_naive_learner,
+        "NaiveHyper": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
