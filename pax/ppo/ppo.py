@@ -99,27 +99,51 @@ class PPO:
             )
             buffer.add(t, actions, log_probs, values, t_prime)
 
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
+            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            # delta = rewards + discounts * values[1:] - values[:-1]
+            # advantage_t = [0.0]
+            # for t in reversed(range(delta.shape[0])):
+            #     advantage_t.insert(
+            #         0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
+            #     )
+            # advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
 
             # this is where the gae function will end
+
+            def _get_advantages(gae_and_next_value, transition):
+                gae, next_value = gae_and_next_value
+                value, reward, discounts = transition
+                value_diff = discounts * next_value - value
+                delta = reward + value_diff
+                gae = delta + discounts * gae_lambda * gae
+                return (gae, value), gae
+
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
+
+            _, advantages = jax.lax.scan(
+                _get_advantages,
+                (jnp.zeros_like(values[-1]), values[-1]),
+                reverse_batch,
+            )
+
+            advantages = jnp.flip(advantages, axis=0)
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values

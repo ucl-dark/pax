@@ -103,6 +103,8 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     # n = 5
     params = agent._state.params
     hidden = agent._state.hidden
+    pid = agent.player_id
+
     # episode = int(
     #     agent._logger.metrics["total_steps"]
     #     / (agent._num_steps * agent._num_envs)
@@ -114,7 +116,9 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     # Works when the forward function is not jitted.
     for state, state_name in zip(ALL_STATES, STATE_NAMES):
         (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[f"policy/{state_name}"] = float(dist.probs[0][0])
+        cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = float(
+            dist.probs[0][0]
+        )
     return cooperation_probs
 
 
@@ -145,15 +149,16 @@ def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
 
 
 def naive_pg_losses(agent) -> None:
+    pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
     losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "train/policy": loss_policy,
-        "train/value": loss_value,
+        f"train/naive_learner{pid}/sgd_steps": sgd_steps,
+        f"train/naive_learner{pid}/total": loss_total,
+        f"train/naive_learner{pid}/policy": loss_policy,
+        f"train/naive_learner{pid}/value": loss_value,
     }
     return losses
 

@@ -50,10 +50,12 @@ class MetaFiniteGame:
             s1 = jax.lax.select(
                 inner_t == 0.0, jnp.float32(4.0), jnp.float32(s1)
             )
-            s2 = jax.lax.select(inner_t == 0.0, jnp.float32(4.0), s2)
+            s2 = jax.lax.select(
+                inner_t == 0.0, jnp.float32(4.0), jnp.float32(s2)
+            )
 
             obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
-            done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
+            # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
 
             # out step keeping
             reset_inner = inner_t == inner_ep_length
@@ -61,8 +63,8 @@ class MetaFiniteGame:
             outer_t_new = outer_t + 1
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
 
-            t1 = TimeStep(done, r1, 0, obs[0])
-            t2 = TimeStep(done, r2, 0, obs[1])
+            t1 = TimeStep(1, r1, 0, obs[0])
+            t2 = TimeStep(1, r2, 0, obs[1])
 
             return (t1, t2), (inner_t, outer_t)
 
@@ -99,11 +101,11 @@ class MetaFiniteGame:
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
-        return specs.DiscreteArray(num_values=len(5), name="previous turn")
+        return specs.DiscreteArray(num_values=5, name="previous turn")
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(dtype=int, num_values=len(2), name="action")
+        return specs.DiscreteArray(dtype=int, num_values=2, name="action")
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""

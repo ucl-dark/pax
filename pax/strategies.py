@@ -148,7 +148,7 @@ class Defect:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.ones((batch_size,)), self._state
+        return jnp.ones((batch_size,)), self._state, None
 
 
 class Altruistic:
@@ -179,7 +179,7 @@ class Altruistic:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.zeros((batch_size,)), self._state
+        return jnp.zeros((batch_size,)), self._state, None
 
     def update(self, *args) -> None:
         pass
