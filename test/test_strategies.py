@@ -2,8 +2,8 @@ import jax
 import jax.numpy as jnp
 from pax.meta_env import InfiniteMatrixGame
 from pax.strategies import TitForTat, GrimTrigger
-from pax.naive_learners import NaiveLearnerEx
-from dm_env import TimeStep, transition, termination
+from pax.naive_exact import NaiveLearnerEx
+from dm_env import transition
 
 
 def test_titfortat():

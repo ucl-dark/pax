@@ -1,9 +1,10 @@
 from typing import NamedTuple
+
 import jax
 import jax.numpy as jnp
+from dm_env import TimeStep
 
 from pax.meta_env import InfiniteMatrixGame
-from dm_env import TimeStep
 
 
 class TrainingState(NamedTuple):
@@ -11,6 +12,7 @@ class TrainingState(NamedTuple):
     params: jnp.ndarray
     timesteps: int
     num_episodes: int
+    loss: float
 
 
 class Logger:
@@ -64,16 +66,32 @@ class NaiveLearnerEx:
             L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
             return L_1.sum(), M
 
-        self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
-        self.lr = lr
+        grad_fn = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
+
+        def policy(params, obs, state):
+            action = params
+            other_action = obs[:, 5:]
+
+            (loss, _), grad = grad_fn(action, other_action)
+
+            # gradient ascent
+            new_params = action + jnp.multiply(grad, lr)
+
+            # update state
+            _state = TrainingState(
+                params=new_params,
+                timesteps=state.timesteps + 1,
+                num_episodes=state.num_episodes,
+                loss=loss,
+            )
+            return new_params, _state
+
+        self.policy = policy
+
         self.player_id = player_id
         self.action_dim = action_dim
         self.eval = False
         self.num_agents = env.num_envs
-
-        self._state = TrainingState(
-            jnp.zeros((self.num_agents, 5)), timesteps=0, num_episodes=0
-        )
 
         # Set up counters and logger
         self._logger = Logger()
@@ -85,51 +103,26 @@ class NaiveLearnerEx:
             "loss_total": 0,
         }
 
+        self._state = TrainingState(
+            jnp.zeros((env.num_envs, 5)), timesteps=0, num_episodes=0, loss=0
+        )
+
     def make_initial_state(self, t: TimeStep):
         return TrainingState(t.observation[:, :5], timesteps=0, num_episodes=0)
 
-    @jax.jit
     def select_action(
         self,
         t: TimeStep,
     ) -> jnp.ndarray:
 
-        action = self._state.params
-        other_action = t[:, 5:]
-        (loss, _), grad = self.grad(action, other_action)
-
-        # gradient ascent
-        new_params = action + jnp.multiply(grad, self.lr)
-
-        # update state
-        self._state = TrainingState(
-            params=new_params,
-            timesteps=self._state.timesteps + 1,
-            num_episodes=self._state.num_episodes,
+        action, self._state = self.policy(
+            self._state.params, t.observation, self._state
         )
-
         self._logger.metrics["sgd_steps"] += 1
-        self._logger.metrics["loss_total"] = loss.mean(axis=0)
+        self._logger.metrics["loss_total"] = self._state.loss
         self._total_steps += 1
         self._logger.metrics["total_steps"] = self._total_steps
-        return self._state.params
-
-    def _policy(self, params, obs, state):
-        action = params
-        other_action = obs[:, 5:]
-
-        (loss, _), grad = self.grad(action, other_action)
-
-        # gradient ascent
-        new_params = action + jnp.multiply(grad, self.lr)
-
-        # update state
-        _state = TrainingState(
-            params=new_params,
-            timesteps=state.timesteps + 1,
-            num_episodes=state.num_episodes,
-        )
-        return new_params, _state
+        return action
 
     def update(
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
