@@ -1,13 +1,9 @@
 from functools import partial
-from typing import Any, NamedTuple, Tuple
-from chex import PRNGKey
-import optax
+from typing import NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
-
-from pax.env import InfiniteMatrixGame
 
 # states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1

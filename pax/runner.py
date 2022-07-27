@@ -92,6 +92,7 @@ class Runner:
 
         def _outer_rollout(carry, unused):
             t1, t2, a1_state, a2_state, env_state = carry
+            # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
                 (t1, t2, a1_state, a2_state, env_state),
