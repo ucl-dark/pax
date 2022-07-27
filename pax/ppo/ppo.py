@@ -524,7 +524,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
-    return PPO(
+    agent = PPO(
         network=network,
         optimizer=optimizer,
         random_key=random_key,
@@ -543,6 +543,8 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
     )
+    agent.player_id = player_id
+    return agent
 
 
 if __name__ == "__main__":

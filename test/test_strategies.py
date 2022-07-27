@@ -1,7 +1,8 @@
 import jax
 import jax.numpy as jnp
-from pax.env import InfiniteMatrixGame
-from pax.strategies import NaiveLearner, TitForTat, GrimTrigger
+from pax.meta_env import InfiniteMatrixGame
+from pax.strategies import TitForTat, GrimTrigger
+from pax.naive_learners import NaiveLearnerEx
 from dm_env import TimeStep, transition, termination
 
 
@@ -87,7 +88,7 @@ def test_naive_alt():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveLearner(action_dim=5, env=env, lr=10, seed=0, player_id=0)
+    agent = NaiveLearnerEx(action_dim=5, env=env, lr=10, seed=0, player_id=0)
 
     alt_action = 20 * jnp.ones((batch_number, 5))
     timestep, _ = env.reset()
@@ -114,7 +115,7 @@ def test_naive_defect():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveLearnerEx(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     defect_action = -20 * jnp.ones((batch_number, 5))
     timestep, _ = env.reset()
@@ -141,7 +142,7 @@ def test_naive_tft():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveLearnerEx(action_dim=5, env=env, lr=1, seed=0, player_id=0)
     tft_action = jnp.tile(
         20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)
     )
@@ -168,7 +169,7 @@ def test_naive_tft_as_second_player():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveLearner(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveLearnerEx(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     tft_action = jnp.tile(
         20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)

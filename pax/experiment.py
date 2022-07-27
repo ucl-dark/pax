@@ -5,9 +5,9 @@ import omegaconf
 
 from pax.dqn.agent import default_agent
 from pax.env import (
-    InfiniteMatrixGame,
     SequentialMatrixGame,
 )
+from pax.meta_env import InfiniteMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.naive_learners import NaiveLearnerEx
