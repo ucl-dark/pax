@@ -39,7 +39,7 @@ class Runner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
-        print("Training ")
+        print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
 
