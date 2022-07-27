@@ -26,10 +26,10 @@ eval_every: 4000 # timesteps
 
 # LOLA agent parameters
 lola: 
-  replay_capacity: 100000 #args.lola.replay_capacity, 
-  min_replay_size: 50   #args.lola.min_replay_size, 
-  sgd_period: 1           #args.dqn.sgd_period,
-  batch_size: 2         #args.dqn.batch_size
+  replay_capacity: 100000 
+  min_replay_size: 50   
+  sgd_period: 1         
+  batch_size: 2         
 
 # Logging setup
 wandb:

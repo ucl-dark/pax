@@ -25,8 +25,13 @@ class CentralizedLearners:
             # All other agents in a list
             # i.e. if i am agent2, then other_agents=[agent1, agent3, agent4 ...]
             other_agents = self.agents[:counter] + self.agents[counter + 1 :]
-            agent.lookhead(env, other_agents)
+            agent.lookahead(env, other_agents)
             counter += 1
+
+    def out_lookahead(self, env):
+        """Performs a real rollout and update"""
+        for agent in self.agents:
+            agent.out_lookahead(env)
 
     def update(
         self,

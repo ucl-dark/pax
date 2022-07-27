@@ -1,5 +1,3 @@
-# Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
-
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
@@ -46,7 +44,7 @@ class Hp:
         self.lr_v = 0.1
         self.gamma = 0.96
         self.n_update = 200
-        self.len_rollout = 150
+        self.len_rollout = 100
         self.batch_size = 128
         self.use_baseline = True
         self.seed = 42
@@ -63,94 +61,61 @@ class Logger:
     metrics: dict
 
 
-# class Memory:
-#     def __init__(self):
-#         self.self_logprobs = []
-#         self.other_logprobs = []
-#         self.values = []
-#         self.rewards = []
+class Memory:
+    def __init__(self):
+        self.self_logprobs = []
+        self.other_logprobs = []
+        self.values = []
+        self.rewards = []
 
-#     def add(self, lp, other_lp, v, r):
-#         self.self_logprobs.append(lp)
-#         self.other_logprobs.append(other_lp)
-#         self.values.append(v)
-#         self.rewards.append(r)
+    def add(self, lp, other_lp, v, r):
+        self.self_logprobs.append(lp)
+        self.other_logprobs.append(other_lp)
+        self.values.append(v)
+        self.rewards.append(r)
 
-#     def dice_objective(self):
-#         self_logprobs = jnp.stack(self.self_logprobs, dim=1)
-#         other_logprobs = jnp.stack(self.other_logprobs, dim=1)
-#         values = jnp.stack(self.values, dim=1)
-#         rewards = jnp.stack(self.rewards, dim=1)
+    def dice_objective(self):
+        # Stacks so that the dimension is now (num_envs, num_steps)
+        self_logprobs = jnp.stack(self.self_logprobs, axis=1)
+        other_logprobs = jnp.stack(self.other_logprobs, axis=1)
+        values = jnp.stack(self.values, axis=1)
+        rewards = jnp.stack(self.rewards, axis=1)
 
-#         # apply discount:
-#         cum_discount = (
-#             jnp.cumprod(hp.gamma * jnp.ones(*rewards.size()), dim=1) / hp.gamma
-#         )
-#         discounted_rewards = rewards * cum_discount
-#         discounted_values = values * cum_discount
+        # apply discount:
+        cum_discount = (
+            jnp.cumprod(hp.gamma * jnp.ones(rewards.shape), axis=1) / hp.gamma
+        )
+        discounted_rewards = rewards * cum_discount
+        discounted_values = values * cum_discount
 
-#         # stochastics nodes involved in rewards dependencies:
-#         dependencies = jnp.cumsum(self_logprobs + other_logprobs, dim=1)
+        # stochastics nodes involved in rewards dependencies:
+        dependencies = jnp.cumsum(self_logprobs + other_logprobs, axis=1)
 
-#         # logprob of each stochastic nodes:
-#         stochastic_nodes = self_logprobs + other_logprobs
+        # logprob of each stochastic nodes:
+        stochastic_nodes = self_logprobs + other_logprobs
 
-#         # dice objective:
-#         dice_objective = jnp.mean(
-#             jnp.sum(magic_box(dependencies) * discounted_rewards, dim=1)
-#         )
+        # dice objective:
+        dice_objective = jnp.mean(
+            jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+        )
 
-#         if hp.use_baseline:
-#             # variance_reduction:
-#             baseline_term = jnp.mean(
-#                 jnp.sum(
-#                     (1 - magic_box(stochastic_nodes)) * discounted_values,
-#                     dim=1,
-#                 )
-#             )
-#             dice_objective = dice_objective + baseline_term
+        if hp.use_baseline:
+            # variance_reduction:
+            baseline_term = jnp.mean(
+                jnp.sum(
+                    (1 - magic_box(stochastic_nodes)) * discounted_values,
+                    axis=1,
+                )
+            )
+            dice_objective = dice_objective + baseline_term
 
-#         return -dice_objective  # want to minimize -objective
+        # TODO: Combine the value loss with the dice objective loss?
+        return -dice_objective  # want to minimize -objective
 
-#     def value_loss(self):
-#         values = jnp.stack(self.values, dim=1)
-#         rewards = jnp.stack(self.rewards, dim=1)
-#         return jnp.mean((rewards - values) ** 2)
-
-
-# ipd = IPD(hp.len_rollout, hp.batch_size)
-
-
-# def act(batch_states, theta, values):
-#     batch_states = jnp.from_numpy(batch_states).long()
-#     probs = jnp.sigmoid(theta)[batch_states]
-#     m = Bernoulli(1 - probs)
-#     actions = m.sample()
-#     log_probs_actions = m.log_prob(actions)
-#     return actions.numpy().astype(int), log_probs_actions, values[batch_states]
-
-
-# def get_gradient(objective, theta):
-#     # create differentiable gradient for 2nd orders:
-#     grad_objective = torch.autograd.grad(
-#         objective, (theta), create_graph=True
-#     )[0]
-#     return grad_objective
-
-
-# def step(theta1, theta2, values1, values2):
-#     # just to evaluate progress:
-#     (s1, s2), _ = ipd.reset()
-#     score1 = 0
-#     score2 = 0
-#     for t in range(hp.len_rollout):
-#         a1, lp1, v1 = act(s1, theta1, values1)
-#         a2, lp2, v2 = act(s2, theta2, values2)
-#         (s1, s2), (r1, r2), _, _ = ipd.step((a1, a2))
-#         # cumulate scores
-#         score1 += np.mean(r1) / float(hp.len_rollout)
-#         score2 += np.mean(r2) / float(hp.len_rollout)
-#     return (score1, score2)
+    def value_loss(self):
+        values = jnp.stack(self.values, axis=1)
+        rewards = jnp.stack(self.rewards, axis=1)
+        return jnp.mean((rewards - values) ** 2)
 
 
 class LOLA:
@@ -203,42 +168,41 @@ class LOLA:
             )
             buffer.add(t, actions, log_probs, values, t_prime)
 
-        def loss(
-            logprobs: jnp.ndarray,
-            other_logprobs: jnp.ndarray,
-            values: jnp.ndarray,
-            rewards: jnp.ndarray,
-        ):
-            logprobs = jnp.stack(logprobs, dim=1)
-            other_logprobs = jnp.stack(other_logprobs, dim=1)
-            values = jnp.stack(self.values, dim=1)
-            rewards = jnp.stack(self.rewards, dim=1)
+        def loss(log_probs, other_log_probs, values, rewards):
+            # Stacks so that the dimension is now (num_envs, num_steps)
+            self_logprobs = jnp.stack(log_probs, axis=1)
+            other_logprobs = jnp.stack(other_log_probs, axis=1)
+            values = jnp.stack(values, axis=1)
+            rewards = jnp.stack(rewards, axis=1)
 
             # apply discount:
             cum_discount = (
-                jnp.cumprod(gamma * jnp.ones(*rewards.size()), dim=1) / gamma
+                jnp.cumprod(hp.gamma * jnp.ones(rewards.shape), axis=1)
+                / hp.gamma
             )
             discounted_rewards = rewards * cum_discount
             discounted_values = values * cum_discount
 
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(logprobs + other_logprobs, dim=1)
+            dependencies = jnp.cumsum(self_logprobs + other_logprobs, axis=1)
 
             # logprob of each stochastic nodes:
-            stochastic_nodes = logprobs + other_logprobs
+            stochastic_nodes = self_logprobs + other_logprobs
 
             # dice objective:
             dice_objective = jnp.mean(
-                jnp.sum(magic_box(dependencies) * discounted_rewards, dim=1)
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
             )
 
-            baseline_term = jnp.mean(
-                jnp.sum(
-                    (1 - magic_box(stochastic_nodes)) * discounted_values,
-                    dim=1,
+            if hp.use_baseline:
+                # variance_reduction:
+                baseline_term = jnp.mean(
+                    jnp.sum(
+                        (1 - magic_box(stochastic_nodes)) * discounted_values,
+                        axis=1,
+                    )
                 )
-            )
-            dice_objective = dice_objective + baseline_term
+                dice_objective = dice_objective + baseline_term
 
             return -dice_objective, {}  # want to minimize -objective
 
@@ -424,19 +388,6 @@ class LOLA:
                 extras={"values": None, "log_probs": None},
             )
 
-        # def in_lookahead(self, other_theta, other_values):
-        #     (s1, s2), _ = ipd.reset()
-        #     other_memory = Memory()
-        #     for t in range(hp.len_rollout):
-        #         a1, lp1, v1 = act(s1, self.theta, self.values)
-        #         a2, lp2, v2 = act(s2, other_theta, other_values)
-        #         (s1, s2), (r1, r2), _, _ = ipd.step((a1, a2))
-        #         other_memory.add(lp2, lp1, v2, torch.from_numpy(r2).float())
-
-        #     other_objective = other_memory.dice_objective()
-        #     grad = get_gradient(other_objective, other_theta)
-        #     return grad
-
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
 
@@ -465,6 +416,10 @@ class LOLA:
         self._policy = policy
         self._rollouts = rollouts
 
+        # initialize some variables
+        self._optimizer = optimizer
+        self.gamma = gamma
+
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
         self._num_steps = num_steps  # number of steps per environment
@@ -479,31 +434,225 @@ class LOLA:
         )
         return utils.to_numpy(actions)
 
-    # def lookahead(self, env, other_agents):
-    #     """
-    #     Performs a rollout using the current parameters of both agents
-    #     and simulates a naive learning update step for the other agent
+    def lookahead(self, env, other_agents):
+        """
+        Performs a rollout using the current parameters of both agents
+        and simulates a naive learning update step for the other agent
 
-    #     INPUT:
-    #     env: SequentialMatrixGame, an environment object of the game being played
-    #     other_agents: list, a list of objects of the other agents
-    #     """
-    #     t = env.reset()
-    #     other_memory = Memory()
-    #     for t in range(hp.len_rollout):
-    #         actions, self.w = self._policy(
-    #             self._state.params, t.observation, self._state
-    #         )
-    #         a1, lp1, v1 = act(s1, self.theta, self.values)
-    #         a2, lp2, v2 = act(s2, other_theta, other_values)
-    #         (s1, s2), (r1, r2), _, _ = ipd.step((a1, a2))
-    #         other_memory.add(lp2, lp1, v2, torch.from_numpy(r2).float())
+        INPUT:
+        env: SequentialMatrixGame, an environment object of the game being played
+        other_agents: list, a list of objects of the other agents
+        """
 
-    #     other_objective = other_memory.dice_objective()
-    #     grad = get_gradient(other_objective, other_theta)
-    #     return grad
+        def loss(log_probs, other_log_probs, values, rewards):
+            # Stacks so that the dimension is now (num_envs, num_steps)
+            self_logprobs = jnp.stack(log_probs, axis=1)
+            other_logprobs = jnp.stack(other_log_probs, axis=1)
+            values = jnp.stack(values, axis=1)
+            rewards = jnp.stack(rewards, axis=1)
 
-    # pass
+            # apply discount:
+            cum_discount = (
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=1)
+                / self.gamma
+            )
+            discounted_rewards = rewards * cum_discount
+            discounted_values = values * cum_discount
+
+            # stochastics nodes involved in rewards dependencies:
+            dependencies = jnp.cumsum(self_logprobs + other_logprobs, axis=1)
+
+            # logprob of each stochastic nodes:
+            stochastic_nodes = self_logprobs + other_logprobs
+
+            # dice objective:
+            dice_objective = jnp.mean(
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+            )
+
+            if hp.use_baseline:
+                # variance_reduction:
+                baseline_term = jnp.mean(
+                    jnp.sum(
+                        (1 - magic_box(stochastic_nodes)) * discounted_values,
+                        axis=1,
+                    )
+                )
+                dice_objective = dice_objective + baseline_term
+
+            return -dice_objective  # want to minimize -objective
+
+        # Reset environment and initialize buffer
+        t = env.reset()
+        # initialize buffer
+        other_memory = Memory()
+        # get the other agent
+        other_agent = other_agents[0]
+        # get a copy of the agent's state
+        my_state = self._state
+        # create a temporary training state for the other agent for the simulated rollout
+        other_state = TrainingState(
+            params=other_agent._state.params,
+            opt_state=other_agent._state.opt_state,
+            random_key=other_agent._state.random_key,
+            timesteps=other_agent._state.timesteps,
+            extras=other_agent._state.extras,
+        )
+
+        # TODO: Replace with jax.lax.scan
+        for _ in range(self._num_steps):
+            # I take an action using my parameters
+            a1, my_state = self._policy(
+                my_state.params, t[0].observation, my_state
+            )
+            # Opponent takes an action using their parameters
+            a2, other_state = self._policy(
+                other_state.params, t[1].observation, other_state
+            )
+            # The environment steps as usual
+            t_prime = env.step((a1, a2))
+            # We add to the buffer as if we are the other player
+            _, r_2 = t_prime[0].reward, t_prime[1].reward
+            other_memory.add(
+                other_state.extras["log_probs"],
+                my_state.extras["log_probs"],
+                other_state.extras["values"],
+                r_2,
+            )
+
+        # unpack the values from the buffer
+        my_logprobs = other_memory.self_logprobs
+        other_logprobs = other_memory.other_logprobs
+        values = other_memory.other_logprobs
+        rewards = other_memory.rewards
+
+        # initialize the grad function
+        grad_fn = jax.grad(loss)
+
+        # calculate the gradients
+        gradients = grad_fn(my_logprobs, other_logprobs, values, rewards)
+
+        # TODO: BREAKS HERE BECAUSE IT EXPECTS A LIST?
+        # update the optimizer
+        updates, opt_state = self._optimizer.update(
+            gradients, other_state.opt_state
+        )
+        # apply the optimizer updates
+        params = optax.apply_updates(other_state.params, updates)
+        # replace the other player's current parameters with a simulated update
+        other_state._replace(params=params)  # might be redundant
+        other_state._replace(opt_state=opt_state)  # might be redundant
+        self._other_state = other_state
+
+    def outer_rollout(self, env):
+        """
+        Performs a real rollout using the current parameters of both agents
+        and a naive learning update step for the other agent
+
+        INPUT:
+        env: SequentialMatrixGame, an environment object of the game being played
+        other_agents: list, a list of objects of the other agents
+        """
+
+        def loss(log_probs, other_log_probs, values, rewards):
+            # Stacks so that the dimension is now (num_envs, num_steps)
+            self_logprobs = jnp.stack(log_probs, axis=1)
+            other_logprobs = jnp.stack(other_log_probs, axis=1)
+            values = jnp.stack(values, axis=1)
+            rewards = jnp.stack(rewards, axis=1)
+
+            # apply discount:
+            cum_discount = (
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=1)
+                / self.gamma
+            )
+            discounted_rewards = rewards * cum_discount
+            discounted_values = values * cum_discount
+
+            # stochastics nodes involved in rewards dependencies:
+            dependencies = jnp.cumsum(self_logprobs + other_logprobs, axis=1)
+
+            # logprob of each stochastic nodes:
+            stochastic_nodes = self_logprobs + other_logprobs
+
+            # dice objective:
+            dice_objective = jnp.mean(
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+            )
+
+            if hp.use_baseline:
+                # variance_reduction:
+                baseline_term = jnp.mean(
+                    jnp.sum(
+                        (1 - magic_box(stochastic_nodes)) * discounted_values,
+                        axis=1,
+                    )
+                )
+                dice_objective = dice_objective + baseline_term
+
+            return -dice_objective  # want to minimize -objective
+
+        # Reset environment and initialize buffer
+        t = env.reset()
+        # initialize buffer
+        memory = Memory()
+        my_state = self._state
+        # create a temporary training state for the other agent for the simulated rollout
+        other_state = TrainingState(
+            params=self._other_state.params,
+            opt_state=self._other_state.opt_state,
+            random_key=self._other_state.random_key,
+            timesteps=self._other_state.timesteps,
+            extras=self._other_state.extras,
+        )
+
+        reward_list = []
+        # TODO: Replace with jax.lax.scan
+        for _ in range(self._num_steps):
+            # I take an action using my parameters
+            a1, my_state = self._policy(
+                my_state.params, t[0].observation, my_state
+            )
+            # Opponent takes an action using their parameters
+            a2, other_state = self._policy(
+                other_state.params, t[1].observation, other_state
+            )
+            # The environment steps as usual
+            t_prime = env.step((a1, a2))
+            # We add to the buffer as if we are the other player
+            r_1, _ = t_prime[0].reward, t_prime[1].reward
+            reward_list.append(r_1)
+            memory.add(
+                my_state.extras["log_probs"],
+                other_state.extras["log_probs"],
+                my_state.extras["values"],
+                r_1,
+            )
+
+        # unpack the values from the buffer
+        my_logprobs = memory.self_logprobs
+        other_logprobs = memory.other_logprobs
+        values = memory.other_logprobs
+        rewards = memory.rewards
+
+        # initialize the grad function
+        grad_fn = jax.grad(loss)
+
+        # calculate the gradients
+        gradients = grad_fn(my_logprobs, other_logprobs, values, rewards)
+        # TODO: Need to include the value function somehow?
+        # TODO: BREAKS HERE BECAUSE IT EXPECTS A LIST?
+        # update the optimizer
+        updates, opt_state = self._optimizer.update(
+            gradients, other_state.opt_state
+        )
+        # apply the optimizer updates
+        params = optax.apply_updates(other_state.params, updates)
+        self._state._replace(params=params)
+        self._state._replace(opt_state=opt_state)
+
+        rewards_array = jnp.array(reward_list)
+        self.rewards = rewards_array
 
     def update(
         self,
@@ -568,10 +717,10 @@ class LOLA:
         # It needs to be able to take in the opponents parameters
         # and then do a rollout under those parameters
         # could do sgd here for other agent?
-        # sample = self._trajectory_buffer.sample()
-        # self._state, results = self._sgd_step(
-        #     self._state, other_agent_params, sample
-        # )
+        sample = self._trajectory_buffer.sample()
+        self._state, results = self._sgd_step(
+            self._state, self.other_params, sample
+        )
         # self._logger.metrics["sgd_steps"] += (
         #     self._num_minibatches * self._num_epochs
         # )
@@ -614,7 +763,6 @@ def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
         num_minibatches=args.ppo.num_minibatches,
         num_epochs=args.ppo.num_epochs,
         gamma=args.ppo.gamma,
-        gae_lambda=args.ppo.gae_lambda,
     )
 
 

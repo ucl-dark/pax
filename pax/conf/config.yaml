@@ -21,7 +21,7 @@ agent2: 'LOLA'
 env_id: ipd
 game: ipd 
 env_type: finite
-env_discount: 0.99
+env_discount: 0.96
 payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 centralized: True
 
@@ -75,7 +75,7 @@ naive:
 
 # LOLA agent parameters
 lola: 
-  replay_capacity: 100000 #args.lola.replay_capacity, 
+  replay_capacity: 1000 #args.lola.replay_capacity, 
   min_replay_size: 50   #args.lola.min_replay_size, 
   sgd_period: 1           #args.dqn.sgd_period,
   batch_size: 2         #args.dqn.batch_size
