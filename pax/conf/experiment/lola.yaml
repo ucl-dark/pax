@@ -9,15 +9,15 @@ centralized: True
 env_id: ipd
 game: ipd 
 env_type: finite
-env_discount: 0.99
+env_discount: 0.96
 payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 
 
 # Training hyperparameters
-num_envs: 10
+num_envs: 128
 num_steps: 150 # number of steps per episode
-total_timesteps: 100_000
-eval_every: 4000 # timesteps
+total_timesteps: 10_000_000
+eval_every: 50_000 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -26,10 +26,12 @@ eval_every: 4000 # timesteps
 
 # LOLA agent parameters
 lola: 
-  replay_capacity: 100000 
-  min_replay_size: 50   
-  sgd_period: 1         
-  batch_size: 2         
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  learning_rate: 0.2
+  lr_in: 0.3 
+  lr_out: 0.2
+  gamma: 0.96
 
 # Logging setup
 wandb:
@@ -37,4 +39,4 @@ wandb:
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}
-  log: False
+  log: True

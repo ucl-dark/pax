@@ -259,10 +259,7 @@ def policy_logger_lola(agent) -> None:
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
-        f"policy/{str(s)}/{agent.player_id}/player_{agent.player_id}.cooperate": p[
-            0
-        ]
-        for (s, p) in zip(State, pi)
+        f"policy/{agent.player_id}/{str(s)}": p[0] for (s, p) in zip(State, pi)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs

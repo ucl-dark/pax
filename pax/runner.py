@@ -23,58 +23,60 @@ class Runner:
         print("Training ")
         print("-----------------------")
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+
             # TODO: Inner rollout
             # 1. Get other agents' parameters
             # 2. Do a rollout
             # 3. Simulate gradient update
-            agents.lookahead(env)
 
             # NOTE: Outer for loop begins
-            # rewards_0, rewards_1 = [], []
-            # t = env.reset()
-            # while not (t[0].last()):
-            #     actions = agents.select_action(t)
-            #     t_prime = env.step(actions)
-            #     r_0, r_1 = t_prime[0].reward, t_prime[1].reward
+            rewards_0, rewards_1 = [], []
+            t = env.reset()
+            while not (t[0].last()):
+                actions = agents.select_action(t)
+                t_prime = env.step(actions)
+                r_0, r_1 = t_prime[0].reward, t_prime[1].reward
 
-            #     # append step rewards to episode rewards
-            #     rewards_0.append(r_0)
-            #     rewards_1.append(r_1)
+                # append step rewards to episode rewards
+                rewards_0.append(r_0)
+                rewards_1.append(r_1)
 
-            #     agents.update(t, actions, t_prime)
-            #     self.train_steps += 1
+                # agents.update(t, actions, t_prime)
+                self.train_steps += 1
 
-            #     # book keeping
-            #     t = t_prime
+                # book keeping
+                t = t_prime
 
-            #     # logging
-            #     # if watchers:
-            #     #     agents.log(watchers, None)
-            #     #     wandb.log(
-            #     #         {
-            #     #             "train/training_steps": self.train_steps,
-            #     #             "train/step_reward/player_1": float(
-            #     #                 jnp.array(r_0).mean()
-            #     #             ),
-            #     #             "train/step_reward/player_2": float(
-            #     #                 jnp.array(r_1).mean()
-            #     #             ),
-            #     #             "time_elapsed_minutes": (
-            #     #                 time.time() - self.start_time
-            #     #             )
-            #     #             / 60,
-            #     #             "time_elapsed_seconds": time.time()
-            #     #             - self.start_time,
-            #     #         }
-            #     #     )
+                # logging
+                if watchers:
+                    agents.log(watchers)
+                    wandb.log(
+                        {
+                            "train/training_steps": self.train_steps,
+                            "train/step_reward/player_1": float(
+                                jnp.array(r_0).mean()
+                            ),
+                            "train/step_reward/player_2": float(
+                                jnp.array(r_1).mean()
+                            ),
+                            "time_elapsed_minutes": (
+                                time.time() - self.start_time
+                            )
+                            / 60,
+                            "time_elapsed_seconds": time.time()
+                            - self.start_time,
+                        }
+                    )
+            agents.in_lookahead(env)
             agents.out_lookahead(env)
-
+            # print("Agent 1 params", agents.agents[0]._state.params["categorical_value_head/~/linear"]["w"])
+            # print("Agent 2 params", agents.agents[1]._state.params["categorical_value_head/~/linear"]["w"])
             # end of episode stats
             self.train_episodes += env.num_envs
-            # rewards_0 = jnp.array(rewards_0)
-            # rewards_1 = jnp.array(rewards_1)
-            rewards_0 = jnp.array(agents.agents[0].rewards)
-            rewards_1 = jnp.array(agents.agents[1].rewards)
+            rewards_0 = jnp.array(rewards_0)
+            rewards_1 = jnp.array(rewards_1)
+            # rewards_0 = jnp.array(agents.agents[0].rewards)
+            # rewards_1 = jnp.array(agents.agents[1].rewards)
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"

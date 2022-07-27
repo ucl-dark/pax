@@ -18,20 +18,25 @@ class CentralizedLearners:
             agent.select_action(t) for agent, t in zip(self.agents, timesteps)
         ]
 
-    def lookahead(self, env):
+    def in_lookahead(self, env):
         """Simulates a rollout and gradient update"""
         counter = 0
         for agent in self.agents:
             # All other agents in a list
             # i.e. if i am agent2, then other_agents=[agent1, agent3, agent4 ...]
             other_agents = self.agents[:counter] + self.agents[counter + 1 :]
-            agent.lookahead(env, other_agents)
+            agent.in_lookahead(env, other_agents)
             counter += 1
 
     def out_lookahead(self, env):
         """Performs a real rollout and update"""
+        counter = 0
         for agent in self.agents:
-            agent.out_lookahead(env)
+            # All other agents in a list
+            # i.e. if i am agent2, then other_agents=[agent1, agent3, agent4 ...]
+            other_agents = self.agents[:counter] + self.agents[counter + 1 :]
+            agent.out_lookahead(env, other_agents)
+            counter += 1
 
     def update(
         self,
