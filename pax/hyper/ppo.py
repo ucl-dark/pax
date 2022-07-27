@@ -5,7 +5,6 @@ from re import T
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
-from pax.hyper.buffer import TrajectoryBuffer
 from pax.hyper.networks import make_network
 
 from dm_env import TimeStep
@@ -89,22 +88,6 @@ class PPO:
             return (
                 actions,
                 state,
-            )
-
-        def rollouts(
-            buffer: TrajectoryBuffer,
-            t: TimeStep,
-            actions: np.array,
-            t_prime: TimeStep,
-            action_extras: Tuple[jnp.array],
-        ) -> None:
-            """Stores rollout in buffer"""
-            buffer.add(
-                t,
-                actions,
-                action_extras["log_probs"],
-                action_extras["values"],
-                t_prime,
             )
 
         def gae_advantages(
@@ -244,13 +227,6 @@ class PPO:
             # Exclude the last step - it was only used for bootstrapping.
             # The shape is [num_steps, num_envs, ..]
             behavior_values = behavior_values[:-1, :]
-            # (
-            #     behavior_values,
-            # ) = jax.tree_map(
-            #     lambda x: x[:-1, :],
-            #     (behavior_values),
-            # )
-
             trajectories = Batch(
                 observations=observations,
                 actions=actions,
@@ -431,10 +407,6 @@ class PPO:
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
         self.prepare_batch = prepare_batch
-        # Initialize buffer and sgd
-        self._trajectory_buffer = TrajectoryBuffer(
-            num_envs, num_steps, obs_spec
-        )
         self._sgd_step = sgd_step
 
         # Set up counters and logger
@@ -453,7 +425,6 @@ class PPO:
 
         # Initialize functions
         self._policy = policy
-        self._rollouts = rollouts
         self.forward = network.apply
         self.player_id = player_id
 
@@ -466,7 +437,7 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, extras = self._policy(
+        actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         return actions
@@ -477,7 +448,9 @@ class PPO:
         t_prime: TimeStep,
         state,
     ):
-        _, _ = self._policy(state.params, t_prime.observation, state)
+
+        """Update the agent -> only called at the end of a trajectory"""
+        _, state = self._policy(state.params, t_prime.observation, state)
 
         traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)

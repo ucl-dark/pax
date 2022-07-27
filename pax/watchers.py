@@ -4,7 +4,6 @@ from pax.naive_learners import NaiveLearnerEx
 from .env import State
 import jax.numpy as jnp
 import pax.hyper.ppo as HyperPPO
-import pax.hyper.ppo_gru as HyperPPOMemory
 import pax.ppo.ppo as PPO
 
 # five possible states
@@ -115,32 +114,6 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     for state, state_name in zip(ALL_STATES, STATE_NAMES):
         (dist, _), hidden = agent.forward(params, state, hidden)
         cooperation_probs[f"policy/{state_name}"] = float(dist.probs[0][0])
-    return cooperation_probs
-
-
-def policy_logger_hyper_gru(agent: HyperPPOMemory) -> dict:
-    """Calculate probability of coopreation"""
-    # n = 5
-    params = agent._state.params
-    hidden = agent._state.hidden
-    episode = int(
-        agent._logger.metrics["total_steps"]
-        / (agent._num_steps * agent._num_envs)
-    )
-    cooperation_probs = {"episode": episode}
-    pid = agent.player_id
-
-    # TODO: Figure out how to JIT the forward function
-    # Works when the forward function is not jitted.
-    (dist, _), hidden = agent.forward(params, 0.5 * jnp.ones((1, 10)), hidden)
-    mu, var = dist.mean(), dist.variance()
-    for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[f"policy/hyper_{pid}/mu/{state_name}"] = float(
-            mu[0][i]
-        )
-        cooperation_probs[f"policy/hyper_{pid}/var/{state_name}"] = float(
-            var[0][i]
-        )
     return cooperation_probs
 
 

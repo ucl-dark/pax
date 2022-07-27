@@ -9,7 +9,6 @@ from pax.env import (
     SequentialMatrixGame,
 )
 from pax.hyper.ppo import make_hyper
-from pax.hyper.ppo_gru import make_gru_hyper
 from pax.independent_learners import IndependentLearners
 from pax.naive_learners import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
@@ -214,22 +213,13 @@ def agent_setup(args, logger):
             args.seed,
         )
 
-        if args.ppo.with_memory:
-            hyper_agent = make_gru_hyper(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().shape[1],
-                seed=seed,
-                player_id=player_id,
-            )
-        else:
-            hyper_agent = make_hyper(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().shape[1],
-                seed=seed,
-                player_id=player_id,
-            )
+        hyper_agent = make_hyper(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().shape[1],
+            seed=seed,
+            player_id=player_id,
+        )
         return hyper_agent
 
     def get_naive_learner(seed, player_id):
