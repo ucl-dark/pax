@@ -1,13 +1,9 @@
 from functools import partial
-from typing import Any, NamedTuple, Tuple
-from chex import PRNGKey
-import optax
+from typing import NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
-
-from pax.env import InfiniteMatrixGame
 
 # states are [CC, DC, CD, DD, START]
 # actions are cooperate = 0 or defect = 1
@@ -49,6 +45,13 @@ from pax.env import InfiniteMatrixGame
 #         return action, key
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    timesteps: int
+    num_episodes: int
+
+
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
@@ -76,8 +79,9 @@ class GrimTrigger:
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
+    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -88,6 +92,17 @@ class TitForTat:
 
     def update(self, *args) -> None:
         pass
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        return self._reciprocity(obs), self._state
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # now either 0, 1, 2, 3
@@ -104,7 +119,7 @@ class TitForTat:
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
     def select_action(
         self,
@@ -119,11 +134,23 @@ class Defect:
     def update(self, *args) -> None:
         pass
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        batch_size = obs.shape[0]
+        return jnp.ones((batch_size,)), self._state, None
+
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(None, None, None)
 
     def select_action(
         self,
@@ -137,6 +164,18 @@ class Altruistic:
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
         return jnp.zeros((batch_size,))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        batch_size = obs.shape[0]
+        return jnp.zeros((batch_size,)), self._state, None
 
     def update(self, *args) -> None:
         pass
@@ -177,13 +216,6 @@ class Random:
             ),
             None,
         )
-
-
-class TrainingState(NamedTuple):
-    # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
-    timesteps: int
-    num_episodes: int
 
 
 class HyperAltruistic:
