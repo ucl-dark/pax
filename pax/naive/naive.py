@@ -122,8 +122,6 @@ class NaiveLearner:
             #     )
             # advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
 
-            # this is where the gae function will end
-
             def _get_advantages(gae_and_next_value, transition):
                 gae, next_value = gae_and_next_value
                 value, reward, discounts = transition
@@ -340,8 +338,10 @@ class NaiveLearner:
 
             return new_state, metrics
 
+        @jax.jit
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
+            obs_spec = 5
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)

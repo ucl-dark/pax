@@ -224,7 +224,6 @@ class PPO:
                 "entropy_cost": entropy_cost,
             }
 
-        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -290,8 +289,9 @@ class PPO:
             )
 
             # Compute gradients.
-            grad_fn = jax.grad(loss, has_aux=True)
+            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
+            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -324,6 +324,7 @@ class PPO:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
+            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch

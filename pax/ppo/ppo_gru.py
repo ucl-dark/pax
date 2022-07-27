@@ -223,12 +223,79 @@ class PPO:
             }
             # }, new_rnn_unroll_state
 
+        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
+
         @jax.jit
+        def model_update_minibatch(
+            carry: Tuple[hk.Params, optax.OptState, int],
+            minibatch: Batch,
+        ) -> Tuple[
+            Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
+        ]:
+            """Performs model update for a single minibatch."""
+            params, opt_state, timesteps = carry
+            # Normalize advantages at the minibatch level before using them.
+            advantages = (
+                minibatch.advantages - jnp.mean(minibatch.advantages, axis=0)
+            ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+            gradients, metrics = self.grad_fn(
+                params,
+                timesteps,
+                minibatch.observations,
+                minibatch.actions,
+                minibatch.behavior_log_probs,
+                minibatch.target_values,
+                advantages,
+                minibatch.behavior_values,
+                minibatch.hiddens,
+            )
+
+            # Apply updates
+            updates, opt_state = optimizer.update(gradients, opt_state)
+            params = optax.apply_updates(params, updates)
+
+            metrics["norm_grad"] = optax.global_norm(gradients)
+            metrics["norm_updates"] = optax.global_norm(updates)
+            return (params, opt_state, timesteps), metrics
+
+        batch_size = num_envs * num_steps
+
+        @jax.jit
+        def model_update_epoch(
+            carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
+            unused_t: Tuple[()],
+        ) -> Tuple[
+            Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+            Dict[str, jnp.ndarray],
+        ]:
+            """Performs model updates based on one epoch of data."""
+            key, params, opt_state, timesteps, batch = carry
+            key, subkey = jax.random.split(key)
+            permutation = jax.random.permutation(subkey, batch_size)
+            shuffled_batch = jax.tree_map(
+                lambda x: jnp.take(x, permutation, axis=0), batch
+            )
+            shuffled_batch = batch
+            minibatches = jax.tree_map(
+                lambda x: jnp.reshape(
+                    x, [num_minibatches, -1] + list(x.shape[1:])
+                ),
+                shuffled_batch,
+            )
+
+            (params, opt_state, timesteps), metrics = jax.lax.scan(
+                model_update_minibatch,
+                (params, opt_state, timesteps),
+                minibatches,
+                length=num_minibatches,
+            )
+            return (key, params, opt_state, timesteps, batch), metrics
+
+        # @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
             """Performs a minibatch SGD step, returning new state and metrics."""
-
             # Extract data
             (
                 observations,
@@ -258,23 +325,6 @@ class PPO:
             # The shape is [num_envs, num_steps, ..]
             behavior_values = behavior_values[:-1, :]
 
-            # (
-            #     observations,
-            #     actions,
-            #     behavior_log_probs,
-            #     behavior_values,
-            #     hiddens,
-            # ) = jax.tree_map(
-            #     lambda x: x[:, :-1],
-            #     (
-            #         observations,
-            #         actions,
-            #         behavior_log_probs,
-            #         behavior_values,
-            #         hiddens,
-            #     ),
-            # )
-
             trajectories = Batch(
                 observations=observations,
                 actions=actions,
@@ -299,73 +349,6 @@ class PPO:
             batch = jax.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
-
-            # Compute gradients.
-            grad_fn = jax.grad(loss, has_aux=True)
-
-            def model_update_minibatch(
-                carry: Tuple[hk.Params, optax.OptState, int],
-                minibatch: Batch,
-            ) -> Tuple[
-                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
-            ]:
-                """Performs model update for a single minibatch."""
-                params, opt_state, timesteps = carry
-                # Normalize advantages at the minibatch level before using them.
-                advantages = (
-                    minibatch.advantages
-                    - jnp.mean(minibatch.advantages, axis=0)
-                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
-                gradients, metrics = grad_fn(
-                    params,
-                    timesteps,
-                    minibatch.observations,
-                    minibatch.actions,
-                    minibatch.behavior_log_probs,
-                    minibatch.target_values,
-                    advantages,
-                    minibatch.behavior_values,
-                    minibatch.hiddens,
-                )
-
-                # Apply updates
-                updates, opt_state = optimizer.update(gradients, opt_state)
-                params = optax.apply_updates(params, updates)
-
-                metrics["norm_grad"] = optax.global_norm(gradients)
-                metrics["norm_updates"] = optax.global_norm(updates)
-                return (params, opt_state, timesteps), metrics
-
-            def model_update_epoch(
-                carry: Tuple[
-                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
-                ],
-                unused_t: Tuple[()],
-            ) -> Tuple[
-                Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
-                Dict[str, jnp.ndarray],
-            ]:
-                """Performs model updates based on one epoch of data."""
-                key, params, opt_state, timesteps, batch = carry
-                key, subkey = jax.random.split(key)
-                permutation = jax.random.permutation(subkey, batch_size)
-                shuffled_batch = jax.tree_map(
-                    lambda x: jnp.take(x, permutation, axis=0), batch
-                )
-                minibatches = jax.tree_map(
-                    lambda x: jnp.reshape(
-                        x, [num_minibatches, -1] + list(x.shape[1:])
-                    ),
-                    shuffled_batch,
-                )
-
-                (params, opt_state, timesteps), metrics = jax.lax.scan(
-                    model_update_minibatch,
-                    (params, opt_state, timesteps),
-                    minibatches,
-                    length=num_minibatches,
-                )
-                return (key, params, opt_state, timesteps, batch), metrics
 
             params = state.params
             opt_state = state.opt_state
