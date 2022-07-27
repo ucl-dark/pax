@@ -6,12 +6,12 @@ import jax
 import jax.numpy as jnp
 from dm_env import (
     Environment,
+    StepType,
     TimeStep,
     restart,
     specs,
     termination,
     transition,
-    StepType,
 )
 
 #              CC      CD     DC     DD

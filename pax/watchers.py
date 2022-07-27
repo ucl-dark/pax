@@ -1,10 +1,11 @@
+import jax.numpy as jnp
 from flax import linen as nn
 
-from pax.naive_learners import NaiveLearnerEx
-from .env import State
-import jax.numpy as jnp
 import pax.hyper.ppo as HyperPPO
 import pax.ppo.ppo as PPO
+from pax.naive_learners import NaiveLearnerEx
+
+from .env import State
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])

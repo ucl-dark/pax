@@ -2,17 +2,17 @@
 
 from functools import partial
 from re import T
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.hyper.networks import make_network
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from dm_env import TimeStep
+
+from pax import utils
+from pax.hyper.networks import make_network
 
 
 class Batch(NamedTuple):

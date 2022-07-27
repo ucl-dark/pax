@@ -1,48 +1,45 @@
 import logging
 import os
 
+import hydra
 import omegaconf
 
+import wandb
 from pax.dqn.agent import default_agent
-from pax.env import (
-    SequentialMatrixGame,
-)
-from pax.meta_env import InfiniteMatrixGame
+from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
+from pax.meta_env import InfiniteMatrixGame
 from pax.naive_learners import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
 from pax.sac.agent import SAC
 from pax.strategies import (
+    Altruistic,
+    Defect,
+    GrimTrigger,
+    Human,
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
-    TitForTat,
-    Defect,
-    Altruistic,
     Random,
-    Human,
-    GrimTrigger,
+    TitForTat,
 )
 from pax.utils import Section
 from pax.watchers import (
+    logger_hyper,
     logger_naive,
     losses_naive,
+    losses_ppo,
     policy_logger,
     policy_logger_dqn,
-    logger_hyper,
+    policy_logger_ppo,
+    policy_logger_ppo_with_memory,
     value_logger,
     value_logger_dqn,
-    losses_ppo,
-    policy_logger_ppo,
     value_logger_ppo,
-    policy_logger_ppo_with_memory,
 )
-
-import hydra
-import wandb
 
 
 def global_setup(args):
