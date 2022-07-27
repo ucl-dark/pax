@@ -1,5 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
+from functools import partial
 from re import T
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
@@ -37,7 +38,7 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    # extras: Mapping[str, jnp.ndarray]
+    extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -76,19 +77,18 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            # state.extras["values"] = values
-            # state.extras["log_probs"] = dist.log_prob(actions)
+            state.extras["values"] = values
+            state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
                 params=params,
                 opt_state=state.opt_state,
                 random_key=key,
                 timesteps=state.timesteps,
-                # extras=state.extras,
+                extras=state.extras,
             )
             return (
                 actions,
                 state,
-                {"values": values, "log_probs": dist.log_prob(actions)},
             )
 
         def rollouts(
@@ -365,11 +365,15 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                # extras={"log_probs": None, "values": None},
+                extras={
+                    "log_probs": jnp.zeros_like(state.extras["log_probs"]),
+                    "values": jnp.zeros_like(state.extras["log_probs"]),
+                },
             )
 
             return new_state, metrics
 
+        @partial(jax.jit, static_argnums=(1,))
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -382,7 +386,10 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                # extras={"values": None, "log_probs": None},
+                extras={
+                    "values": jnp.zeros((num_envs)),
+                    "log_probs": jnp.zeros((num_envs)),
+                },
             )
 
         @jax.jit
@@ -470,11 +477,9 @@ class PPO:
         t_prime: TimeStep,
         state,
     ):
-        _, _, action_extras = self._policy(
-            state.params, t_prime.observation, state
-        )
+        _, _ = self._policy(state.params, t_prime.observation, state)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, action_extras)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs

@@ -85,9 +85,10 @@ class NaiveLearnerEx:
             "loss_total": 0,
         }
 
-    def reset_state(self, t: TimeStep):
+    def make_initial_state(self, t: TimeStep):
         return TrainingState(t.observation[:, :5], timesteps=0, num_episodes=0)
 
+    @jax.jit
     def select_action(
         self,
         t: TimeStep,

@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'Hyper'
-agent2: 'NaiveLearner'
+agent2: 'NaiveLearnerEx'
 
 # Environment
 env_id: ipd

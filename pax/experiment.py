@@ -263,7 +263,7 @@ def agent_setup(args, logger):
         "PPO_memory": get_PPO_memory_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearner": get_naive_learner,
+        "NaiveLearnerEx": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -352,7 +352,7 @@ def watcher_setup(args, logger):
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "Hyper": hyper_log,
-        "NaiveLearner": naive_logger,
+        "NaiveLearnerEx": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,

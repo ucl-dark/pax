@@ -45,7 +45,7 @@ class Runner:
 
         def _env_rollout(carry, unused):
             t1, t2, a1_state, a2_state = carry
-            a1, a1_state, a1_extras = agent1._policy(
+            a1, a1_state = agent1._policy(
                 a1_state.params, t1.observation, a1_state
             )
             a2, a2_state = agent2._policy(
@@ -61,8 +61,8 @@ class Runner:
                 t1.observation,
                 a1,
                 tprime_1.reward,
-                a1_extras["log_probs"],
-                a1_extras["values"],
+                a1_state.extras["log_probs"],
+                a1_state.extras["values"],
                 tprime_1.last() * jnp.zeros(env.num_envs),
                 None,
             )
@@ -80,9 +80,10 @@ class Runner:
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
 
-            # uniquely nl code required here.
             a1_state = agent1._state
-            a2_state = agent2.reset_state(t_init[1])
+
+            # unique naive-learner code
+            a2_state = agent2.make_initial_state(t_init[1])
 
             # rollout episode
             vals, trajectories = jax.lax.scan(
@@ -118,7 +119,10 @@ class Runner:
                     },
                 )
         print()
-        agents.agents[1]._state = a1_state
+
+        # update agents
+        agents.agents[0]._state = a1_state
+        agents.agents[1]._state = a2_state
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):
