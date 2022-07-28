@@ -52,7 +52,8 @@ class LOLA:
     def __init__(
         self,
         network: NamedTuple,
-        optimizer: optax.GradientTransformation,
+        inner_optimizer: optax.GradientTransformation,
+        outer_optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         player_id: int,
         obs_spec: Tuple,
@@ -149,7 +150,7 @@ class LOLA:
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
-            initial_opt_state = optimizer.init(initial_params)
+            initial_opt_state = outer_optimizer.init(initial_params)
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -169,6 +170,7 @@ class LOLA:
             num_envs, num_steps, obs_spec
         )
 
+        # self.grad_fn = jax.grad(loss, has_aux=True)
         self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
         # Set up counters and logger
@@ -188,7 +190,8 @@ class LOLA:
         self.network = network
 
         # initialize some variables
-        self._optimizer = optimizer
+        self._inner_optimizer = inner_optimizer
+        self._outer_optimizer = outer_optimizer
         self.gamma = gamma
 
         # Other useful hyperparameters
@@ -263,7 +266,7 @@ class LOLA:
         )
 
         # Update the optimizer
-        updates, opt_state = self._optimizer.update(
+        updates, opt_state = self._inner_optimizer.update(
             gradients, other_state.opt_state
         )
 
@@ -336,7 +339,7 @@ class LOLA:
         )
 
         # Update the optimizer
-        updates, opt_state = self._optimizer.update(
+        updates, opt_state = self._outer_optimizer.update(
             gradients, my_state.opt_state
         )
 
@@ -449,9 +452,13 @@ def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
     #     * args.ppo.num_minibatches
     # )
 
-    optimizer = optax.chain(
+    inner_optimizer = optax.chain(
         optax.scale_by_adam(eps=args.lola.adam_epsilon),
-        optax.scale(-args.lola.learning_rate),
+        optax.scale(-args.lola.lr_in),
+    )
+    outer_optimizer = optax.chain(
+        optax.scale_by_adam(eps=args.lola.adam_epsilon),
+        optax.scale(-args.lola.lr_out),
     )
 
     # Random key
@@ -459,7 +466,8 @@ def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
 
     return LOLA(
         network=network,
-        optimizer=optimizer,
+        inner_optimizer=inner_optimizer,
+        outer_optimizer=outer_optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
         player_id=player_id,
