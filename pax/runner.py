@@ -1,16 +1,14 @@
 import time
+from typing import NamedTuple
 
 import jax
-
-from pax.env import IteratedPrisonersDilemma
-from pax.independent_learners import IndependentLearners
-from pax.strategies import TitForTat, Defect
-
 import jax.numpy as jnp
-import wandb
-from typing import NamedTuple
 from dm_env import transition
 
+import wandb
+from pax.env import IteratedPrisonersDilemma
+from pax.independent_learners import IndependentLearners
+from pax.strategies import Defect, TitForTat
 
 # TODO: make these a copy of acme
 
@@ -30,12 +28,13 @@ class Sample(NamedTuple):
 class Runner:
     """Holds the runner's state."""
 
-    def __init__(self):
+    def __init__(self, args):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
         self.eval_episodes = 0
         self.start_time = time.time()
+        self.args = args
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -81,9 +80,10 @@ class Runner:
             t_init = env.reset()
 
             a1_state = agent1._state
-
-            # unique naive-learner code
-            a2_state = agent2.make_initial_state(t_init[1])
+            a2_state = agent2._state
+            if self.args.agent2 == "NaiveLearnerEx":
+                # unique naive-learner code
+                a2_state = agent2.make_initial_state(t_init[1])
 
             # rollout episode
             vals, trajectories = jax.lax.scan(

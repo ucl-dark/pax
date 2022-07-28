@@ -15,7 +15,7 @@ debug: False
 
 # Agents  
 agent1: 'Hyper'
-agent2: 'NaiveLearner'
+agent2: 'NaiveLearnerEx'
 
 # Environment
 env_id: ipd
@@ -35,16 +35,6 @@ eval_every: 0.4e9 # timesteps for update
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
-# DQN agent parameters
-dqn: 
-  batch_size: 256
-  discount: 0.99
-  learning_rate: 1e-2
-  epsilon: 0.5
-  replay_capacity: 100000
-  min_replay_size: 1000
-  sgd_period: 1 
-  target_update_period: 4 
 
 # PPO agent parameters
 ppo:
@@ -81,3 +71,15 @@ wandb:
   group: 'MFOS-${agent1}-vs-${agent2}-${game}'
   name: run-seed-${seed}
   log: True
+
+
+# DQN agent parameters
+dqn: 
+  batch_size: 256
+  discount: 0.99
+  learning_rate: 1e-2
+  epsilon: 0.5
+  replay_capacity: 100000
+  min_replay_size: 1000
+  sgd_period: 1 
+  target_update_period: 4 

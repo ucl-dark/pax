@@ -1,11 +1,11 @@
-from typing import Optional, Any, Callable, Tuple, NamedTuple
-
-from pax import utils
+from typing import Any, Callable, NamedTuple, Optional, Tuple
 
 import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+
+from pax import utils
 
 
 class CategoricalValueHead(hk.Module):

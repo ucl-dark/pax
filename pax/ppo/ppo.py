@@ -1,17 +1,17 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import make_network, make_cartpole_network
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from dm_env import TimeStep
+
+from pax import utils
+from pax.ppo.buffer import TrajectoryBuffer
+from pax.ppo.networks import make_cartpole_network, make_network
 
 
 class Batch(NamedTuple):

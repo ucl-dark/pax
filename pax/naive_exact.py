@@ -82,11 +82,11 @@ class NaiveLearnerEx:
                 params=new_params,
                 timesteps=state.timesteps + 1,
                 num_episodes=state.num_episodes,
-                loss=loss,
+                loss=loss.sum(),
             )
             return new_params, _state
 
-        self.policy = policy
+        self._policy = policy
 
         self.player_id = player_id
         self.action_dim = action_dim
@@ -108,14 +108,16 @@ class NaiveLearnerEx:
         )
 
     def make_initial_state(self, t: TimeStep):
-        return TrainingState(t.observation[:, :5], timesteps=0, num_episodes=0)
+        return TrainingState(
+            t.observation[:, :5], timesteps=0, num_episodes=0, loss=0
+        )
 
     def select_action(
         self,
         t: TimeStep,
     ) -> jnp.ndarray:
 
-        action, self._state = self.policy(
+        action, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         self._logger.metrics["sgd_steps"] += 1

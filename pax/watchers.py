@@ -3,7 +3,7 @@ from flax import linen as nn
 
 import pax.hyper.ppo as HyperPPO
 import pax.ppo.ppo as PPO
-from pax.naive_learners import NaiveLearnerEx
+from pax.naive_exact import NaiveLearnerEx
 
 from .env import State
 

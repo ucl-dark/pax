@@ -1,21 +1,21 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.ppo.buffer import TrajectoryBuffer
-from pax.ppo.networks import (
-    make_GRU,
-    make_GRU_cartpole_network,
-    make_cartpole_network,
-)
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from dm_env import TimeStep
+
+from pax import utils
+from pax.ppo.buffer import TrajectoryBuffer
+from pax.ppo.networks import (
+    make_cartpole_network,
+    make_GRU,
+    make_GRU_cartpole_network,
+)
 
 
 class Batch(NamedTuple):
@@ -551,7 +551,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
-    return PPO(
+    agent = PPO(
         network=network,
         initial_hidden_state=initial_hidden_state,
         optimizer=optimizer,
@@ -572,6 +572,9 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
     )
+
+    agent.player_id = player_id
+    return agent
 
 
 if __name__ == "__main__":
