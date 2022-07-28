@@ -63,7 +63,7 @@ class Runner:
                 a1_state.extras["log_probs"],
                 a1_state.extras["values"],
                 tprime_1.last() * jnp.zeros(env.num_envs),
-                None,
+                a1_state.hidden,
             )
             traj2 = Sample(
                 t2.observation,
@@ -97,14 +97,20 @@ class Runner:
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
 
-            # update agent / add final trajectory
-            final_t1 = vals[0]._replace(step_type=2)
-            a1_state = vals[2]
-            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
 
+            # update agent / add final trajectory
+            final_t1 = vals[0]._replace(step_type=2)
+            a1_state = vals[2]
+            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
+
+            final_t2 = vals[1]._replace(step_type=2)
+            a2_state = vals[3]
+            a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+
+            # logging
             if watchers:
                 agents.log(watchers)
                 wandb.log(
@@ -130,6 +136,10 @@ class Runner:
         print("Evaluating")
         print("-----------------------")
         agents.eval(True)
+        agent1, agent2 = agents.agents
+        agent1.reset_memory()
+        agent2.reset_memory()
+
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()

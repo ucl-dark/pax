@@ -91,7 +91,7 @@ class TitForTat:
         return self._reciprocity(timestep.observation)
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -135,7 +135,7 @@ class Defect:
         return jnp.ones((batch_size,))
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -187,7 +187,7 @@ class Altruistic:
         return jnp.zeros((batch_size,)), self._state, None
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
 
 class Human:
@@ -270,7 +270,7 @@ class HyperDefect:
         return -20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -309,7 +309,7 @@ class HyperTFT:
         return action, state
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state

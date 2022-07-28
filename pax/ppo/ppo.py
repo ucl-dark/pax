@@ -38,6 +38,7 @@ class TrainingState(NamedTuple):
     random_key: jnp.ndarray
     timesteps: int
     extras: Mapping[str, jnp.ndarray]
+    hidden: None
 
 
 class Logger:
@@ -83,6 +84,7 @@ class PPO:
                 random_key=key,
                 timesteps=state.timesteps,
                 extras=state.extras,
+                hidden=None,
             )
             return actions, state
 
@@ -372,6 +374,7 @@ class PPO:
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
+                hidden=None,
             )
             return new_state, metrics
 
@@ -393,6 +396,7 @@ class PPO:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
+                hidden=None,
             )
 
         # Initialise training state (parameters, optimiser state, extras).
