@@ -69,14 +69,10 @@ class Runner:
                     )
             agents.in_lookahead(env)
             agents.out_lookahead(env)
-            # print("Agent 1 params", agents.agents[0]._state.params["categorical_value_head/~/linear"]["w"])
-            # print("Agent 2 params", agents.agents[1]._state.params["categorical_value_head/~/linear"]["w"])
             # end of episode stats
             self.train_episodes += env.num_envs
             rewards_0 = jnp.array(rewards_0)
             rewards_1 = jnp.array(rewards_1)
-            # rewards_0 = jnp.array(agents.agents[0].rewards)
-            # rewards_1 = jnp.array(agents.agents[1].rewards)
             mean_r_0 = float(rewards_1.mean())
             mean_r_1 = float(rewards_1.mean())
 

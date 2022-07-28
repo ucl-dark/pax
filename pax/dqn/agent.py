@@ -183,7 +183,6 @@ class DQN(base.Agent):
         timestep: dm_env.TimeStep,
         action: jnp.array,
         new_timestep: dm_env.TimeStep,
-        other_agents=None,
     ):
 
         self._replay.add_batch(

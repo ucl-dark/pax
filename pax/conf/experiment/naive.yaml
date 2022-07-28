@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'Naive'
-agent2: 'TitForTat'
+agent2: 'Naive'
 
 # Environment
 env_id: ipd
