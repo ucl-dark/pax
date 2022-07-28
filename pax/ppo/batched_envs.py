@@ -2,7 +2,6 @@ from tokenize import String
 
 import gym
 import jax.numpy as jnp
-import numpy as np
 from bsuite.utils import gym_wrapper
 from dm_env import Environment, TimeStep, specs
 

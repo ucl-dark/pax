@@ -2,7 +2,6 @@ from typing import NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 from dm_env import TimeStep
 
 
