@@ -93,6 +93,9 @@ class TitForTat:
     def update(self, *args) -> None:
         pass
 
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
+
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
@@ -134,6 +137,9 @@ class Defect:
     def update(self, *args) -> None:
         pass
 
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
+
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
@@ -164,6 +170,9 @@ class Altruistic:
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
         return jnp.zeros((batch_size,))
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(

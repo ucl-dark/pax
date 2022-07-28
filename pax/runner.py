@@ -78,9 +78,9 @@ class Runner:
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
+            a1_state = agent1.reset_memory()
+            a2_state = agent2.reset_memory()
 
-            a1_state = agent1._state
-            a2_state = agent2._state
             if self.args.agent2 == "NaiveLearnerEx":
                 # unique naive-learner code
                 a2_state = agent2.make_initial_state(t_init[1])
