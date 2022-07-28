@@ -440,6 +440,15 @@ class PPO:
         )
         return actions
 
+    def reset_memory(self) -> TrainingState:
+        self._state = self._state._replace(
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            }
+        )
+        return self._state
+
     def update(
         self,
         traj_batch,

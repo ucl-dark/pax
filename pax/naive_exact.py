@@ -112,6 +112,9 @@ class NaiveLearnerEx:
             t.observation[:, :5], timesteps=0, num_episodes=0, loss=0
         )
 
+    def reset_memory(self):
+        return self._state
+
     def select_action(
         self,
         t: TimeStep,

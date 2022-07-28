@@ -248,6 +248,9 @@ class HyperAltruistic:
     def update(self, *args) -> None:
         pass
 
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
+
 
 class HyperDefect:
     def __init__(self, *args):
@@ -268,6 +271,9 @@ class HyperDefect:
 
     def update(self, *args) -> None:
         pass
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
 
 class HyperTFT:
@@ -305,5 +311,5 @@ class HyperTFT:
     def update(self, *args) -> None:
         pass
 
-    def reset_state(self, *args) -> None:
+    def reset_memory(self, *args) -> TrainingState:
         return self._state
