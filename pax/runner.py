@@ -77,20 +77,19 @@ class Runner:
             rewards_1 = jnp.array(rewards_1)
             # rewards_0 = jnp.array(agents.agents[0].rewards)
             # rewards_1 = jnp.array(agents.agents[1].rewards)
+            mean_r_0 = float(rewards_1.mean())
+            mean_r_1 = float(rewards_1.mean())
 
             print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                f"Total Episode Reward: {mean_r_0, mean_r_1} | Joint reward: {(mean_r_0 + mean_r_1)*0.5}"
             )
             if watchers:
                 wandb.log(
                     {
                         "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "train/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
+                        "train/episode_reward/player_1": mean_r_0,
+                        "train/episode_reward/player_2": mean_r_1,
+                        "train/joint_reward": (mean_r_0 + mean_r_1) * 0.5,
                     }
                 )
         print()

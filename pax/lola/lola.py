@@ -135,12 +135,18 @@ class LOLA:
                 dice_objective = dice_objective + baseline_term
 
             loss_value = jnp.mean((rewards - values) ** 2)
-            loss_total = -dice_objective + loss_value
+            # loss_total = -dice_objective + loss_value
+            loss_total = dice_objective + loss_value
 
             # want to minimize -objective
+            # return loss_total, {
+            #     "loss_total": -dice_objective + loss_value,
+            #     "loss_policy": -dice_objective,
+            #     "loss_value": loss_value,
+            # }
             return loss_total, {
-                "loss_total": -dice_objective + loss_value,
-                "loss_policy": -dice_objective,
+                "loss_total": dice_objective + loss_value,
+                "loss_policy": dice_objective,
                 "loss_value": loss_value,
             }
 
@@ -271,10 +277,9 @@ class LOLA:
         )
 
         # apply the optimizer updates
-        # params =
         params = optax.apply_updates(other_state.params, updates)
+
         # replace the other player's current parameters with a simulated update
-        # print("Params before replacement", params)
         self._other_state = TrainingState(
             params=params,
             opt_state=opt_state,
@@ -282,11 +287,6 @@ class LOLA:
             timesteps=other_state.timesteps,
             extras=other_state.extras,
         )
-        # other_state._replace(params=params)
-        # print("Params after replacement", other_state.params)
-        # other_state._replace(opt_state=opt_state)
-        # self._other_state = other_state
-        # print("Params after self.", self._other_state.params)
 
     def out_lookahead(self, env, other_agents):
         """
@@ -305,9 +305,10 @@ class LOLA:
 
         # get a copy of the agent's state
         my_state = self._state
+        # get a copy of the other opponent's state
+        other_state = self._other_state
         # Perform a rollout and store S,A,R,S tuples
         t = env.reset()
-        other_state = self._other_state
         # TODO: Replace with jax.lax.scan
         for _ in range(self._num_steps):
             # I take an action using my parameters

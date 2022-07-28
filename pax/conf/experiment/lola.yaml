@@ -14,10 +14,10 @@ payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 
 
 # Training hyperparameters
-num_envs: 64
+num_envs: 128
 num_steps: 150 # number of steps per episode
 total_timesteps: 10_000_000
-eval_every: 100_000 # timesteps
+eval_every: 10_000_000 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -28,8 +28,8 @@ eval_every: 100_000 # timesteps
 lola: 
   use_baseline: True   
   adam_epsilon: 1e-5
-  lr_in: 1
-  lr_out: 0.3
+  lr_in: 0.3
+  lr_out: 0.2
   gamma: 0.96
 
 # Logging setup
