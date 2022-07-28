@@ -1,13 +1,11 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
 from functools import partial
-from re import T
 from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
 import haiku as hk
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 from dm_env import TimeStep
 

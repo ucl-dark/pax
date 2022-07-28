@@ -9,6 +9,13 @@ from dm_env import TimeStep
 # actions are cooperate = 0 or defect = 1
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    timesteps: int
+    num_episodes: int
+
+
 # TODO: Add strategy. PPO should learn to ALL-C
 # class ZDExtortion:
 #     # @partial(jax.jit, static_argnums=(0,))
@@ -43,13 +50,6 @@ from dm_env import TimeStep
 #         obs = obs.argmax(axis=-1)
 #         action = jnp.where(samples < p_coop[obs], 0, 1)
 #         return action, key
-
-
-class TrainingState(NamedTuple):
-    # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
-    timesteps: int
-    num_episodes: int
 
 
 class GrimTrigger:

@@ -100,7 +100,9 @@ class SequentialMatrixGame(Environment):
             State.START * jnp.ones((self.num_envs,), dtype=float)
         )
         self._num_steps = 0
-        return restart(obs_1), restart(obs_2)
+        return TimeStep(0, jnp.zeros(self.num_envs), 0.0, obs_1), TimeStep(
+            0, jnp.zeros(self.num_envs), 0.0, obs_2
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def _get_reward(self, a1, a2) -> Tuple[jnp.array, jnp.array]:

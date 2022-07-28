@@ -375,7 +375,10 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                extras={"values": None, "log_probs": None},
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
             )
 
         # Initialise training state (parameters, optimiser state, extras).
@@ -419,7 +422,66 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
+    def update_step(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
+        """Update function to be used with buffer and called every env.step()"""
+        # Adds agent and environment info to buffer
+        self._rollouts(
+            buffer=self._trajectory_buffer,
+            t=t,
+            actions=actions,
+            t_prime=t_prime,
+            state=self._state,
+        )
+
+        # Log metrics
+        self._total_steps += self._num_envs
+        self._logger.metrics["total_steps"] += self._num_envs
+
+        # Update internal state with total_steps
+        self._state = TrainingState(
+            params=self._state.params,
+            opt_state=self._state.opt_state,
+            random_key=self._state.random_key,
+            timesteps=self._total_steps,
+            extras=self._state.extras,
+        )
+
+        # Update counter until doing SGD
+        self._until_sgd += 1
+
+        # Rollouts onging
+        if self._until_sgd % (self._num_steps) != 0:
+            return
+
+        # Rollouts complete -> Training begins
+        # Add an additional rollout step for advantage calculation
+        _, self._state = self._policy(
+            self._state.params, t_prime.observation, self._state
+        )
+
+        self._trajectory_buffer.add(
+            timestep=t_prime,
+            action=0,
+            log_prob=0,
+            value=self._state.extras["values"]
+            if not t_prime.last()
+            else jnp.zeros_like(self._state.extras["values"]),
+            new_timestep=t_prime,
+        )
+
+        sample = self._trajectory_buffer.sample()
+        self._state, results = self._sgd_step(self._state, sample)
+        self._logger.metrics["sgd_steps"] += (
+            self._num_minibatches * self._num_epochs
+        )
+        self._logger.metrics["loss_total"] = results["loss_total"]
+        self._logger.metrics["loss_policy"] = results["loss_policy"]
+        self._logger.metrics["loss_value"] = results["loss_value"]
+        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+
     def update(self, t: TimeStep, actions: np.array, t_prime: TimeStep):
+        """Update function to be used with buffer and called every env.step()"""
         # Adds agent and environment info to buffer
         self._rollouts(
             buffer=self._trajectory_buffer,
