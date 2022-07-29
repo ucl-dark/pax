@@ -1,82 +1,118 @@
 import time
+from typing import NamedTuple
 
+import jax
+import jax.numpy as jnp
+from dm_env import transition
+
+import wandb
 from pax.env import IteratedPrisonersDilemma
 from pax.independent_learners import IndependentLearners
-from pax.strategies import TitForTat, Defect
-
-import jax.numpy as jnp
-import wandb
-
+from pax.strategies import Defect, TitForTat
 
 # TODO: make these a copy of acme
+
+
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
 
 
 class Runner:
     """Holds the runner's state."""
 
-    def __init__(self):
+    def __init__(self, args):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
         self.eval_episodes = 0
         self.start_time = time.time()
+        self.args = args
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
-        print("Training ")
+        print("Training")
         print("-----------------------")
+        agent1, agent2 = agents.agents
+
+        def _env_rollout(carry, unused):
+            t1, t2, a1_state, a2_state = carry
+            a1, a1_state = agent1._policy(
+                a1_state.params, t1.observation, a1_state
+            )
+            a2, a2_state = agent2._policy(
+                a2_state.params, t2.observation, a2_state
+            )
+            tprime_1, tprime_2 = env.runner_step(
+                [
+                    a1,
+                    a2,
+                ]
+            )
+            traj1 = Sample(
+                t1.observation,
+                a1,
+                tprime_1.reward,
+                a1_state.extras["log_probs"],
+                a1_state.extras["values"],
+                tprime_1.last() * jnp.zeros(env.num_envs),
+                a1_state.hidden,
+            )
+            traj2 = Sample(
+                t2.observation,
+                a2,
+                tprime_2.reward,
+                None,
+                None,
+                tprime_2.last() * jnp.zeros(env.num_envs),
+                None,
+            )
+            return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
+
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
-            rewards_0, rewards_1 = [], []
-            t = env.reset()
+            t_init = env.reset()
+            a1_state = agent1.reset_memory()
+            a2_state = agent2.reset_memory()
 
-            while not (t[0].last()):
-                actions = agents.select_action(t)
-                t_prime = env.step(actions)
-                r_0, r_1 = t_prime[0].reward, t_prime[1].reward
+            if self.args.agent2 == "NaiveLearnerEx":
+                # unique naive-learner code
+                a2_state = agent2.make_initial_state(t_init[1])
 
-                # append step rewards to episode rewards
-                rewards_0.append(r_0)
-                rewards_1.append(r_1)
+            # rollout episode
+            vals, trajectories = jax.lax.scan(
+                _env_rollout,
+                (*t_init, a1_state, a2_state),
+                None,
+                length=env.episode_length,
+            )
 
-                # train model
-                # TODO: Will this need to be changed to allow
-                # for centralized training?
-                agents.update(t, actions, t_prime)
-                self.train_steps += 1
-
-                # book keeping
-                t = t_prime
-
-                # logging
-                # if watchers:
-                #     agents.log(watchers, None)
-                #     wandb.log(
-                #         {
-                #             "train/training_steps": self.train_steps,
-                #             "train/step_reward/player_1": float(
-                #                 jnp.array(r_0).mean()
-                #             ),
-                #             "train/step_reward/player_2": float(
-                #                 jnp.array(r_1).mean()
-                #             ),
-                #             "time_elapsed_minutes": (
-                #                 time.time() - self.start_time
-                #             )
-                #             / 60,
-                #             "time_elapsed_seconds": time.time()
-                #             - self.start_time,
-                #         }
-                #     )
-
-            # end of episode stats
             self.train_episodes += 1
-            rewards_0 = jnp.array(rewards_0)
-            rewards_1 = jnp.array(rewards_1)
+            rewards_0 = trajectories[0].rewards.mean()
+            rewards_1 = trajectories[1].rewards.mean()
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
+
+            # update agent / add final trajectory
+            final_t1 = vals[0]._replace(step_type=2)
+            a1_state = vals[2]
+            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
+
+            final_t2 = vals[1]._replace(step_type=2)
+            a2_state = vals[3]
+            a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+
+            # logging
             if watchers:
+                agents.log(watchers)
                 wandb.log(
                     {
                         "episodes": self.train_episodes,
@@ -86,9 +122,13 @@ class Runner:
                         "train/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
-                    }
+                    },
                 )
         print()
+
+        # update agents
+        agents.agents[0]._state = a1_state
+        agents.agents[1]._state = a2_state
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):
@@ -96,6 +136,10 @@ class Runner:
         print("Evaluating")
         print("-----------------------")
         agents.eval(True)
+        agent1, agent2 = agents.agents
+        agent1.reset_memory()
+        agent2.reset_memory()
+
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()
