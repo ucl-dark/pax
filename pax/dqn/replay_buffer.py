@@ -3,8 +3,8 @@
 
 from typing import Any, Optional, Sequence
 
-import numpy as np
 import jax
+import numpy as np
 
 
 class Replay:

@@ -1,10 +1,10 @@
 from typing import Optional
 
-from pax import utils
-
 import distrax
 import haiku as hk
 import jax.numpy as jnp
+
+from pax import utils
 
 
 class CategoricalValueHead(hk.Module):

@@ -1,17 +1,17 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.naive.buffer import TrajectoryBuffer
-from pax.naive.network import make_network
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from dm_env import TimeStep
+
+from pax import utils
+from pax.naive.buffer import TrajectoryBuffer
+from pax.naive.network import make_network
 
 
 class Batch(NamedTuple):
@@ -36,7 +36,8 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    # extras: Mapping[str, jnp.ndarray]
+    extras: Mapping[str, jnp.ndarray]
+    hiddens: None
 
 
 class Logger:
@@ -71,19 +72,19 @@ class NaiveLearner:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            # state.extras["values"] = values
-            # state.extras["log_probs"] = dist.log_prob(actions)
+            state.extras["values"] = values
+            state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
                 params=params,
                 opt_state=state.opt_state,
                 random_key=key,
                 timesteps=state.timesteps,
-                # extras=state.extras,
+                extras=state.extras,
+                hiddens=None,
             )
             return (
                 actions,
                 state,
-                {"values": values, "log_probs": dist.log_prob(actions)},
             )
 
         def rollouts(
@@ -333,7 +334,11 @@ class NaiveLearner:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                # extras={"log_probs": None, "values": None},
+                extras={
+                    "log_probs": jnp.zeros(self._num_envs),
+                    "values": jnp.zeros(self._num_envs),
+                },
+                hiddens=None,
             )
 
             return new_state, metrics
@@ -352,20 +357,24 @@ class NaiveLearner:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                # extras={"values": None, "log_probs": None},
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+                hiddens=None,
             )
 
         @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+            traj_batch: NamedTuple, t_prime: TimeStep, extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
-                jnp.zeros_like(action_extras["values"]),
+                extras["values"],
+                jnp.zeros_like(extras["values"]),
             )
 
             _value = jax.lax.expand_dims(_value, [0])
@@ -439,11 +448,9 @@ class NaiveLearner:
         t_prime: TimeStep,
         state,
     ):
-        _, _, action_extras = self._policy(
-            state.params, t_prime.observation, state
-        )
+        _, state = self._policy(state.params, t_prime.observation, state)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, action_extras)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -451,9 +458,16 @@ class NaiveLearner:
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
-        # self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        # self._logger.metrics["entropy_cost"] = results["entropy_cost"]
         return state
+
+    def reset_memory(self) -> TrainingState:
+        self._state = self._state._replace(
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            }
+        )
+        return self._state
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
@@ -461,15 +475,6 @@ def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
 
     print(f"Making network for {args.env_id}")
     network = make_network(action_spec)
-
-    # Optimizer
-    # batch_size = int(args.num_envs * args.num_steps)
-    # transition_steps = (
-    #     args.total_timesteps
-    #     / batch_size
-    #     * args.naive.num_epochs
-    #     * args.naive.num_minibatches
-    # )
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(args.naive.max_gradient_norm),

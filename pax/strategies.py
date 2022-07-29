@@ -9,6 +9,13 @@ from dm_env import TimeStep
 # actions are cooperate = 0 or defect = 1
 
 
+class TrainingState(NamedTuple):
+    # Training state consists of network parameters, random key, timesteps
+    params: jnp.ndarray
+    timesteps: int
+    num_episodes: int
+
+
 # TODO: Add strategy. PPO should learn to ALL-C
 # class ZDExtortion:
 #     # @partial(jax.jit, static_argnums=(0,))
@@ -43,13 +50,6 @@ from dm_env import TimeStep
 #         obs = obs.argmax(axis=-1)
 #         action = jnp.where(samples < p_coop[obs], 0, 1)
 #         return action, key
-
-
-class TrainingState(NamedTuple):
-    # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
-    timesteps: int
-    num_episodes: int
 
 
 class GrimTrigger:
@@ -91,7 +91,10 @@ class TitForTat:
         return self._reciprocity(timestep.observation)
 
     def update(self, *args) -> None:
-        pass
+        return self._state
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -132,7 +135,10 @@ class Defect:
         return jnp.ones((batch_size,))
 
     def update(self, *args) -> None:
-        pass
+        return self._state
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -165,6 +171,9 @@ class Altruistic:
         # return jnp.zeros((batch_size, 1))
         return jnp.zeros((batch_size,))
 
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
+
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
@@ -178,7 +187,7 @@ class Altruistic:
         return jnp.zeros((batch_size,)), self._state, None
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
 
 class Human:
@@ -237,7 +246,10 @@ class HyperAltruistic:
         return 20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
-        pass
+        return self._state
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
 
 class HyperDefect:
@@ -258,7 +270,10 @@ class HyperDefect:
         return -20 * jnp.ones((batch_size, 5))
 
     def update(self, *args) -> None:
-        pass
+        return self._state
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
 
 
 class HyperTFT:
@@ -294,7 +309,7 @@ class HyperTFT:
         return action, state
 
     def update(self, *args) -> None:
-        pass
+        return self._state
 
-    def reset_state(self, *args) -> None:
+    def reset_memory(self, *args) -> TrainingState:
         return self._state

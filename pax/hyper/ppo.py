@@ -1,18 +1,16 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from re import T
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from functools import partial
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.hyper.buffer import TrajectoryBuffer
-from pax.hyper.networks import make_network
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
+from dm_env import TimeStep
+
+from pax import utils
+from pax.hyper.networks import make_network
 
 
 class Batch(NamedTuple):
@@ -37,7 +35,8 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    # extras: Mapping[str, jnp.ndarray]
+    extras: Mapping[str, jnp.ndarray]
+    hidden: None
 
 
 class Logger:
@@ -83,28 +82,12 @@ class PPO:
                 opt_state=state.opt_state,
                 random_key=key,
                 timesteps=state.timesteps,
-                # extras=state.extras,
+                extras=state.extras,
+                hidden=None,
             )
             return (
                 actions,
                 state,
-                {"values": values, "log_probs": dist.log_prob(actions)},
-            )
-
-        def rollouts(
-            buffer: TrajectoryBuffer,
-            t: TimeStep,
-            actions: np.array,
-            t_prime: TimeStep,
-            action_extras: Tuple[jnp.array],
-        ) -> None:
-            """Stores rollout in buffer"""
-            buffer.add(
-                t,
-                actions,
-                action_extras["log_probs"],
-                action_extras["values"],
-                t_prime,
             )
 
         def gae_advantages(
@@ -244,13 +227,6 @@ class PPO:
             # Exclude the last step - it was only used for bootstrapping.
             # The shape is [num_steps, num_envs, ..]
             behavior_values = behavior_values[:-1, :]
-            # (
-            #     behavior_values,
-            # ) = jax.tree_map(
-            #     lambda x: x[:-1, :],
-            #     (behavior_values),
-            # )
-
             trajectories = Batch(
                 observations=observations,
                 actions=actions,
@@ -365,10 +341,16 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
+                extras={
+                    "log_probs": jnp.zeros_like(state.extras["log_probs"]),
+                    "values": jnp.zeros_like(state.extras["log_probs"]),
+                },
+                hidden=None,
             )
 
             return new_state, metrics
 
+        @partial(jax.jit, static_argnums=(1,))
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -381,7 +363,11 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                # extras={"values": None, "log_probs": None},
+                extras={
+                    "values": jnp.zeros((num_envs)),
+                    "log_probs": jnp.zeros((num_envs)),
+                },
+                hidden=None,
             )
 
         @jax.jit
@@ -423,10 +409,6 @@ class PPO:
         # Initialise training state (parameters, optimiser state, extras).
         self._state = make_initial_state(random_key, obs_spec)
         self.prepare_batch = prepare_batch
-        # Initialize buffer and sgd
-        self._trajectory_buffer = TrajectoryBuffer(
-            num_envs, num_steps, obs_spec
-        )
         self._sgd_step = sgd_step
 
         # Set up counters and logger
@@ -445,7 +427,6 @@ class PPO:
 
         # Initialize functions
         self._policy = policy
-        self._rollouts = rollouts
         self.forward = network.apply
         self.player_id = player_id
 
@@ -463,17 +444,26 @@ class PPO:
         )
         return actions
 
+    def reset_memory(self) -> TrainingState:
+        self._state = self._state._replace(
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            }
+        )
+        return self._state
+
     def update(
         self,
         traj_batch,
         t_prime: TimeStep,
         state,
     ):
-        _, _, action_extras = self._policy(
-            state.params, t_prime.observation, state
-        )
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, action_extras)
+        """Update the agent -> only called at the end of a trajectory"""
+        _, state = self._policy(state.params, t_prime.observation, state)
+
+        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
