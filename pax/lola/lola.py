@@ -1,6 +1,8 @@
 from binascii import a2b_base64
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
+from regex import R
+
 from pax import utils
 from pax.lola.buffer import TrajectoryBuffer
 from pax.lola.network import make_network
@@ -11,6 +13,18 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+
+
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    obs_self: jnp.ndarray
+    obs_other: jnp.ndarray
+    actions_self: jnp.ndarray
+    actions_other: jnp.ndarray
+    dones: jnp.ndarray
+    rewards_self: jnp.ndarray
+    rewards_other: jnp.ndarray
 
 
 class Batch(NamedTuple):
@@ -36,6 +50,7 @@ class TrainingState(NamedTuple):
     random_key: jnp.ndarray
     timesteps: int
     extras: Mapping[str, jnp.ndarray]
+    hidden: None
 
 
 def magic_box(x):
@@ -80,8 +95,44 @@ class LOLA:
                 random_key=key,
                 timesteps=state.timesteps,
                 extras=state.extras,
+                hidden=None,
             )
             return actions, state
+
+        @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                action_extras["values"],
+                jnp.zeros_like(action_extras["values"]),
+            )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+            return traj_batch
 
         def loss(params, other_params, samples):
             # Stacks so that the dimension is now (num_envs, num_steps)
@@ -150,6 +201,20 @@ class LOLA:
                 "loss_value": loss_value,
             }
 
+        def sgd_step(
+            state: TrainingState, sample: NamedTuple
+        ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
+            state = state
+            # placeholders
+            results = {
+                "loss_total": 0,
+                "loss_policy": 0,
+                "loss_value": 0,
+                "loss_entropy": 0,
+                "entropy_cost": 0,
+            }
+            return state, results
+
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -162,7 +227,11 @@ class LOLA:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                extras={"values": None, "log_probs": None},
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+                hidden=None,
             )
 
         # Initialise training state (parameters, optimiser state, extras).
@@ -194,6 +263,8 @@ class LOLA:
         # Initialize functions
         self._policy = policy
         self.network = network
+        self._prepare_batch = jax.jit(prepare_batch)
+        self._sgd_step = sgd_step
 
         # initialize some variables
         self._inner_optimizer = inner_optimizer
@@ -215,7 +286,7 @@ class LOLA:
         )
         return utils.to_numpy(actions)
 
-    def in_lookahead(self, env, other_agents):
+    def in_lookahead(self, env, other_agents, env_rollout):
         """
         Performs a rollout using the current parameters of both agents
         and simulates a naive learning update step for the other agent
@@ -225,48 +296,65 @@ class LOLA:
         other_agents: list, a list of objects of the other agents
         """
 
-        # initialize buffer
-        other_memory = TrajectoryBuffer(
-            self._num_envs, self._num_steps, self._obs_spec
-        )
-
-        # get the other agent
+        # get other agent
         other_agent = other_agents[0]
-        # get a copy of the agent's state
-        my_state = self._state
-        # create a temporary training state for the other agent for the simulated rollout
-        # TODO: make a separate optimizer for the other agent
-        other_state = TrainingState(
-            params=other_agent._state.params,
-            opt_state=other_agent._state.opt_state,
-            random_key=other_agent._state.random_key,
-            timesteps=other_agent._state.timesteps,
-            extras=other_agent._state.extras,
+
+        # my state
+        my_state = TrainingState(
+            params=self._state.params,
+            opt_state=self._state.opt_state,
+            random_key=self._state.random_key,
+            timesteps=self._state.timesteps,
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            },
+            hidden=None,
+        )
+        # other player's state
+        other_state = other_agent.reset_memory()
+
+        # do a full rollout
+        t_init = env.reset()
+        vals, trajectories = jax.lax.scan(
+            env_rollout,
+            (t_init[0], t_init[1], my_state, other_state),
+            None,
+            length=env.episode_length,
         )
 
-        # Perform a rollout and store S,A,R,S tuples
-        # TODO: Replace with jax.lax.scan
-        t = env.reset()
-        for _ in range(self._num_steps):
-            # I take an action using my parameters
-            a1, my_state = self._policy(
-                my_state.params, t[0].observation, my_state
-            )
-            # Opponent takes an action using their parameters
-            a2, other_state = self._policy(
-                other_state.params, t[1].observation, other_state
-            )
-            # The environment steps as usual
-            t_prime = env.step((a1, a2))
-            # We add to the buffer as if we are the other player
-            # TODO: IS THIS THE RIGHT ORDER???????
-            other_memory.add(t[1], t[0], a2, a1, t_prime[1], t_prime[0])
-            t = t_prime
-
+        # update agent / add final trajectory
+        # do an agent update based on trajectories
+        # only need the other agent's state
         # unpack the values from the buffer
-        sample = other_memory.sample()
 
-        # calculate the gradients
+        # update agent / add final trajectory
+        # TODO: Unclear if this is still needed when not calculating advantage?
+        # final_t1 = vals[0]._replace(step_type=2)
+        # a1_state = vals[2]
+        # _, state = self._policy(my_state.params, final_t1.observation, a1_state)
+        # traj_batch_0 = self._prepare_batch(trajectories[0], final_t1, state.extras)
+
+        # final_t2 = vals[1]._replace(step_type=2)
+        # a2_state = vals[3]
+        # _, state = self._policy(other_state.params, final_t2.observation, a2_state)
+        # traj_batch_1 = self._prepare_batch(trajectories[1], final_t2, other_state.extras)
+
+        traj_batch_0 = trajectories[0]
+        traj_batch_1 = trajectories[1]
+        # flip the order of the trajectories
+        # assuming we're the other player
+        sample = Sample(
+            obs_self=traj_batch_1.observations,
+            obs_other=traj_batch_0.observations,
+            actions_self=traj_batch_1.actions,
+            actions_other=traj_batch_0.actions,
+            dones=traj_batch_0.dones,
+            rewards_self=traj_batch_1.rewards,
+            rewards_other=traj_batch_0.rewards,
+        )
+
+        # get gradients of opponent
         gradients, _ = self.grad_fn(
             other_state.params, my_state.params, sample
         )
@@ -286,9 +374,10 @@ class LOLA:
             random_key=other_state.random_key,
             timesteps=other_state.timesteps,
             extras=other_state.extras,
+            hidden=None,
         )
 
-    def out_lookahead(self, env, other_agents):
+    def out_lookahead(self, env, env_rollout):
         """
         Performs a real rollout using the current parameters of both agents
         and a naive learning update step for the other agent
@@ -297,42 +386,44 @@ class LOLA:
         env: SequentialMatrixGame, an environment object of the game being played
         other_agents: list, a list of objects of the other agents
         """
+        # get a copy of the agent's state
+        my_state = TrainingState(
+            params=self._state.params,
+            opt_state=self._state.opt_state,
+            random_key=self._state.random_key,
+            timesteps=self._state.timesteps,
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            },
+            hidden=None,
+        )
+        # get a copy of the other opponent's state
+        # TODO: Do I need to reset this? Maybe...
+        other_state = self._other_state
 
-        # initialize buffer
-        memory = TrajectoryBuffer(
-            self._num_envs, self._num_steps, self._obs_spec
+        # do a full rollout
+        t_init = env.reset()
+        vals, trajectories = jax.lax.scan(
+            env_rollout,
+            (t_init[0], t_init[1], my_state, other_state),
+            None,
+            length=env.episode_length,
         )
 
-        # get a copy of the agent's state
-        my_state = self._state
-        # get a copy of the other opponent's state
-        other_state = self._other_state
-        # Perform a rollout and store S,A,R,S tuples
-        t = env.reset()
-        # TODO: Replace with jax.lax.scan
-        for _ in range(self._num_steps):
-            # I take an action using my parameters
-            a1, my_state = self._policy(
-                my_state.params, t[0].observation, my_state
-            )
-            # Opponent takes an action using their parameters
-            a2, other_state = self._policy(
-                other_state.params, t[1].observation, other_state
-            )
-            # The environment steps as usual
-            t_prime = env.step((a1, a2))
-            # We add to the buffer
-            # TODO: IS THIS THE RIGHT ORDER???????
-            memory.add(t[0], t[1], a1, a2, t_prime[0], t_prime[1])
-            t = t_prime
+        traj_batch_0 = trajectories[0]
+        traj_batch_1 = trajectories[1]
 
-        # Update internal agent's timesteps
-        self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
-        self._state._replace(timesteps=self._total_steps)
-
-        # unpack the values from the buffer
-        sample = memory.sample()
+        # Now keep the same order.
+        sample = Sample(
+            obs_self=traj_batch_0.observations,
+            obs_other=traj_batch_1.observations,
+            actions_self=traj_batch_0.actions,
+            actions_other=traj_batch_1.actions,
+            dones=traj_batch_0.dones,
+            rewards_self=traj_batch_0.rewards,
+            rewards_other=traj_batch_1.rewards,
+        )
 
         # calculate the gradients
         gradients, results = self.grad_fn(
@@ -346,6 +437,11 @@ class LOLA:
 
         # apply the optimizer updates
         params = optax.apply_updates(my_state.params, updates)
+
+        # Update internal agent's timesteps
+        self._total_steps += self._num_envs
+        self._logger.metrics["total_steps"] += self._num_envs
+        self._state._replace(timesteps=self._total_steps)
 
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -361,97 +457,46 @@ class LOLA:
             random_key=self._state.random_key,
             timesteps=self._state.timesteps,
             extras={"log_probs": None, "values": None},
+            hidden=None,
         )
+
+    def reset_memory(self) -> TrainingState:
+        self._state = self._state._replace(
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            }
+        )
+        return self._state
 
     def update(
         self,
-        t: TimeStep,
-        actions: np.array,
+        traj_batch,
         t_prime: TimeStep,
-        other_agents: list = None,
+        state,
     ):
-        # Adds agent and environment info to buffer
-        self._rollouts(
-            buffer=self._trajectory_buffer,
-            t=t,
-            actions=actions,
-            t_prime=t_prime,
-            state=self._state,
+        """Update the agent -> only called at the end of a trajectory"""
+        _, state = self._policy(state.params, t_prime.observation, state)
+
+        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
+        state, results = self._sgd_step(state, traj_batch)
+        self._logger.metrics["sgd_steps"] += (
+            self._num_minibatches * self._num_epochs
         )
+        self._logger.metrics["loss_total"] = results["loss_total"]
+        self._logger.metrics["loss_policy"] = results["loss_policy"]
+        self._logger.metrics["loss_value"] = results["loss_value"]
+        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
-        # Log metrics
-        self._total_steps += self._num_envs
-        self._logger.metrics["total_steps"] += self._num_envs
-
-        # Update internal state with total_steps
-        self._state = TrainingState(
-            params=self._state.params,
-            opt_state=self._state.opt_state,
-            random_key=self._state.random_key,
-            timesteps=self._total_steps,
-            extras=self._state.extras,
-        )
-
-        # Update counter until doing SGD
-        self._until_sgd += 1
-
-        # Add params to buffer
-        # doesn't change throughout the rollout
-        # but it can't be before the return
-        self._trajectory_buffer.params = self._state.params
-
-        # Rollouts onging
-        if self._until_sgd % (self._num_steps) != 0:
-            return
-
-        # Rollouts complete -> Training begins
-        # Add an additional rollout step for advantage calculation
-        _, self._state = self._policy(
-            self._state.params, t_prime.observation, self._state
-        )
-        # print("Other agents params", other_agents[0]._trajectory_buffer.params)
-
-        self._trajectory_buffer.add(
-            timestep=t_prime,
-            action=0,
-            log_prob=0,
-            value=self._state.extras["values"]
-            if not t_prime.last()
-            else jnp.zeros_like(self._state.extras["values"]),
-            new_timestep=t_prime,
-        )
-
-        # other_agent = other_agents[0]
-        # other_agent_params = other_agents[0]._trajectory_buffer.params
-        # It needs to be able to take in the opponents parameters
-        # and then do a rollout under those parameters
-        # could do sgd here for other agent?
-        sample = self._trajectory_buffer.sample()
-        self._state, results = self._sgd_step(
-            self._state, self.other_params, sample
-        )
-        # self._logger.metrics["sgd_steps"] += (
-        #     self._num_minibatches * self._num_epochs
-        # )
-        # self._logger.metrics["loss_total"] = results["loss_total"]
-        # self._logger.metrics["loss_policy"] = results["loss_policy"]
-        # self._logger.metrics["loss_value"] = results["loss_value"]
+        self._state = state
+        return state
 
 
 def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
 
-    # print(f"Making network for {args.env_id}")
     network = make_network(action_spec)
-
-    # Optimizer
-    # batch_size = int(args.num_envs * args.num_steps)
-    # transition_steps = (
-    #     args.total_timesteps
-    #     / batch_size
-    #     * args.ppo.num_epochs
-    #     * args.ppo.num_minibatches
-    # )
 
     inner_optimizer = optax.chain(
         optax.scale_by_adam(eps=args.lola.adam_epsilon),

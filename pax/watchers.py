@@ -4,6 +4,7 @@ from flax import linen as nn
 from pax.lola.lola import LOLA
 import pax.hyper.ppo as HyperPPO
 import pax.ppo.ppo as PPO
+from pax.naive.naive import NaiveLearner
 from pax.naive_exact import NaiveLearnerEx
 
 from .env import State
@@ -99,16 +100,16 @@ def value_logger_ppo(agent: PPO) -> dict:
     return probs
 
 
-# def value_logger_naive(agent: NaiveLearner) -> dict:
-#     weights = agent._state.params["categorical_value_head/~/linear_1"][
-#         "w"
-#     ]  # 5 x 1 matrix
-#     sgd_steps = agent._total_steps / agent._num_steps
-#     probs = {
-#         f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
-#     }
-#     probs.update({"value/total_steps": sgd_steps})
-#     return probs
+def value_logger_naive(agent: NaiveLearner) -> dict:
+    weights = agent._state.params["categorical_value_head/~/linear_1"][
+        "w"
+    ]  # 5 x 1 matrix
+    sgd_steps = agent._total_steps / agent._num_steps
+    probs = {
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    }
+    probs.update({"value/total_steps": sgd_steps})
+    return probs
 
 
 def value_logger_lola(agent: LOLA) -> dict:

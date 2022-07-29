@@ -69,14 +69,40 @@ class Runner:
                 t2.observation,
                 a2,
                 tprime_2.reward,
-                None,
-                None,
+                a2_state.extras["log_probs"],
+                a2_state.extras["values"],
                 tprime_2.last() * jnp.zeros(env.num_envs),
-                None,
+                a2_state.hidden,
             )
             return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+            # start of unique lola code
+            # LOLA updates occur here
+            if self.args.agent1 == "LOLA" and self.args.agent2 == "LOLA":
+                # inner rollout
+                for _ in range(self.args.lola.num_lookaheads):
+                    agent1.in_lookahead(env, [agent2], _env_rollout)
+                    agent2.in_lookahead(env, [agent1], _env_rollout)
+                # outer rollout
+                agent1.out_lookahead(env, _env_rollout)
+                agent2.out_lookahead(env, _env_rollout)
+
+            elif self.args.agent1 == "LOLA" and self.args.agent2 != "LOLA":
+                # inner rollout
+                for _ in range(self.args.lola.num_lookaheads):
+                    agent1.in_lookahead(env, [agent2], _env_rollout)
+                # outer rollout
+                agent1.out_lookahead(env, _env_rollout)
+
+            elif self.args.agent1 != "LOLA" and self.args.agent2 == "LOLA":
+                # inner rollout
+                for _ in range(self.args.lola.num_lookaheads):
+                    agent2.in_lookahead(env, [agent1], _env_rollout)
+                # outer rollout
+                agent2.out_lookahead(env, _env_rollout)
+            # end of unique lola code
+
             t_init = env.reset()
             a1_state = agent1.reset_memory()
             a2_state = agent2.reset_memory()
@@ -97,10 +123,6 @@ class Runner:
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
 
-            # print(
-            #     f"Total Episode Reward: {mean_r_0, mean_r_1} | Joint reward: {(mean_r_0 + mean_r_1)*0.5}"
-            # )
-
             # update agent / add final trajectory
             final_t1 = vals[0]._replace(step_type=2)
             a1_state = vals[2]
@@ -109,6 +131,14 @@ class Runner:
             final_t2 = vals[1]._replace(step_type=2)
             a2_state = vals[3]
             a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+
+            print(
+                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+            )
+
+            # print(
+            #     f"Total Episode Reward: {mean_r_0, mean_r_1} | Joint reward: {(mean_r_0 + mean_r_1)*0.5}"
+            # )
 
             # logging
             if watchers:
@@ -126,6 +156,7 @@ class Runner:
                 )
         print()
 
+        # TODO: Why do we need this if we already update the state in agent.update?
         # update agents
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state

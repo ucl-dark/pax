@@ -14,13 +14,8 @@ save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 
 # Agents  
-<<<<<<< HEAD
 agent1: 'LOLA'
 agent2: 'LOLA'
-=======
-agent1: 'Hyper'
-agent2: 'NaiveLearnerEx'
->>>>>>> main
 
 # Environment
 env_id: ipd
@@ -31,10 +26,10 @@ payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 centralized: True
 
 # Training hyperparameters
-num_envs: 10
-num_steps: 100 # number of steps per episode
-total_timesteps: 100_000_000
-eval_every: 50_000 # eval every n episodes, not timesteps
+num_envs: 128
+num_steps: 150 # number of steps per episode
+total_timesteps: 1_000_000
+eval_every: 100_000 # eval every n episodes, not timesteps
 
 
 # Useful information
@@ -42,6 +37,16 @@ eval_every: 50_000 # eval every n episodes, not timesteps
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
+# DQN agent parameters
+dqn: 
+  batch_size: 256
+  discount: 0.99
+  learning_rate: 1e-2
+  epsilon: 0.5
+  replay_capacity: 100000
+  min_replay_size: 1000
+  sgd_period: 1 
+  target_update_period: 4 
 
 # PPO agent parameters
 ppo:
@@ -70,10 +75,12 @@ naive:
 
 # LOLA agent parameters
 lola: 
-  replay_capacity: 1000 #args.lola.replay_capacity, 
-  min_replay_size: 50   #args.lola.min_replay_size, 
-  sgd_period: 1           #args.dqn.sgd_period,
-  batch_size: 2         #args.dqn.batch_size
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  lr_in: 0.3
+  lr_out: 0.2
+  gamma: 0.96
+  num_lookaheads: 1
 
 # Logging setup
 wandb:
@@ -81,20 +88,6 @@ wandb:
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}
-<<<<<<< HEAD
   log: False
-=======
-  log: True
 
 
-# DQN agent parameters
-dqn: 
-  batch_size: 256
-  discount: 0.99
-  learning_rate: 1e-2
-  epsilon: 0.5
-  replay_capacity: 100000
-  min_replay_size: 1000
-  sgd_period: 1 
-  target_update_period: 4 
->>>>>>> main

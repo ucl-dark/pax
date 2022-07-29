@@ -5,17 +5,17 @@ import hydra
 import omegaconf
 
 import wandb
+from pax.centralized_learners import CentralizedLearners
 from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
-from pax.centralized_learners import CentralizedLearners
+from pax.lola.lola import make_lola
 from pax.meta_env import InfiniteMatrixGame
 from pax.naive_exact import NaiveLearnerEx
 from pax.naive.naive import make_naive_pg
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.lola.lola import make_lola
 from pax.runner import Runner
 from pax.strategies import (
     Altruistic,

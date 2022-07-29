@@ -16,7 +16,7 @@ payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 # Training hyperparameters
 num_envs: 128
 num_steps: 150 # number of steps per episode
-total_timesteps: 1_000_000
+total_timesteps: 10_000_000
 eval_every: 1_000_000 # timesteps
 
 # Useful information

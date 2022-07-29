@@ -38,6 +38,7 @@ class CentralizedLearners:
             agent.out_lookahead(env, other_agents)
             counter += 1
 
+    # TODO: Obselete at the moment. This can be put into the LOLA.
     def update(
         self,
         old_timesteps: List[TimeStep],
