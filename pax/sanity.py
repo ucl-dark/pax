@@ -1,16 +1,16 @@
+import logging
 import time
 
+import gym
+import hydra
+import jax.numpy as jnp
+from dm_env import TimeStep
+
+import wandb
 from pax.ppo.batched_envs import BatchedEnvs
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.utils import Section
-
-from dm_env import TimeStep
-import gym
-import hydra
-import jax.numpy as jnp
-import logging
-import wandb
 
 
 class CartPoleRunner:

@@ -1,9 +1,8 @@
 from typing import NamedTuple, Tuple
 
-from dm_env import TimeStep
 import jax
 import jax.numpy as jnp
-import numpy as np
+from dm_env import TimeStep
 
 
 class Sample(NamedTuple):

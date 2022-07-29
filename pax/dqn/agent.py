@@ -2,20 +2,19 @@
 
 from typing import Any, NamedTuple, Sequence
 
-from bsuite.baselines import base
-from bsuite.environments import catch
-from dm_env import TimeStep
-from pax.dqn.replay_buffer import Replay
-
 import distrax
 import dm_env
-from dm_env import specs
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
 import rlax
+from bsuite.baselines import base
+from bsuite.environments import catch
+from dm_env import TimeStep, specs
+
+from pax.dqn.replay_buffer import Replay
 
 
 class TrainingState(NamedTuple):

@@ -14,8 +14,13 @@ save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 
 # Agents  
+<<<<<<< HEAD
 agent1: 'LOLA'
 agent2: 'LOLA'
+=======
+agent1: 'Hyper'
+agent2: 'NaiveLearnerEx'
+>>>>>>> main
 
 # Environment
 env_id: ipd
@@ -37,16 +42,6 @@ eval_every: 50_000 # eval every n episodes, not timesteps
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
-# DQN agent parameters
-dqn: 
-  batch_size: 256
-  discount: 0.99
-  learning_rate: 1e-2
-  epsilon: 0.5
-  replay_capacity: 100000
-  min_replay_size: 1000
-  sgd_period: 1 
-  target_update_period: 4 
 
 # PPO agent parameters
 ppo:
@@ -86,4 +81,20 @@ wandb:
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}
+<<<<<<< HEAD
   log: False
+=======
+  log: True
+
+
+# DQN agent parameters
+dqn: 
+  batch_size: 256
+  discount: 0.99
+  learning_rate: 1e-2
+  epsilon: 0.5
+  replay_capacity: 100000
+  min_replay_size: 1000
+  sgd_period: 1 
+  target_update_period: 4 
+>>>>>>> main
