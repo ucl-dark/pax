@@ -1,8 +1,21 @@
 from time import time as tic
-
+from typing import Mapping, NamedTuple
+import optax
+import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
+
+
+class TrainingState(NamedTuple):
+    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+
+    params: hk.Params
+    opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
+    timesteps: int
+    extras: Mapping[str, jnp.ndarray]
+    hidden: None
 
 
 class Section(object):

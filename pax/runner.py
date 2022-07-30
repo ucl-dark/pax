@@ -3,7 +3,6 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-from dm_env import transition
 
 import wandb
 from pax.env import IteratedPrisonersDilemma

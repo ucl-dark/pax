@@ -1,11 +1,9 @@
-from binascii import a2b_base64
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
-
-from regex import R
 
 from pax import utils
 from pax.lola.buffer import TrajectoryBuffer
 from pax.lola.network import make_network
+from pax.utils import TrainingState
 
 from dm_env import TimeStep
 import haiku as hk
@@ -40,17 +38,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 def magic_box(x):
@@ -98,41 +85,6 @@ class LOLA:
                 hidden=None,
             )
             return actions, state
-
-        @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            _value = jax.lax.select(
-                t_prime.last(),
-                action_extras["values"],
-                jnp.zeros_like(action_extras["values"]),
-            )
-
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-            return traj_batch
 
         def loss(params, other_params, samples):
             # Stacks so that the dimension is now (num_envs, num_steps)
@@ -263,7 +215,6 @@ class LOLA:
         # Initialize functions
         self._policy = policy
         self.network = network
-        self._prepare_batch = jax.jit(prepare_batch)
         self._sgd_step = sgd_step
 
         # initialize some variables
@@ -312,7 +263,21 @@ class LOLA:
             hidden=None,
         )
         # other player's state
-        other_state = other_agent.reset_memory()
+        init_params = other_agent._state.params
+        other_opt_state = self._inner_optimizer.init(other_agent._state.params)
+        # other_state = other_agent.state.copy()
+        other_state = TrainingState(
+            params=init_params,
+            opt_state=other_opt_state,
+            random_key=other_agent._state.random_key,
+            timesteps=other_agent._state.timesteps,
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            },
+            hidden=None,
+        )
+        # other_state = other_agent.reset_memory()
 
         # do a full rollout
         t_init = env.reset()
@@ -322,23 +287,6 @@ class LOLA:
             None,
             length=env.episode_length,
         )
-
-        # update agent / add final trajectory
-        # do an agent update based on trajectories
-        # only need the other agent's state
-        # unpack the values from the buffer
-
-        # update agent / add final trajectory
-        # TODO: Unclear if this is still needed when not calculating advantage?
-        # final_t1 = vals[0]._replace(step_type=2)
-        # a1_state = vals[2]
-        # _, state = self._policy(my_state.params, final_t1.observation, a1_state)
-        # traj_batch_0 = self._prepare_batch(trajectories[0], final_t1, state.extras)
-
-        # final_t2 = vals[1]._replace(step_type=2)
-        # a2_state = vals[3]
-        # _, state = self._policy(other_state.params, final_t2.observation, a2_state)
-        # traj_batch_1 = self._prepare_batch(trajectories[1], final_t2, other_state.extras)
 
         traj_batch_0 = trajectories[0]
         traj_batch_1 = trajectories[1]
@@ -360,6 +308,7 @@ class LOLA:
         )
 
         # Update the optimizer
+
         updates, opt_state = self._inner_optimizer.update(
             gradients, other_state.opt_state
         )
@@ -476,20 +425,6 @@ class LOLA:
         state,
     ):
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
-
-        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
-        self._logger.metrics["sgd_steps"] += (
-            self._num_minibatches * self._num_epochs
-        )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-
-        self._state = state
         return state
 
 

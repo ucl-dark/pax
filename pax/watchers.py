@@ -19,28 +19,82 @@ STATE_NAMES = ["START", "CC", "DC", "CD", "DD"]
 ALL_STATES = [START, CC, DC, CD, DD]
 
 
+# General policy logger
 def policy_logger(agent) -> dict:
-    weights = agent.actor_optimizer.target["Dense_0"][
-        "kernel"
-    ]  # [layer_name]['w']
-    log_pi = nn.softmax(weights)
+    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    pi = nn.softmax(weights)
+    # sgd_steps = agent._total_steps / agent._num_steps
+    sgd_steps = agent._logger.metrics["sgd_steps"]
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
-    }  # probability of cooperating is p[0]
+        f"policy/{agent.player_id}/{str(s)}": p[0] for (s, p) in zip(State, pi)
+    }
+    probs.update({"policy/total_steps": sgd_steps})
     return probs
 
 
+# General value logger
 def value_logger(agent) -> dict:
-    weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
-    values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+    weights = agent._state.params["categorical_value_head/~/linear_1"]["w"]
+    # sgd_steps = agent._total_steps / agent._num_steps
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    probs = {
+        f"value/{agent.player_id}/{str(s)}": p[0]
+        for (s, p) in zip(State, weights)
     }
-    values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
-    )
-    return values
+    probs.update({"value/total_steps": sgd_steps})
+    return probs
 
 
+# General loss logger
+def losses_logger(agent) -> None:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        f"loss/{agent.player_id}/total": loss_total,
+        f"loss/{agent.player_id}/policy": loss_policy,
+        f"loss/{agent.player_id}/value": loss_value,
+    }
+    return losses
+
+
+# Loss logger for PPO (has additional terms)
+def losses_ppo(agent: PPO) -> dict:
+    sgd_steps = agent._logger.metrics["sgd_steps"]
+    loss_total = agent._logger.metrics["loss_total"]
+    loss_policy = agent._logger.metrics["loss_policy"]
+    loss_value = agent._logger.metrics["loss_value"]
+    loss_entropy = agent._logger.metrics["loss_entropy"]
+    entropy_cost = agent._logger.metrics["entropy_cost"]
+    losses = {
+        "sgd_steps": sgd_steps,
+        f"loss/{agent.player_id}/total": loss_total,
+        f"loss/{agent.player_id}/policy": loss_policy,
+        f"loss/{agent.player_id}/value": loss_value,
+        f"loss/{agent.player_id}/entropy": loss_entropy,
+        f"loss/{agent.player_id}/entropy_coefficient": entropy_cost,
+    }
+    return losses
+
+
+# General policy logger for networks with more than on layer
+def policy_logger_ppo_with_memory(agent) -> dict:
+    """Calculate probability of cooperation"""
+    params = agent._state.params
+    hidden = agent._state.hidden
+    episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
+    cooperation_probs = {"episode": episode}
+    for state, state_name in zip(ALL_STATES, STATE_NAMES):
+        (dist, _), hidden = agent.forward(params, state, hidden)
+        cooperation_probs[f"policy/{agent.player_id}/{state_name}"] = float(
+            dist.probs[0][0]
+        )
+    return cooperation_probs
+
+
+# TODO: Clean these up (possibly redundant)
 def policy_logger_dqn(agent) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
@@ -79,85 +133,6 @@ def value_logger_dqn(agent) -> dict:
     return values
 
 
-def policy_logger_ppo(agent: PPO) -> dict:
-    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
-    pi = nn.softmax(weights)
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
-    probs.update({"policy/total_steps": sgd_steps})
-    return probs
-
-
-def value_logger_ppo(agent: PPO) -> dict:
-    weights = agent._state.params["categorical_value_head/~/linear_1"][
-        "w"
-    ]  # 5 x 1 matrix
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
-    }
-    probs.update({"value/total_steps": sgd_steps})
-    return probs
-
-
-def value_logger_naive(agent: NaiveLearner) -> dict:
-    weights = agent._state.params["categorical_value_head/~/linear_1"][
-        "w"
-    ]  # 5 x 1 matrix
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
-    }
-    probs.update({"value/total_steps": sgd_steps})
-    return probs
-
-
-def value_logger_lola(agent: LOLA) -> dict:
-    weights = agent._state.params["categorical_value_head/~/linear_1"][
-        "w"
-    ]  # 5 x 1 matrix
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
-    }
-    probs.update({"value/total_steps": sgd_steps})
-    return probs
-
-
-def policy_logger_ppo_with_memory(agent) -> dict:
-    """Calculate probability of coopreation"""
-    # n = 5
-    params = agent._state.params
-    hidden = agent._state.hidden
-    # episode = int(
-    #     agent._logger.metrics["total_steps"]
-    #     / (agent._num_steps * agent._num_envs)
-    # )
-    episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
-    cooperation_probs = {"episode": episode}
-
-    # TODO: Figure out how to JIT the forward function
-    # Works when the forward function is not jitted.
-    for state, state_name in zip(ALL_STATES, STATE_NAMES):
-        (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[f"policy/{state_name}"] = float(dist.probs[0][0])
-    return cooperation_probs
-
-
-def naive_pg_losses(agent) -> None:
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    loss_policy = agent._logger.metrics["loss_policy"]
-    loss_value = agent._logger.metrics["loss_value"]
-    losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "train/policy": loss_policy,
-        "train/value": loss_value,
-    }
-    return losses
-
-
 def logger_hyper(agent: HyperPPO) -> dict:
     episode = int(
         agent._logger.metrics["total_steps"]
@@ -165,78 +140,6 @@ def logger_hyper(agent: HyperPPO) -> dict:
     )
     cooperation_probs = {"episode": episode}
     return cooperation_probs
-
-
-def naive_losses(agent) -> None:
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    loss_policy = agent._logger.metrics["loss_policy"]
-    loss_value = agent._logger.metrics["loss_value"]
-    losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "train/policy": loss_policy,
-        "train/value": loss_value,
-    }
-    return losses
-
-
-def losses_lola(agent) -> None:
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    loss_policy = agent._logger.metrics["loss_policy"]
-    loss_value = agent._logger.metrics["loss_value"]
-    losses = {
-        "sgd_steps": sgd_steps,
-        "train/total": loss_total,
-        "train/policy": loss_policy,
-        "train/value": loss_value,
-    }
-    return losses
-
-
-def losses_ppo(agent: PPO) -> dict:
-    pid = agent.player_id
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    loss_policy = agent._logger.metrics["loss_policy"]
-    loss_value = agent._logger.metrics["loss_value"]
-    loss_entropy = agent._logger.metrics["loss_entropy"]
-    entropy_cost = agent._logger.metrics["entropy_cost"]
-    losses = {
-        f"train/ppo_{pid}/sgd_steps": sgd_steps,
-        f"train/ppo_{pid}/total": loss_total,
-        f"train/ppo_{pid}/policy": loss_policy,
-        f"train/ppo_{pid}/value": loss_value,
-        f"train/ppo_{pid}/entropy": loss_entropy,
-        f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
-    }
-    return losses
-
-
-def policy_logger_naive(agent) -> None:
-    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
-    pi = nn.softmax(weights)
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {
-        f"policy/{str(s)}/{agent.player_id}/player_{agent.player_id}.cooperate": p[
-            0
-        ]
-        for (s, p) in zip(State, pi)
-    }
-    probs.update({"policy/total_steps": sgd_steps})
-    return probs
-
-
-def policy_logger_lola(agent) -> None:
-    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
-    pi = nn.softmax(weights)
-    sgd_steps = agent._total_steps / agent._num_steps
-    probs = {
-        f"policy/{agent.player_id}/{str(s)}": p[0] for (s, p) in zip(State, pi)
-    }
-    probs.update({"policy/total_steps": sgd_steps})
-    return probs
 
 
 def losses_naive(agent: NaiveLearnerEx) -> dict:

@@ -28,7 +28,7 @@ eval_every: 1_000_000 # timesteps
 lola: 
   use_baseline: True   
   adam_epsilon: 1e-5
-  lr_in: 0.3
+  lr_in:  1
   lr_out: 0.2
   gamma: 0.96
 

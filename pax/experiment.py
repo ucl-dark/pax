@@ -32,19 +32,14 @@ from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
     logger_naive,
+    losses_logger,
     losses_naive,
     losses_ppo,
+    policy_logger,
     policy_logger_dqn,
-    policy_logger_ppo,
     policy_logger_ppo_with_memory,
-    policy_logger_naive,
-    policy_logger_lola,
-    losses_lola,
-    value_logger_lola,
-    value_logger_naive,
+    value_logger,
     value_logger_dqn,
-    value_logger_ppo,
-    naive_pg_losses,
 )
 
 
@@ -268,12 +263,12 @@ def agent_setup(args, logger):
         "Grim": GrimTrigger,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
-        "Naive": get_naive_pg_agent,
+        "NaivePG": get_naive_pg_agent,
         "LOLA": get_LOLA_agent,
         "PPO_memory": get_PPO_memory_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearnerEx": get_naive_learner,
+        "NaiveEx": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -315,39 +310,6 @@ def watcher_setup(args, logger):
             wandb.log(policy_dict)
         return
 
-    def ppo_log(agent):
-        losses = losses_ppo(agent)
-        if args.ppo.with_memory:
-            policy = policy_logger_ppo_with_memory(agent)
-        else:
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
-            losses.update(value)
-        losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
-        return
-
-    def naive_log(agent):
-        losses = naive_pg_losses(agent)
-        policy = policy_logger_naive(agent)
-        value = value_logger_naive(agent)
-        losses.update(value)
-        losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
-        return
-
-    def lola_log(agent):
-        losses = losses_lola(agent)
-        policy = policy_logger_lola(agent)
-        value = value_logger_lola(agent)
-        losses.update(value)
-        losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
-        return
-
     def dumb_log(agent, *args):
         return
 
@@ -359,7 +321,17 @@ def watcher_setup(args, logger):
             wandb.log(losses)
         return
 
-    def naive_logger(agent):
+    def lola_log(agent):
+        losses = losses_logger(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def naive_ex_log(agent):
         losses = losses_naive(agent)
         policy = logger_naive(agent)
         losses.update(policy)
@@ -368,9 +340,29 @@ def watcher_setup(args, logger):
         return
 
     def naive_pg_log(agent):
-        losses = naive_pg_losses(agent)
-        policy = policy_logger_ppo(agent)
-        value = value_logger_ppo(agent)
+        losses = losses_logger(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def ppo_log(agent):
+        losses = losses_ppo(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def ppo_memory_log(agent):
+        losses = losses_ppo(agent)
+        policy = policy_logger_ppo_with_memory(agent)
+        value = value_logger(agent)
         losses.update(value)
         losses.update(policy)
         if args.wandb.log:
@@ -378,22 +370,22 @@ def watcher_setup(args, logger):
         return
 
     strategies = {
-        "TitForTat": dumb_log,
-        "Defect": dumb_log,
         "Altruistic": dumb_log,
-        "Human": dumb_log,
-        "Random": dumb_log,
-        "Grim": dumb_log,
+        "Defect": dumb_log,
         "DQN": dqn_log,
-        "PPO": ppo_log,
-        "LOLA": lola_log,
-        "PPO_memory": ppo_log,
-        "Naive": naive_pg_log,
+        "Grim": dumb_log,
+        "Human": dumb_log,
         "Hyper": hyper_log,
-        "NaiveLearnerEx": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
+        "LOLA": lola_log,
+        "NaivePG": naive_pg_log,
+        "NaiveEx": naive_ex_log,
+        "PPO": ppo_log,
+        "PPO_memory": ppo_memory_log,
+        "Random": dumb_log,
+        "TitForTat": dumb_log,
     }
 
     assert args.agent1 in strategies
