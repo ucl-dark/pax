@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'LOLA'
-agent2: 'LOLA'
+agent2: 'NaivePG'
 centralized: True
 
 # Environment
