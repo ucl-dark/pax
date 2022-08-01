@@ -31,10 +31,38 @@ class CategoricalValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        # logits = self._logit_layer(inputs)
-        logits = jax.nn.sigmoid(self._logit_layer(inputs))
+        logits = self._logit_layer(inputs)
+        # logits = jax.nn.sigmoid(self._logit_layer(inputs))
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (distrax.Categorical(logits=logits), value)
+
+
+class BernoulliValueHead(hk.Module):
+    """Network head that produces a categorical distribution and value."""
+
+    def __init__(
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+    ):
+        super().__init__(name=name)
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Constant(0),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0),
+            with_bias=False,
+        )
+
+    def __call__(self, inputs: jnp.ndarray):
+        # matching the way that they do it.
+        logits = jnp.squeeze(self._logit_layer(inputs), axis=-1)
+        probs = jax.nn.sigmoid(logits)
+        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
+        return (distrax.Bernoulli(probs=1 - probs), value)
 
 
 def make_network(num_actions: int):
@@ -45,6 +73,7 @@ def make_network(num_actions: int):
         layers.extend(
             [
                 CategoricalValueHead(num_values=num_actions),
+                # BernoulliValueHead(num_values=1),
             ]
         )
         policy_value_network = hk.Sequential(layers)

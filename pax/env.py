@@ -53,6 +53,8 @@ class SequentialMatrixGame(Environment):
             return self.reset()
         action_1, action_2 = actions
         self._num_steps += 1
+        # print("action_1.shape", action_1.shape)
+        # print("action_1", action_1)
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs,)
 

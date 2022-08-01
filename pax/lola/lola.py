@@ -415,17 +415,25 @@ class LOLA:
             rewards_self=trajectories[0].rewards,
             rewards_other=trajectories[1].rewards,
         )
-        # print("sample.obs_self.shape", sample.obs_self.shape)
-
+        # print("Before updating")
+        # print("---------------------")
+        # print("params", self._state.params)
+        # print("opt_state", self._state.opt_state)
+        # print()
         # calculate the gradients
         gradients, results = self.grad_fn_outer(
             my_state.params, other_state.params, sample
         )
+        # print("Gradients", gradients)
+        # print()
 
         # Update the optimizer
         updates, opt_state = self._outer_optimizer.update(
             gradients, my_state.opt_state
         )
+        # print("Updates", updates)
+        # print("Updated optimizer", opt_state)
+        # print()
 
         # apply the optimizer updates
         params = optax.apply_updates(my_state.params, updates)
@@ -450,6 +458,11 @@ class LOLA:
             extras={"log_probs": None, "values": None},
             hidden=None,
         )
+        # print("After updating")
+        # print("---------------------")
+        # print("params", self._state.params)
+        # print("opt_state", self._state.opt_state)
+        # print()
 
     def reset_memory(self) -> TrainingState:
         self._state = self._state._replace(
