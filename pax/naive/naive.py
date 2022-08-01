@@ -383,6 +383,7 @@ class NaiveLearner:
         self._rollouts = rollouts
         self._prepare_batch = jax.jit(prepare_batch)
         self._sgd_step = sgd_step
+        self.network = network
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments

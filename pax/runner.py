@@ -1,13 +1,16 @@
 import time
 from typing import NamedTuple
+import copy
 
 import jax
 import jax.numpy as jnp
+
 
 import wandb
 from pax.env import IteratedPrisonersDilemma
 from pax.independent_learners import IndependentLearners
 from pax.strategies import Defect, TitForTat
+from pax.utils import TrainingState, copy_state_and_network
 
 # TODO: make these a copy of acme
 
@@ -76,31 +79,52 @@ class Runner:
             return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+            ######################### LOLA #########################
             # start of unique lola code
-            # LOLA updates occur here
             if self.args.agent1 == "LOLA" and self.args.agent2 == "LOLA":
+                # copy state and haiku network
+                (
+                    agent1.other_state,
+                    agent1.other_network,
+                ) = copy_state_and_network(agent2)
+                (
+                    agent2.other_state,
+                    agent2.other_network,
+                ) = copy_state_and_network(agent1)
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
-                    agent1.in_lookahead(env, [agent2], _env_rollout)
-                    agent2.in_lookahead(env, [agent1], _env_rollout)
+                    agent1.in_lookahead(env, _env_rollout)
+                    agent2.in_lookahead(env, _env_rollout)
+
                 # outer rollout
                 agent1.out_lookahead(env, _env_rollout)
                 agent2.out_lookahead(env, _env_rollout)
 
             elif self.args.agent1 == "LOLA" and self.args.agent2 != "LOLA":
+                # copy state and haiku network of agent 2
+                (
+                    agent1.other_state,
+                    agent1.other_network,
+                ) = copy_state_and_network(agent2)
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
-                    agent1.in_lookahead(env, [agent2], _env_rollout)
+                    agent1.in_lookahead(env, _env_rollout)
                 # outer rollout
                 agent1.out_lookahead(env, _env_rollout)
 
             elif self.args.agent1 != "LOLA" and self.args.agent2 == "LOLA":
+                # copy state and haiku network of agent 1
+                (
+                    agent2.other_state,
+                    agent2.other_network,
+                ) = copy_state_and_network(agent1)
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
-                    agent2.in_lookahead(env, [agent1], _env_rollout)
+                    agent2.in_lookahead(env, _env_rollout)
                 # outer rollout
                 agent2.out_lookahead(env, _env_rollout)
             # end of unique lola code
+            ######################### LOLA #########################
 
             t_init = env.reset()
             a1_state = agent1.reset_memory()
@@ -133,6 +157,7 @@ class Runner:
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                f"| Joint reward: {(rewards_0.mean() + rewards_1.mean())*0.5}"
             )
 
             # print(
@@ -151,6 +176,10 @@ class Runner:
                         "train/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
+                        "train/episode_reward/joint": (
+                            rewards_0.mean() + rewards_1.mean()
+                        )
+                        * 0.5,
                     },
                 )
         print()

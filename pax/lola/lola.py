@@ -61,8 +61,6 @@ class LOLA:
         obs_spec: Tuple,
         num_envs: int = 4,
         num_steps: int = 150,
-        num_minibatches: int = 1,
-        num_epochs: int = 1,
         use_baseline: bool = True,
         gamma: float = 0.96,
     ):
@@ -86,26 +84,79 @@ class LOLA:
             )
             return actions, state
 
-        def loss(params, other_params, samples):
-            # Stacks so that the dimension is now (num_envs, num_steps)
-
+        def outer_loss(params, other_params, samples):
+            """Used for the outer rollout"""
+            # Unpack the samples
             obs_1 = samples.obs_self
             obs_2 = samples.obs_other
-
             rewards = samples.rewards_self
-            # r_1 = samples.rewards_self
-            # r_2 = samples.rewards_other
-
             actions_1 = samples.actions_self
             actions_2 = samples.actions_other
 
-            # distribution, values_self = self.network.apply(params, obs_1)
+            # Get distribution and value using my network
             distribution, values = self.network.apply(params, obs_1)
             self_log_prob = distribution.log_prob(actions_1)
 
-            distribution, values_others = self.network.apply(
-                other_params, obs_2
+            # Get distribution and value using other player's network
+            distribution, _ = self.other_network.apply(other_params, obs_2)
+            other_log_prob = distribution.log_prob(actions_2)
+
+            # apply discount:
+            cum_discount = (
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=1)
+                / self.gamma
             )
+
+            discounted_rewards = rewards * cum_discount
+            discounted_values = values * cum_discount
+
+            # stochastics nodes involved in rewards dependencies:
+            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=1)
+
+            # logprob of each stochastic nodes:
+            stochastic_nodes = self_log_prob + other_log_prob
+
+            # dice objective:
+            dice_objective = jnp.mean(
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+            )
+
+            if use_baseline:
+                # variance_reduction:
+                baseline_term = jnp.mean(
+                    jnp.sum(
+                        (1 - magic_box(stochastic_nodes)) * discounted_values,
+                        axis=1,
+                    )
+                )
+                dice_objective = dice_objective + baseline_term
+
+            # want to minimize this value
+            value_objective = jnp.mean((rewards - values) ** 2)
+
+            # want to maximize this objective
+            loss_total = -dice_objective + value_objective
+
+            return loss_total, {
+                "loss_total": -dice_objective + value_objective,
+                "loss_policy": -dice_objective,
+                "loss_value": value_objective,
+            }
+
+        def inner_loss(params, other_params, samples):
+            """Used for the inner rollout"""
+            obs_1 = samples.obs_self
+            obs_2 = samples.obs_other
+            rewards = samples.rewards_self
+            actions_1 = samples.actions_self
+            actions_2 = samples.actions_other
+
+            # Get distribution and value using other player's network
+            distribution, values = self.other_network.apply(params, obs_1)
+            self_log_prob = distribution.log_prob(actions_1)
+
+            # Get distribution and value using my network
+            distribution, _ = self.network.apply(other_params, obs_2)
             other_log_prob = distribution.log_prob(actions_2)
 
             # apply discount:
@@ -137,20 +188,16 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-            loss_value = jnp.mean((rewards - values) ** 2)
-            # loss_total = -dice_objective + loss_value
-            loss_total = dice_objective + loss_value
+            # want to minimize this value
+            value_objective = jnp.mean((rewards - values) ** 2)
 
-            # want to minimize -objective
-            # return loss_total, {
-            #     "loss_total": -dice_objective + loss_value,
-            #     "loss_policy": -dice_objective,
-            #     "loss_value": loss_value,
-            # }
+            # want to maximize this objective
+            loss_total = -dice_objective + value_objective
+
             return loss_total, {
-                "loss_total": dice_objective + loss_value,
-                "loss_policy": dice_objective,
-                "loss_value": loss_value,
+                "loss_total": -dice_objective + value_objective,
+                "loss_policy": -dice_objective,
+                "loss_value": value_objective,
             }
 
         def sgd_step(
@@ -198,7 +245,9 @@ class LOLA:
         )
 
         # self.grad_fn = jax.grad(loss, has_aux=True)
-        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
+        self.grad_fn_inner = jax.jit(jax.grad(inner_loss, has_aux=True))
+        self.grad_fn_outer = jax.jit(jax.grad(outer_loss, has_aux=True))
+        # self.grad_fn_outer = jax.grad(outer_loss, has_aux=True)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -226,8 +275,6 @@ class LOLA:
         self._num_envs = num_envs  # number of environments
         self._num_steps = num_steps  # number of steps per environment
         self._batch_size = int(num_envs * num_steps)  # number in one batch
-        self._num_minibatches = num_minibatches  # number of minibatches
-        self._num_epochs = num_epochs  # number of epochs to use sample
         self._obs_spec = obs_spec
 
     def select_action(self, t: TimeStep):
@@ -237,18 +284,14 @@ class LOLA:
         )
         return utils.to_numpy(actions)
 
-    def in_lookahead(self, env, other_agents, env_rollout):
+    def in_lookahead(self, env, env_rollout):
         """
         Performs a rollout using the current parameters of both agents
         and simulates a naive learning update step for the other agent
 
         INPUT:
         env: SequentialMatrixGame, an environment object of the game being played
-        other_agents: list, a list of objects of the other agents
         """
-
-        # get other agent
-        other_agent = other_agents[0]
 
         # my state
         my_state = TrainingState(
@@ -262,34 +305,19 @@ class LOLA:
             },
             hidden=None,
         )
-        # other player's state
-        init_params = other_agent._state.params
-        other_opt_state = self._inner_optimizer.init(other_agent._state.params)
-        # other_state = other_agent.state.copy()
-        other_state = TrainingState(
-            params=init_params,
-            opt_state=other_opt_state,
-            random_key=other_agent._state.random_key,
-            timesteps=other_agent._state.timesteps,
-            extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            },
-            hidden=None,
-        )
-        # other_state = other_agent.reset_memory()
 
         # do a full rollout
         t_init = env.reset()
-        vals, trajectories = jax.lax.scan(
+        _, trajectories = jax.lax.scan(
             env_rollout,
-            (t_init[0], t_init[1], my_state, other_state),
+            (t_init[0], t_init[1], my_state, self.other_state),
             None,
             length=env.episode_length,
         )
 
         traj_batch_0 = trajectories[0]
         traj_batch_1 = trajectories[1]
+
         # flip the order of the trajectories
         # assuming we're the other player
         sample = Sample(
@@ -303,26 +331,28 @@ class LOLA:
         )
 
         # get gradients of opponent
-        gradients, _ = self.grad_fn(
-            other_state.params, my_state.params, sample
+        gradients, _ = self.grad_fn_inner(
+            self.other_state.params, my_state.params, sample
         )
 
         # Update the optimizer
 
         updates, opt_state = self._inner_optimizer.update(
-            gradients, other_state.opt_state
+            gradients, self.other_state.opt_state
         )
 
         # apply the optimizer updates
-        params = optax.apply_updates(other_state.params, updates)
+        params = optax.apply_updates(self.other_state.params, updates)
+
+        # self._other_state = other_state
 
         # replace the other player's current parameters with a simulated update
-        self._other_state = TrainingState(
+        self.other_state = TrainingState(
             params=params,
             opt_state=opt_state,
-            random_key=other_state.random_key,
-            timesteps=other_state.timesteps,
-            extras=other_state.extras,
+            random_key=self.other_state.random_key,
+            timesteps=self.other_state.timesteps,
+            extras=self.other_state.extras,
             hidden=None,
         )
 
@@ -335,7 +365,7 @@ class LOLA:
         env: SequentialMatrixGame, an environment object of the game being played
         other_agents: list, a list of objects of the other agents
         """
-        # get a copy of the agent's state
+        # make my own state
         my_state = TrainingState(
             params=self._state.params,
             opt_state=self._state.opt_state,
@@ -347,35 +377,42 @@ class LOLA:
             },
             hidden=None,
         )
-        # get a copy of the other opponent's state
-        # TODO: Do I need to reset this? Maybe...
-        other_state = self._other_state
+        # a reference to the other agent's state (from runner)
+        other_state = TrainingState(
+            params=self.other_state.params,
+            opt_state=self.other_state.opt_state,
+            random_key=self.other_state.random_key,
+            timesteps=self.other_state.timesteps,
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            },
+            hidden=None,
+        )
+        # self.other_state
 
         # do a full rollout
         t_init = env.reset()
-        vals, trajectories = jax.lax.scan(
+        _, trajectories = jax.lax.scan(
             env_rollout,
             (t_init[0], t_init[1], my_state, other_state),
             None,
             length=env.episode_length,
         )
 
-        traj_batch_0 = trajectories[0]
-        traj_batch_1 = trajectories[1]
-
         # Now keep the same order.
         sample = Sample(
-            obs_self=traj_batch_0.observations,
-            obs_other=traj_batch_1.observations,
-            actions_self=traj_batch_0.actions,
-            actions_other=traj_batch_1.actions,
-            dones=traj_batch_0.dones,
-            rewards_self=traj_batch_0.rewards,
-            rewards_other=traj_batch_1.rewards,
+            obs_self=trajectories[0].observations,
+            obs_other=trajectories[1].observations,
+            actions_self=trajectories[0].actions,
+            actions_other=trajectories[1].actions,
+            dones=trajectories[0].dones,
+            rewards_self=trajectories[0].rewards,
+            rewards_other=trajectories[1].rewards,
         )
 
         # calculate the gradients
-        gradients, results = self.grad_fn(
+        gradients, results = self.grad_fn_outer(
             my_state.params, other_state.params, sample
         )
 
@@ -392,14 +429,13 @@ class LOLA:
         self._logger.metrics["total_steps"] += self._num_envs
         self._state._replace(timesteps=self._total_steps)
 
-        self._logger.metrics["sgd_steps"] += (
-            self._num_minibatches * self._num_epochs
-        )
+        # Logging
+        self._logger.metrics["sgd_steps"] += 1
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
 
-        # replace the other player's current parameters with a simulated update
+        # replace the player's current parameters with a real update
         self._state = TrainingState(
             params=params,
             opt_state=opt_state,
@@ -430,18 +466,12 @@ class LOLA:
 
 def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
-
+    # Create Haiku network
     network = make_network(action_spec)
-
-    inner_optimizer = optax.chain(
-        optax.scale_by_adam(eps=args.lola.adam_epsilon),
-        optax.scale(-args.lola.lr_in),
-    )
-    outer_optimizer = optax.chain(
-        optax.scale_by_adam(eps=args.lola.adam_epsilon),
-        optax.scale(-args.lola.lr_out),
-    )
-
+    # Inner optimizer uses SGD
+    inner_optimizer = optax.sgd(args.lola.lr_in)
+    # Outer optimizer uses Adam
+    outer_optimizer = optax.adam(args.lola.lr_out)
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
@@ -454,8 +484,6 @@ def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
         player_id=player_id,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
-        num_minibatches=args.ppo.num_minibatches,
-        num_epochs=args.ppo.num_epochs,
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
     )

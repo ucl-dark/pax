@@ -9,7 +9,7 @@ hydra:
       level: INFO
 
 # Global variables 
-seed: 0
+seed: 25
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 
@@ -52,7 +52,7 @@ dqn:
 ppo:
   num_minibatches: 10
   num_epochs: 4 
-  gamma: 0.75
+  gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
@@ -60,7 +60,7 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.2 
-  entropy_coeff_horizon: 500_000
+  entropy_coeff_horizon: 5_000_000
   # for halfway, the horizon should (1/2) * (total_timesteps / num_envs)
   entropy_coeff_end: 0.01
   lr_scheduling: True
@@ -75,7 +75,6 @@ naive:
   num_epochs: 1
   gamma: 0.96
   gae_lambda: 0.95
-  clip_value: True
   max_gradient_norm: 1
   lr_scheduling: False
   learning_rate: 1

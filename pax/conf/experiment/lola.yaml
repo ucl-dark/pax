@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'LOLA'
-agent2: 'NaivePG'
+agent2: 'LOLA'
 centralized: True
 
 # Environment
@@ -16,8 +16,8 @@ payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 # Training hyperparameters
 num_envs: 128
 num_steps: 150 # number of steps per episode
-total_timesteps: 10_000_000
-eval_every: 1_000_000 # timesteps
+total_timesteps: 4_000_000
+eval_every: 4_000_000 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -28,14 +28,15 @@ eval_every: 1_000_000 # timesteps
 lola: 
   use_baseline: True   
   adam_epsilon: 1e-5
-  lr_in:  1
+  lr_in: 0.3
   lr_out: 0.2
   gamma: 0.96
+  num_lookaheads: 0
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
-  name: run-seed-${seed}
-  log: True
+  name: run-seed-${seed}-${lola.num_lookaheads}-lookaheads
+  log: False

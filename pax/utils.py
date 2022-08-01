@@ -99,3 +99,20 @@ def add_batch_dim(values):
 
 def to_numpy(values):
     return jax.tree_map(np.asarray, values)
+
+
+def copy_state_and_network(agent):
+    """Copies an agent state and returns the state"""
+    state = TrainingState(
+        params=agent._state.params,
+        opt_state=agent._state.opt_state,
+        random_key=agent._state.random_key,
+        timesteps=agent._state.timesteps,
+        extras={
+            "values": jnp.zeros(agent._num_envs),
+            "log_probs": jnp.zeros(agent._num_envs),
+        },
+        hidden=None,
+    )
+    network = agent.network
+    return state, network
