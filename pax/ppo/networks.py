@@ -50,7 +50,8 @@ class ContinuousValueHead(hk.Module):
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Orthogonal(1.0),  # baseline
+            # w_init=hk.initializers.Orthogonal(1.0),  # baseline
+            w_init=hk.initializers.Constant(0.5),
             with_bias=False,
         )
 

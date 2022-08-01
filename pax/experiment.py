@@ -5,10 +5,12 @@ import hydra
 import omegaconf
 
 import wandb
+from pax.centralized_learners import CentralizedLearners
 from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
+from pax.lola.lola import make_lola
 from pax.meta_env import InfiniteMatrixGame
 from pax.naive_exact import NaiveLearnerEx
 from pax.naive.naive import make_naive_pg
@@ -30,14 +32,14 @@ from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
     logger_naive,
+    losses_logger,
     losses_naive,
     losses_ppo,
+    policy_logger,
     policy_logger_dqn,
-    policy_logger_ppo,
     policy_logger_ppo_with_memory,
+    value_logger,
     value_logger_dqn,
-    value_logger_ppo,
-    naive_pg_losses,
 )
 
 
@@ -190,6 +192,19 @@ def agent_setup(args, logger):
             )
         return ppo_agent
 
+    def get_LOLA_agent(seed, player_id):
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
+        lola_agent = make_lola(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return lola_agent
+
     def get_hyper_agent(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
@@ -208,7 +223,7 @@ def agent_setup(args, logger):
         )
         return hyper_agent
 
-    def get_naive_pg(seed, player_id):
+    def get_naive_pg_agent(seed, player_id):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
@@ -248,11 +263,12 @@ def agent_setup(args, logger):
         "Grim": GrimTrigger,
         "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
+        "NaivePG": get_naive_pg_agent,
+        "LOLA": get_LOLA_agent,
         "PPO_memory": get_PPO_memory_agent,
-        "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearnerEx": get_naive_learner,
+        "NaiveEx": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -272,9 +288,13 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    logger.info(f"PPO with memory: {args.ppo.with_memory}")
+    # logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+
+    if args.centralized:
+        logger.info("Training: Centralized")
+        return CentralizedLearners([agent_0, agent_1])
 
     return IndependentLearners([agent_0, agent_1])
 
@@ -290,19 +310,6 @@ def watcher_setup(args, logger):
             wandb.log(policy_dict)
         return
 
-    def ppo_log(agent):
-        losses = losses_ppo(agent)
-        if args.ppo.with_memory:
-            policy = policy_logger_ppo_with_memory(agent)
-        else:
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
-            losses.update(value)
-        losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
-        return
-
     def dumb_log(agent, *args):
         return
 
@@ -314,7 +321,17 @@ def watcher_setup(args, logger):
             wandb.log(losses)
         return
 
-    def naive_logger(agent):
+    def lola_log(agent):
+        losses = losses_logger(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def naive_ex_log(agent):
         losses = losses_naive(agent)
         policy = logger_naive(agent)
         losses.update(policy)
@@ -323,9 +340,29 @@ def watcher_setup(args, logger):
         return
 
     def naive_pg_log(agent):
-        losses = naive_pg_losses(agent)
-        policy = policy_logger_ppo(agent)
-        value = value_logger_ppo(agent)
+        losses = losses_logger(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def ppo_log(agent):
+        losses = losses_ppo(agent)
+        policy = policy_logger(agent)
+        value = value_logger(agent)
+        losses.update(value)
+        losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def ppo_memory_log(agent):
+        losses = losses_ppo(agent)
+        policy = policy_logger_ppo_with_memory(agent)
+        value = value_logger(agent)
         losses.update(value)
         losses.update(policy)
         if args.wandb.log:
@@ -333,21 +370,22 @@ def watcher_setup(args, logger):
         return
 
     strategies = {
-        "TitForTat": dumb_log,
-        "Defect": dumb_log,
         "Altruistic": dumb_log,
-        "Human": dumb_log,
-        "Random": dumb_log,
-        "Grim": dumb_log,
+        "Defect": dumb_log,
         "DQN": dqn_log,
-        "PPO": ppo_log,
-        "PPO_memory": ppo_log,
-        "Naive": naive_pg_log,
+        "Grim": dumb_log,
+        "Human": dumb_log,
         "Hyper": hyper_log,
-        "NaiveLearnerEx": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
+        "LOLA": lola_log,
+        "NaivePG": naive_pg_log,
+        "NaiveEx": naive_ex_log,
+        "PPO": ppo_log,
+        "PPO_memory": ppo_memory_log,
+        "Random": dumb_log,
+        "TitForTat": dumb_log,
     }
 
     assert args.agent1 in strategies

@@ -9,69 +9,33 @@ hydra:
       level: INFO
 
 # Global variables 
-seed: 0
+seed: 25
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'NaiveLearnerEx'
+agent1: 'LOLA'
+agent2: 'LOLA'
 
 # Environment
 env_id: ipd
 game: ipd 
-env_type: infinite
+env_type: finite
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
+centralized: True
 
 # Training hyperparameters
-num_envs: 4000
-num_steps: 100 # number of steps per episode
-total_timesteps: 1.6e9
-eval_every: 0.4e9 # timesteps for update
+num_envs: 128
+num_steps: 150 # number of steps per episode
+total_timesteps: 1_000_000
+eval_every: 100_000 # eval every n episodes, not timesteps
+
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
-
-
-# PPO agent parameters
-ppo:
-  num_minibatches: 1
-  num_epochs: 4 
-  gamma: 0.96
-  gae_lambda: 0.99
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
-  max_gradient_norm: 0.5
-  anneal_entropy: False
-  entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 0.8e9
-  entropy_coeff_end: 0.001
-  lr_scheduling: False
-  learning_rate: 4e-3
-  adam_epsilon: 1e-5
-  adam_eps_root: 0.
-  with_memory: False
-
-# Naive Learner parameters
-naive:
-  lr: 1.0
-
-# LOLA agent parameters
-# lola:
-#   ... 
-
-# Logging setup
-wandb:
-  entity: "ucl-dark"
-  project: ipd
-  group: 'MFOS-${agent1}-vs-${agent2}-${game}'
-  name: run-seed-${seed}
-  log: True
-
 
 # DQN agent parameters
 dqn: 
@@ -83,3 +47,54 @@ dqn:
   min_replay_size: 1000
   sgd_period: 1 
   target_update_period: 4 
+
+# PPO agent parameters
+ppo:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.2 
+  entropy_coeff_horizon: 5_000_000
+  # for halfway, the horizon should (1/2) * (total_timesteps / num_envs)
+  entropy_coeff_end: 0.01
+  lr_scheduling: True
+  learning_rate: 2.5e-3
+  adam_epsilon: 1e-5
+  adam_eps_root: 0.
+  with_memory: False
+
+# Naive Learner parameters
+naive:
+  num_minibatches: 1
+  num_epochs: 1
+  gamma: 0.96
+  gae_lambda: 0.95
+  max_gradient_norm: 1
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+
+# LOLA agent parameters
+lola: 
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  lr_in: 0.3
+  lr_out: 0.2
+  gamma: 0.96
+  num_lookaheads: 1
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: 'LOLA-vs-${agent2}-${game}'
+  name: run-seed-${seed}
+  log: False
+
+

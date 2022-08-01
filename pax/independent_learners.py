@@ -5,7 +5,9 @@ from dm_env import TimeStep
 
 
 class IndependentLearners:
-    "Interface for a set of batched agents to work with environment"
+    """Interface for a set of batched agents to work with environment
+    Performs independent learning
+    """
 
     def __init__(self, agents: list):
         self.num_agents: int = len(agents)
@@ -23,7 +25,7 @@ class IndependentLearners:
         actions: List[jnp.ndarray],
         timesteps: List[TimeStep],
     ) -> None:
-        # might have to add some centralised training to this
+
         for agent, t, action, t_1 in zip(
             self.agents, old_timesteps, actions, timesteps
         ):

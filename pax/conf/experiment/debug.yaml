@@ -4,5 +4,5 @@ debug: true
 
 wandb:
   group: debug
-  log: true
+  log: False
 
