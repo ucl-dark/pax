@@ -26,7 +26,7 @@ eval_every: 4_000_000 # timesteps
 
 # LOLA agent parameters
 lola: 
-  use_baseline: True   
+  use_baseline: False   
   adam_epsilon: 1e-5
   lr_in: 0.3
   lr_out: 0.2
@@ -39,4 +39,4 @@ wandb:
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}-${lola.num_lookaheads}-lookaheads
-  log: False
+  log: True

@@ -76,6 +76,45 @@ class Runner:
                 tprime_2.last() * jnp.zeros(env.num_envs),
                 a2_state.hidden,
             )
+            return (
+                tprime_1,
+                tprime_2,
+                a1_state,
+                a2_state,
+            ), (traj1, traj2)
+
+        def _env_rollout2(carry, unused):
+            t1, t2, a1_state, a2_state = carry
+            a1, a1_state = agent2._policy(
+                a1_state.params, t1.observation, a1_state
+            )
+            a2, a2_state = agent1._policy(
+                a2_state.params, t2.observation, a2_state
+            )
+            tprime_1, tprime_2 = env.runner_step(
+                [
+                    a1,
+                    a2,
+                ]
+            )
+            traj1 = Sample(
+                t1.observation,
+                a1,
+                tprime_1.reward,
+                a1_state.extras["log_probs"],
+                a1_state.extras["values"],
+                tprime_1.last() * jnp.zeros(env.num_envs),
+                a1_state.hidden,
+            )
+            traj2 = Sample(
+                t2.observation,
+                a2,
+                tprime_2.reward,
+                a2_state.extras["log_probs"],
+                a2_state.extras["values"],
+                tprime_2.last() * jnp.zeros(env.num_envs),
+                a2_state.hidden,
+            )
             return (tprime_1, tprime_2, a1_state, a2_state), (traj1, traj2)
 
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
@@ -94,11 +133,11 @@ class Runner:
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
                     agent1.in_lookahead(env, _env_rollout)
-                    agent2.in_lookahead(env, _env_rollout)
+                    agent2.in_lookahead(env, _env_rollout2)
 
                 # outer rollout
                 agent1.out_lookahead(env, _env_rollout)
-                agent2.out_lookahead(env, _env_rollout)
+                agent2.out_lookahead(env, _env_rollout2)
 
             elif self.args.agent1 == "LOLA" and self.args.agent2 != "LOLA":
                 # copy state and haiku network of agent 2

@@ -244,10 +244,8 @@ class LOLA:
             num_envs, num_steps, obs_spec
         )
 
-        # self.grad_fn = jax.grad(loss, has_aux=True)
         self.grad_fn_inner = jax.jit(jax.grad(inner_loss, has_aux=True))
         self.grad_fn_outer = jax.jit(jax.grad(outer_loss, has_aux=True))
-        # self.grad_fn_outer = jax.grad(outer_loss, has_aux=True)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -306,28 +304,37 @@ class LOLA:
             hidden=None,
         )
 
+        other_state = TrainingState(
+            params=self.other_state.params,
+            opt_state=self.other_state.opt_state,
+            random_key=self.other_state.random_key,
+            timesteps=self.other_state.timesteps,
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            },
+            hidden=None,
+        )
+
         # do a full rollout
         t_init = env.reset()
         _, trajectories = jax.lax.scan(
             env_rollout,
-            (t_init[0], t_init[1], my_state, self.other_state),
+            (t_init[0], t_init[1], my_state, other_state),
             None,
             length=env.episode_length,
         )
 
-        traj_batch_0 = trajectories[0]
-        traj_batch_1 = trajectories[1]
-
         # flip the order of the trajectories
         # assuming we're the other player
         sample = Sample(
-            obs_self=traj_batch_1.observations,
-            obs_other=traj_batch_0.observations,
-            actions_self=traj_batch_1.actions,
-            actions_other=traj_batch_0.actions,
-            dones=traj_batch_0.dones,
-            rewards_self=traj_batch_1.rewards,
-            rewards_other=traj_batch_0.rewards,
+            obs_self=trajectories[1].observations,
+            obs_other=trajectories[0].observations,
+            actions_self=trajectories[1].actions,
+            actions_other=trajectories[0].actions,
+            dones=trajectories[0].dones,
+            rewards_self=trajectories[1].rewards,
+            rewards_other=trajectories[0].rewards,
         )
 
         # get gradients of opponent
@@ -343,8 +350,6 @@ class LOLA:
 
         # apply the optimizer updates
         params = optax.apply_updates(self.other_state.params, updates)
-
-        # self._other_state = other_state
 
         # replace the other player's current parameters with a simulated update
         self.other_state = TrainingState(
@@ -377,7 +382,7 @@ class LOLA:
             },
             hidden=None,
         )
-        # a reference to the other agent's state (from runner)
+        # copy the other person's state
         other_state = TrainingState(
             params=self.other_state.params,
             opt_state=self.other_state.opt_state,
@@ -389,7 +394,6 @@ class LOLA:
             },
             hidden=None,
         )
-        # self.other_state
 
         # do a full rollout
         t_init = env.reset()
