@@ -103,22 +103,23 @@ class LOLA:
 
             # apply discount:
             cum_discount = (
-                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=1)
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
                 / self.gamma
             )
+            # print(cum_discount)
 
             discounted_rewards = rewards * cum_discount
             discounted_values = values * cum_discount
 
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=1)
+            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
 
             # logprob of each stochastic nodes:
             stochastic_nodes = self_log_prob + other_log_prob
 
             # dice objective:
             dice_objective = jnp.mean(
-                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=0)
             )
 
             if use_baseline:
@@ -126,7 +127,7 @@ class LOLA:
                 baseline_term = jnp.mean(
                     jnp.sum(
                         (1 - magic_box(stochastic_nodes)) * discounted_values,
-                        axis=1,
+                        axis=0,
                     )
                 )
                 dice_objective = dice_objective + baseline_term
@@ -246,6 +247,7 @@ class LOLA:
 
         self.grad_fn_inner = jax.jit(jax.grad(inner_loss, has_aux=True))
         self.grad_fn_outer = jax.jit(jax.grad(outer_loss, has_aux=True))
+        # self.grad_fn_outer = jax.grad(outer_loss, has_aux=True)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -414,6 +416,7 @@ class LOLA:
             rewards_self=trajectories[0].rewards,
             rewards_other=trajectories[1].rewards,
         )
+        # print("sample.obs_self.shape", sample.obs_self.shape)
 
         # calculate the gradients
         gradients, results = self.grad_fn_outer(

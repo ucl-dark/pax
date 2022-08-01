@@ -39,4 +39,4 @@ wandb:
   project: ipd
   group: 'LOLA-vs-${agent2}-${game}'
   name: run-seed-${seed}-${lola.num_lookaheads}-lookaheads
-  log: True
+  log: True 
