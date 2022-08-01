@@ -133,11 +133,11 @@ class Runner:
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
                     agent1.in_lookahead(env, _env_rollout)
-                    agent2.in_lookahead(env, _env_rollout2)
+                    agent2.in_lookahead(env, _env_rollout)
 
                 # outer rollout
                 agent1.out_lookahead(env, _env_rollout)
-                agent2.out_lookahead(env, _env_rollout2)
+                agent2.out_lookahead(env, _env_rollout)
 
             elif self.args.agent1 == "LOLA" and self.args.agent2 != "LOLA":
                 # copy state and haiku network of agent 2

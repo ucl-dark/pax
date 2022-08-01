@@ -102,9 +102,11 @@ def to_numpy(values):
 
 
 def copy_state_and_network(agent):
+    import copy
+
     """Copies an agent state and returns the state"""
     state = TrainingState(
-        params=agent._state.params,
+        params=copy.deepcopy(agent._state.params),
         opt_state=agent._state.opt_state,
         random_key=agent._state.random_key,
         timesteps=agent._state.timesteps,

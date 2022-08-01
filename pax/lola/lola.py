@@ -106,7 +106,6 @@ class LOLA:
                 jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
                 / self.gamma
             )
-            # print(cum_discount)
 
             discounted_rewards = rewards * cum_discount
             discounted_values = values * cum_discount

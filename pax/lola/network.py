@@ -5,6 +5,7 @@ from pax import utils
 import distrax
 import haiku as hk
 import jax.numpy as jnp
+import jax
 
 
 class CategoricalValueHead(hk.Module):
@@ -30,7 +31,8 @@ class CategoricalValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        logits = self._logit_layer(inputs)
+        # logits = self._logit_layer(inputs)
+        logits = jax.nn.sigmoid(self._logit_layer(inputs))
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (distrax.Categorical(logits=logits), value)
 
