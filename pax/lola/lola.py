@@ -162,21 +162,21 @@ class LOLA:
 
             # apply discount:
             cum_discount = (
-                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=1)
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
                 / self.gamma
             )
             discounted_rewards = rewards * cum_discount
             discounted_values = values * cum_discount
 
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=1)
+            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
 
             # logprob of each stochastic nodes:
             stochastic_nodes = self_log_prob + other_log_prob
 
             # dice objective:
             dice_objective = jnp.mean(
-                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=1)
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=0)
             )
 
             if use_baseline:
@@ -184,7 +184,7 @@ class LOLA:
                 baseline_term = jnp.mean(
                     jnp.sum(
                         (1 - magic_box(stochastic_nodes)) * discounted_values,
-                        axis=1,
+                        axis=0,
                     )
                 )
                 dice_objective = dice_objective + baseline_term
