@@ -187,10 +187,12 @@ class Runner:
                 agents.log(watchers)
                 wandb.log(
                     {
-                        "Best Training Score": log["log_top_1"][generation],
                         "Generation": self.generations,
                         "train/fitness/player_1": float(fitness.mean()),
                         "train/fitness/player_2": float(other_fitness.mean()),
+                        "train/fitness/best_training_score": log["log_top_1"][
+                            generation
+                        ],
                         "train/fitness/top_agents_1": log["top_fitness"][0],
                         "train/fitness/top_agents_2": log["top_fitness"][1],
                         "train/fitness/top_agents_3": log["top_fitness"][2],
