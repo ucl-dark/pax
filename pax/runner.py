@@ -264,6 +264,9 @@ class Runner:
                         "eval/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
+                        "eval/joint_reward": float(
+                            rewards_0.mean() + rewards_1.mean() * 0.5
+                        ),
                     }
                 )
         agents.eval(False)
