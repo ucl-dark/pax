@@ -94,12 +94,18 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
+        agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0))
+        agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0), 0)
+        agent2.make_initial_state = jax.vmap(
+            agent2.make_initial_state, (0, None), 0
+        )
+
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a2_state, env_state = carry
             a1, new_a1_state = agent1._policy(
                 a1_state.params, t1.observation, a1_state
             )
-            a2, new_a2_state = agent2._policy(
+            a2, new_a2_state = agent2.batch_policy(
                 a2_state.params, t2.observation, a2_state
             )
             (tprime_1, tprime_2), env_state = env.runner_step(
@@ -149,44 +155,46 @@ class Runner:
             )
 
             # do second agent update
-            final_t2 = vals[1]._replace(step_type=2)
+            final_t2 = vals[1]._replace(
+                step_type=2 * jnp.ones_like(vals[1].step_type)
+            )
             a2_state = vals[3]
-            a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+
+            a2_state = agent2.batch_update(trajectories[1], final_t2, a2_state)
             return (t1, t2, a1_state, a2_state, env_state), trajectories
 
         # run actual loop
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
             env_state = env.state
+            rng, _ = jax.random.split(rng)
 
             # uniquely nl code required here.
             a1_state = agent1.reset_memory()
             a2_state = agent2.make_initial_state(
-                rng, (env.observation_spec().num_values,)
-            )
-            rng, _ = jax.random.split(rng)
-
-            # rollout outer episode
-            ys = []
-            carry = (*t_init, a1_state, a2_state, env_state)
-            for x in range(env.num_trials):
-                carry, y0 = _outer_rollout(carry, x)
-                ys.append(y0)
-
-            vals = carry
-            trajectories = stack_samples(ys)
-            self.train_episodes += 1
-            rewards_0 = trajectories[0].rewards.mean()
-            rewards_1 = trajectories[1].rewards.mean()
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                jax.random.split(rng, env.num_envs),
+                (env.observation_spec().num_values,),
             )
 
+            # num trials
+            vals, trajectories = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a2_state, env_state),
+                None,
+                length=env.num_trials,
+            )
             # update outer agent
             final_t1 = vals[0]._replace(step_type=2)
             a1_state = vals[2]
             a1_state = agent1.update(
                 _meta_trajectory_reshape(trajectories[0]), final_t1, a1_state
+            )
+
+            self.train_episodes += 1
+            rewards_0 = trajectories[0].rewards.mean()
+            rewards_1 = trajectories[1].rewards.mean()
+            print(
+                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
 
             # logging

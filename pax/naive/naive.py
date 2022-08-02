@@ -217,7 +217,7 @@ class NaiveLearner:
             #     lambda x: x[:, :-1],
             #     (observations, actions, behavior_log_probs, behavior_values),
             # )
-            behavior_values = behavior_values[:-1, :]
+            behavior_values = behavior_values[:-1]
 
             trajectories = Batch(
                 observations=observations,
@@ -228,20 +228,22 @@ class NaiveLearner:
                 behavior_values=behavior_values,
             )
 
-            # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
-            # to [num_envs * num_steps,..]
-            assert len(target_values.shape) > 1
-            num_envs = target_values.shape[0]
-            num_steps = target_values.shape[1]
-            batch_size = num_envs * num_steps
-            assert batch_size % num_minibatches == 0, (
-                "Num minibatches must divide batch size. Got batch_size={}"
-                " num_minibatches={}."
-            ).format(batch_size, num_minibatches)
+            # # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
+            # # to [num_envs * num_steps,..]
+            # assert len(target_values.shape) > 1
+            batch_size = target_values.shape[0]
+            # num_steps = target_values.shape[1]
+            # batch_size = num_envs * num_steps
+            # assert batch_size % num_minibatches == 0, (
+            #     "Num minibatches must divide batch size. Got batch_size={}"
+            #     " num_minibatches={}."
+            # ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_map(
-                lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
-            )
+            # batch = jax.tree_map(
+            #     lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
+            # )
+
+            batch = trajectories
 
             # Compute gradients.
             grad_fn = jax.grad(loss, has_aux=True)
@@ -325,9 +327,9 @@ class NaiveLearner:
 
             metrics = jax.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
-                jnp.abs(jnp.mean(rewards, axis=(0, 1)))
+                jnp.abs(jnp.mean(rewards, axis=(0)))
             )
-            metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
+            metrics["rewards_std"] = jnp.std(rewards, axis=(0))
 
             new_state = TrainingState(
                 params=params,
@@ -335,8 +337,8 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=timesteps,
                 extras={
-                    "log_probs": jnp.zeros(self._num_envs),
-                    "values": jnp.zeros(self._num_envs),
+                    "log_probs": 0,
+                    "values": 0,
                 },
                 hiddens=None,
             )
@@ -358,8 +360,8 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=0,
                 extras={
-                    "values": jnp.zeros(num_envs),
-                    "log_probs": jnp.zeros(num_envs),
+                    "values": 0,
+                    "log_probs": 0,
                 },
                 hiddens=None,
             )
