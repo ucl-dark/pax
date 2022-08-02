@@ -70,7 +70,7 @@ naive:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MARL^2-${agent1}-vs-${agent2}-debug'
+  group: 'MARL^2-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
 

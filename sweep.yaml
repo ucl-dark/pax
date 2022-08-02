@@ -1,0 +1,19 @@
+method: random
+metric:
+  name: train/episode_reward/player_1
+  goal: maximize
+parameters:
+  naive.learning_rate:
+    values: [1, 0.5, 0.1]
+  num_envs:
+    values: [50, 100, 500, 1000, 4000]
+  num_inner_steps:
+    values: [25, 50, 100, 150, 200]
+  num_steps:
+    values: [50, 100, 300, 600, 1000]
+
+command:
+  - python3
+  - -m
+  - pax.experiment
+  - ${args_no_hyphens}
