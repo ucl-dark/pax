@@ -171,6 +171,17 @@ class Runner:
                 f"Generation: {generation} | Best: {log['log_top_1'][generation]} | "
                 f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
+            print("----------")
+            print("Top Agents")
+            print("----------")
+            print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
+            print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
+            print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
+            print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
+            print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
+            # for idx, agent_fitness in enumerate(log['top_fitness']):
+            #     print(f"Agent {idx} | Fitness: {agent_fitness}")
+            print()
             # logging
             if watchers:
                 agents.log(watchers)
@@ -180,6 +191,11 @@ class Runner:
                         "Generation": self.generations,
                         "train/fitness/player_1": float(fitness.mean()),
                         "train/fitness/player_2": float(other_fitness.mean()),
+                        "train/fitness/top_agents_1": log["top_fitness"][0],
+                        "train/fitness/top_agents_2": log["top_fitness"][1],
+                        "train/fitness/top_agents_3": log["top_fitness"][2],
+                        "train/fitness/top_agents_4": log["top_fitness"][3],
+                        "train/fitness/top_agents_5": log["top_fitness"][4],
                     },
                 )
 
