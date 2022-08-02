@@ -38,6 +38,8 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_dqn,
     value_logger_ppo,
+    policy_logger_earl,
+    value_logger_earl,
 )
 
 
@@ -320,6 +322,8 @@ def watcher_setup(args, logger):
         if args.wandb.log:
             wandb.log(losses)
         return
+
+    # def earl_log(agent):
 
     def dumb_log(agent, *args):
         return

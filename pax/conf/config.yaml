@@ -70,9 +70,9 @@ naive:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'MARL^2-${agent1}-vs-${agent2}'
+  group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: False
+  log: True
 
 
 # DQN agent parameters

@@ -9,6 +9,7 @@ from pax.independent_learners import IndependentLearners
 from pax.strategies import Defect, TitForTat, TrainingState
 import numpy as np
 from evosax import ParameterReshaper
+from evosax.utils import ESLog
 
 
 class Sample(NamedTuple):
@@ -33,6 +34,7 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
+        self.generations = 0
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -114,6 +116,14 @@ class Runner:
         )
         es_params = strategy.default_params
         evo_state = strategy.initialize(rng, es_params)
+
+        es_logging = ESLog(
+            param_reshaper.total_params,
+            max(int(num_episodes / env.num_envs), 1),
+            top_k=5,
+            maximize=True,
+        )
+        log = es_logging.initialize()
         # run actual loop
         for generation in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
@@ -152,24 +162,24 @@ class Runner:
                 other_fitness = other_fitness.at[pop_idx].set(
                     trajectories[1].rewards.mean()
                 )
+            log = es_logging.update(log, x, fitness)
 
             # update the evo
             evo_state = strategy.tell(x, -1 * fitness, evo_state, es_params)
-
+            self.generations += 1
             print(
-                f"Generation {generation} | Average Reward: "
-                f"{float(fitness.mean()), float(other_fitness.mean())}"
+                f"Generation: {generation} | Best: {log['log_top_1'][generation]} | "
+                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
             # logging
             if watchers:
                 agents.log(watchers)
                 wandb.log(
                     {
-                        "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(fitness.mean()),
-                        "train/episode_reward/player_2": float(
-                            other_fitness.mean()
-                        ),
+                        "Best Training Score": log["log_top_1"][generation],
+                        "Generation": self.generations,
+                        "train/fitness/player_1": float(fitness.mean()),
+                        "train/fitness/player_2": float(other_fitness.mean()),
                     },
                 )
 
