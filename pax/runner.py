@@ -10,7 +10,11 @@ import wandb
 from pax.env import IteratedPrisonersDilemma
 from pax.independent_learners import IndependentLearners
 from pax.strategies import Defect, TitForTat
-from pax.utils import TrainingState, copy_state_and_network
+from pax.utils import (
+    TrainingState,
+    copy_state_and_network,
+    copy_extended_state_and_network,
+)
 
 # TODO: make these a copy of acme
 
@@ -83,13 +87,19 @@ class Runner:
                 a2_state,
             ), (traj1, traj2)
 
-        def _env_rollout2(carry, unused):
+        def _env_rollout_extended(carry, unused):
             t1, t2, a1_state, a2_state = carry
             a1, a1_state = agent2._policy(
-                a1_state.params, t1.observation, a1_state
+                a1_state.policy_params,
+                a1_state.value_params,
+                t1.observation,
+                a1_state,
             )
             a2, a2_state = agent1._policy(
-                a2_state.params, t2.observation, a2_state
+                a2_state.policy_params,
+                a2_state.value_params,
+                t2.observation,
+                a2_state,
             )
             tprime_1, tprime_2 = env.runner_step(
                 [
@@ -122,22 +132,39 @@ class Runner:
             # start of unique lola code
             if self.args.agent1 == "LOLA" and self.args.agent2 == "LOLA":
                 # copy state and haiku network
+                # (
+                #     agent1.other_state,
+                #     agent1.other_network,
+                # ) = copy_state_and_network(agent2)
+
+                # (
+                #     agent2.other_state,
+                #     agent2.other_network,
+                # ) = copy_state_and_network(agent1)
+
                 (
                     agent1.other_state,
-                    agent1.other_network,
-                ) = copy_state_and_network(agent2)
+                    agent1.other_policy_network,
+                    agent1.other_value_network,
+                ) = copy_extended_state_and_network(agent2)
+
                 (
                     agent2.other_state,
-                    agent2.other_network,
-                ) = copy_state_and_network(agent1)
+                    agent2.other_policy_network,
+                    agent2.other_value_network,
+                ) = copy_extended_state_and_network(agent1)
+
                 # inner rollout
                 for _ in range(self.args.lola.num_lookaheads):
                     agent1.in_lookahead(env, _env_rollout)
                     agent2.in_lookahead(env, _env_rollout)
 
                 # outer rollout
-                agent1.out_lookahead(env, _env_rollout)
-                agent2.out_lookahead(env, _env_rollout)
+                # agent1.out_lookahead(env, _env_rollout)
+                # agent2.out_lookahead(env, _env_rollout)
+
+                agent1.out_lookahead(env, _env_rollout_extended)
+                agent2.out_lookahead(env, _env_rollout_extended)
 
             elif self.args.agent1 == "LOLA" and self.args.agent2 != "LOLA":
                 # copy state and haiku network of agent 2
@@ -173,9 +200,16 @@ class Runner:
                 # unique naive-learner code
                 a2_state = agent2.make_initial_state(t_init[1])
 
+            # Original
             # rollout episode
+            # vals, trajectories = jax.lax.scan(
+            #     _env_rollout,
+            #     (*t_init, a1_state, a2_state),
+            #     None,
+            #     length=env.episode_length,
+            # )
             vals, trajectories = jax.lax.scan(
-                _env_rollout,
+                _env_rollout_extended,
                 (*t_init, a1_state, a2_state),
                 None,
                 length=env.episode_length,

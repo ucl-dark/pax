@@ -22,12 +22,15 @@ ALL_STATES = [START, CC, DC, CD, DD]
 # General policy logger
 def policy_logger(agent) -> dict:
     # Categorical plotting
-    weights = agent._state.params["categorical_value_head/~/linear"]["w"]
-    pi = nn.softmax(weights)
+    # weights = agent._state.params["categorical_value_head/~/linear"]["w"]
+    # pi = nn.softmax(weights)
     # ####### # #
     # # Bernoulli plotting
     # weights = agent._state.params["bernoulli_value_head/~/linear"]["w"]
     # pi = nn.sigmoid(weights)
+    # # Bernoulli plotting
+    weights = agent._state.policy_params["policy_head/~/linear"]["w"]
+    pi = nn.sigmoid(weights)
     # sgd_steps = agent._total_steps / agent._num_steps
     sgd_steps = agent._logger.metrics["sgd_steps"]
     probs = {
@@ -40,10 +43,13 @@ def policy_logger(agent) -> dict:
 # General value logger
 def value_logger(agent) -> dict:
     # Categorical plotting
-    weights = agent._state.params["categorical_value_head/~/linear_1"]["w"]
+    # weights = agent._state.params["categorical_value_head/~/linear_1"]["w"]
     # Bernoulli plotting
     # weights = agent._state.params["bernoulli_value_head/~/linear_1"]["w"]
     # sgd_steps = agent._total_steps / agent._num_steps
+    # Bernoulli plotting
+    weights = agent._state.value_params["value_head/~/linear"]["w"]
+    sgd_steps = agent._total_steps / agent._num_steps
     sgd_steps = agent._logger.metrics["sgd_steps"]
     probs = {
         f"value/{agent.player_id}/{str(s)}": p[0]

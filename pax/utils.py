@@ -7,11 +7,24 @@ import jax.numpy as jnp
 import numpy as np
 
 
+# class TrainingState(NamedTuple):
+#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+
+#     params: hk.Params
+#     opt_state: optax.GradientTransformation
+#     random_key: jnp.ndarray
+#     timesteps: int
+#     extras: Mapping[str, jnp.ndarray]
+#     hidden: None
+
+
 class TrainingState(NamedTuple):
     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
-    params: hk.Params
-    opt_state: optax.GradientTransformation
+    policy_params: hk.Params
+    value_params: hk.Params
+    policy_opt_state: optax.GradientTransformation
+    value_opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
     extras: Mapping[str, jnp.ndarray]
@@ -118,3 +131,25 @@ def copy_state_and_network(agent):
     )
     network = agent.network
     return state, network
+
+
+def copy_extended_state_and_network(agent):
+    import copy
+
+    """Copies an agent state and returns the state"""
+    state = TrainingState(
+        policy_params=copy.deepcopy(agent._state.policy_params),
+        value_params=copy.deepcopy(agent._state.value_params),
+        policy_opt_state=agent._state.policy_opt_state,
+        value_opt_state=agent._state.value_opt_state,
+        random_key=agent._state.random_key,
+        timesteps=agent._state.timesteps,
+        extras={
+            "values": jnp.zeros(agent._num_envs),
+            "log_probs": jnp.zeros(agent._num_envs),
+        },
+        hidden=None,
+    )
+    policy_network = agent.policy_network
+    value_network = agent.value_network
+    return state, policy_network, value_network

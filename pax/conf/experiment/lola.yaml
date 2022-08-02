@@ -30,6 +30,7 @@ lola:
   adam_epsilon: 1e-5
   lr_in: 0.3
   lr_out: 0.2
+  lr_value: 0.1
   gamma: 0.96
   num_lookaheads: 0
 
