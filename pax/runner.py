@@ -1,12 +1,14 @@
 import time
-from typing import List, NamedTuple
+from typing import List, NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
 
 import wandb
 from pax.independent_learners import IndependentLearners
-from pax.strategies import Defect, TitForTat
+from pax.strategies import Defect, TitForTat, TrainingState
+import numpy as np
+from evosax import ParameterReshaper
 
 
 class Sample(NamedTuple):
@@ -19,61 +21,6 @@ class Sample(NamedTuple):
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
     hiddens: jnp.ndarray
-
-
-@jax.jit
-def _meta_trajectory_reshape(batch_traj: Sample) -> Sample:
-    batch_size = (
-        batch_traj.observations.shape[0] * batch_traj.observations.shape[1]
-    )
-    return jax.tree_map(
-        lambda x: x.reshape((batch_size,) + x.shape[2:]), batch_traj
-    )
-
-
-def stack_samples(ys: List[Sample]) -> Sample:
-    """To be used when lax.scan is too slow to compile"""
-    obs, a, r, log_p, v, dones, h = [], [], [], [], [], [], []
-    obs1, a1, r1, log_p1, v1, dones1, h1 = [], [], [], [], [], [], []
-
-    for (y0, y1) in ys:
-        obs.append(y0.observations)
-        a.append(y0.actions)
-        r.append(y0.rewards)
-        log_p.append(y0.behavior_log_probs)
-        v.append(y0.behavior_values)
-        dones.append(y0.dones)
-        h.append(y0.hiddens)
-
-        obs1.append(y1.observations)
-        a1.append(y1.actions)
-        r1.append(y1.rewards)
-        log_p1.append(y1.behavior_log_probs)
-        v1.append(y1.behavior_values)
-        dones1.append(y1.dones)
-        h1.append(y1.hiddens)
-
-    trajectories = (
-        Sample(
-            jnp.stack(obs),
-            jnp.stack(a),
-            jnp.stack(r),
-            jnp.stack(log_p),
-            jnp.stack(v),
-            jnp.stack(dones),
-            jnp.stack(h),
-        ),
-        Sample(
-            jnp.stack(obs1) if not obs[1] is None else None,
-            jnp.stack(a1) if not a1[1] is None else None,
-            jnp.stack(r1) if not r1[1] is None else None,
-            jnp.stack(log_p1) if not log_p1[1] is None else None,
-            jnp.stack(v) if not v[1] is None else None,
-            jnp.stack(dones) if not dones[1] is None else None,
-            jnp.stack(h) if not h[1] is None else None,
-        ),
-    )
-    return trajectories
 
 
 class Runner:
@@ -92,7 +39,6 @@ class Runner:
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
-        rng = jax.random.PRNGKey(0)
 
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a2_state, env_state = carry
@@ -154,59 +100,81 @@ class Runner:
             a2_state = agent2.update(trajectories[1], final_t2, a2_state)
             return (t1, t2, a1_state, a2_state, env_state), trajectories
 
+        rng = jax.random.PRNGKey(0)
+
+        from evosax import CMA_ES
+
+        param_reshaper = ParameterReshaper(agent1._state.params)
+
+        popsize = 20
+        strategy = CMA_ES(
+            popsize=popsize,
+            num_dims=param_reshaper.total_params,
+            elite_ratio=0.5,
+        )
+        es_params = strategy.default_params
+        evo_state = strategy.initialize(rng, es_params)
         # run actual loop
-        for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+        for generation in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init = env.reset()
             env_state = env.state
+            rng, rng_gen, rng_eval = jax.random.split(rng, 3)
+            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
+            fitness = jnp.zeros((popsize))
+            other_fitness = jnp.zeros((popsize))
 
-            # uniquely nl code required here.
-            a1_state = agent1.reset_memory()
-            a2_state = agent2.make_initial_state(
-                rng, (env.observation_spec().num_values,)
-            )
-            rng, _ = jax.random.split(rng)
+            a1_state = agent1._state
+            # map from numbers back into params
+            for pop_idx in range(popsize):
+                a1_state = a1_state._replace(
+                    params=param_reshaper.reshape_single(x[pop_idx])
+                )
+                agent1._state = a1_state
 
-            # rollout outer episode
-            ys = []
-            carry = (*t_init, a1_state, a2_state, env_state)
-            for x in range(env.num_trials):
-                carry, y0 = _outer_rollout(carry, x)
-                ys.append(y0)
+                a1_state = agent1.reset_memory()
+                a2_state = agent2.make_initial_state(
+                    rng, (env.observation_spec().num_values,)
+                )
+                rng, _ = jax.random.split(rng)
 
-            vals = carry
-            trajectories = stack_samples(ys)
-            self.train_episodes += 1
-            rewards_0 = trajectories[0].rewards.mean()
-            rewards_1 = trajectories[1].rewards.mean()
+                # num trials
+                _, trajectories = jax.lax.scan(
+                    _outer_rollout,
+                    (*t_init, a1_state, a2_state, env_state),
+                    None,
+                    length=env.num_trials,
+                )
+
+                self.train_episodes += 1
+                fitness = fitness.at[pop_idx].set(
+                    (trajectories[0].rewards.mean())
+                )
+                other_fitness = other_fitness.at[pop_idx].set(
+                    trajectories[1].rewards.mean()
+                )
+
+            # update the evo
+            evo_state = strategy.tell(x, -1 * fitness, evo_state, es_params)
+
             print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                f"Generation {generation} | Average Reward: "
+                f"{float(fitness.mean()), float(other_fitness.mean())}"
             )
-
-            # update outer agent
-            final_t1 = vals[0]._replace(step_type=2)
-            a1_state = vals[2]
-            a1_state = agent1.update(
-                _meta_trajectory_reshape(trajectories[0]), final_t1, a1_state
-            )
-
             # logging
             if watchers:
                 agents.log(watchers)
                 wandb.log(
                     {
                         "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
+                        "train/episode_reward/player_1": float(fitness.mean()),
                         "train/episode_reward/player_2": float(
-                            rewards_1.mean()
+                            other_fitness.mean()
                         ),
                     },
                 )
-        print()
 
         # update agents
-        agents.agents[0]._state = a1_state
+        agents.agents[0]._state = param_reshaper.reshape(evo_state.best_member)
         agents.agents[1]._state = a2_state
         return agents
 
