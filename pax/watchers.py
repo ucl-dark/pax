@@ -101,25 +101,25 @@ def value_logger_ppo(agent: PPO) -> dict:
 def policy_logger_ppo_with_memory(agent) -> dict:
     """Calculate probability of coopreation"""
     # n = 5
-    params = agent._state.params
-    hidden = agent._state.hidden
-    pid = agent.player_id
+    # params = agent._state.params
+    # hidden = agent._state.hidden
+    # pid = agent.player_id
 
-    # episode = int(
-    #     agent._logger.metrics["total_steps"]
-    #     / (agent._num_steps * agent._num_envs)
-    # )
-    episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
-    cooperation_probs = {"episode": episode}
+    # # episode = int(
+    # #     agent._logger.metrics["total_steps"]
+    # #     / (agent._num_steps * agent._num_envs)
+    # # )
+    # episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
+    # cooperation_probs = {"episode": episode}
 
     # TODO: Figure out how to JIT the forward function
     # Works when the forward function is not jitted.
-    for state, state_name in zip(ALL_STATES, STATE_NAMES):
-        (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = jnp.array(
-            dist.probs[0][0], float
-        )
-    return cooperation_probs
+    # for state, state_name in zip(ALL_STATES, STATE_NAMES):
+    #     (dist, _), hidden = agent.forward(params, state, hidden)
+    #     cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = float(
+    #         dist.probs[0][0].mean()
+    #         )
+    return {}
 
 
 def naive_pg_losses(agent) -> None:
@@ -156,11 +156,11 @@ def losses_ppo(agent: PPO) -> dict:
     entropy_cost = agent._logger.metrics["entropy_cost"]
     losses = {
         f"train/ppo_{pid}/sgd_steps": sgd_steps,
-        f"train/ppo_{pid}/total": loss_total,
-        f"train/ppo_{pid}/policy": loss_policy,
-        f"train/ppo_{pid}/value": loss_value,
-        f"train/ppo_{pid}/entropy": loss_entropy,
-        f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
+        f"train/ppo_{pid}/total": loss_total.mean(),
+        f"train/ppo_{pid}/policy": loss_policy.mean(),
+        f"train/ppo_{pid}/value": loss_value.mean(),
+        f"train/ppo_{pid}/entropy": loss_entropy.mean(),
+        f"train/ppo_{pid}/entropy_coefficient": entropy_cost.mean(),
     }
     return losses
 

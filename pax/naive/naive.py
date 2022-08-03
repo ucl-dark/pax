@@ -457,12 +457,12 @@ class NaiveLearner:
 
         traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
-        self._logger.metrics["sgd_steps"] += (
-            self._num_minibatches * self._num_epochs
-        )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
+        # self._logger.metrics["sgd_steps"] += (
+        #     self._num_minibatches * self._num_epochs
+        # )
+        # self._logger.metrics["loss_total"] = results["loss_total"]
+        # self._logger.metrics["loss_policy"] = results["loss_policy"]
+        # self._logger.metrics["loss_value"] = results["loss_value"]
         return state
 
     def reset_memory(self) -> TrainingState:

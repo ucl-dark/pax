@@ -23,7 +23,9 @@ class Sample(NamedTuple):
 
 def reshape_meta_traj(traj: Sample) -> Sample:
     batch_size = traj.observations.shape[0] * traj.observations.shape[1]
-    return jax.tree_map(lambda x: x.reshape((batch_size,) + x.shape[2:]), traj)
+    return jax.tree_util.tree_map(
+        lambda x: x.reshape((batch_size,) + x.shape[2:]), traj
+    )
 
 
 class Runner:
@@ -137,6 +139,7 @@ class Runner:
 
             print(trajectories[1].observations.shape)
             a2_state = agent2.batch_update(trajectories[1], final_t2, a2_state)
+
             return (t1, t2, a1_state, a2_state, env_state), trajectories
 
         # run actual loop
@@ -165,7 +168,25 @@ class Runner:
             )
             a1_state = vals[2]
             meta_traj = prep_meta_traj(trajectories[0])
-            a1_state = agent1.batch_update(meta_traj, final_t1, a1_state)
+            a1_state, results = agent1.batch_update(
+                meta_traj, final_t1, a1_state
+            )
+
+            # update logging
+            agent1._logger.metrics["sgd_steps"] += (
+                agent1._num_minibatches * agent1._num_epochs
+            )
+            agent1._logger.metrics["loss_total"] = results["loss_total"].mean()
+            agent1._logger.metrics["loss_policy"] = results[
+                "loss_policy"
+            ].mean()
+            agent1._logger.metrics["loss_value"] = results["loss_value"].mean()
+            agent1._logger.metrics["loss_entropy"] = results[
+                "loss_entropy"
+            ].mean()
+            agent1._logger.metrics["entropy_cost"] = results[
+                "entropy_cost"
+            ].mean()
 
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()

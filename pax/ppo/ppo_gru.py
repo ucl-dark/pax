@@ -482,16 +482,8 @@ class PPO:
 
         traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
-        self._logger.metrics["sgd_steps"] += (
-            self._num_minibatches * self._num_epochs
-        )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        self._state = state
-        return state
+
+        return state, results
 
 
 # TODO: seed, and player_id not used in CartPole
