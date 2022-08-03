@@ -232,7 +232,6 @@ class NaiveLearner:
             # # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
 
-            print(f"target_values: {target_values.shape}")
             num_steps = target_values.shape[0]
             num_envs = target_values.shape[1]
 
