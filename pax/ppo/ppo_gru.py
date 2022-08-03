@@ -390,13 +390,14 @@ class PPO:
                 jnp.zeros_like(action_extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -417,6 +418,8 @@ class PPO:
         self._state = make_initial_state(
             random_key, obs_spec, initial_hidden_state
         )
+
+        self.make_initial_state = make_initial_state
 
         self.prepare_batch = prepare_batch
         self._sgd_step = sgd_step
@@ -446,6 +449,7 @@ class PPO:
         self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
+        self._gru_dim = gru_dim
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
@@ -454,8 +458,8 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
-    def reset_memory(self) -> TrainingState:
-        num_envs = 1 if self.eval else self._num_envs
+    def reset_memory(self, state, eval=False) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
 
         new_state = self._state._replace(
             extras={
@@ -464,9 +468,7 @@ class PPO:
             },
             hidden=jnp.zeros((num_envs, self._state.hidden.shape[1])),
         )
-
-        self._state = new_state
-        return self._state
+        return new_state
 
     def update(
         self,

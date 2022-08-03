@@ -108,7 +108,7 @@ def test_tit_for_tat_match() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = MetaFiniteGame(num_envs, payoff, 5, 5)
     action = jnp.ones((num_envs,))
 
     # check first

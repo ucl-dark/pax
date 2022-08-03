@@ -116,8 +116,8 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     # Works when the forward function is not jitted.
     for state, state_name in zip(ALL_STATES, STATE_NAMES):
         (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = float(
-            dist.probs[0][0]
+        cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = jnp.array(
+            dist.probs[0][0], float
         )
     return cooperation_probs
 

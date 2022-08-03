@@ -177,7 +177,7 @@ class NaiveLearner:
                 "loss_value": value_loss,
             }
 
-        @jax.jit
+        # @jax.jit
         def naive_sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -217,7 +217,7 @@ class NaiveLearner:
             #     lambda x: x[:, :-1],
             #     (observations, actions, behavior_log_probs, behavior_values),
             # )
-            behavior_values = behavior_values[:-1]
+            behavior_values = behavior_values[:-1, :]
 
             trajectories = Batch(
                 observations=observations,
@@ -230,20 +230,21 @@ class NaiveLearner:
 
             # # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # # to [num_envs * num_steps,..]
-            # assert len(target_values.shape) > 1
-            batch_size = target_values.shape[0]
-            # num_steps = target_values.shape[1]
-            # batch_size = num_envs * num_steps
-            # assert batch_size % num_minibatches == 0, (
-            #     "Num minibatches must divide batch size. Got batch_size={}"
-            #     " num_minibatches={}."
-            # ).format(batch_size, num_minibatches)
+            assert len(target_values.shape) > 1
 
-            # batch = jax.tree_map(
-            #     lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
-            # )
+            print(f"target_values: {target_values.shape}")
+            num_steps = target_values.shape[0]
+            num_envs = target_values.shape[1]
 
-            batch = trajectories
+            batch_size = num_envs * num_steps
+            assert batch_size % num_minibatches == 0, (
+                "Num minibatches must divide batch size. Got batch_size={}"
+                " num_minibatches={}."
+            ).format(batch_size, num_minibatches)
+
+            batch = jax.tree_map(
+                lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
+            )
 
             # Compute gradients.
             grad_fn = jax.grad(loss, has_aux=True)
@@ -327,9 +328,9 @@ class NaiveLearner:
 
             metrics = jax.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
-                jnp.abs(jnp.mean(rewards, axis=(0)))
+                jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )
-            metrics["rewards_std"] = jnp.std(rewards, axis=(0))
+            metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
 
             new_state = TrainingState(
                 params=params,
@@ -337,8 +338,8 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=timesteps,
                 extras={
-                    "log_probs": 0,
-                    "values": 0,
+                    "log_probs": jnp.zeros(self._num_envs),
+                    "values": jnp.zeros(self._num_envs),
                 },
                 hiddens=None,
             )
@@ -360,8 +361,8 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=0,
                 extras={
-                    "values": 0,
-                    "log_probs": 0,
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
                 },
                 hiddens=None,
             )
@@ -373,20 +374,23 @@ class NaiveLearner:
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
 
+            # shape is timestep x num_envs
+
             _value = jax.lax.select(
-                t_prime.last(),
+                t_prime.step_type == 2,
                 extras["values"],
                 jnp.zeros_like(extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
-                t_prime.last(),
+                t_prime.step_type == 2,
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
 
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(

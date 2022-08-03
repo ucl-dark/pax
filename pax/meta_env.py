@@ -16,10 +16,9 @@ class MetaFiniteGame:
 
         self.payoff = jnp.array(payoff)
 
-        def step(actions, state):
+        def step(a1, a2, state):
             inner_t, outer_t = state
             inner_t += 1
-            a1, a2 = actions
 
             cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
             cc_p2 = self.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
@@ -68,19 +67,34 @@ class MetaFiniteGame:
 
             return (t1, t2), (inner_t, outer_t)
 
-        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
+        def runner_reset(ndims):
+            """Returns the first `TimeStep` of a new episode."""
+            state = (0.0, 0.0)
+            obs = obs = jax.nn.one_hot(jnp.ones(ndims), 5)
+            discount = jnp.zeros(ndims, dtype=int)
+            step_type = jnp.zeros(ndims, dtype=int)
+            rewards = jnp.zeros(ndims)
+            return (
+                TimeStep(step_type, rewards, discount, obs),
+                TimeStep(step_type, rewards, discount, obs),
+            ), state
+
+        self.runner_reset = runner_reset
+        self.runner_step = jax.jit(jax.vmap(step, (0, 0, None), (0, None)))
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
-        self.state = (0.0, 0.0)
+        self.state = (0, 0)
         self._reset_next_step = True
 
     def step(self, actions):
         if self._reset_next_step:
             return self.reset()
 
-        output, self.state = self.runner_step(actions, self.state)
+        output, self.state = self.runner_step(
+            actions[0], actions[1], self.state
+        )
         if self.state[1] == self.num_trials:
             self._reset_next_step = True
             output = (
@@ -109,14 +123,9 @@ class MetaFiniteGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        self.state = (0.0, 0.0)
+        t, self.state = self.runner_reset(self.num_envs)
         self._reset_next_step = False
-        obs = obs = jax.nn.one_hot(jnp.ones(self.num_envs), 5)
-        discount = jnp.zeros(self.num_envs, dtype=int)
-        step_type = jnp.zeros(self.num_envs, dtype=int)
-        return TimeStep(
-            step_type, jnp.zeros(self.num_envs), discount, obs
-        ), TimeStep(step_type, jnp.zeros(self.num_envs), discount, obs)
+        return t
 
 
 class InfiniteMatrixGame(Environment):

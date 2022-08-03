@@ -21,59 +21,9 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-@jax.jit
-def _meta_trajectory_reshape(batch_traj: Sample) -> Sample:
-    batch_size = (
-        batch_traj.observations.shape[0] * batch_traj.observations.shape[1]
-    )
-    return jax.tree_map(
-        lambda x: x.reshape((batch_size,) + x.shape[2:]), batch_traj
-    )
-
-
-def stack_samples(ys: List[Sample]) -> Sample:
-    """To be used when lax.scan is too slow to compile"""
-    obs, a, r, log_p, v, dones, h = [], [], [], [], [], [], []
-    obs1, a1, r1, log_p1, v1, dones1, h1 = [], [], [], [], [], [], []
-
-    for (y0, y1) in ys:
-        obs.append(y0.observations)
-        a.append(y0.actions)
-        r.append(y0.rewards)
-        log_p.append(y0.behavior_log_probs)
-        v.append(y0.behavior_values)
-        dones.append(y0.dones)
-        h.append(y0.hiddens)
-
-        obs1.append(y1.observations)
-        a1.append(y1.actions)
-        r1.append(y1.rewards)
-        log_p1.append(y1.behavior_log_probs)
-        v1.append(y1.behavior_values)
-        dones1.append(y1.dones)
-        h1.append(y1.hiddens)
-
-    trajectories = (
-        Sample(
-            jnp.stack(obs),
-            jnp.stack(a),
-            jnp.stack(r),
-            jnp.stack(log_p),
-            jnp.stack(v),
-            jnp.stack(dones),
-            jnp.stack(h),
-        ),
-        Sample(
-            jnp.stack(obs1) if not obs[1] is None else None,
-            jnp.stack(a1) if not a1[1] is None else None,
-            jnp.stack(r1) if not r1[1] is None else None,
-            jnp.stack(log_p1) if not log_p1[1] is None else None,
-            jnp.stack(v) if not v[1] is None else None,
-            jnp.stack(dones) if not dones[1] is None else None,
-            jnp.stack(h) if not h[1] is None else None,
-        ),
-    )
-    return trajectories
+def reshape_meta_traj(traj: Sample) -> Sample:
+    batch_size = traj.observations.shape[0] * traj.observations.shape[1]
+    return jax.tree_map(lambda x: x.reshape((batch_size,) + x.shape[2:]), traj)
 
 
 class Runner:
@@ -94,27 +44,52 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
+        # vmap once to support multiple naive learners
+
+        env.batch_step = jax.vmap(
+            env.runner_step, (0, 0, (None, None)), ((0, 0), None)
+        )
+
         agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0))
         agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0), 0)
         agent2.make_initial_state = jax.vmap(
             agent2.make_initial_state, (0, None), 0
         )
 
+        agent1.reset_memory = jax.vmap(agent1.reset_memory)
+        agent1.make_initial_state = jax.vmap(
+            agent1.make_initial_state, (0, None, 0), 0
+        )
+
+        agent1.batch_policy = jax.vmap(agent1._policy, (0, 0, 0), (0, 0))
+
+        # on meta step we've added 2 time dims so NL dim is 0 -> 2
+        agent1.batch_update = jax.vmap(agent1.update, (2, 0, 0), 0)
+        prep_meta_traj = jax.jit(jax.vmap(reshape_meta_traj, 2, 2))
+
+        num_nl = 200
+        # this needs to move out of this train loop lol
+        a1_state = agent1.make_initial_state(
+            jax.random.split(rng, num_nl),
+            (env.observation_spec().num_values,),
+            jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
+        )
+
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a2_state, env_state = carry
-            a1, new_a1_state = agent1._policy(
+            a1, new_a1_state = agent1.batch_policy(
                 a1_state.params, t1.observation, a1_state
             )
             a2, new_a2_state = agent2.batch_policy(
                 a2_state.params, t2.observation, a2_state
             )
-            (tprime_1, tprime_2), env_state = env.runner_step(
-                [
-                    a1,
-                    a2,
-                ],
+
+            (tprime_1, tprime_2), env_state = env.batch_step(
+                a1,
+                a2,
                 env_state,
             )
+
             traj1 = Sample(
                 t1.observation,
                 a1,
@@ -160,19 +135,20 @@ class Runner:
             )
             a2_state = vals[3]
 
+            print(trajectories[1].observations.shape)
             a2_state = agent2.batch_update(trajectories[1], final_t2, a2_state)
             return (t1, t2, a1_state, a2_state, env_state), trajectories
 
         # run actual loop
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
-            t_init = env.reset()
-            env_state = env.state
+            t_init, env_state = env.runner_reset((num_nl, env.num_envs))
+            # env_state = env.state
             rng, _ = jax.random.split(rng)
 
             # uniquely nl code required here.
-            a1_state = agent1.reset_memory()
+            a1_state = agent1.reset_memory(a1_state)
             a2_state = agent2.make_initial_state(
-                jax.random.split(rng, env.num_envs),
+                jax.random.split(rng, num_nl),
                 (env.observation_spec().num_values,),
             )
 
@@ -184,11 +160,12 @@ class Runner:
                 length=env.num_trials,
             )
             # update outer agent
-            final_t1 = vals[0]._replace(step_type=2)
-            a1_state = vals[2]
-            a1_state = agent1.update(
-                _meta_trajectory_reshape(trajectories[0]), final_t1, a1_state
+            final_t1 = vals[0]._replace(
+                step_type=2 * jnp.ones_like(vals[0].step_type)
             )
+            a1_state = vals[2]
+            meta_traj = prep_meta_traj(trajectories[0])
+            a1_state = agent1.batch_update(meta_traj, final_t1, a1_state)
 
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
@@ -224,7 +201,7 @@ class Runner:
         print("-----------------------")
         agents.eval(True)
         agent1, agent2 = agents.agents
-        agent1.reset_memory()
+        agent1._state = agent1.reset_memory(agent1._state)
         agent2.reset_memory()
 
         for _ in range(num_episodes // env.num_envs):
