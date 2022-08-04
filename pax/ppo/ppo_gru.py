@@ -62,6 +62,7 @@ class PPO:
         random_key: jnp.ndarray,
         gru_dim: int,
         obs_spec: Tuple,
+        batch_size: int = 2000,
         num_envs: int = 4,
         num_steps: int = 500,
         num_minibatches: int = 16,
@@ -235,8 +236,6 @@ class PPO:
             metrics["norm_grad"] = optax.global_norm(gradients)
             metrics["norm_updates"] = optax.global_norm(updates)
             return (params, opt_state, timesteps), metrics
-
-        batch_size = num_envs * num_steps
 
         @jax.jit
         def model_update_epoch(
@@ -527,7 +526,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * 2000)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opponents)
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -565,6 +564,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
+        batch_size=args.num_envs * args.num_opponents,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,
@@ -580,9 +580,6 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
     )
-    return agent
-
-    agent.player_id = player_id
     return agent
 
 

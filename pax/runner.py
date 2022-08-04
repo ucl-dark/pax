@@ -56,6 +56,7 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
+        self.num_nl = args.num_opponents
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
