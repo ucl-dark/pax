@@ -37,8 +37,14 @@ class TrainingState(NamedTuple):
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
+    # hidden: jnp.ndarray
+    # extras: Mapping[str, jnp.ndarray]
+
+
+class MemoryState(NamedTuple):
     hidden: jnp.ndarray
     extras: Mapping[str, jnp.ndarray]
+    # random_key: jnp.ndarray
 
 
 class Logger:
@@ -73,22 +79,22 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: TimeStep, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
             (dist, values), hidden_state = network.apply(
-                params, observation, state.hidden
+                state.params, observation, mem.hidden
             )
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = state._replace(
-                random_key=key, hidden=hidden_state, extras=state.extras
-            )
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(hidden=hidden_state, extras=mem.extras)
+            state = state._replace(random_key=key)
             return (
                 actions,
                 state,
+                mem,
             )
 
         def gae_advantages(
@@ -345,6 +351,9 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
+            )
+
+            new_memory = MemoryState(
                 hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
@@ -352,7 +361,7 @@ class PPO:
                 },
             )
 
-            return new_state, metrics
+            return new_state, new_memory, metrics
 
         def make_initial_state(
             key: Any, obs_spec: Tuple, initial_hidden_state
@@ -366,10 +375,11 @@ class PPO:
             )
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
+                random_key=key,
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key,
                 timesteps=0,
+            ), MemoryState(
                 hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
@@ -415,7 +425,7 @@ class PPO:
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state = make_initial_state(
+        self._state, self._mem = make_initial_state(
             random_key, obs_spec, initial_hidden_state
         )
 
@@ -453,37 +463,49 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, extras = self._policy(
-            self._state.params, t.observation, self._state
-        )
+        (
+            actions,
+            self._mem,
+        ) = self._policy(self._state.params, t.observation, self._state)
         return utils.to_numpy(actions)
 
-    def reset_memory(self, state, eval=False) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
 
-        new_state = self._state._replace(
+        memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
-            hidden=jnp.zeros((num_envs, self._state.hidden.shape[1])),
+            hidden=jnp.zeros((num_envs, self._gru_dim)),
         )
-        return new_state
+        return memory
 
     def update(
         self,
         traj_batch,
         t_prime: TimeStep,
         state,
+        mem,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, results = self._sgd_step(state, traj_batch)
 
-        return state, results
+        # update logging
+
+        self._logger.metrics["sgd_steps"] += (
+            self._num_minibatches * self._num_epochs
+        )
+        self._logger.metrics["loss_total"] = results["loss_total"]
+        self._logger.metrics["loss_policy"] = results["loss_policy"]
+        self._logger.metrics["loss_value"] = results["loss_value"]
+        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+        return state, mem
 
 
 # TODO: seed, and player_id not used in CartPole
@@ -505,7 +527,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(args.num_envs * args.num_steps * 2000)
     transition_steps = (
         args.total_timesteps
         / batch_size
