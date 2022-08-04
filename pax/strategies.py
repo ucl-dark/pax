@@ -5,19 +5,10 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
+from pax.utils import TrainingState
+
 # states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: jnp.ndarray
-    opt_state: jnp.ndarray
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 class GrimTrigger:

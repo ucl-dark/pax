@@ -11,7 +11,7 @@ hydra:
 # Global variables 
 seed: 25
 save_dir: "./exp/${wandb.group}/${wandb.name}"
-debug: True
+debug: False
 
 # Agents  
 agent1: 'PPO_memory'

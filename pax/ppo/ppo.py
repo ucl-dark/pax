@@ -10,6 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_cartpole_network, make_network
+from pax.utils import TrainingState
 
 
 class Batch(NamedTuple):
@@ -25,17 +26,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 class Logger:
