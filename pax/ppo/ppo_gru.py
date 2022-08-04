@@ -9,6 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
+from pax.utils import TrainingState, get_advantages
 from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
 
 
@@ -30,15 +31,15 @@ class Batch(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+# class TrainingState(NamedTuple):
+#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    hidden: jnp.ndarray
-    extras: Mapping[str, jnp.ndarray]
+#     params: hk.Params
+#     opt_state: optax.GradientTransformation
+#     random_key: jnp.ndarray
+#     timesteps: int
+#     hidden: jnp.ndarray
+#     extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -70,6 +71,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         player_id: int = 0,
+        has_sgd_jit: bool = True,
     ):
         @jax.jit
         def policy(
@@ -103,13 +105,31 @@ class PPO:
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            # delta = rewards + discounts * values[1:] - values[:-1]
+            # advantage_t = [0.0]
+            # for t in reversed(range(delta.shape[0])):
+            #     advantage_t.insert(
+            #         0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
+            #     )
+            # advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
+
+            _, advantages = jax.lax.scan(
+                get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
+                reverse_batch,
+            )
+
+            advantages = jnp.flip(advantages, axis=0)
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -263,7 +283,6 @@ class PPO:
             )
             return (key, params, opt_state, timesteps, batch), metrics
 
-        # @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -345,11 +364,11 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
+                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
             )
 
             return new_state, metrics
@@ -370,11 +389,11 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
+                hidden=initial_hidden_state,  # initial_hidden_state,
             )
 
         @jax.jit
@@ -419,7 +438,12 @@ class PPO:
         )
 
         self.prepare_batch = prepare_batch
-        self._sgd_step = sgd_step
+        if has_sgd_jit:
+            print("jitted sgd ")
+            self._sgd_step = jax.jit(sgd_step)
+        else:
+            print("did not jit sgd ")
+            self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -449,7 +473,7 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, extras = self._policy(
+        actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         return utils.to_numpy(actions)
@@ -493,7 +517,9 @@ class PPO:
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_gru_agent(
+    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
@@ -563,6 +589,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
+        has_sgd_jit=has_sgd_jit,
     )
     return agent
 

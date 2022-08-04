@@ -108,4 +108,4 @@ def get_advantages(carry, transition):
     value_diff = discounts * next_value - value
     delta = reward + value_diff
     gae = delta + discounts * gae_lambda * gae
-    return (gae, value), gae
+    return (gae, value, gae_lambda), gae

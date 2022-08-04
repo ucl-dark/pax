@@ -183,12 +183,17 @@ def agent_setup(args, logger):
             args.num_envs, args.payoff, args.num_steps
         )
 
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
         )
         return ppo_memory_agent
 

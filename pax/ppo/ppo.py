@@ -125,14 +125,6 @@ class PPO:
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            def _get_advantages(carry, transition):
-                gae, next_value, gae_lambda = carry
-                value, reward, discounts = transition
-                value_diff = discounts * next_value - value
-                delta = reward + value_diff
-                gae = delta + discounts * gae_lambda * gae
-                return (gae, value, gae_lambda), gae
-
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -140,7 +132,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                _get_advantages,
+                get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
