@@ -10,6 +10,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
+from pax.utils import TrainingState
 from pax.naive.buffer import TrajectoryBuffer
 from pax.naive.network import make_network
 
@@ -27,17 +28,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hiddens: None
 
 
 class Logger:
@@ -80,7 +70,7 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=state.timesteps,
                 extras=state.extras,
-                hiddens=None,
+                hidden=None,
             )
             return (
                 actions,
@@ -338,7 +328,7 @@ class NaiveLearner:
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
-                hiddens=None,
+                hidden=None,
             )
 
             return new_state, metrics
@@ -361,7 +351,7 @@ class NaiveLearner:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hiddens=None,
+                hidden=None,
             )
 
         @jax.jit
@@ -437,7 +427,7 @@ class NaiveLearner:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, _ = self._policy(
+        actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         return utils.to_numpy(actions)
