@@ -64,6 +64,7 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        has_sgd_jit: bool = False,
     ):
         @jax.jit
         def policy(
@@ -165,6 +166,7 @@ class PPO:
             )
 
             advantages = jnp.flip(advantages, axis=0)
+
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -425,7 +427,10 @@ class PPO:
         self._make_initial_state = make_initial_state
         self._state = make_initial_state(random_key, obs_spec)
         self._prepare_batch = jax.jit(prepare_batch)
-        self._sgd_step = sgd_step
+        if has_sgd_jit:
+            self._sgd_step = jax.jit(sgd_step)
+        else:
+            self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -491,7 +496,9 @@ class PPO:
         return state
 
 
-def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_agent(
+    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+):
     """Make PPO agent"""
 
     if args.env_id == "CartPole-v1":
@@ -552,6 +559,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
+        has_sgd_jit=has_sgd_jit,
     )
     agent.player_id = player_id
     return agent

@@ -167,6 +167,7 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
         dqn_agent = default_agent(
             args,
             obs_spec=dummy_env.observation_spec(),
@@ -181,6 +182,7 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=(dummy_env.observation_spec().num_values,),
@@ -195,22 +197,21 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
-        if args.ppo.with_memory:
-            ppo_agent = make_gru_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
         else:
-            ppo_agent = make_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+        )
+
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
