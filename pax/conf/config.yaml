@@ -11,7 +11,7 @@ hydra:
 # Global variables 
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
-debug: False
+debug: True
 
 # Agents  
 agent1: 'PPO_memory'
@@ -35,7 +35,6 @@ eval_every: 0.2e9 # timesteps for update
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
-
 
 # PPO agent parameters
 ppo:
@@ -72,7 +71,7 @@ wandb:
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False
 
 
 # DQN agent parameters

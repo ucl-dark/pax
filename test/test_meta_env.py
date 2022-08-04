@@ -108,7 +108,7 @@ def test_tit_for_tat_match() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = MetaFiniteGame(num_envs, payoff, 5, 5)
     action = jnp.ones((num_envs,))
 
     # check first
@@ -155,7 +155,7 @@ def test_infinite_game():
     env = InfiniteMatrixGame(1, payoff, 10, 0.99, 0)
     alt_policy = 20 * jnp.ones((1, 5))
     def_policy = -20 * jnp.ones((1, 5))
-    tft_policy = 20 * jnp.array([[1, -1, 1, -1, 1]])
+    tft_policy = 20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]])
 
     # first step
     t0, t1 = env.step((alt_policy, def_policy))
