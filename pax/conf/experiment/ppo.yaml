@@ -48,4 +48,8 @@ wandb:
   project: ipd
   group: 'final-PPO-vs-${agent2}-${game}'
   name: run-seed-${seed}
+<<<<<<< HEAD
   log: False
+=======
+  log: True
+>>>>>>> 2066b89996f257a927f39d640b3b39d6d09af645
