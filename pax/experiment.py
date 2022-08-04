@@ -14,7 +14,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.runner import Runner
+from pax.runner import Runner, MetaRunner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -63,7 +63,7 @@ def global_setup(args):
 def payoff_setup(args, logger):
     """Set up payoff"""
     games = {
-        "ipd": [[2, 2], [0, 3], [3, 0], [1, 1]],
+        "ipd": [[-1, -1], [-3, 0], [0, -3], [-2, -2]],
         "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
         "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
         "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
@@ -106,7 +106,7 @@ def env_setup(args, logger=None):
         test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
         if logger:
             logger.info(
-                f"Game Type: Finite | Episode Length: {args.num_steps}"
+                f"Env Type: Regular | Episode Length: {args.num_steps}"
             )
 
     elif args.env_type == "meta":
@@ -123,9 +123,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
         )
         if logger:
-            logger.info(
-                f"Game Type: Finite | Episode Length: {args.num_steps}"
-            )
+            logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
     else:
         train_env = InfiniteMatrixGame(
@@ -151,7 +149,14 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args):
-    return Runner(args)
+    if args.env_type == "meta":
+        return MetaRunner(args)
+    elif args.env_type == "finite":
+        return Runner(args)
+    elif args.env_type == "infinite":
+        return Runner(args)
+    else:
+        raise NameError("Not valid environment type")
 
 
 def agent_setup(args, logger):

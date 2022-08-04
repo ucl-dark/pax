@@ -48,4 +48,4 @@ wandb:
   project: ipd
   group: 'PPO-vs-${agent2}-${game}-parity'
   name: run-seed-${seed}
-  log: True
+  log: False
