@@ -126,6 +126,10 @@ def test_done():
     assert t_0.last() == True
     assert t_1.last() == True
 
+    # check back at start
+    assert jnp.array_equal(t_0.observation.argmax(), 4)
+    assert jnp.array_equal(t_1.observation.argmax(), 4)
+
 
 def test_reset():
     num_envs = 1
