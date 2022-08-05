@@ -1,5 +1,5 @@
 from functools import partial
-from typing import NamedTuple, Tuple, Mapping
+from typing import Mapping, NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random

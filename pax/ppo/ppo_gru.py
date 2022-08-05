@@ -9,8 +9,8 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.utils import TrainingState, get_advantages
 from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -104,14 +104,6 @@ class PPO:
 
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
-
-            # delta = rewards + discounts * values[1:] - values[:-1]
-            # advantage_t = [0.0]
-            # for t in reversed(range(delta.shape[0])):
-            #     advantage_t.insert(
-            #         0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-            #     )
-            # advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
 
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
