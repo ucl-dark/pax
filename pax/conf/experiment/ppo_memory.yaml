@@ -45,6 +45,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'final-PPO_memory-vs-${agent2}'
+  group: 'PPO_memory-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: False
