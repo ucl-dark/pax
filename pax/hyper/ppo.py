@@ -11,6 +11,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.hyper.networks import make_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -28,15 +29,15 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+# class TrainingState(NamedTuple):
+#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
+#     params: hk.Params
+#     opt_state: optax.GradientTransformation
+#     random_key: jnp.ndarray
+#     timesteps: int
+#     extras: Mapping[str, jnp.ndarray]
+#     hidden: None
 
 
 class Logger:
