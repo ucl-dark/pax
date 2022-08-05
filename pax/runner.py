@@ -164,6 +164,8 @@ class Runner:
             a2_state = vals[3]
             a2_state = agent2.update(trajectories[1], final_t2, a2_state)
 
+            # print("a1 state", a1_state)
+
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 f"| Joint reward: {(rewards_0.mean() + rewards_1.mean())*0.5}"
