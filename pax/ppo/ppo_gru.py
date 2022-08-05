@@ -31,17 +31,6 @@ class Batch(NamedTuple):
     hiddens: jnp.ndarray
 
 
-# class TrainingState(NamedTuple):
-#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-#     params: hk.Params
-#     opt_state: optax.GradientTransformation
-#     random_key: jnp.ndarray
-#     timesteps: int
-#     hidden: jnp.ndarray
-#     extras: Mapping[str, jnp.ndarray]
-
-
 class Logger:
     metrics: dict
 
