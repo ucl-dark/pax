@@ -45,6 +45,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}'
+  group: '${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: False
