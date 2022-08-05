@@ -439,10 +439,8 @@ class PPO:
 
         self.prepare_batch = prepare_batch
         if has_sgd_jit:
-            print("jitted sgd ")
             self._sgd_step = jax.jit(sgd_step)
         else:
-            print("did not jit sgd ")
             self._sgd_step = sgd_step
 
         # Set up counters and logger

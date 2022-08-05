@@ -350,7 +350,7 @@ class NaiveLearner:
             )
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._make_initial_state = make_initial_state
+        self.make_initial_state = make_initial_state
         self._state = make_initial_state(random_key, obs_spec)
 
         # self.prepare_batch =prepare_batch

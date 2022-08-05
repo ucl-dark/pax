@@ -310,7 +310,7 @@ class MetaRunner:
                 new_a2_state.extras["log_probs"],
                 new_a2_state.extras["values"],
                 tprime_2.last(),
-                a2_state.hiddens,
+                a2_state.hidden,
             )
             return (
                 tprime_1,
