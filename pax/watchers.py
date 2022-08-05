@@ -156,11 +156,11 @@ def losses_ppo(agent: PPO) -> dict:
     entropy_cost = agent._logger.metrics["entropy_cost"]
     losses = {
         f"train/ppo_{pid}/sgd_steps": sgd_steps,
-        f"train/ppo_{pid}/total": loss_total.mean(),
-        f"train/ppo_{pid}/policy": loss_policy.mean(),
-        f"train/ppo_{pid}/value": loss_value.mean(),
-        f"train/ppo_{pid}/entropy": loss_entropy.mean(),
-        f"train/ppo_{pid}/entropy_coefficient": entropy_cost.mean(),
+        f"train/ppo_{pid}/total": loss_total,
+        f"train/ppo_{pid}/policy": loss_policy,
+        f"train/ppo_{pid}/value": loss_value,
+        f"train/ppo_{pid}/entropy": loss_entropy,
+        f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
     }
     return losses
 

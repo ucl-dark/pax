@@ -442,7 +442,7 @@ class NaiveLearner:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, _ = self._policy(
+        actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         return utils.to_numpy(actions)

@@ -46,12 +46,9 @@ class MetaFiniteGame:
                 + 3 * (a1) * (a2)
             )
             # if first step then return START state.
-            s1 = jax.lax.select(
-                inner_t == 0.0, jnp.float32(4.0), jnp.float32(s1)
-            )
-            s2 = jax.lax.select(
-                inner_t == 0.0, jnp.float32(4.0), jnp.float32(s2)
-            )
+            done = inner_t % inner_ep_length == 0
+            s1 = jax.lax.select(done, jnp.float32(s1), jnp.float32(4.0))
+            s2 = jax.lax.select(done, jnp.float32(s2), jnp.float32(4.0))
 
             obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)

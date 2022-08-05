@@ -464,8 +464,9 @@ class PPO:
         """Selects action and updates info with PPO specific information"""
         (
             actions,
+            self._state,
             self._mem,
-        ) = self._policy(self._state.params, t.observation, self._state)
+        ) = self._policy(self._state, t.observation, self._mem)
         return utils.to_numpy(actions)
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
