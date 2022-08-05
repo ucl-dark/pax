@@ -36,6 +36,6 @@ naive:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'final-Naive-vs-${agent2}}'
+  group: 'final-Naive-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

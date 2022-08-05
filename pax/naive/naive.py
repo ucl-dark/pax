@@ -160,6 +160,7 @@ class NaiveLearner:
             # ACTOR
             # Importance sampling weights: current policy / behavior policy.
             rhos = jnp.exp(log_prob - behavior_log_probs)
+            # rhos = log_prob
             policy_loss = -jnp.mean(rhos * advantages)
 
             # CRITIC
