@@ -31,51 +31,6 @@ def _meta_trajectory_reshape(batch_traj: Sample) -> Sample:
     )
 
 
-def stack_samples(ys: List[Sample]) -> Sample:
-    """To be used when lax.scan is too slow to compile"""
-    obs, a, r, log_p, v, dones, h = [], [], [], [], [], [], []
-    obs1, a1, r1, log_p1, v1, dones1, h1 = [], [], [], [], [], [], []
-
-    for (y0, y1) in ys:
-        obs.append(y0.observations)
-        a.append(y0.actions)
-        r.append(y0.rewards)
-        log_p.append(y0.behavior_log_probs)
-        v.append(y0.behavior_values)
-        dones.append(y0.dones)
-        h.append(y0.hiddens)
-
-        obs1.append(y1.observations)
-        a1.append(y1.actions)
-        r1.append(y1.rewards)
-        log_p1.append(y1.behavior_log_probs)
-        v1.append(y1.behavior_values)
-        dones1.append(y1.dones)
-        h1.append(y1.hiddens)
-
-    trajectories = (
-        Sample(
-            jnp.stack(obs),
-            jnp.stack(a),
-            jnp.stack(r),
-            jnp.stack(log_p),
-            jnp.stack(v),
-            jnp.stack(dones),
-            jnp.stack(h),
-        ),
-        Sample(
-            jnp.stack(obs1) if not obs[1] is None else None,
-            jnp.stack(a1) if not a1[1] is None else None,
-            jnp.stack(r1) if not r1[1] is None else None,
-            jnp.stack(log_p1) if not log_p1[1] is None else None,
-            jnp.stack(v) if not v[1] is None else None,
-            jnp.stack(dones) if not dones[1] is None else None,
-            jnp.stack(h) if not h[1] is None else None,
-        ),
-    )
-    return trajectories
-
-
 class Runner:
     """Holds the runner's state."""
 
@@ -142,7 +97,6 @@ class Runner:
                 # unique naive-learner code
                 a2_state = agent2.make_initial_state(t_init[1])
 
-            # Original
             # rollout episode
             vals, trajectories = jax.lax.scan(
                 _env_rollout,
@@ -163,8 +117,6 @@ class Runner:
             final_t2 = vals[1]._replace(step_type=2)
             a2_state = vals[3]
             a2_state = agent2.update(trajectories[1], final_t2, a2_state)
-
-            # print("a1 state", a1_state)
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
@@ -352,14 +304,12 @@ class MetaRunner:
             rng, _ = jax.random.split(rng)
 
             # rollout outer episode
-            ys = []
-            carry = (*t_init, a1_state, a2_state, env_state)
-            for x in range(env.num_trials):
-                carry, y0 = _outer_rollout(carry, x)
-                ys.append(y0)
-
-            vals = carry
-            trajectories = stack_samples(ys)
+            vals, trajectories = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a2_state, env_state),
+                None,
+                length=env.num_trials,
+            )
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
@@ -389,7 +339,6 @@ class MetaRunner:
                     },
                 )
         print()
-
         # update agents
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
