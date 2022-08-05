@@ -211,7 +211,9 @@ class Random:
 class HyperAltruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     def select_action(
         self,
@@ -235,7 +237,9 @@ class HyperAltruistic:
 
 class HyperDefect:
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -259,7 +263,9 @@ class HyperDefect:
 
 class HyperTFT:
     def __init__(self, *args):
-        self._state = TrainingState(None, None, None)
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -273,7 +279,9 @@ class HyperTFT:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        return jnp.tile(
+            20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -286,7 +294,9 @@ class HyperTFT:
             _,
         ) = observation.shape
         # return jnp.zeros((batch_size, 1))
-        action = jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        action = jnp.tile(
+            20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
+        )
         return action, state
 
     def update(self, *args) -> None:
