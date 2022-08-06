@@ -132,9 +132,14 @@ class MetaRunner:
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
+
+            obs_0 = jnp.argmax(trajectories[0].observations, axis=-1)
+            visits = jnp.bincount(obs_0.flatten())
+
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
+            print(f"State Frequency: {visits}")
 
             # update outer agent
             final_t1 = vals[0]._replace(step_type=2)
