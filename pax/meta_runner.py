@@ -114,9 +114,12 @@ class MetaRunner:
 
             # uniquely nl code required here.
             a1_state = agent1.reset_memory()
-            a2_state = agent2.make_initial_state(
-                rng, (env.observation_spec().num_values,)
-            )
+            if self.args.agent2 == "Naive":
+                a2_state = agent2.make_initial_state(
+                    rng, (env.observation_spec().num_values,)
+                )
+            else:
+                a2_state = agent2.reset_memory()
             rng, _ = jax.random.split(rng)
 
             # rollout outer episode
@@ -172,6 +175,7 @@ class MetaRunner:
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()
+
             for _ in range(env.episode_length):
                 actions = agents.select_action(timesteps)
                 timesteps = env.step(actions)

@@ -108,7 +108,7 @@ class MetaFiniteGame:
         """Returns the first `TimeStep` of a new episode."""
         self.state = (0.0, 0.0)
         self._reset_next_step = False
-        obs = obs = jax.nn.one_hot(jnp.ones(self.num_envs), 5)
+        obs = jax.nn.one_hot(jnp.zeros(self.num_envs), 5)
         discount = jnp.zeros(self.num_envs, dtype=int)
         step_type = jnp.zeros(self.num_envs, dtype=int)
         return TimeStep(
