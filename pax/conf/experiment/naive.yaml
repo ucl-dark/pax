@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'Naive'
-agent2: 'Naive'
+agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
@@ -12,10 +12,10 @@ env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Training hyperparameters
-num_envs: 10
+num_envs: 100
 num_steps: 150 # number of steps per episode
-total_timesteps: 100_000
-eval_every: 4000 # timesteps
+total_timesteps: 400_000
+eval_every: 100_000 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -28,24 +28,14 @@ naive:
   num_epochs: 1
   gamma: 0.96
   gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.2
-  entropy_coeff_horizon: 500_000
-  # ^this should 1/2 of the total timesteps
-  entropy_coeff_end: 0.01
-  lr_scheduling: True
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: False
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'Naive-vs-${agent2}-${game}'
+  group: 'Naive-vs-${agent2}-parity'
   name: run-seed-${seed}
-  log: True
+  log: False

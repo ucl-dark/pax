@@ -1,6 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Dict, Mapping, NamedTuple, Tuple
+from typing import Any, Dict, NamedTuple, Tuple
 
 import haiku as hk
 import jax
@@ -10,6 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_cartpole_network, make_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -25,17 +26,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 class Logger:
@@ -64,6 +54,7 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        has_sgd_jit: bool = False,
     ):
         @jax.jit
         def policy(
@@ -120,27 +111,38 @@ class PPO:
             )
             return traj_batch
 
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
+            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
 
-            # this is where the gae function will end
+            _, advantages = jax.lax.scan(
+                get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
+                reverse_batch,
+            )
+
+            advantages = jnp.flip(advantages, axis=0)
+
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -221,7 +223,6 @@ class PPO:
                 "entropy_cost": entropy_cost,
             }
 
-        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -277,8 +278,9 @@ class PPO:
             )
 
             # Compute gradients.
-            grad_fn = jax.grad(loss, has_aux=True)
+            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
+            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -311,6 +313,7 @@ class PPO:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
+            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch
@@ -382,8 +385,6 @@ class PPO:
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
-            # for dict_key in initial_params.keys():
-            #     print(initial_params[dict_key])
             return TrainingState(
                 params=initial_params,
                 opt_state=initial_opt_state,
@@ -400,7 +401,10 @@ class PPO:
         self._make_initial_state = make_initial_state
         self._state = make_initial_state(random_key, obs_spec)
         self._prepare_batch = jax.jit(prepare_batch)
-        self._sgd_step = sgd_step
+        if has_sgd_jit:
+            self._sgd_step = jax.jit(sgd_step)
+        else:
+            self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -466,7 +470,9 @@ class PPO:
         return state
 
 
-def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_agent(
+    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+):
     """Make PPO agent"""
 
     if args.env_id == "CartPole-v1":
@@ -494,9 +500,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         )
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(
-                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
-            ),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
@@ -504,9 +508,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     else:
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(
-                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
-            ),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale(-args.ppo.learning_rate),
         )
 
@@ -531,6 +533,7 @@ def make_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
+        has_sgd_jit=has_sgd_jit,
     )
     agent.player_id = player_id
     return agent

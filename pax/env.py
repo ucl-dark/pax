@@ -4,15 +4,7 @@ from typing import Tuple
 
 import jax
 import jax.numpy as jnp
-from dm_env import (
-    Environment,
-    StepType,
-    TimeStep,
-    restart,
-    specs,
-    termination,
-    transition,
-)
+from dm_env import Environment, TimeStep, specs, termination, transition
 
 #              CC      CD     DC     DD
 # payoffs are [(2, 2), (0,3), (3,0), (1, 1)]

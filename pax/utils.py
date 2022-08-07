@@ -1,8 +1,11 @@
 from time import time as tic
+from typing import Mapping, NamedTuple
 
+import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
 
 
 class Section(object):
@@ -86,3 +89,23 @@ def add_batch_dim(values):
 
 def to_numpy(values):
     return jax.tree_map(np.asarray, values)
+
+
+class TrainingState(NamedTuple):
+    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+
+    params: hk.Params
+    opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
+    timesteps: int
+    extras: Mapping[str, jnp.ndarray]
+    hidden: None
+
+
+def get_advantages(carry, transition):
+    gae, next_value, gae_lambda = carry
+    value, reward, discounts = transition
+    value_diff = discounts * next_value - value
+    delta = reward + value_diff
+    gae = delta + discounts * gae_lambda * gae
+    return (gae, value, gae_lambda), gae

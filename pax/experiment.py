@@ -9,9 +9,10 @@ from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
-from pax.meta_env import InfiniteMatrixGame
-from pax.naive_exact import NaiveLearnerEx
+from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
+from pax.meta_runner import MetaRunner
 from pax.naive.naive import make_naive_pg
+from pax.naive_exact import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner import Runner
@@ -32,12 +33,12 @@ from pax.watchers import (
     logger_naive,
     losses_naive,
     losses_ppo,
+    naive_pg_losses,
     policy_logger_dqn,
     policy_logger_ppo,
     policy_logger_ppo_with_memory,
     value_logger_dqn,
     value_logger_ppo,
-    naive_pg_losses,
 )
 
 
@@ -63,7 +64,7 @@ def global_setup(args):
 def payoff_setup(args, logger):
     """Set up payoff"""
     games = {
-        "ipd": [[2, 2], [0, 3], [3, 0], [1, 1]],
+        "ipd": [[-1, -1], [-3, 0], [0, -3], [-2, -2]],
         "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
         "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
         "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
@@ -106,8 +107,24 @@ def env_setup(args, logger=None):
         test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
         if logger:
             logger.info(
-                f"Game Type: Finite | Episode Length: {args.num_steps}"
+                f"Env Type: Regular | Episode Length: {args.num_steps}"
             )
+
+    elif args.env_type == "meta":
+        train_env = MetaFiniteGame(
+            args.num_envs,
+            args.payoff,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
+        )
+        test_env = MetaFiniteGame(
+            args.num_envs,
+            args.payoff,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
+        )
+        if logger:
+            logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
     else:
         train_env = InfiniteMatrixGame(
@@ -133,7 +150,14 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args):
-    return Runner(args)
+    if args.env_type == "meta":
+        return MetaRunner(args)
+    elif args.env_type == "finite":
+        return Runner(args)
+    elif args.env_type == "infinite":
+        return Runner(args)
+    else:
+        raise NameError("Not valid environment type")
 
 
 def agent_setup(args, logger):
@@ -144,6 +168,7 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
         dqn_agent = default_agent(
             args,
             obs_spec=dummy_env.observation_spec(),
@@ -158,12 +183,18 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
         )
         return ppo_memory_agent
 
@@ -172,22 +203,21 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
-        if args.ppo.with_memory:
-            ppo_agent = make_gru_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
         else:
-            ppo_agent = make_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+        )
+
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
@@ -272,7 +302,8 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    logger.info(f"PPO with memory: {args.ppo.with_memory}")
+    if args.agent1 == "PPO_memory":
+        logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
@@ -328,8 +359,8 @@ def watcher_setup(args, logger):
         value = value_logger_ppo(agent)
         losses.update(value)
         losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
+        # if args.wandb.log:
+        # wandb.log(losses)
         return
 
     strategies = {
@@ -379,8 +410,8 @@ def main(args):
         runner = runner_setup(args)
 
     # num episodes
-    total_num_ep = int(args.total_timesteps / (args.num_steps))
-    train_num_ep = int(args.eval_every / (args.num_steps))
+    total_num_ep = int(args.total_timesteps / args.num_steps)
+    train_num_ep = int(args.eval_every / args.num_steps)
 
     print(f"Number of training episodes = {total_num_ep}")
     print(f"Evaluating every {train_num_ep} episodes")

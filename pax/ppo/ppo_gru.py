@@ -9,10 +9,8 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import (
-    make_GRU,
-    make_GRU_cartpole_network,
-)
+from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -31,17 +29,6 @@ class Batch(NamedTuple):
 
     # GRU specific
     hiddens: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    hidden: jnp.ndarray
-    extras: Mapping[str, jnp.ndarray]
 
 
 class Logger:
@@ -73,6 +60,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         player_id: int = 0,
+        has_sgd_jit: bool = True,
     ):
         @jax.jit
         def policy(
@@ -89,7 +77,10 @@ class PPO:
             state = state._replace(
                 random_key=key, hidden=hidden_state, extras=state.extras
             )
-            return actions, state
+            return (
+                actions,
+                state,
+            )
 
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
@@ -103,13 +94,23 @@ class PPO:
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
+
+            _, advantages = jax.lax.scan(
+                get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
+                reverse_batch,
+            )
+
+            advantages = jnp.flip(advantages, axis=0)
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -195,12 +196,78 @@ class PPO:
             }
             # }, new_rnn_unroll_state
 
+        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
+
         @jax.jit
+        def model_update_minibatch(
+            carry: Tuple[hk.Params, optax.OptState, int],
+            minibatch: Batch,
+        ) -> Tuple[
+            Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
+        ]:
+            """Performs model update for a single minibatch."""
+            params, opt_state, timesteps = carry
+            # Normalize advantages at the minibatch level before using them.
+            advantages = (
+                minibatch.advantages - jnp.mean(minibatch.advantages, axis=0)
+            ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+            gradients, metrics = self.grad_fn(
+                params,
+                timesteps,
+                minibatch.observations,
+                minibatch.actions,
+                minibatch.behavior_log_probs,
+                minibatch.target_values,
+                advantages,
+                minibatch.behavior_values,
+                minibatch.hiddens,
+            )
+
+            # Apply updates
+            updates, opt_state = optimizer.update(gradients, opt_state)
+            params = optax.apply_updates(params, updates)
+
+            metrics["norm_grad"] = optax.global_norm(gradients)
+            metrics["norm_updates"] = optax.global_norm(updates)
+            return (params, opt_state, timesteps), metrics
+
+        batch_size = num_envs * num_steps
+
+        @jax.jit
+        def model_update_epoch(
+            carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
+            unused_t: Tuple[()],
+        ) -> Tuple[
+            Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+            Dict[str, jnp.ndarray],
+        ]:
+            """Performs model updates based on one epoch of data."""
+            key, params, opt_state, timesteps, batch = carry
+            key, subkey = jax.random.split(key)
+            permutation = jax.random.permutation(subkey, batch_size)
+            shuffled_batch = jax.tree_map(
+                lambda x: jnp.take(x, permutation, axis=0), batch
+            )
+            shuffled_batch = batch
+            minibatches = jax.tree_map(
+                lambda x: jnp.reshape(
+                    x, [num_minibatches, -1] + list(x.shape[1:])
+                ),
+                shuffled_batch,
+            )
+
+            (params, opt_state, timesteps), metrics = jax.lax.scan(
+                model_update_minibatch,
+                (params, opt_state, timesteps),
+                minibatches,
+                length=num_minibatches,
+            )
+            return (key, params, opt_state, timesteps, batch), metrics
+
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
             """Performs a minibatch SGD step, returning new state and metrics."""
-
             # Extract data
             (
                 observations,
@@ -252,73 +319,6 @@ class PPO:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
 
-            # Compute gradients.
-            grad_fn = jax.grad(loss, has_aux=True)
-
-            def model_update_minibatch(
-                carry: Tuple[hk.Params, optax.OptState, int],
-                minibatch: Batch,
-            ) -> Tuple[
-                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
-            ]:
-                """Performs model update for a single minibatch."""
-                params, opt_state, timesteps = carry
-                # Normalize advantages at the minibatch level before using them.
-                advantages = (
-                    minibatch.advantages
-                    - jnp.mean(minibatch.advantages, axis=0)
-                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
-                gradients, metrics = grad_fn(
-                    params,
-                    timesteps,
-                    minibatch.observations,
-                    minibatch.actions,
-                    minibatch.behavior_log_probs,
-                    minibatch.target_values,
-                    advantages,
-                    minibatch.behavior_values,
-                    minibatch.hiddens,
-                )
-
-                # Apply updates
-                updates, opt_state = optimizer.update(gradients, opt_state)
-                params = optax.apply_updates(params, updates)
-
-                metrics["norm_grad"] = optax.global_norm(gradients)
-                metrics["norm_updates"] = optax.global_norm(updates)
-                return (params, opt_state, timesteps), metrics
-
-            def model_update_epoch(
-                carry: Tuple[
-                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
-                ],
-                unused_t: Tuple[()],
-            ) -> Tuple[
-                Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
-                Dict[str, jnp.ndarray],
-            ]:
-                """Performs model updates based on one epoch of data."""
-                key, params, opt_state, timesteps, batch = carry
-                key, subkey = jax.random.split(key)
-                permutation = jax.random.permutation(subkey, batch_size)
-                shuffled_batch = jax.tree_map(
-                    lambda x: jnp.take(x, permutation, axis=0), batch
-                )
-                minibatches = jax.tree_map(
-                    lambda x: jnp.reshape(
-                        x, [num_minibatches, -1] + list(x.shape[1:])
-                    ),
-                    shuffled_batch,
-                )
-
-                (params, opt_state, timesteps), metrics = jax.lax.scan(
-                    model_update_minibatch,
-                    (params, opt_state, timesteps),
-                    minibatches,
-                    length=num_minibatches,
-                )
-                return (key, params, opt_state, timesteps, batch), metrics
-
             params = state.params
             opt_state = state.opt_state
             timesteps = state.timesteps
@@ -345,11 +345,11 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
-                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
+                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
             )
 
             return new_state, metrics
@@ -370,11 +370,11 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
-                hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
+                hidden=initial_hidden_state,  # initial_hidden_state,
             )
 
         @jax.jit
@@ -419,7 +419,10 @@ class PPO:
         )
 
         self.prepare_batch = prepare_batch
-        self._sgd_step = sgd_step
+        if has_sgd_jit:
+            self._sgd_step = jax.jit(sgd_step)
+        else:
+            self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -493,7 +496,9 @@ class PPO:
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_gru_agent(
+    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
@@ -505,6 +510,10 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         network, initial_hidden_state = make_GRU(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
+
+    initial_hidden_state = jnp.zeros(
+        (args.num_envs, initial_hidden_state.shape[1])
+    )
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
@@ -559,7 +568,11 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
+        has_sgd_jit=has_sgd_jit,
     )
+    return agent
+
+    agent.player_id = player_id
     return agent
 
 

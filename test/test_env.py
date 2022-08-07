@@ -27,9 +27,6 @@ def test_single_batch_rewards(payoff) -> None:
 
     # first step
     tstep_0, tstep_1 = env.step((0 * action, 0 * action))
-    assert tstep_0.reward is None
-    assert tstep_1.reward is None
-
     tstep_0, tstep_1 = env.step((0 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, cc_p1 * r_array)
     assert jnp.array_equal(tstep_1.reward, cc_p2 * r_array)

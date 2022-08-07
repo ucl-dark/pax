@@ -144,7 +144,7 @@ def test_naive_tft():
     )
     agent = NaiveLearnerEx(action_dim=5, env=env, lr=1, seed=0, player_id=0)
     tft_action = jnp.tile(
-        20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)
+        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
     )
     timestep, _ = env.reset()
 
@@ -172,7 +172,7 @@ def test_naive_tft_as_second_player():
     agent = NaiveLearnerEx(action_dim=5, env=env, lr=1, seed=0, player_id=0)
 
     tft_action = jnp.tile(
-        20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_number, 1)
+        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
     )
     _, timestep = env.reset()
 
