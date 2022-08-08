@@ -437,15 +437,6 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
-    # def reset_memory(self, state) -> TrainingState:
-    #     state = state._replace(
-    #         extras={
-    #             "values": jnp.zeros(self._num_envs),
-    #             "log_probs": jnp.zeros(self._num_envs),
-    #         }
-    #     )
-    #     return state
-
     def reset_memory(self) -> TrainingState:
         self._state = self._state._replace(
             extras={

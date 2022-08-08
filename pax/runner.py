@@ -1,12 +1,10 @@
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.independent_learners import IndependentLearners
-from pax.strategies import Defect, TitForTat
 
 
 class Sample(NamedTuple):
@@ -19,6 +17,16 @@ class Sample(NamedTuple):
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
     hiddens: jnp.ndarray
+
+
+@jax.jit
+def _meta_trajectory_reshape(batch_traj: Sample) -> Sample:
+    batch_size = (
+        batch_traj.observations.shape[0] * batch_traj.observations.shape[1]
+    )
+    return jax.tree_map(
+        lambda x: x.reshape((batch_size,) + x.shape[2:]), batch_traj
+    )
 
 
 class Runner:
@@ -37,27 +45,29 @@ class Runner:
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
+        rng = jax.random.PRNGKey(0)
 
-        def _env_rollout(carry, unused):
-            t1, t2, a1_state, a2_state = carry
-            a1, a1_state = agent1._policy(
+        def _inner_rollout(carry, unused):
+            t1, t2, a1_state, a2_state, env_state = carry
+            a1, new_a1_state = agent1._policy(
                 a1_state.params, t1.observation, a1_state
             )
-            a2, a2_state = agent2._policy(
+            a2, new_a2_state = agent2._policy(
                 a2_state.params, t2.observation, a2_state
             )
-            tprime_1, tprime_2 = env.runner_step(
+            (tprime_1, tprime_2), env_state = env.runner_step(
                 [
                     a1,
                     a2,
-                ]
+                ],
+                env_state,
             )
             traj1 = Sample(
                 t1.observation,
                 a1,
                 tprime_1.reward,
-                a1_state.extras["log_probs"],
-                a1_state.extras["values"],
+                new_a1_state.extras["log_probs"],
+                new_a1_state.extras["values"],
                 tprime_1.last() * jnp.zeros(env.num_envs),
                 a1_state.hidden,
             )
@@ -65,53 +75,84 @@ class Runner:
                 t2.observation,
                 a2,
                 tprime_2.reward,
-                a2_state.extras["log_probs"],
-                a2_state.extras["values"],
+                new_a2_state.extras["log_probs"],
+                new_a2_state.extras["values"],
                 tprime_2.last() * jnp.zeros(env.num_envs),
                 a2_state.hidden,
             )
             return (
                 tprime_1,
                 tprime_2,
-                a1_state,
-                a2_state,
-            ), (traj1, traj2)
-
-        for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
-
-            t_init = env.reset()
-            a1_state = agent1.reset_memory()
-            a2_state = agent2.reset_memory()
-
-            if self.args.agent2 == "NaiveLearnerEx":
-                # unique naive-learner code
-                a2_state = agent2.make_initial_state(t_init[1])
-
-            # rollout episode
-            vals, trajectories = jax.lax.scan(
-                _env_rollout,
-                (*t_init, a1_state, a2_state),
-                None,
-                length=env.episode_length,
+                new_a1_state,
+                new_a2_state,
+                env_state,
+            ), (
+                traj1,
+                traj2,
             )
 
+        def _outer_rollout(carry, unused):
+            t1, t2, a1_state, a2_state, env_state = carry
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                (t1, t2, a1_state, a2_state, env_state),
+                None,
+                length=env.inner_episode_length,
+            )
+
+            # do second agent update
+            final_t2 = vals[1]._replace(step_type=2)
+            a2_state = vals[3]
+            a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+            return (t1, t2, a1_state, a2_state, env_state), trajectories
+
+        # run actual loop
+        for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
+            t_init = env.reset()
+            env_state = env.state
+
+            # uniquely nl code required here.
+            a1_state = agent1.reset_memory()
+            if self.args.agent2 == "Naive" and self.args.env_type == "meta":
+                a2_state = agent2.make_initial_state(
+                    rng, (env.observation_spec().num_values,)
+                )
+            elif self.args.agent2 == "NaiveLearnerEx":
+                a2_state = agent2.make_initial_state(t_init[1])
+            else:
+                a2_state = agent2.reset_memory()
+            rng, _ = jax.random.split(rng)
+
+            # rollout outer episode
+            vals, trajectories = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a2_state, env_state),
+                None,
+                length=env.num_trials,
+            )
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
 
-            # update agent / add final trajectory
-            final_t1 = vals[0]._replace(step_type=2)
-            a1_state = vals[2]
-            a1_state = agent1.update(trajectories[0], final_t1, a1_state)
-
-            final_t2 = vals[1]._replace(step_type=2)
-            a2_state = vals[3]
-            a2_state = agent2.update(trajectories[1], final_t2, a2_state)
+            obs_0 = jnp.argmax(trajectories[0].observations, axis=-1)
+            visits = jnp.bincount(obs_0.flatten())
 
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-                f"| Joint reward: {(rewards_0.mean() + rewards_1.mean())*0.5}"
             )
+            print(f"State Frequency: {visits}")
+
+            # update outer agent
+            final_t1 = vals[0]._replace(step_type=2)
+            a1_state = vals[2]
+            a1_state = agent1.update(
+                _meta_trajectory_reshape(trajectories[0]), final_t1, a1_state
+            )
+            agent1._state = a1_state
+            # reassign inner agent (updated in scan)
+            a2_state = vals[3]
+            agent2._state = a2_state
 
             # logging
             if watchers:
@@ -125,15 +166,9 @@ class Runner:
                         "train/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
-                        "train/episode_reward/joint": (
-                            rewards_0.mean() + rewards_1.mean()
-                        )
-                        * 0.5,
                     },
                 )
         print()
-
-        # TODO: Why do we need this if we already update the state in agent.update?
         # update agents
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
@@ -151,6 +186,7 @@ class Runner:
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []
             timesteps = env.reset()
+
             for _ in range(env.episode_length):
                 actions = agents.select_action(timesteps)
                 timesteps = env.step(actions)
@@ -201,17 +237,3 @@ class Runner:
         agents.eval(False)
         print()
         return agents
-
-
-if __name__ == "__main__":
-    from pax.env import IteratedPrisonersDilemma
-
-    agents = IndependentLearners([Defect(), TitForTat()])
-    # TODO: accept the arguments from config file instead of hard-coding
-    # Default to prisoner's dilemma
-    env = IteratedPrisonersDilemma(50, 5)
-    wandb.init(mode="online")
-
-    def log_print(agent) -> dict:
-        print(agent)
-        return None

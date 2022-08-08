@@ -10,12 +10,11 @@ from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
-from pax.meta_runner import MetaRunner
+from pax.runner import Runner
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -150,15 +149,7 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args):
-    if args.env_type == "meta":
-        return MetaRunner(args)
-    elif args.env_type == "finite":
-        return MetaRunner(args)
-    elif args.env_type == "infinite":
-        return MetaRunner(args)
-
-    else:
-        raise NameError("Not valid environment type")
+    return Runner(args)
 
 
 def agent_setup(args, logger):
