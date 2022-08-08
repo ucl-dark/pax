@@ -13,6 +13,7 @@ payoff:
 
 # Training hyperparameters
 num_envs: 100
+num_opponents: 1
 num_steps: 150 # number of steps per episode
 total_timesteps: 2_000_000
 eval_every: 500_000 # timesteps

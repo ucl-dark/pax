@@ -68,7 +68,7 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opponents
 
-        def reshape_opp_dim(x):
+        def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
             # x: [batch_size, ...]
             batch_size = args.num_envs * args.num_opponents
@@ -76,7 +76,12 @@ class Runner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        self.reduce_opp_dim = jax.jit(reshape_opp_dim)
+        def _state_visitation(traj: Sample) -> List:
+            obs = jnp.argmax(traj.observations, axis=-1)
+            return jnp.bincount(obs.flatten(), length=5)
+
+        self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
+        self.state_visitation = jax.jit(_state_visitation)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -90,11 +95,11 @@ class Runner:
         env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
 
         # batch over TimeStep, TrainingState
-        agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0))
-        agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0), 0)
         agent2.make_initial_state = jax.vmap(
             agent2.make_initial_state, (0, None), 0
         )
+        agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0, 0))
+        agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0, 0), 0)
 
         # batch TimeStep, MemoryState but not TrainingState
         agent1.make_initial_state = jax.vmap(
@@ -125,7 +130,7 @@ class Runner:
         )
 
         def _inner_rollout(carry, unused):
-            t1, t2, a1_state, a1_mem, a2_state, env_state = carry
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
@@ -133,8 +138,10 @@ class Runner:
                 a1_mem,
             )
 
-            a2, new_a2_state = agent2.batch_policy(
-                a2_state.params, t2.observation, a2_state
+            a2, a2_state, new_a2_mem = agent2.batch_policy(
+                a2_state,
+                t2.observation,
+                a2_mem,
             )
 
             (tprime_1, tprime_2), env_state = env.batch_step(
@@ -155,17 +162,18 @@ class Runner:
                 t2.observation,
                 a2,
                 tprime_2.reward,
-                new_a2_state.extras["log_probs"],
-                new_a2_state.extras["values"],
+                new_a2_mem.extras["log_probs"],
+                new_a2_mem.extras["values"],
                 tprime_2.last(),
-                a2_state.hidden,
+                a2_mem.hidden,
             )
             return (
                 tprime_1,
                 tprime_2,
                 a1_state,
-                a1_mem,
-                new_a2_state,
+                new_a1_mem,
+                a2_state,
+                new_a2_mem,
                 env_state,
             ), (
                 traj1,
@@ -173,11 +181,11 @@ class Runner:
             )
 
         def _outer_rollout(carry, unused):
-            t1, t2, a1_state, a1_mem, a2_state, env_state = carry
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
-                (t1, t2, a1_state, a1_mem, a2_state, env_state),
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.inner_episode_length,
             )
@@ -187,7 +195,10 @@ class Runner:
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
             a2_state = vals[4]
-            a2_state = agent2.batch_update(trajectories[1], final_t2, a2_state)
+            a2_mem = vals[5]
+            a2_state, a2_mem = agent2.batch_update(
+                trajectories[1], final_t2, a2_state, a2_mem
+            )
 
             return (
                 t1,
@@ -195,6 +206,7 @@ class Runner:
                 a1_state,
                 a1_mem,
                 a2_state,
+                a2_mem,
                 env_state,
             ), trajectories
 
@@ -205,7 +217,7 @@ class Runner:
             a1_mem = agent1.reset_memory(a1_mem, False)
 
             # if NaiveLearner.
-            a2_state = agent2.make_initial_state(
+            a2_state, a2_mem = agent2.make_initial_state(
                 jax.random.split(rng, num_opps),
                 (env.observation_spec().num_values,),
             )
@@ -213,7 +225,7 @@ class Runner:
             # num trials
             vals, trajectories = jax.lax.scan(
                 _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, env_state),
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
             )
@@ -238,9 +250,7 @@ class Runner:
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
 
-            obs_0 = jnp.argmax(trajectories[0].observations, axis=-1)
-            visits = jnp.bincount(obs_0.flatten())
-
+            visits = self.state_visitation(trajectories[0])
             print(f"State Frequency: {visits}")
 
             # logging
@@ -270,7 +280,7 @@ class Runner:
         agents.eval(True)
         agent1, agent2 = agents.agents
         agent1._mem = agent1.reset_memory(agent1._mem)
-        agent2.reset_memory()
+        agent2._mem = agent2.reset_memory(agent2._mem)
 
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []

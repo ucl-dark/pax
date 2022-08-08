@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-from pax.utils import TrainingState
+from pax.utils import MemoryState, TrainingState
 
 # states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1
@@ -54,9 +54,8 @@ class GrimTrigger:
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
-        )
+        self._state = TrainingState(None, None, None, None)
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -70,8 +69,11 @@ class TitForTat:
     def update(self, *args) -> None:
         return self._state
 
-    def reset_memory(self, *args) -> TrainingState:
-        return self._state
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, *args) -> TrainingState:
+        return self._state, self._mem
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -82,7 +84,7 @@ class TitForTat:
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
         # return [batch]
-        return self._reciprocity(obs), self._state
+        return self._reciprocity(obs), self._state, self._mem
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # now either 0, 1, 2, 3

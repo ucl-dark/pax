@@ -92,17 +92,17 @@ def to_numpy(values):
 
 
 class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+    """Training state consists of network parameters, optimiser state, random key, timesteps"""
 
     params: hk.Params
     opt_state: optax.GradientTransformation
     random_key: jnp.ndarray
     timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 class MemoryState(NamedTuple):
+    """State consists of network extras (to be batched)"""
+
     hidden: jnp.ndarray
     extras: Mapping[str, jnp.ndarray]
 

@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -33,12 +33,6 @@ class Batch(NamedTuple):
 
 class Logger:
     metrics: dict
-
-
-class MemoryState(NamedTuple):
-    hidden: jnp.ndarray
-    extras: Mapping[str, jnp.ndarray]
-    # random_key: jnp.ndarray
 
 
 class PPO:
@@ -350,8 +344,6 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps + batch_size,
-                hidden=None,
-                extras=None,
             )
 
             new_memory = MemoryState(
@@ -380,8 +372,6 @@ class PPO:
                 params=initial_params,
                 opt_state=initial_opt_state,
                 timesteps=0,
-                extras=None,
-                hidden=None,
             ), MemoryState(
                 hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={

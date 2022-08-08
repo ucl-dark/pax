@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.naive.network import make_network
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -54,26 +54,17 @@ class NaiveLearner:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: TimeStep, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(params, observation)
+            dist, values = network.apply(state.params, observation)
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = TrainingState(
-                params=params,
-                opt_state=state.opt_state,
-                random_key=key,
-                timesteps=state.timesteps,
-                extras=state.extras,
-                hidden=None,
-            )
-            return (
-                actions,
-                state,
-            )
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(extras=mem.extras)
+            state = state._replace(random_key=key)
+            return (actions, state, mem)
 
         @jax.jit
         def prepare_batch(
@@ -322,15 +313,18 @@ class NaiveLearner:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
-                extras={
-                    "log_probs": jnp.zeros(num_envs),
-                    "values": jnp.zeros(num_envs),
-                },
-                hidden=None,
+                timesteps=timesteps + batch_size,
             )
 
-            return new_state, metrics
+            new_memory = MemoryState(
+                hidden=None,
+                extras={
+                    "log_probs": jnp.zeros(self._num_envs),
+                    "values": jnp.zeros(self._num_envs),
+                },
+            )
+
+            return new_state, new_memory, metrics
 
         @jax.jit
         def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
@@ -346,6 +340,7 @@ class NaiveLearner:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
+            ), MemoryState(
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
@@ -355,7 +350,7 @@ class NaiveLearner:
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state = make_initial_state(random_key, obs_spec)
+        self._state, self._mem = make_initial_state(random_key, obs_spec)
         self.make_initial_state = make_initial_state
         self._prepare_batch = jax.jit(prepare_batch)
 
@@ -387,39 +382,40 @@ class NaiveLearner:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
-            self._state.params, t.observation, self._state
+        actions, self._state, self._mem = self._policy(
+            self._state, t.observation, self._mem
         )
         return utils.to_numpy(actions)
 
-    def reset_memory(self) -> TrainingState:
-
-        self._state = self._state._replace(
+    def reset_memory(self, memory) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
+        memory = memory._replace(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            }
+                "values": jnp.zeros(num_envs),
+                "log_probs": jnp.zeros(num_envs),
+            },
+            hidden=None,
         )
-
-        return self._state
+        return memory
 
     def update(
         self,
         traj_batch,
         t_prime: TimeStep,
         state,
+        mem,
     ):
-        _, state = self._policy(state.params, t_prime.observation, state)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
-        return state
+        return state, mem
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
