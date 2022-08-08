@@ -76,8 +76,8 @@ class PPO:
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(params, observation)
             actions = dist.sample(seed=subkey)
-            # state.extras["values"] = values
-            # state.extras["log_probs"] = dist.log_prob(actions)
+            state.extras["values"] = values
+            state.extras["log_probs"] = dist.log_prob(actions)
             state = TrainingState(
                 params=params,
                 opt_state=state.opt_state,
@@ -447,7 +447,7 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state, extras = self._policy(
+        actions, self._state = self._policy(
             self._state.params, t.observation, self._state
         )
         return actions
