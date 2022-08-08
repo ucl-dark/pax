@@ -437,6 +437,15 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
+    # def reset_memory(self, state) -> TrainingState:
+    #     state = state._replace(
+    #         extras={
+    #             "values": jnp.zeros(self._num_envs),
+    #             "log_probs": jnp.zeros(self._num_envs),
+    #         }
+    #     )
+    #     return state
+
     def reset_memory(self) -> TrainingState:
         self._state = self._state._replace(
             extras={
@@ -446,12 +455,7 @@ class PPO:
         )
         return self._state
 
-    def update(
-        self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-    ):
+    def update(self, traj_batch, t_prime: TimeStep, state):
         """Update the agent -> only called at the end of a trajectory"""
         _, state = self._policy(state.params, t_prime.observation, state)
 
@@ -466,7 +470,6 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
-        self._state = state
         return state
 
 

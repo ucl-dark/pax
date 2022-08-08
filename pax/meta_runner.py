@@ -149,6 +149,10 @@ class MetaRunner:
             a1_state = agent1.update(
                 _meta_trajectory_reshape(trajectories[0]), final_t1, a1_state
             )
+            agent1._state = a1_state
+            # reassign inner agent (updated in scan)
+            a2_state = vals[3]
+            agent2._state = a2_state
 
             # logging
             if watchers:

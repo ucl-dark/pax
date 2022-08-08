@@ -419,7 +419,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):
-        print(f"Update: {num_update}/{int(total_num_ep // train_num_ep)}")
+        print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
 
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)
