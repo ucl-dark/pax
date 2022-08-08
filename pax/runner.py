@@ -68,21 +68,20 @@ class Runner:
 
         env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
 
+        # batch over TimeStep, TrainingState
         agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0))
         agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0), 0)
         agent2.make_initial_state = jax.vmap(
             agent2.make_initial_state, (0, None), 0
         )
 
-        # batch MemoryState (arg 1) not TrainingState (arg 0)
-        agent1.reset_memory = jax.vmap(agent1.reset_memory, (0, None), 0)
+        # batch TimeStep, MemoryState but not TrainingState
         agent1.make_initial_state = jax.vmap(
             agent1.make_initial_state,
             in_axes=(None, None, 0),
             out_axes=(None, 0),
         )
-
-        # batch Timesteps, MemoryState but not Params
+        agent1.reset_memory = jax.vmap(agent1.reset_memory, (0, None), 0)
         agent1.batch_policy = jax.vmap(
             agent1._policy, (None, 0, 0), (0, None, 0)
         )
@@ -96,6 +95,8 @@ class Runner:
         #     (env.observation_spec().num_values,),
         #     jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
         # )
+
+        # @akbir: this will be done everytime we enter trainloop±
         a1_state, a1_mem = agent1.make_initial_state(
             rng,
             (env.observation_spec().num_values,),
@@ -179,11 +180,10 @@ class Runner:
         # run actual loop
         for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
             t_init, env_state = env.runner_reset((num_nl, env.num_envs))
-            # env_state = env.state
             rng, _ = jax.random.split(rng)
-
-            # uniquely nl code required here.
             a1_mem = agent1.reset_memory(a1_mem, False)
+
+            # if NaiveLearner.
             a2_state = agent2.make_initial_state(
                 jax.random.split(rng, num_nl),
                 (env.observation_spec().num_values,),
@@ -196,6 +196,7 @@ class Runner:
                 None,
                 length=env.num_trials,
             )
+
             # update outer agent
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)

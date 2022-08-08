@@ -1,6 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Dict, Mapping, NamedTuple, Tuple
+from typing import Any, Dict, NamedTuple, Tuple
 
 import haiku as hk
 import jax
