@@ -49,7 +49,7 @@ class Runner:
         rng = jax.random.PRNGKey(0)
 
         # vmap once to support multiple naive learners
-        num_nl = 200
+        num_nl = self.num_nl
 
         @jax.jit
         def reshape_nl_traj(traj: Sample) -> Sample:

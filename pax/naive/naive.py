@@ -88,14 +88,14 @@ class NaiveLearner:
                 jnp.zeros_like(action_extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
-
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
