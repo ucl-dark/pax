@@ -369,7 +369,7 @@ class PPO:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
+                timesteps=timesteps + batch_size,
                 extras={
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),

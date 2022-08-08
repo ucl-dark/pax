@@ -269,7 +269,6 @@ class PPO:
             )
             return (key, params, opt_state, timesteps, batch), metrics
 
-        # @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -350,7 +349,7 @@ class PPO:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
+                timesteps=timesteps + batch_size,
                 hidden=None,
                 extras=None,
             )
