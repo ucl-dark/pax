@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 from dm_env import Environment, TimeStep, specs, termination, transition
 
+
 #              CC      CD     DC     DD
 # payoffs are [(2, 2), (0,3), (3,0), (1, 1)]
 # observations are one-hot representations
@@ -33,6 +34,12 @@ class SequentialMatrixGame(Environment):
         self.n_agents = 2
         self._num_steps = 0
         self._reset_next_step = True
+
+        # Dummy variable used to make Runner work with
+        # regular and meta learning.
+        self.num_trials = 1
+        self.state = (0.0, 0.0)
+        self.inner_episode_length = episode_length
 
     def step(
         self,
@@ -75,15 +82,17 @@ class SequentialMatrixGame(Environment):
     def runner_step(
         self,
         actions: Tuple[jnp.ndarray, jnp.ndarray],
-    ) -> Tuple[TimeStep, TimeStep]:
+        env_state: Tuple[float, float],
+    ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
         r_1, r_2 = self._get_reward(actions[0], actions[1])
         state = self._get_state(actions[0], actions[1])
         obs_1, obs_2 = self._observation(state)
 
-        return transition(reward=r_1, observation=obs_1), transition(
-            reward=r_2, observation=obs_2
-        )
+        return (
+            transition(reward=r_1, observation=obs_1),
+            transition(reward=r_2, observation=obs_2),
+        ), env_state
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""

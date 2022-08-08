@@ -228,6 +228,17 @@ class HyperAltruistic:
         # return jnp.zeros((batch_size, 1))
         return 20 * jnp.ones((batch_size, 5))
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+    ) -> jnp.ndarray:
+        (
+            batch_size,
+            _,
+        ) = observation.shape
+        action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
+        return action, state
+
     def update(self, *args) -> None:
         return self._state
 
@@ -253,6 +264,17 @@ class HyperDefect:
             _,
         ) = timestep.observation.shape
         return -20 * jnp.ones((batch_size, 5))
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+    ) -> jnp.ndarray:
+        (
+            batch_size,
+            _,
+        ) = observation.shape
+        action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
+        return action, state
 
     def update(self, *args) -> None:
         return self._state

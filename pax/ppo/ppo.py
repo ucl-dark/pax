@@ -446,12 +446,7 @@ class PPO:
         )
         return self._state
 
-    def update(
-        self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-    ):
+    def update(self, traj_batch, t_prime: TimeStep, state):
         """Update the agent -> only called at the end of a trajectory"""
         _, state = self._policy(state.params, t_prime.observation, state)
 
@@ -466,7 +461,6 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
-        self._state = state
         return state
 
 

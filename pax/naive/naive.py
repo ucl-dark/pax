@@ -417,8 +417,6 @@ class NaiveLearner:
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
-        # previously missing, so state was only updated when transitioning from training to evaluation
-        self._state = state
         return state
 
 
