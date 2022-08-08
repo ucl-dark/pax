@@ -153,9 +153,10 @@ def runner_setup(args):
     if args.env_type == "meta":
         return MetaRunner(args)
     elif args.env_type == "finite":
-        return Runner(args)
+        return MetaRunner(args)
     elif args.env_type == "infinite":
-        return Runner(args)
+        return MetaRunner(args)
+
     else:
         raise NameError("Not valid environment type")
 

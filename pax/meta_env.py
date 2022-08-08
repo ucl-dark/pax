@@ -205,6 +205,11 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         self._reset_next_step = True
 
+        # Dummy variables to work with meta_runner
+        self.state = (0.0, 0.0)
+        self.num_trials = 1
+        self.inner_episode_length = episode_length
+
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
@@ -236,17 +241,20 @@ class InfiniteMatrixGame(Environment):
         )
 
     def runner_step(
-        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
-    ) -> Tuple[TimeStep, TimeStep]:
+        self,
+        actions: Tuple[jnp.ndarray, jnp.ndarray],
+        env_state: Tuple[float, float],
+    ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
         r1, r2, obs1, obs2, _ = self._jit_step(
             actions[0],
             actions[1],
         )
         r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
-        return transition(reward=r1, observation=obs1), transition(
-            reward=r2, observation=obs2
-        )
+        return (
+            transition(reward=r1, observation=obs1),
+            transition(reward=r2, observation=obs2),
+        ), env_state
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

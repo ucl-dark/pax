@@ -77,7 +77,7 @@ class MetaRunner:
                 tprime_2.reward,
                 new_a2_state.extras["log_probs"],
                 new_a2_state.extras["values"],
-                tprime_2.last(),
+                tprime_2.last() * jnp.zeros(env.num_envs),
                 a2_state.hidden,
             )
             return (
@@ -118,6 +118,8 @@ class MetaRunner:
                 a2_state = agent2.make_initial_state(
                     rng, (env.observation_spec().num_values,)
                 )
+            elif self.args.agent2 == "NaiveLearnerEx":
+                a2_state = agent2.make_initial_state(t_init[1])
             else:
                 a2_state = agent2.reset_memory()
             rng, _ = jax.random.split(rng)

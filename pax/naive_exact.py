@@ -145,5 +145,5 @@ class NaiveLearnerEx:
 
     def update(
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
-    ) -> None:
-        pass
+    ) -> TrainingState:
+        return self._state
