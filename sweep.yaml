@@ -21,4 +21,5 @@ command:
   - python3
   - -m
   - pax.experiment
+  - +experiment=marl_squared
   - ${args_no_hyphens}
