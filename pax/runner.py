@@ -21,11 +21,38 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
+# @jax.jit
+# def reduce_time_traj(traj: Sample) -> Sample:
+#     """Used to collapse outer_loop and inner_loop dims"""
+#     # x: [outer_loop, inner_loop, ...]
+#     # x: [timestep, ...]
+#     batch_size = traj.observations.shape[0] * traj.observations.shape[1]
+#     return jax.tree_util.tree_map(
+#         lambda x: x.reshape((batch_size,) + x.shape[2:]), traj
+#     )
+
+# @jax.jit
+# def reduce_opp_traj(traj: Sample) -> Sample:
+#     """Used to collapse opponent and num_env dims"""
+#     # x: [timestep, num_opps, num_envs ...]
+#     # x: [timestep, batch_size, ...]
+#     batch_size = traj.observations.shape[1] * traj.observations.shape[2]
+#     return jax.tree_util.tree_map(
+#         lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]),
+#         traj,
+#     )
+
+
 @jax.jit
-def reshape_meta_traj(traj: Sample) -> Sample:
-    batch_size = traj.observations.shape[0] * traj.observations.shape[1]
+def reduce_outer_traj(traj: Sample) -> Sample:
+    """Used to collapse lax.scan outputs dims"""
+    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
+    # x: [timestep, batch_size, ...]
+    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
+    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
     return jax.tree_util.tree_map(
-        lambda x: x.reshape((batch_size,) + x.shape[2:]), traj
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
+        traj,
     )
 
 
@@ -39,7 +66,17 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
-        self.num_nl = args.num_opponents
+        self.num_opps = args.num_opponents
+
+        def reshape_opp_dim(x):
+            # x: [num_opps, num_envs ...]
+            # x: [batch_size, ...]
+            batch_size = args.num_envs * args.num_opponents
+            return jax.tree_util.tree_map(
+                lambda x: x.reshape((batch_size,) + x.shape[2:]), x
+            )
+
+        self.reduce_opp_dim = jax.jit(reshape_opp_dim)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -49,23 +86,7 @@ class Runner:
         rng = jax.random.PRNGKey(0)
 
         # vmap once to support multiple naive learners
-        num_nl = self.num_nl
-
-        @jax.jit
-        def reshape_nl_traj(traj: Sample) -> Sample:
-            batch_size = env.num_envs * num_nl
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]),
-                traj,
-            )
-
-        @jax.jit
-        def reshape_nl_step(mem: MemoryState) -> Sample:
-            batch_size = env.num_envs * num_nl
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape((batch_size,) + x.shape[2:]), mem
-            )
-
+        num_opps = self.num_opps
         env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
 
         # batch over TimeStep, TrainingState
@@ -96,11 +117,11 @@ class Runner:
         #     jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
         # )
 
-        # @akbir: this will be done everytime we enter trainloop±
+        # TODO: this needs to be moved to experiment somehow....
         a1_state, a1_mem = agent1.make_initial_state(
             rng,
             (env.observation_spec().num_values,),
-            jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
+            jnp.zeros((num_opps, env.num_envs, agent1._gru_dim)),
         )
 
         def _inner_rollout(carry, unused):
@@ -178,14 +199,14 @@ class Runner:
             ), trajectories
 
         # run actual loop
-        for _ in range(0, max(int(num_episodes / env.num_envs), 1)):
-            t_init, env_state = env.runner_reset((num_nl, env.num_envs))
+        for _ in range(0, max(int(num_episodes / env.num_envs * num_opps), 1)):
+            t_init, env_state = env.runner_reset((num_opps, env.num_envs))
             rng, _ = jax.random.split(rng)
             a1_mem = agent1.reset_memory(a1_mem, False)
 
             # if NaiveLearner.
             a2_state = agent2.make_initial_state(
-                jax.random.split(rng, num_nl),
+                jax.random.split(rng, num_opps),
                 (env.observation_spec().num_values,),
             )
 
@@ -205,10 +226,10 @@ class Runner:
             a1_mem = vals[3]
 
             a1_state, _ = agent1.update(
-                reshape_nl_traj(reshape_meta_traj(trajectories[0])),
-                reshape_nl_step(final_t1),
+                reduce_outer_traj(trajectories[0]),
+                self.reduce_opp_dim(final_t1),
                 a1_state,
-                reshape_nl_step(a1_mem),
+                self.reduce_opp_dim(a1_mem),
             )
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
