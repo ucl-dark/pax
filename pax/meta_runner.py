@@ -114,7 +114,7 @@ class MetaRunner:
 
             # uniquely nl code required here.
             a1_state = agent1.reset_memory()
-            if self.args.agent2 == "Naive":
+            if self.args.agent2 == "Naive" and self.args.env_type == "meta":
                 a2_state = agent2.make_initial_state(
                     rng, (env.observation_spec().num_values,)
                 )
