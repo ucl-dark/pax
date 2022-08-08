@@ -28,9 +28,8 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 1
-num_opponents: 2000
-
-num_steps: 1000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
+num_opponents: 4000
+num_steps: 2000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e9
 eval_every: 0.2e9 # timesteps 
@@ -75,7 +74,7 @@ wandb:
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False
 
 
 # DQN agent parameters
