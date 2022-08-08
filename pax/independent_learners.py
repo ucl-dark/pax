@@ -12,14 +12,9 @@ class IndependentLearners:
         self.agents: list = agents
 
     def select_action(self, timesteps: List[TimeStep]) -> List[jnp.ndarray]:
-        # assert len(timesteps) == self.num_agents
-        # return [
-        #     agent.select_action(t) for agent, t in zip(self.agents, timesteps)
-        # ]
-
+        assert len(timesteps) == self.num_agents
         return [
-            self.agents[0].select_action(timesteps[0]),
-            self.agents[1].select_action(timesteps[1]),
+            agent.select_action(t) for agent, t in zip(self.agents, timesteps)
         ]
 
     def update(
