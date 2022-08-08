@@ -102,6 +102,11 @@ class TrainingState(NamedTuple):
     hidden: None
 
 
+class MemoryState(NamedTuple):
+    hidden: jnp.ndarray
+    extras: Mapping[str, jnp.ndarray]
+
+
 def get_advantages(carry, transition):
     gae, next_value, gae_lambda = carry
     value, reward, discounts = transition

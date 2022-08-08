@@ -51,9 +51,9 @@ ppo:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-  entropy_coeff_start: 0.1
+  entropy_coeff_start: 0.2
   entropy_coeff_horizon: 0.4e9
-  entropy_coeff_end: 0.1
+  entropy_coeff_end: 0.01
   lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
@@ -75,7 +75,7 @@ wandb:
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: False
+  log: True
 
 
 # DQN agent parameters
