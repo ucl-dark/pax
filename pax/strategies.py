@@ -67,7 +67,7 @@ class TitForTat:
         return self._reciprocity(timestep.observation)
 
     def update(self, *args) -> None:
-        return self._state
+        return self._state, self._mem
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -102,8 +102,12 @@ class Defect:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
+            None,
+            None,
+            None,
+            None,
         )
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     def select_action(
         self,
@@ -116,29 +120,34 @@ class Defect:
         return jnp.ones((batch_size,))
 
     def update(self, *args) -> None:
-        return self._state
+        return self._state, self._mem
 
-    def reset_memory(self, *args) -> TrainingState:
-        return self._state
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, *args) -> TrainingState:
+        return self._state, self._mem
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
-        params: jnp.array,
+        state: jnp.array,
         obs: jnp.array,
-        state: None,
+        mem: None,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.ones((batch_size,)), self._state
+        return jnp.ones((batch_size,)), self._state, self._mem
 
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
+        self._state = TrainingState(None, None, None, None)
+        self._mem = MemoryState(
+            None,
+            {"log_probs": None, "values": None},
         )
 
     def select_action(
@@ -154,23 +163,26 @@ class Altruistic:
         # return jnp.zeros((batch_size, 1))
         return jnp.zeros((batch_size,))
 
-    def reset_memory(self, *args) -> TrainingState:
-        return self._state
-
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
-        params: jnp.array,
+        state: jnp.array,
         obs: jnp.array,
-        state: None,
+        mem: None,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.zeros((batch_size,)), self._state
+        return jnp.zeros((batch_size,)), self._state, self._mem
 
     def update(self, *args) -> None:
-        return self._state
+        return self._state, self._mem
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, *args) -> TrainingState:
+        return self._state, self._mem
 
 
 class Human:

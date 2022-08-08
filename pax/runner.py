@@ -21,28 +21,6 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-# @jax.jit
-# def reduce_time_traj(traj: Sample) -> Sample:
-#     """Used to collapse outer_loop and inner_loop dims"""
-#     # x: [outer_loop, inner_loop, ...]
-#     # x: [timestep, ...]
-#     batch_size = traj.observations.shape[0] * traj.observations.shape[1]
-#     return jax.tree_util.tree_map(
-#         lambda x: x.reshape((batch_size,) + x.shape[2:]), traj
-#     )
-
-# @jax.jit
-# def reduce_opp_traj(traj: Sample) -> Sample:
-#     """Used to collapse opponent and num_env dims"""
-#     # x: [timestep, num_opps, num_envs ...]
-#     # x: [timestep, batch_size, ...]
-#     batch_size = traj.observations.shape[1] * traj.observations.shape[2]
-#     return jax.tree_util.tree_map(
-#         lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]),
-#         traj,
-#     )
-
-
 @jax.jit
 def reduce_outer_traj(traj: Sample) -> Sample:
     """Used to collapse lax.scan outputs dims"""
@@ -107,7 +85,7 @@ class Runner:
             in_axes=(None, None, 0),
             out_axes=(None, 0),
         )
-        agent1.reset_memory = jax.vmap(agent1.reset_memory, (0, None), 0)
+        agent1.batch_reset = jax.vmap(agent1.reset_memory, (0, None), 0)
         agent1.batch_policy = jax.vmap(
             agent1._policy, (None, 0, 0), (0, None, 0)
         )
@@ -185,7 +163,7 @@ class Runner:
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
-                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                carry,
                 None,
                 length=env.inner_episode_length,
             )
@@ -214,7 +192,7 @@ class Runner:
         for _ in range(0, max(int(num_episodes / env.num_envs * num_opps), 1)):
             t_init, env_state = env.runner_reset((num_opps, env.num_envs))
             rng, _ = jax.random.split(rng)
-            a1_mem = agent1.reset_memory(a1_mem, False)
+            a1_mem = agent1.batch_reset(a1_mem, False)
 
             # if NaiveLearner.
             a2_state, a2_mem = agent2.make_initial_state(
