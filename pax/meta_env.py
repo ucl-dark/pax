@@ -16,8 +16,9 @@ class MetaFiniteGame:
 
         self.payoff = jnp.array(payoff)
 
-        def step(a1, a2, state):
+        def step(actions, state):
             inner_t, outer_t = state
+            a1, a2 = actions
             inner_t += 1
 
             cc_p1 = self.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
@@ -47,8 +48,8 @@ class MetaFiniteGame:
             )
             # if first step then return START state.
             done = inner_t % inner_ep_length == 0
-            s1 = jax.lax.select(done, jnp.float32(s1), jnp.float32(4.0))
-            s2 = jax.lax.select(done, jnp.float32(s2), jnp.float32(4.0))
+            s1 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s1))
+            s2 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s2))
 
             obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
@@ -67,7 +68,7 @@ class MetaFiniteGame:
         def runner_reset(ndims):
             """Returns the first `TimeStep` of a new episode."""
             state = (0.0, 0.0)
-            obs = obs = jax.nn.one_hot(jnp.ones(ndims), 5)
+            obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
             rewards = jnp.zeros(ndims)
@@ -76,35 +77,33 @@ class MetaFiniteGame:
                 TimeStep(step_type, rewards, discount, obs),
             ), state
 
+        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
         self.runner_reset = runner_reset
-        self.runner_step = jax.jit(jax.vmap(step, (0, 0, None), (0, None)))
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
-        self.state = (0, 0)
+        self.state = (0.0, 0.0)
         self._reset_next_step = True
 
     def step(self, actions):
         if self._reset_next_step:
             return self.reset()
 
-        output, self.state = self.runner_step(
-            actions[0], actions[1], self.state
-        )
+        output, self.state = self.runner_step(actions, self.state)
         if self.state[1] == self.num_trials:
             self._reset_next_step = True
             output = (
                 TimeStep(
                     2 * jnp.ones(self.num_envs),
                     output[0].reward,
-                    0,
+                    4,
                     output[0].observation,
                 ),
                 TimeStep(
                     2 * jnp.ones(self.num_envs),
                     output[1].reward,
-                    0,
+                    4,
                     output[1].observation,
                 ),
             )
@@ -214,6 +213,11 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         self._reset_next_step = True
 
+        # Dummy variables to work with meta_runner
+        self.state = (0.0, 0.0)
+        self.num_trials = 1
+        self.inner_episode_length = episode_length
+
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]
     ) -> Tuple[TimeStep, TimeStep]:
@@ -245,17 +249,20 @@ class InfiniteMatrixGame(Environment):
         )
 
     def runner_step(
-        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
-    ) -> Tuple[TimeStep, TimeStep]:
+        self,
+        actions: Tuple[jnp.ndarray, jnp.ndarray],
+        env_state: Tuple[float, float],
+    ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
         r1, r2, obs1, obs2, _ = self._jit_step(
             actions[0],
             actions[1],
         )
         r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
-        return transition(reward=r1, observation=obs1), transition(
-            reward=r2, observation=obs2
-        )
+        return (
+            transition(reward=r1, observation=obs1),
+            transition(reward=r2, observation=obs2),
+        ), env_state
 
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""

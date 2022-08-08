@@ -1,61 +1,22 @@
 from functools import partial
-from typing import NamedTuple, Tuple
+from typing import Mapping, NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-# states are [CC, DC, CD, DD, START]
+from pax.utils import TrainingState
+
+# states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1
-
-
-class TrainingState(NamedTuple):
-    # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
-    timesteps: int
-    num_episodes: int
-
-
-# TODO: Add strategy. PPO should learn to ALL-C
-# class ZDExtortion:
-#     # @partial(jax.jit, static_argnums=(0,))
-#     def __init__(self, *args):
-#         self.key = jax.random.PRNGKey(args[0])
-
-#     def select_action(
-#         self,
-#         timestep: TimeStep,
-#     ) -> jnp.ndarray:
-#         action, self.key = self._extortion(timestep.observation, self.key)
-#         return action
-
-#     def update(self, *args) -> None:
-#         pass
-
-#     # @jax.jit
-#     def _extortion(self, obs: jnp.ndarray, key):
-#         # from https://www.pnas.org/doi/epdf/10.1073/pnas.1206569109
-#         # TODO: Remove hard coded cooperation. Make it related to the specific payoff of the game
-#         # TODO: What is probability of cooperating in START? Default to 1
-#         # CC, CD, DC, DD, START
-#         key, subkey = jax.random.split(self.key)
-#         samples = jax.random.uniform(
-#             subkey, shape=(obs.shape[0],), minval=0.0, maxval=1.0
-#         )
-#         # TODO: Move this outside the function
-#         p_coop = jnp.array(
-#             [11 / 13, 1 / 2, 7 / 26, 0, 1]
-#         )
-
-#         obs = obs.argmax(axis=-1)
-#         action = jnp.where(samples < p_coop[obs], 0, 1)
-#         return action, key
 
 
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     def select_action(
         self,
@@ -64,7 +25,21 @@ class GrimTrigger:
         return self._trigger(timestep.observation)
 
     def update(self, *args) -> None:
-        pass
+        return self._state
+
+    def reset_memory(self, *args) -> TrainingState:
+        return self._state
+
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self,
+        params: jnp.array,
+        obs: jnp.array,
+        state: None,
+    ) -> jnp.ndarray:
+        # state is [batch x time_step x num_players]
+        # return [batch]
+        return self._trigger(obs), self._state
 
     def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # batch_size, _ = obs.shape
@@ -79,7 +54,9 @@ class GrimTrigger:
 class TitForTat:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(None, None, None)
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -122,7 +99,9 @@ class TitForTat:
 class Defect:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(None, None, None)
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     def select_action(
         self,
@@ -150,13 +129,15 @@ class Defect:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.ones((batch_size,)), self._state, None
+        return jnp.ones((batch_size,)), self._state
 
 
 class Altruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(None, None, None)
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     def select_action(
         self,
@@ -184,7 +165,7 @@ class Altruistic:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.zeros((batch_size,)), self._state, None
+        return jnp.zeros((batch_size,)), self._state
 
     def update(self, *args) -> None:
         return self._state
@@ -230,7 +211,9 @@ class Random:
 class HyperAltruistic:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     def select_action(
         self,
@@ -245,6 +228,17 @@ class HyperAltruistic:
         # return jnp.zeros((batch_size, 1))
         return 20 * jnp.ones((batch_size, 5))
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+    ) -> jnp.ndarray:
+        (
+            batch_size,
+            _,
+        ) = observation.shape
+        action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
+        return action, state
+
     def update(self, *args) -> None:
         return self._state
 
@@ -254,7 +248,9 @@ class HyperAltruistic:
 
 class HyperDefect:
     def __init__(self, *args):
-        pass
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -269,6 +265,17 @@ class HyperDefect:
         ) = timestep.observation.shape
         return -20 * jnp.ones((batch_size, 5))
 
+    @partial(jax.jit, static_argnums=(0,))
+    def _policy(
+        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+    ) -> jnp.ndarray:
+        (
+            batch_size,
+            _,
+        ) = observation.shape
+        action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
+        return action, state
+
     def update(self, *args) -> None:
         return self._state
 
@@ -278,7 +285,9 @@ class HyperDefect:
 
 class HyperTFT:
     def __init__(self, *args):
-        self._state = TrainingState(None, None, None)
+        self._state = TrainingState(
+            None, None, None, None, {"log_probs": None, "values": None}, None
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -292,7 +301,9 @@ class HyperTFT:
             _,
         ) = timestep.observation.shape
         # return jnp.zeros((batch_size, 1))
-        return jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        return jnp.tile(
+            20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
+        )
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -305,7 +316,9 @@ class HyperTFT:
             _,
         ) = observation.shape
         # return jnp.zeros((batch_size, 1))
-        action = jnp.tile(20 * jnp.array([[1, -1, 1, -1, 1]]), (batch_size, 1))
+        action = jnp.tile(
+            20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
+        )
         return action, state
 
     def update(self, *args) -> None:

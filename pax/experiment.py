@@ -10,11 +10,11 @@ from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
+from pax.runner import Runner
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -63,7 +63,7 @@ def global_setup(args):
 def payoff_setup(args, logger):
     """Set up payoff"""
     games = {
-        "ipd": [[2, 2], [0, 3], [3, 0], [1, 1]],
+        "ipd": [[-1, -1], [-3, 0], [0, -3], [-2, -2]],
         "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
         "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
         "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
@@ -106,7 +106,7 @@ def env_setup(args, logger=None):
         test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
         if logger:
             logger.info(
-                f"Game Type: Finite | Episode Length: {args.num_steps}"
+                f"Env Type: Regular | Episode Length: {args.num_steps}"
             )
 
     elif args.env_type == "meta":
@@ -123,9 +123,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
         )
         if logger:
-            logger.info(
-                f"Game Type: Finite | Episode Length: {args.num_steps}"
-            )
+            logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
     else:
         train_env = InfiniteMatrixGame(
@@ -162,6 +160,7 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
         dqn_agent = default_agent(
             args,
             obs_spec=dummy_env.observation_spec(),
@@ -176,12 +175,18 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
         )
         return ppo_memory_agent
 
@@ -190,22 +195,21 @@ def agent_setup(args, logger):
         dummy_env = SequentialMatrixGame(
             args.num_envs, args.payoff, args.num_steps
         )
-        if args.ppo.with_memory:
-            ppo_agent = make_gru_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
         else:
-            ppo_agent = make_agent(
-                args,
-                obs_spec=(dummy_env.observation_spec().num_values,),
-                action_spec=dummy_env.action_spec().num_values,
-                seed=seed,
-                player_id=player_id,
-            )
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=(dummy_env.observation_spec().num_values,),
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+        )
+
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
@@ -290,7 +294,8 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    logger.info(f"PPO with memory: {args.ppo.with_memory}")
+    if args.agent1 == "PPO_memory":
+        logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
@@ -405,7 +410,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):
-        print(f"Update: {num_update}/{int(total_num_ep // train_num_ep)}")
+        print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
 
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)

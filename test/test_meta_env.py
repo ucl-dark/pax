@@ -105,6 +105,30 @@ def test_tit_for_tat_match() -> None:
     assert jnp.array_equal(t_0.reward, t_1.reward)
 
 
+def test_longer_game() -> None:
+    num_envs = 1
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    num_steps = 50
+    num_inner_steps = 2
+    env = MetaFiniteGame(num_envs, payoff, num_inner_steps, num_steps)
+    t_0, t_1 = env.reset()
+
+    agent = TitForTat()
+    action = agent.select_action(t_0)
+
+    r1 = []
+    r2 = []
+    for _ in range(10):
+        action = agent.select_action(t_0)
+        t0, t1 = env.step((action, action))
+        r1.append(t0.reward)
+        r2.append(t1.reward)
+
+    assert jnp.array_equal(t_0.reward, t_1.reward)
+    assert jnp.mean(jnp.stack(r1)) == 2
+    assert jnp.mean(jnp.stack(r2)) == 2
+
+
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
@@ -125,6 +149,10 @@ def test_done():
     t_0, t_1 = env.step((0 * action, 0 * action))
     assert t_0.last() == True
     assert t_1.last() == True
+
+    # check back at start
+    assert jnp.array_equal(t_0.observation.argmax(), 4)
+    assert jnp.array_equal(t_1.observation.argmax(), 4)
 
 
 def test_reset():
@@ -155,7 +183,7 @@ def test_infinite_game():
     env = InfiniteMatrixGame(1, payoff, 10, 0.99, 0)
     alt_policy = 20 * jnp.ones((1, 5))
     def_policy = -20 * jnp.ones((1, 5))
-    tft_policy = 20 * jnp.array([[1, -1, 1, -1, 1]])
+    tft_policy = 20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]])
 
     # first step
     t0, t1 = env.step((alt_policy, def_policy))

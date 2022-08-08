@@ -10,6 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -30,25 +31,14 @@ class Batch(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    # hidden: jnp.ndarray
-    # extras: Mapping[str, jnp.ndarray]
+class Logger:
+    metrics: dict
 
 
 class MemoryState(NamedTuple):
     hidden: jnp.ndarray
     extras: Mapping[str, jnp.ndarray]
     # random_key: jnp.ndarray
-
-
-class Logger:
-    metrics: dict
 
 
 class PPO:
@@ -77,6 +67,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         player_id: int = 0,
+        has_sgd_jit: bool = True,
     ):
         @jax.jit
         def policy(
@@ -110,13 +101,23 @@ class PPO:
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
+
+            _, advantages = jax.lax.scan(
+                get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
+                reverse_batch,
+            )
+
+            advantages = jnp.flip(advantages, axis=0)
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -350,6 +351,8 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps,
+                hidden=None,
+                extras=None,
             )
 
             new_memory = MemoryState(
@@ -378,6 +381,8 @@ class PPO:
                 params=initial_params,
                 opt_state=initial_opt_state,
                 timesteps=0,
+                extras=None,
+                hidden=None,
             ), MemoryState(
                 hidden=initial_hidden_state,  # initial_hidden_state,
                 extras={
@@ -431,7 +436,10 @@ class PPO:
         self.make_initial_state = make_initial_state
 
         self.prepare_batch = prepare_batch
-        self._sgd_step = sgd_step
+        if has_sgd_jit:
+            self._sgd_step = jax.jit(sgd_step)
+        else:
+            self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -509,7 +517,9 @@ class PPO:
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_gru_agent(
+    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
@@ -580,7 +590,11 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
+        has_sgd_jit=has_sgd_jit,
     )
+    return agent
+
+    agent.player_id = player_id
     return agent
 
 

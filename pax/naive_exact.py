@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import Mapping, NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -13,6 +13,8 @@ class TrainingState(NamedTuple):
     timesteps: int
     num_episodes: int
     loss: float
+    extras: Mapping[str, jnp.ndarray]
+    hidden: None
 
 
 class Logger:
@@ -83,6 +85,8 @@ class NaiveLearnerEx:
                 timesteps=state.timesteps + 1,
                 num_episodes=state.num_episodes,
                 loss=loss.sum(),
+                hidden=0,
+                extras={"log_probs": None, "values": None},
             )
             return new_params, _state
 
@@ -104,12 +108,22 @@ class NaiveLearnerEx:
         }
 
         self._state = TrainingState(
-            jnp.zeros((env.num_envs, 5)), timesteps=0, num_episodes=0, loss=0
+            jnp.zeros((env.num_envs, 5)),
+            timesteps=0,
+            num_episodes=0,
+            loss=0,
+            hidden=0,
+            extras={"log_probs": None, "values": None},
         )
 
     def make_initial_state(self, t: TimeStep):
         return TrainingState(
-            t.observation[:, :5], timesteps=0, num_episodes=0, loss=0
+            t.observation[:, :5],
+            timesteps=0,
+            num_episodes=0,
+            loss=0,
+            extras={"log_probs": None, "values": None},
+            hidden=0,
         )
 
     def reset_memory(self):
@@ -131,5 +145,5 @@ class NaiveLearnerEx:
 
     def update(
         self, t: TimeStep, action: jnp.array, t_prime: TimeStep
-    ) -> None:
-        pass
+    ) -> TrainingState:
+        return self._state

@@ -5,9 +5,8 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.independent_learners import IndependentLearners
+
 from pax.ppo.ppo_gru import MemoryState
-from pax.strategies import Defect, TitForTat
 
 
 class Sample(NamedTuple):
@@ -27,22 +26,6 @@ def reshape_meta_traj(traj: Sample) -> Sample:
     batch_size = traj.observations.shape[0] * traj.observations.shape[1]
     return jax.tree_util.tree_map(
         lambda x: x.reshape((batch_size,) + x.shape[2:]), traj
-    )
-
-
-@jax.jit
-def reshape_nl_traj(traj: Sample) -> Sample:
-    batch_size = traj.observations.shape[1] * traj.observations.shape[2]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]), traj
-    )
-
-
-@jax.jit
-def reshape_nl_step(mem: MemoryState) -> Sample:
-    batch_size = mem.extras["values"].shape[0] * mem.extras["values"].shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((batch_size,) + x.shape[2:]), mem
     )
 
 
@@ -68,9 +51,22 @@ class Runner:
         # vmap once to support multiple naive learners
         num_nl = 200
 
-        env.batch_step = jax.vmap(
-            env.runner_step, (0, 0, (None, None)), ((0, 0), None)
-        )
+        @jax.jit
+        def reshape_nl_traj(traj: Sample) -> Sample:
+            batch_size = env.num_envs * num_nl
+            return jax.tree_util.tree_map(
+                lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]),
+                traj,
+            )
+
+        @jax.jit
+        def reshape_nl_step(mem: MemoryState) -> Sample:
+            batch_size = env.num_envs * num_nl
+            return jax.tree_util.tree_map(
+                lambda x: x.reshape((batch_size,) + x.shape[2:]), mem
+            )
+
+        env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
 
         agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0))
         agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0), 0)
@@ -78,7 +74,7 @@ class Runner:
             agent2.make_initial_state, (0, None), 0
         )
 
-        # batch MemoryState not TrainingState
+        # batch MemoryState (arg 1) not TrainingState (arg 0)
         agent1.reset_memory = jax.vmap(agent1.reset_memory, (0, None), 0)
         agent1.make_initial_state = jax.vmap(
             agent1.make_initial_state,
@@ -86,7 +82,7 @@ class Runner:
             out_axes=(None, 0),
         )
 
-        # this should batch over observations / training states but not params
+        # batch Timesteps, MemoryState but not Params
         agent1.batch_policy = jax.vmap(
             agent1._policy, (None, 0, 0), (0, None, 0)
         )
@@ -106,21 +102,6 @@ class Runner:
             jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
         )
 
-        @jax.jit
-        def reshape_nl_traj(traj: Sample) -> Sample:
-            batch_size = env.num_envs * num_nl
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape(x.shape[:1] + (batch_size,) + x.shape[3:]),
-                traj,
-            )
-
-        @jax.jit
-        def reshape_nl_step(mem: MemoryState) -> Sample:
-            batch_size = env.num_envs * num_nl
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape((batch_size,) + x.shape[2:]), mem
-            )
-
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a1_mem, a2_state, env_state = carry
 
@@ -135,8 +116,7 @@ class Runner:
             )
 
             (tprime_1, tprime_2), env_state = env.batch_step(
-                a1,
-                a2,
+                (a1, a2),
                 env_state,
             )
 
@@ -156,7 +136,7 @@ class Runner:
                 new_a2_state.extras["log_probs"],
                 new_a2_state.extras["values"],
                 tprime_2.last(),
-                a2_state.hiddens,
+                a2_state.hidden,
             )
             return (
                 tprime_1,
@@ -229,13 +209,17 @@ class Runner:
                 a1_state,
                 reshape_nl_step(a1_mem),
             )
-
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
             print(
                 f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
             )
+
+            obs_0 = jnp.argmax(trajectories[0].observations, axis=-1)
+            visits = jnp.bincount(obs_0.flatten())
+
+            print(f"State Frequency: {visits}")
 
             # logging
             if watchers:
@@ -252,7 +236,6 @@ class Runner:
                     },
                 )
         print()
-
         # update agents
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
@@ -320,17 +303,3 @@ class Runner:
         agents.eval(False)
         print()
         return agents
-
-
-if __name__ == "__main__":
-    from pax.env import IteratedPrisonersDilemma
-
-    agents = IndependentLearners([Defect(), TitForTat()])
-    # TODO: accept the arguments from config file instead of hard-coding
-    # Default to prisoner's dilemma
-    env = IteratedPrisonersDilemma(50, 5)
-    wandb.init(mode="online")
-
-    def log_print(agent) -> dict:
-        print(agent)
-        return None

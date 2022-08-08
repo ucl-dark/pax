@@ -37,6 +37,6 @@ dqn:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-final'
+  group: '${agent1}-vs-${agent2}-${game}-parity'
   name: run-seed-${seed}
   log: True

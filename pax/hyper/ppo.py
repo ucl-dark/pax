@@ -11,6 +11,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.hyper.networks import make_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -28,15 +29,15 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+# class TrainingState(NamedTuple):
+#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
 
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
+#     params: hk.Params
+#     opt_state: optax.GradientTransformation
+#     random_key: jnp.ndarray
+#     timesteps: int
+#     extras: Mapping[str, jnp.ndarray]
+#     hidden: None
 
 
 class Logger:
@@ -90,31 +91,38 @@ class PPO:
                 state,
             )
 
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
+            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            # discounts = gamma * (1 - dones)
             discounts = gamma * jnp.where(dones < 2, 1, 0)
-            # discounts = gamma * (1 - jnp.zeros_like(dones))
 
-            # this is where the gae function will go.
+            reverse_batch = (
+                jnp.flip(values[:-1], axis=0),
+                jnp.flip(rewards, axis=0),
+                jnp.flip(discounts, axis=0),
+            )
 
-            delta = rewards + discounts * values[1:] - values[:-1]
-            advantage_t = [0.0]
-            for t in reversed(range(delta.shape[0])):
-                advantage_t.insert(
-                    0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-                )
-            advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
+            _, advantages = jax.lax.scan(
+                utils.get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
+                reverse_batch,
+            )
 
-            # this is where the gae function will end
+            advantages = jnp.flip(advantages, axis=0)
+
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -501,9 +509,7 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
         )
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(
-                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
-            ),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
@@ -511,9 +517,7 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     else:
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(
-                eps=args.ppo.adam_epsilon, eps_root=args.ppo.adam_eps_root
-            ),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale(-args.ppo.learning_rate),
         )
 

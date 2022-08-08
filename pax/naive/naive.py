@@ -5,13 +5,12 @@ from typing import Any, Dict, Mapping, NamedTuple, Tuple
 import haiku as hk
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.naive.buffer import TrajectoryBuffer
 from pax.naive.network import make_network
+from pax.utils import TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -27,17 +26,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class TrainingState(NamedTuple):
-    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-    params: hk.Params
-    opt_state: optax.GradientTransformation
-    random_key: jnp.ndarray
-    timesteps: int
-    extras: Mapping[str, jnp.ndarray]
-    hiddens: None
 
 
 class Logger:
@@ -80,26 +68,48 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=state.timesteps,
                 extras=state.extras,
-                hiddens=None,
+                hidden=None,
             )
             return (
                 actions,
                 state,
             )
 
-        def rollouts(
-            buffer: TrajectoryBuffer,
-            t: TimeStep,
-            actions: np.array,
-            t_prime: TimeStep,
-            state: TrainingState,
-        ) -> None:
-            """Stores rollout in buffer"""
-            log_probs, values = (
-                state.extras["log_probs"],
-                state.extras["values"],
+        @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                action_extras["values"],
+                jnp.zeros_like(action_extras["values"]),
             )
-            buffer.add(t, actions, log_probs, values, t_prime)
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+
+            return traj_batch
 
         @jax.jit
         def gae_advantages(
@@ -115,22 +125,6 @@ class NaiveLearner:
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 
-            # delta = rewards + discounts * values[1:] - values[:-1]
-            # advantage_t = [0.0]
-            # for t in reversed(range(delta.shape[0])):
-            #     advantage_t.insert(
-            #         0, delta[t] + gae_lambda * discounts[t] * advantage_t[0]
-            #     )
-            # advantages = jax.lax.stop_gradient(jnp.array(advantage_t[:-1]))
-
-            def _get_advantages(gae_and_next_value, transition):
-                gae, next_value = gae_and_next_value
-                value, reward, discounts = transition
-                value_diff = discounts * next_value - value
-                delta = reward + value_diff
-                gae = delta + discounts * gae_lambda * gae
-                return (gae, value), gae
-
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -138,8 +132,12 @@ class NaiveLearner:
             )
 
             _, advantages = jax.lax.scan(
-                _get_advantages,
-                (jnp.zeros_like(values[-1]), values[-1]),
+                get_advantages,
+                (
+                    jnp.zeros_like(values[-1]),
+                    values[-1],
+                    jnp.ones_like(values[-1]) * gae_lambda,
+                ),
                 reverse_batch,
             )
 
@@ -165,6 +163,7 @@ class NaiveLearner:
             # ACTOR
             # Importance sampling weights: current policy / behavior policy.
             rhos = jnp.exp(log_prob - behavior_log_probs)
+            # rhos = log_prob
             policy_loss = -jnp.mean(rhos * advantages)
 
             # CRITIC
@@ -177,8 +176,8 @@ class NaiveLearner:
                 "loss_value": value_loss,
             }
 
-        # @jax.jit
-        def naive_sgd_step(
+        @jax.jit
+        def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
             """Performs a minibatch SGD step, returning new state and metrics."""
@@ -201,22 +200,10 @@ class NaiveLearner:
             )
 
             # vmap
-            batch_gae_advantages = gae_advantages
-            advantages, target_values = batch_gae_advantages(
+            advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
-            # Exclude the last step - it was only used for bootstrapping.
-            # The shape is [num_envs, num_steps, ..]
-            # (
-            #     observations,
-            #     actions,
-            #     behavior_log_probs,
-            #     behavior_values,
-            # ) = jax.tree_map(
-            #     lambda x: x[:, :-1],
-            #     (observations, actions, behavior_log_probs, behavior_values),
-            # )
             behavior_values = behavior_values[:-1, :]
 
             trajectories = Batch(
@@ -231,10 +218,8 @@ class NaiveLearner:
             # # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
-
-            num_steps = target_values.shape[0]
             num_envs = target_values.shape[1]
-
+            num_steps = target_values.shape[0]
             batch_size = num_envs * num_steps
             assert batch_size % num_minibatches == 0, (
                 "Num minibatches must divide batch size. Got batch_size={}"
@@ -246,8 +231,9 @@ class NaiveLearner:
             )
 
             # Compute gradients.
-            grad_fn = jax.grad(loss, has_aux=True)
+            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
+            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -280,6 +266,7 @@ class NaiveLearner:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
+            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch
@@ -337,10 +324,10 @@ class NaiveLearner:
                 random_key=key,
                 timesteps=timesteps,
                 extras={
-                    "log_probs": jnp.zeros(self._num_envs),
-                    "values": jnp.zeros(self._num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                    "values": jnp.zeros(num_envs),
                 },
-                hiddens=None,
+                hidden=None,
             )
 
             return new_state, metrics
@@ -363,58 +350,17 @@ class NaiveLearner:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hiddens=None,
+                hidden=None,
             )
-
-        @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            # shape is timestep x num_envs
-
-            _value = jax.lax.select(
-                t_prime.step_type == 2,
-                extras["values"],
-                jnp.zeros_like(extras["values"]),
-            )
-
-            _done = jax.lax.select(
-                t_prime.step_type == 2,
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-
-            return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
+        self.make_initial_state = make_initial_state
         self._state = make_initial_state(random_key, obs_spec)
         self.make_initial_state = make_initial_state
-        self.prepare_batch = prepare_batch
+        self._prepare_batch = jax.jit(prepare_batch)
 
-        # Initialize buffer and sgd
-        self._trajectory_buffer = TrajectoryBuffer(
-            num_envs, num_steps, obs_spec
-        )
-        self._sgd_step = naive_sgd_step
+        # Initialize sgd
+        self._sgd_step = sgd_step
 
         # Set up counters and logger
         self._logger = Logger()
@@ -431,7 +377,6 @@ class NaiveLearner:
 
         # Initialize functions
         self._policy = policy
-        self._rollouts = rollouts
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -447,6 +392,17 @@ class NaiveLearner:
         )
         return utils.to_numpy(actions)
 
+    def reset_memory(self) -> TrainingState:
+
+        self._state = self._state._replace(
+            extras={
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
+            }
+        )
+
+        return self._state
+
     def update(
         self,
         traj_batch,
@@ -455,24 +411,15 @@ class NaiveLearner:
     ):
         _, state = self._policy(state.params, t_prime.observation, state)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
+        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
         state, results = self._sgd_step(state, traj_batch)
-        # self._logger.metrics["sgd_steps"] += (
-        #     self._num_minibatches * self._num_epochs
-        # )
-        # self._logger.metrics["loss_total"] = results["loss_total"]
-        # self._logger.metrics["loss_policy"] = results["loss_policy"]
-        # self._logger.metrics["loss_value"] = results["loss_value"]
-        return state
-
-    def reset_memory(self) -> TrainingState:
-        self._state = self._state._replace(
-            extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            }
+        self._logger.metrics["sgd_steps"] += (
+            self._num_minibatches * self._num_epochs
         )
-        return self._state
+        self._logger.metrics["loss_total"] = results["loss_total"]
+        self._logger.metrics["loss_policy"] = results["loss_policy"]
+        self._logger.metrics["loss_value"] = results["loss_value"]
+        return state
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
