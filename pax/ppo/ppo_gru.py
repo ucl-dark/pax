@@ -357,7 +357,7 @@ class PPO:
             return new_state, new_memory, metrics
 
         def make_initial_state(
-            key: Any, obs_spec: Tuple, initial_hidden_state
+            key: Any, obs_spec: Tuple, initial_hidden_state: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
