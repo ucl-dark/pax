@@ -1,8 +1,12 @@
 import time
 from typing import List, NamedTuple
 
+from evosax import OpenES, CMA_ES
+from evosax import ParameterReshaper
+from evosax.utils import ESLog
 import jax
 import jax.numpy as jnp
+
 
 import wandb
 
@@ -43,6 +47,7 @@ class Runner:
         self.start_time = time.time()
         self.args = args
         self.num_opps = args.num_opponents
+        self.generations = 0
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -66,46 +71,68 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
-        # vmap once to support multiple naive learners
+        popsize = 500
+        num_gens = 50
+        param_reshaper = ParameterReshaper(agent1._state.params)
+
+        strategy = CMA_ES(
+            popsize=popsize,
+            num_dims=param_reshaper.total_params,
+        )
+        es_params = strategy.default_params
+        evo_state = strategy.initialize(rng, es_params)
+
+        es_logging = ESLog(
+            param_reshaper.total_params,
+            num_gens,
+            top_k=5,
+            maximize=True,
+        )
+        log = es_logging.initialize()
+
+        # vmap pop_size, num_opps dims
         num_opps = self.num_opps
-        env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
+        env.batch_step = jax.vmap(
+            jax.vmap(env.runner_step, (0, None), (0, None)),
+            (0, None),
+            (0, None),
+        )
 
         # batch over TimeStep, TrainingState
         agent2.make_initial_state = jax.vmap(
-            agent2.make_initial_state, (0, None), 0
+            jax.vmap(agent2.make_initial_state, (0, None), 0), (0, None), 0
         )
-        agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0, 0))
-        # traj_batch : [inner_loop, num_opps, num_envs, ...]
-        agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0))
 
-        # batch TimeStep, MemoryState but not TrainingState
+        agent2.batch_policy = jax.vmap(jax.vmap(agent2._policy))
+        # traj_batch : [inner_loop, pop_size, num_opps, num_envs, ...]
+        agent2.batch_update = jax.vmap(
+            jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0)), (1, 0, 0, 0), (0, 0)
+        )
+
+        # batch over TimeStep, TrainingState
         agent1.make_initial_state = jax.vmap(
-            agent1.make_initial_state,
-            in_axes=(None, None, 0),
-            out_axes=(None, 0),
+            jax.vmap(agent1.make_initial_state, (None, None, 0), (None, 0)),
+            (0, None, 0),
+            (0, 0),
         )
-        agent1.batch_reset = jax.vmap(agent1.reset_memory, (0, None), 0)
+
+        agent1.batch_reset = jax.vmap(
+            jax.vmap(agent1.reset_memory, (0, None), 0), (0, None), 0
+        )
+
         agent1.batch_policy = jax.vmap(
-            agent1._policy, (None, 0, 0), (0, None, 0)
+            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
+            0,
+            0,
         )
-
-        # this will come from the GE
-        # a1_state = agent1.make_initial_state(
-        #     jax.random.split(rng, num_nl),
-        #     (env.observation_spec().num_values,),
-        #     jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
-        # )
-
-        # TODO: this needs to be moved to experiment somehow....
         a1_state, a1_mem = agent1.make_initial_state(
-            rng,
+            jax.random.split(rng, popsize),
             (env.observation_spec().num_values,),
-            jnp.zeros((num_opps, env.num_envs, agent1._gru_dim)),
+            jnp.zeros((popsize, num_opps, env.num_envs, agent1._gru_dim)),
         )
 
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
-
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
@@ -184,49 +211,69 @@ class Runner:
                 env_state,
             ), trajectories
 
-        # run actual loop
-        for _ in range(
-            0, max(int(num_episodes / (env.num_envs * num_opps)), 1)
-        ):
+        for _ in range(num_gens):
             rng, _ = jax.random.split(rng)
-            t_init, env_state = env.runner_reset((num_opps, env.num_envs))
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs)
+            )
+
+            rng, rng_gen, _ = jax.random.split(rng, 3)
+            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
+
+            batched_params = param_reshaper.reshape(x)
+            a1_state = a1_state._replace(params=batched_params)
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, num_opps),
+                jax.random.split(rng, popsize * num_opps).reshape(
+                    popsize, num_opps, -1
+                ),
                 (env.observation_spec().num_values,),
             )
 
             # num trials
-            vals, trajectories = jax.lax.scan(
+            _, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
             )
 
-            # update outer agent
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
-            )
-            a1_state = vals[2]
-            a1_mem = vals[3]
-
-            a1_state, _ = agent1.update(
-                reduce_outer_traj(trajectories[0]),
-                self.reduce_opp_dim(final_t1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
+            # calculate fitness
             self.train_episodes += 1
-            rewards_0 = trajectories[0].rewards.mean()
-            rewards_1 = trajectories[1].rewards.mean()
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-            )
+            fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
 
+            # log
+            self.train_episodes += 1
+            print(
+                f"Total Episode Reward: {float(fitness.mean()), float(other_fitness.mean())}"
+            )
             visits = self.state_visitation(trajectories[0])
             print(f"State Frequency: {visits}")
+            log = es_logging.update(log, x, fitness)
+
+            # update the evo
+            evo_state = strategy.tell(
+                x, -1 * (fitness - fitness.mean()), evo_state, es_params
+            )
+
+            print(
+                f"Generation: {self.generations} | Best: {log['log_top_1'][self.generations]} | "
+                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+            )
+            print("----------")
+            print("Top Agents")
+            print("----------")
+            print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
+            print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
+            print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
+            print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
+            print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
+            # for idx, agent_fitness in enumerate(log['top_fitness']):
+            #     print(f"Agent {idx} | Fitness: {agent_fitness}")
+            print()
+            self.generations += 1
 
             # logging
             if watchers:
@@ -234,11 +281,9 @@ class Runner:
                 wandb.log(
                     {
                         "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
+                        "train/episode_reward/player_1": float(fitness.mean()),
                         "train/episode_reward/player_2": float(
-                            rewards_1.mean()
+                            other_fitness.mean()
                         ),
                     },
                 )

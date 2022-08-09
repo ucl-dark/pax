@@ -16,7 +16,7 @@ class MetaFiniteGame:
 
         self.payoff = jnp.array(payoff)
 
-        def step(actions, state):
+        def _step(actions, state):
             inner_t, outer_t = state
             a1, a2 = actions
             inner_t += 1
@@ -77,7 +77,7 @@ class MetaFiniteGame:
                 TimeStep(step_type, rewards, discount, obs),
             ), state
 
-        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
+        self.runner_step = jax.jit(jax.vmap(_step, (0, None), (0, None)))
         self.runner_reset = runner_reset
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
