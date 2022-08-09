@@ -79,18 +79,14 @@ class Runner:
         # batch TimeStep, MemoryState but not TrainingState
         agent1.make_initial_state = jax.vmap(
             agent1.make_initial_state,
-            in_axes=(None, None, 0),
-            out_axes=(None, 0),
+            (None, None, 0),
+            (None, 0),
         )
         agent1.batch_reset = jax.vmap(agent1.reset_memory, (0, None), 0)
         agent1.batch_policy = jax.jit(
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
-        # on meta step we've added 2 time dims so NL dim is 0 -> 2
-        agent1.batch_update = jax.jit(
-            jax.vmap(agent1.update, (1, 0, None, 0), None)
-        )
         a1_state, a1_mem = agent1.make_initial_state(
             rng,
             (env.observation_spec().num_values,),
@@ -123,7 +119,7 @@ class Runner:
                 tprime_1.reward,
                 new_a1_mem.extras["log_probs"],
                 new_a1_mem.extras["values"],
-                tprime_1.last() * jnp.zeros(env.num_envs),
+                tprime_1.last(),
                 a1_mem.hidden,
             )
             traj2 = Sample(
@@ -186,7 +182,6 @@ class Runner:
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # if NaiveLearner.
             a2_state, a2_mem = agent2.make_initial_state(
                 jax.random.split(rng, self.num_opps),
                 (env.observation_spec().num_values,),
