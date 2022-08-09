@@ -14,9 +14,8 @@ from pax.utils import MemoryState, TrainingState
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
-        )
+        self._state = TrainingState(None, None, None, None)
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     def select_action(
         self,
@@ -25,10 +24,13 @@ class GrimTrigger:
         return self._trigger(timestep.observation)
 
     def update(self, *args) -> None:
-        return self._state
+        return self._state, self._mem
 
-    def reset_memory(self, *args) -> TrainingState:
-        return self._state
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, *args) -> TrainingState:
+        return self._state, self._mem
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -39,7 +41,7 @@ class GrimTrigger:
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
         # return [batch]
-        return self._trigger(obs), self._state
+        return self._trigger(obs), self._state, self._mem
 
     def _trigger(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # batch_size, _ = obs.shape
