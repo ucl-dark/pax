@@ -47,6 +47,8 @@ class Runner:
         self.start_time = time.time()
         self.args = args
         self.num_opps = args.num_opponents
+        self.num_gens = args.num_gens
+        self.popsize = args.popsize
         self.generations = 0
 
         def _reshape_opp_dim(x):
@@ -70,13 +72,10 @@ class Runner:
         print("-----------------------")
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
-
-        popsize = 500
-        num_gens = 50
         param_reshaper = ParameterReshaper(agent1._state.params)
 
         strategy = CMA_ES(
-            popsize=popsize,
+            popsize=self.popsize,
             num_dims=param_reshaper.total_params,
         )
         es_params = strategy.default_params
@@ -84,7 +83,7 @@ class Runner:
 
         es_logging = ESLog(
             param_reshaper.total_params,
-            num_gens,
+            self.num_gens,
             top_k=5,
             maximize=True,
         )
@@ -126,9 +125,9 @@ class Runner:
             0,
         )
         a1_state, a1_mem = agent1.make_initial_state(
-            jax.random.split(rng, popsize),
+            jax.random.split(rng, self.popsize),
             (env.observation_spec().num_values,),
-            jnp.zeros((popsize, num_opps, env.num_envs, agent1._gru_dim)),
+            jnp.zeros((self.popsize, num_opps, env.num_envs, agent1._gru_dim)),
         )
 
         def _inner_rollout(carry, unused):
@@ -211,10 +210,10 @@ class Runner:
                 env_state,
             ), trajectories
 
-        for _ in range(num_gens):
+        for _ in range(self.num_gens):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs)
+                (self.popsize, num_opps, env.num_envs)
             )
 
             rng, rng_gen, _ = jax.random.split(rng, 3)
@@ -225,8 +224,8 @@ class Runner:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, popsize * num_opps).reshape(
-                    popsize, num_opps, -1
+                jax.random.split(rng, self.popsize * num_opps).reshape(
+                    self.popsize, num_opps, -1
                 ),
                 (env.observation_spec().num_values,),
             )
