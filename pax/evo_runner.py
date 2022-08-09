@@ -334,12 +334,18 @@ class Runner:
                 agents.log(watchers)
                 wandb.log(
                     {
-                        "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(fitness.mean()),
-                        "train/episode_reward/player_2": float(
-                            other_fitness.mean()
+                        "generations": self.generations,
+                        "train/fitness/player_1": float(fitness.mean()),
+                        "train/fitness/player_2": float(other_fitness.mean()),
+                        "time/minutes": float(
+                            (time.time() - self.start_time) / 60
                         ),
-                        "wallclock": float(time.time.now() - self.start_time),
+                        "time/seconds": float((time.time() - self.start_time)),
+                        "train/fitness/top_agents_1": log["top_fitness"][0],
+                        "train/fitness/top_agents_2": log["top_fitness"][1],
+                        "train/fitness/top_agents_3": log["top_fitness"][2],
+                        "train/fitness/top_agents_4": log["top_fitness"][3],
+                        "train/fitness/top_agents_5": log["top_fitness"][4],
                     },
                 )
         print()
