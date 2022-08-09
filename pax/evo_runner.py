@@ -52,27 +52,19 @@ class Runner:
         self.generations = 0
 
         # OpenES hyperparameters
-        self.sigma_init = (
-            args.es.sigma_init
-        )  # Initial scale of isotropic Gaussian noise
-        self.sigma_decay = args.es.sigma_decay  # Multiplicative decay factor
-        self.sigma_limit = args.es.sigma_limit  # Smallest possible scale
-        self.init_min = (
-            args.es.init_min
-        )  # Range of parameter mean initialization - Min
-        self.init_max = (
-            args.es.init_max
-        )  # Range of parameter mean initialization - Max
-        self.clip_min = args.es.clip_min  # Range of parameter proposals - Min
-        self.clip_max = (
-            args.es.lrate_decay
-        )  # Range of parameter proposals - Max
-        self.lrate_init = args.es.lrate_decay  # Initial learning rate
-        self.lrate_decay = args.es.lrate_decay  # Multiplicative decay factor
-        self.lrate_limit = args.es.lrate_decay  # Smallest possible lrate
-        self.beta_1 = args.es.lrate_decay  # Adam - beta_1
-        self.beta_2 = args.es.lrate_decay  # Adam - beta_2
-        self.eps = args.es.lrate_decay  # eps constant
+        self.sigma_init = args.es.sigma_init
+        self.sigma_decay = args.es.sigma_decay
+        self.sigma_limit = args.es.sigma_limit
+        self.init_min = args.es.init_min
+        self.init_max = args.es.init_max
+        self.clip_min = args.es.clip_min
+        self.clip_max = args.es.lrate_decay
+        self.lrate_init = args.es.lrate_decay
+        self.lrate_decay = args.es.lrate_decay
+        self.lrate_limit = args.es.lrate_decay
+        self.beta_1 = args.es.lrate_decay
+        self.beta_2 = args.es.lrate_decay
+        self.eps = args.es.lrate_decay
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -102,27 +94,30 @@ class Runner:
             num_dims=param_reshaper.total_params,
         )
 
+        # Uncomment for default params
         # es_params = strategy.default_params
+
+        # Uncomment for specific param choices
         # Update basic parameters of PGPE strategy
         es_params = strategy.default_params.replace(
-            sigma_init=self.sigma_init,  # Initial scale of isotropic Gaussian noise
-            sigma_decay=self.sigma_decay,  # Multiplicative decay factor
-            sigma_limit=self.sigma_limit,  # Smallest possible scale
-            init_min=self.init_min,  # Range of parameter mean initialization - Min
-            init_max=self.init_max,  # Range of parameter mean initialization - Max
-            clip_min=self.clip_min,  # Range of parameter proposals - Min
-            clip_max=self.clip_max,  # Range of parameter proposals - Max
+            sigma_init=self.sigma_init,
+            sigma_decay=self.sigma_decay,
+            sigma_limit=self.sigma_limit,
+            init_min=self.init_min,
+            init_max=self.init_max,
+            clip_min=self.clip_min,
+            clip_max=self.clip_max,
         )
 
         # Update optimizer-specific parameters of Adam
         es_params = es_params.replace(
             opt_params=es_params.opt_params.replace(
-                lrate_init=self.lrate_init,  # Initial learning rate
-                lrate_decay=self.lrate_decay,  # Multiplicative decay factor
-                lrate_limit=self.lrate_limit,  # Smallest possible lrate
-                beta_1=self.beta_1,  # Adam - beta_1
-                beta_2=self.beta_2,  # Adam - beta_2
-                eps=self.eps,  # eps constant,
+                lrate_init=self.lrate_init,
+                lrate_decay=self.lrate_decay,
+                lrate_limit=self.lrate_limit,
+                beta_1=self.beta_1,
+                beta_2=self.beta_2,
+                eps=self.eps,
             )
         )
 
