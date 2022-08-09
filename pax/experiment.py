@@ -10,7 +10,7 @@ from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
-from pax.runner import Runner
+from pax.evo_runner import Runner
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveLearnerEx
 from pax.ppo.ppo import make_agent
