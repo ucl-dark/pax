@@ -3,16 +3,16 @@ metric:
   name: train/episode_reward/player_1
   goal: maximize
 parameters:
-  num_generations: 
+  num_gens: 
     values: [100, 500, 1000, 2500]
   num_opponents:
     values: [1, 5, 25, 50, 100]
   popsize:
-    values: [5, 20, 50, 100, 250, 500]
+    values: [6, 20, 50, 100, 250, 500]
 
 command:
   - python3
   - -m
   - pax.experiment
-  - +experiment=marl_squared
+  - +experiment=earl_nl
   - ${args_no_hyphens}
