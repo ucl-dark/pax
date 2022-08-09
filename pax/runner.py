@@ -6,8 +6,6 @@ import jax.numpy as jnp
 
 import wandb
 
-from pax.ppo.ppo_gru import MemoryState
-
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -189,9 +187,11 @@ class Runner:
             ), trajectories
 
         # run actual loop
-        for _ in range(0, max(int(num_episodes / env.num_envs * num_opps), 1)):
-            t_init, env_state = env.runner_reset((num_opps, env.num_envs))
+        for _ in range(
+            0, max(int(num_episodes / (env.num_envs * num_opps)), 1)
+        ):
             rng, _ = jax.random.split(rng)
+            t_init, env_state = env.runner_reset((num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # if NaiveLearner.
@@ -257,7 +257,7 @@ class Runner:
         print("-----------------------")
         agents.eval(True)
         agent1, agent2 = agents.agents
-        agent1._mem = agent1.reset_memory(agent1._mem)
+        agent1._mem = agent1.reset_memory(agent1._mem, eval=True)
         agent2._mem = agent2.reset_memory(agent2._mem)
 
         for _ in range(num_episodes // env.num_envs):
