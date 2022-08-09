@@ -67,15 +67,14 @@ class Runner:
         rng = jax.random.PRNGKey(0)
 
         # vmap once to support multiple naive learners
-        num_opps = self.num_opps
-        env.batch_step = jax.vmap(env.runner_step, (0, None), ((0, 0), None))
-
-        # batch over TimeStep, TrainingState
+        env.batch_step = jax.jit(
+            jax.vmap(env.runner_step, (0, None), ((0, 0), None))
+        )
         agent2.make_initial_state = jax.vmap(
             agent2.make_initial_state, (0, None), 0
         )
-        agent2.batch_policy = jax.vmap(agent2._policy, (0, 0, 0), (0, 0, 0))
-        agent2.batch_update = jax.vmap(agent2.update, (1, 0, 0, 0), 0)
+        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         # batch TimeStep, MemoryState but not TrainingState
         agent1.make_initial_state = jax.vmap(
@@ -84,25 +83,18 @@ class Runner:
             out_axes=(None, 0),
         )
         agent1.batch_reset = jax.vmap(agent1.reset_memory, (0, None), 0)
-        agent1.batch_policy = jax.vmap(
-            agent1._policy, (None, 0, 0), (0, None, 0)
+        agent1.batch_policy = jax.jit(
+            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
         # on meta step we've added 2 time dims so NL dim is 0 -> 2
-        agent1.batch_update = jax.vmap(agent1.update, (1, 0, None, 0), None)
-
-        # this will come from the GE
-        # a1_state = agent1.make_initial_state(
-        #     jax.random.split(rng, num_nl),
-        #     (env.observation_spec().num_values,),
-        #     jnp.zeros((num_nl, env.num_envs, agent1._gru_dim)),
-        # )
-
-        # TODO: this needs to be moved to experiment somehow....
+        agent1.batch_update = jax.jit(
+            jax.vmap(agent1.update, (1, 0, None, 0), None)
+        )
         a1_state, a1_mem = agent1.make_initial_state(
             rng,
             (env.observation_spec().num_values,),
-            jnp.zeros((num_opps, env.num_envs, agent1._gru_dim)),
+            jnp.zeros((self.num_opps, env.num_envs, agent1._gru_dim)),
         )
 
         def _inner_rollout(carry, unused):
@@ -188,15 +180,15 @@ class Runner:
 
         # run actual loop
         for _ in range(
-            0, max(int(num_episodes / (env.num_envs * num_opps)), 1)
+            0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
             rng, _ = jax.random.split(rng)
-            t_init, env_state = env.runner_reset((num_opps, env.num_envs))
+            t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # if NaiveLearner.
             a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, num_opps),
+                jax.random.split(rng, self.num_opps),
                 (env.observation_spec().num_values,),
             )
 
