@@ -16,8 +16,8 @@ num_envs: 1
 num_opponents: 4000
 num_steps: 200 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
-total_timesteps: 4.0e9
-eval_every: 4.0e9 # timesteps 
+total_timesteps: 0.5e9
+eval_every: 0.5e9 # timesteps 
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
@@ -36,7 +36,7 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 2.0e9
+  entropy_coeff_horizon: 0.25e9
   entropy_coeff_end: 0.05
   lr_scheduling: True
   learning_rate: 3e-4

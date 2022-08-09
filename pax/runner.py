@@ -175,7 +175,7 @@ class Runner:
             ), trajectories
 
         # run actual loop
-        for _ in range(
+        for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
             rng, _ = jax.random.split(rng)
@@ -211,12 +211,14 @@ class Runner:
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-            )
 
-            visits = self.state_visitation(trajectories[0])
-            print(f"State Frequency: {visits}")
+            if i % 5 == 0:
+                print(
+                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                )
+
+                visits = self.state_visitation(trajectories[0])
+                print(f"State Frequency: {visits}")
 
             # logging
             if watchers:
