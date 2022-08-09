@@ -5,6 +5,7 @@ chex
 distrax
 dm-haiku
 dm-tree
+evosax
 flax
 hydra-core
 isort
