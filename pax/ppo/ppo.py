@@ -443,11 +443,11 @@ class PPO:
         )
         return memory
 
-    def update(self, traj_batch, t_prime: TimeStep, state):
+    def update(self, traj_batch, t_prime, state, mem):
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
+        traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
         state, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -458,7 +458,7 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
-        return state
+        return state, mem
 
 
 def make_agent(

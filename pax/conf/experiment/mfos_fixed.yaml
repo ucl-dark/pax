@@ -13,9 +13,10 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Training hyperparameters
 num_envs: 50
-num_steps: 1 # number of steps per episode
-total_timesteps: 5000
-eval_every: 2500 # timesteps
+num_opponents: 1
+num_steps: 5 # number of steps per episode
+total_timesteps: 5e6
+eval_every: 2.5e6 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 

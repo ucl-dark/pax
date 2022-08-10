@@ -82,15 +82,24 @@ class Runner:
             (None, None, 0),
             (None, 0),
         )
-        agent1.batch_reset = jax.vmap(agent1.reset_memory, (0, None), 0)
+        agent1.batch_reset = jax.jit(
+            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
+        )
         agent1.batch_policy = jax.jit(
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
+        # start agent memory
+        if self.args.ppo.with_memory:
+            init_hidden = jnp.zeros(
+                (self.num_opps, env.num_envs, agent1._gru_dim)
+            )
+
+        else:
+            init_hidden = jnp.zeros((self.num_opps, env.num_envs, 1))
+
         a1_state, a1_mem = agent1.make_initial_state(
-            rng,
-            (env.observation_spec().num_values,),
-            jnp.zeros((self.num_opps, env.num_envs, agent1._gru_dim)),
+            rng, (env.observation_spec().num_values,), init_hidden
         )
 
         def _inner_rollout(carry, unused):
@@ -246,8 +255,8 @@ class Runner:
         print("-----------------------")
         agents.eval(True)
         agent1, agent2 = agents.agents
-        agent1._mem = agent1.reset_memory(agent1._mem, eval=True)
-        agent2._mem = agent2.reset_memory(agent2._mem)
+        agent1._mem = agent1.reset_memory(agent1._mem, True)
+        agent2._mem = agent2.reset_memory(agent2._mem, True)
 
         for _ in range(num_episodes // env.num_envs):
             rewards_0, rewards_1 = [], []

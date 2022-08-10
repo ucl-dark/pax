@@ -244,14 +244,14 @@ class HyperAltruistic:
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
-        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+        self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:
         (
             batch_size,
             _,
         ) = observation.shape
         action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
-        return action, state
+        return action, state, mem
 
     def update(self, *args) -> None:
         return self._state
@@ -262,9 +262,9 @@ class HyperAltruistic:
 
 class HyperDefect:
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
-        )
+        self._state = TrainingState(None, None, None, None)
+
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -281,14 +281,14 @@ class HyperDefect:
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
-        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+        self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:
         (
             batch_size,
             _,
         ) = observation.shape
         action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
-        return action, state
+        return action, state, mem
 
     def update(self, *args) -> None:
         return self._state
@@ -296,12 +296,15 @@ class HyperDefect:
     def reset_memory(self, *args) -> TrainingState:
         return self._state
 
+    def make_initial_state(self, *args) -> Tuple[TrainingState, MemoryState]:
+        return self._state, self._mem
+
 
 class HyperTFT:
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
-        )
+        self._state = TrainingState(None, None, None, None)
+
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -321,7 +324,7 @@ class HyperTFT:
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
-        self, params: jnp.array, observation: jnp.array, state: NamedTuple
+        self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:
         # state is [batch x state_space]
         # return [batch]
@@ -333,10 +336,13 @@ class HyperTFT:
         action = jnp.tile(
             20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
         )
-        return action, state
+        return action, state, mem
 
     def update(self, *args) -> None:
-        return self._state
+        return self._state, self._mem
 
     def reset_memory(self, *args) -> TrainingState:
-        return self._state
+        return self._mem
+
+    def make_initial_state(self, *args) -> Tuple[TrainingState, MemoryState]:
+        return self._state, self._mem

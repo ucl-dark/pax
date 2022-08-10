@@ -11,7 +11,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.hyper.networks import make_network
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -70,26 +70,16 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: TimeStep, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(params, observation)
+            dist, values = network.apply(state.params, observation)
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = TrainingState(
-                params=params,
-                opt_state=state.opt_state,
-                random_key=key,
-                timesteps=state.timesteps,
-                extras=state.extras,
-                hidden=None,
-            )
-            return (
-                actions,
-                state,
-            )
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            state = state._replace(random_key=key)
+            return actions, state, mem
 
         @jax.jit
         def gae_advantages(
@@ -348,18 +338,23 @@ class PPO:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
-                extras={
-                    "log_probs": jnp.zeros_like(state.extras["log_probs"]),
-                    "values": jnp.zeros_like(state.extras["log_probs"]),
-                },
-                hidden=None,
+                timesteps=timesteps + batch_size,
             )
 
-            return new_state, metrics
+            new_memory = MemoryState(
+                hidden=jnp.zeros(shape=(self._num_envs,) + (1,)),
+                extras={
+                    "log_probs": jnp.zeros(self._num_envs),
+                    "values": jnp.zeros(self._num_envs),
+                },
+            )
+
+            return new_state, new_memory, metrics
 
         @partial(jax.jit, static_argnums=(1,))
-        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
+        def make_initial_state(
+            key: Any, obs_spec: Tuple, init
+        ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -371,11 +366,12 @@ class PPO:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
+            ), MemoryState(
+                hidden=None,
                 extras={
                     "values": jnp.zeros((num_envs)),
                     "log_probs": jnp.zeros((num_envs)),
                 },
-                hidden=None,
             )
 
         @jax.jit
@@ -391,14 +387,14 @@ class PPO:
                 jnp.zeros_like(action_extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
-
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
@@ -415,7 +411,10 @@ class PPO:
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state = make_initial_state(random_key, obs_spec)
+        self._state, self._mem = make_initial_state(
+            random_key, obs_spec, jnp.zeros(1)
+        )
+        self.make_initial_state = make_initial_state
         self.prepare_batch = prepare_batch
         self._sgd_step = sgd_step
 
@@ -452,27 +451,23 @@ class PPO:
         )
         return actions
 
-    def reset_memory(self) -> TrainingState:
-        self._state = self._state._replace(
+    def reset_memory(self, mem, eval=False) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
+        self._mem = self._mem._replace(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
+                "values": jnp.zeros(num_envs),
+                "log_probs": jnp.zeros(num_envs),
             }
         )
-        return self._state
+        return self._mem
 
-    def update(
-        self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-    ):
+    def update(self, traj_batch, t_prime, state, mem):
 
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -481,8 +476,7 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        self._state = state
-        return state
+        return state, mem
 
 
 # TODO: seed, and player_id not used in CartPole
