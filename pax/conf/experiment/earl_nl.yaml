@@ -18,7 +18,7 @@ popsize: 200
 num_gens: 2000
 num_envs: 2
 num_opponents: 1
-num_steps: 100_000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
+num_steps: 10_000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e9
 eval_every: 1.0e9 # timesteps 
