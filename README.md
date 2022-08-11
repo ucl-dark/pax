@@ -72,8 +72,8 @@ python -m pax.experiment wandb.group="testing"
 We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/docs) to store these configs and keep track of good hyper-paremters. As a rule for development, we try retain backwards compatability and allow all previous results to be replicated. These can be run easily by `python -m pax.experiment +experiment=NAME` Below are a list of our existing experiments and expected results:
 
 - `dqn` - Agent1 is a Deep Q Learning Network playing against TitForTat agent in a single sequential matrix game. Both payoffs and second player can be changed.
-- 'marl2_fixed` - Agent1 is a PPO agent with memory playing a series of sequential matrix games. Second player is considered fixed but can be changed for any other agent.
-- 'marl2_nl`- Agent1 is a PPO agent with memory playing a series of sequential matrix games. Second player is a naive learner who updates at the end of each sequential matrix game.
+- `marl2_fixed` - Agent1 is a PPO agent with memory playing a series of sequential matrix games. Second player is considered fixed but can be changed for any other agent.
+- `marl2_nl`- Agent1 is a PPO agent with memory playing a series of sequential matrix games. Second player is a naive learner who updates at the end of each sequential matrix game.
 - `mfos_fixed` - Agent1 is a PPO agent which plays a series of infinite matrix games. Second player is assumed to be fixed but can changed for any other agent.
 - `mfos_nl` - Agent1 is a PPO agent which plays a series of infinite matrix games. Second player is a naive learner trained via gradient ascent.
 - `naive` - Agent1 is a naive Reinforcement Learner, playing a single sequential matrix game.
