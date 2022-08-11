@@ -13,6 +13,9 @@ class TrainingState(NamedTuple):
     timesteps: int
     num_episodes: int
     loss: float
+
+
+class MemoryState(NamedTuple):
     extras: Mapping[str, jnp.ndarray]
     hidden: None
 
@@ -85,8 +88,6 @@ class NaiveLearnerEx:
                 timesteps=state.timesteps + 1,
                 num_episodes=state.num_episodes,
                 loss=loss.sum(),
-                hidden=0,
-                extras={"log_probs": None, "values": None},
             )
             return new_params, _state
 
@@ -112,9 +113,9 @@ class NaiveLearnerEx:
             timesteps=0,
             num_episodes=0,
             loss=0,
-            hidden=0,
-            extras={"log_probs": None, "values": None},
         )
+
+        self._mem = MemoryState({"log_probs": None, "values": None}, 0)
 
     def make_initial_state(self, t: TimeStep):
         return TrainingState(
@@ -123,10 +124,9 @@ class NaiveLearnerEx:
             num_episodes=0,
             loss=0,
             extras={"log_probs": None, "values": None},
-            hidden=0,
-        )
+        ), MemoryState(extras={"log_probs": None, "values": None}, hidden=None)
 
-    def reset_memory(self):
+    def reset_memory(self, *args):
         return self._state
 
     def select_action(
