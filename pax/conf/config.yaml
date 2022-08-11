@@ -9,7 +9,7 @@ hydra:
       level: INFO
 
 # Global variables 
-seed: 25
+seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
 

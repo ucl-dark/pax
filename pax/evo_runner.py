@@ -1,7 +1,7 @@
 import time
 from typing import List, NamedTuple
 
-from evosax import OpenES, CMA_ES
+from evosax import OpenES, CMA_ES, FitnessShaper
 from evosax import ParameterReshaper
 from evosax.utils import ESLog
 import jax
@@ -89,37 +89,49 @@ class Runner:
         rng = jax.random.PRNGKey(0)
         param_reshaper = ParameterReshaper(agent1._state.params)
 
-        strategy = OpenES(
-            popsize=self.popsize,
-            num_dims=param_reshaper.total_params,
-        )
+        if self.args.es.algo == "OpenES":
+            print("Algo: OpenES")
+            strategy = OpenES(
+                popsize=self.popsize,
+                num_dims=param_reshaper.total_params,
+            )
+        else:
+            print("Algo: CMA_ES")
+            strategy = CMA_ES(
+                popsize=self.popsize,
+                num_dims=param_reshaper.total_params,
+                elite_ratio=0.5,
+            )
 
         # Uncomment for default params
-        # es_params = strategy.default_params
+        es_params = strategy.default_params
+
+        # Instantiate jittable fitness shaper (e.g. for Open ES)
+        fit_shaper = FitnessShaper(maximize=True)
 
         # Uncomment for specific param choices
         # Update basic parameters of PGPE strategy
-        es_params = strategy.default_params.replace(
-            sigma_init=self.sigma_init,
-            sigma_decay=self.sigma_decay,
-            sigma_limit=self.sigma_limit,
-            init_min=self.init_min,
-            init_max=self.init_max,
-            clip_min=self.clip_min,
-            clip_max=self.clip_max,
-        )
+        # es_params = strategy.default_params.replace(
+        #     sigma_init=self.sigma_init,
+        #     sigma_decay=self.sigma_decay,
+        #     sigma_limit=self.sigma_limit,
+        #     init_min=self.init_min,
+        #     init_max=self.init_max,
+        #     clip_min=self.clip_min,
+        #     clip_max=self.clip_max,
+        # )
 
-        # Update optimizer-specific parameters of Adam
-        es_params = es_params.replace(
-            opt_params=es_params.opt_params.replace(
-                lrate_init=self.lrate_init,
-                lrate_decay=self.lrate_decay,
-                lrate_limit=self.lrate_limit,
-                beta_1=self.beta_1,
-                beta_2=self.beta_2,
-                eps=self.eps,
-            )
-        )
+        # # Update optimizer-specific parameters of Adam
+        # es_params = es_params.replace(
+        #     opt_params=es_params.opt_params.replace(
+        #         lrate_init=self.lrate_init,
+        #         lrate_decay=self.lrate_decay,
+        #         lrate_limit=self.lrate_limit,
+        #         beta_1=self.beta_1,
+        #         beta_2=self.beta_2,
+        #         eps=self.eps,
+        #     )
+        # )
 
         evo_state = strategy.initialize(rng, es_params)
 
@@ -296,25 +308,32 @@ class Runner:
             # calculate fitness
             self.train_episodes += 1
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
+            # print("fitness", fitness)
             other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
+
+            # shape the fitness
+            fitness_re = fit_shaper.apply(x, fitness)
+            # print("fitness_re", fitness_re)
+            other_fitness_re = fit_shaper.apply(x, other_fitness)
 
             # log
             self.train_episodes += 1
             print(
-                f"Total Episode Reward: {float(fitness.mean()), float(other_fitness.mean())}"
+                f"Total Episode Reward: {-float(fitness_re.mean()), -float(other_fitness_re.mean())}"
             )
             visits = self.state_visitation(trajectories[0])
             print(f"State Frequency: {visits}")
             log = es_logging.update(log, x, fitness)
 
             # update the evo
-            evo_state = strategy.tell(
-                x, -1 * (fitness - fitness.mean()), evo_state, es_params
-            )
+            # evo_state = strategy.tell(
+            #     x, -1 * (fitness - fitness.mean()), evo_state, es_params
+            # )
+            evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
 
             print(
                 f"Generation: {self.generations} | Best: {log['log_top_1'][self.generations]} | "
-                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                f"Fitness: {-fitness_re.mean()} | Other Fitness: {-other_fitness_re.mean()}"
             )
             print("----------")
             print("Top Agents")

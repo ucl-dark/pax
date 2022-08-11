@@ -59,6 +59,7 @@ naive:
 
 # ES parameters 
 es: 
+  algo: CMA_ES # [OpenES, CMA_ES]
   sigma_init: 0.01    # Initial scale of isotropic Gaussian noise
   sigma_decay: 0.999  # Multiplicative decay factor
   sigma_limit: 0.01   # Smallest possible scale
