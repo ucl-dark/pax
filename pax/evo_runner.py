@@ -329,7 +329,9 @@ class Runner:
             # evo_state = strategy.tell(
             #     x, -1 * (fitness - fitness.mean()), evo_state, es_params
             # )
-            evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
+            evo_state = strategy.tell(
+                x, fitness_re - fitness_re.mean(), evo_state, es_params
+            )
 
             print(
                 f"Generation: {self.generations} | Best: {log['log_top_1'][self.generations]} | "

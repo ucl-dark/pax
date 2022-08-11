@@ -14,9 +14,9 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-popsize: 200
+popsize: 100
 num_gens: 2000
-num_envs: 2
+num_envs: 20
 num_opponents: 1
 num_steps: 10_000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
