@@ -79,7 +79,7 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}
+  name: run-seed-${seed}-${es.algo}
   log: False
 
 
