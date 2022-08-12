@@ -71,7 +71,9 @@ class Runner:
             jax.vmap(env.runner_step, (0, None), (0, None))
         )
 
-        if self.args.agent2 == "Naive":
+        # TODO: move all of this into independent agents so it's only done once.
+
+        if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
             agent2.batch_init = jax.vmap(
                 agent2.make_initial_state, (0, None, None), 0
             )
@@ -196,11 +198,10 @@ class Runner:
         ):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
-
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # currently assumes second agent has no memory
-            if self.args.agent2 != "Naive":
+            if self.args.agent2 not in ["Naive", "PPO", "PPO_memory"]:
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps),
                     (env.observation_spec().num_values,),
@@ -209,7 +210,7 @@ class Runner:
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps),
                     (env.observation_spec().num_values,),
-                    None,
+                    agent2._mem.hidden,
                 )
 
             # num trials
