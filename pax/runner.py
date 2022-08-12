@@ -66,18 +66,17 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
-        # vmap once to support multiple naive learners
+        # we can move these vmaps into experiment at some point or independent learners
         env.batch_step = jax.jit(
-            jax.vmap(env.runner_step, (0, None), ((0, 0), None))
+            jax.vmap(env.runner_step, (0, None), (0, None))
         )
-        agent2.make_initial_state = jax.vmap(
-            agent2.make_initial_state, (0, None), 0
-        )
+
+        agent2.batch_init = jax.vmap(agent2.make_initial_state, (0, None), 0)
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         # batch TimeStep, MemoryState but not TrainingState
-        agent1.make_initial_state = jax.vmap(
+        agent1.batch_init = jax.vmap(
             agent1.make_initial_state,
             (None, None, 0),
             (None, 0),
@@ -89,16 +88,16 @@ class Runner:
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
-        # start agent memory
-        if self.args.ppo.with_memory:
+        # this needs to move into independent learners too
+        if self.args.agent1 == "PPO_memory":
             init_hidden = jnp.zeros(
                 (self.num_opps, env.num_envs, agent1._gru_dim)
             )
-
         else:
             init_hidden = jnp.zeros((self.num_opps, env.num_envs, 1))
 
-        a1_state, a1_mem = agent1.make_initial_state(
+        # if naive learner we need to init without init_hidden
+        a1_state, a1_mem = agent1.batch_init(
             rng, (env.observation_spec().num_values,), init_hidden
         )
 
@@ -189,9 +188,11 @@ class Runner:
         ):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
+
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            a2_state, a2_mem = agent2.make_initial_state(
+            # currently assumes second agent has no memory
+            a2_state, a2_mem = agent2.batch_init(
                 jax.random.split(rng, self.num_opps),
                 (env.observation_spec().num_values,),
             )

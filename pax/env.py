@@ -84,13 +84,23 @@ class SequentialMatrixGame(Environment):
         env_state: Tuple[float, float],
     ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
-        r_1, r_2 = self._get_reward(actions[0], actions[1])
+        r1, r2 = self._get_reward(actions[0], actions[1])
         state = self._get_state(actions[0], actions[1])
-        obs_1, obs_2 = self._observation(state)
+        obs1, obs2 = self._observation(state)
 
         return (
-            TimeStep(1, r_1, 0, obs_1),
-            TimeStep(1, r_2, 0, obs_2),
+            TimeStep(
+                jnp.ones_like(r1, dtype=int),
+                r1,
+                jnp.zeros_like(r1, dtype=int),
+                obs1,
+            ),
+            TimeStep(
+                jnp.ones_like(r2, dtype=int),
+                r2,
+                jnp.zeros_like(r2, dtype=int),
+                obs2,
+            ),
         ), env_state
 
     def runner_reset(self, ndims):

@@ -82,13 +82,15 @@ class PPO:
                 jnp.zeros_like(action_extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -363,15 +365,20 @@ class PPO:
                 opt_state=opt_state,
                 random_key=key,
                 timesteps=timesteps + batch_size,
+            )
+
+            new_mem = MemoryState(
                 extras={
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
                 hidden=None,
             )
-            return new_state, metrics
+            return new_state, new_mem, metrics
 
-        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
+        def make_initial_state(
+            key: Any, obs_spec: Tuple, hidden: Tuple
+        ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -393,7 +400,7 @@ class PPO:
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, obs_spec)
+        self._state, self._mem = make_initial_state(random_key, obs_spec, None)
         self._prepare_batch = jax.jit(prepare_batch)
         has_sgd_jit = True
         if has_sgd_jit:
@@ -432,7 +439,7 @@ class PPO:
         )
         return utils.to_numpy(actions)
 
-    def reset_memory(self, memory) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
 
         memory = memory._replace(
@@ -448,7 +455,7 @@ class PPO:
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        state, mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
