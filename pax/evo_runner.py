@@ -356,7 +356,7 @@ class Runner:
             )
             print(
                 f"Top 5: Overall | Mean: {log['log_top_mean'][gen]}"
-                " | Std: {log['log_top_std'][gen]}"
+                f" | Std: {log['log_top_std'][gen]}"
             )
             print(
                 "--------------------------------------------------------------------------"
@@ -371,7 +371,7 @@ class Runner:
             )
             print(
                 f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                " | Std: {log['log_top_gen_std'][gen]}"
+                f" | Std: {log['log_top_gen_std'][gen]}"
             )
             print(
                 "--------------------------------------------------------------------------"
