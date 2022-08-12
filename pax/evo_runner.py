@@ -1,5 +1,6 @@
 import time
 from typing import List, NamedTuple
+import os
 
 from evosax import OpenES, CMA_ES, FitnessShaper
 from evosax import ParameterReshaper
@@ -11,6 +12,9 @@ import jax.numpy as jnp
 
 
 import wandb
+
+path = os.getcwd()
+print(path)
 
 
 class Sample(NamedTuple):
@@ -85,6 +89,7 @@ class Runner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
+        save_path = os.getcwd() + "/pax/models/"
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
@@ -139,7 +144,8 @@ class Runner:
         es_logging = ESLog(
             param_reshaper.total_params,
             self.num_gens,
-            top_k=5,
+            # top_k=5,
+            top_k=self.popsize,
             maximize=True,
         )
 
@@ -311,63 +317,58 @@ class Runner:
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
 
-            print("Fitness", fitness)
-
             # shape the fitness
             fitness_re = fit_shaper.apply(x, fitness)
             other_fitness_re = fit_shaper.apply(x, other_fitness)
-
-            print("fitness_re", fitness_re)
 
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
 
+            visits = self.state_visitation(trajectories[0])
+
+            # Logging
             log = es_logging.update(log, x, fitness)
 
+            if log["gen_counter"] % 100 == 0:
+                es_logging.save(log, f"{save_path}{self.args.wandb.name}")
+
+            print(f"Generation: {log['gen_counter']}")
             print(
-                f"Generation: {log['gen_counter']} | Best: {log['log_top_1'][self.generations]} | "
+                "-----------------------------------------------------------------"
+            )
+            print(
                 f"Fitness: {-fitness_re.mean()} | Other Fitness: {-other_fitness_re.mean()}"
             )
-
-            visits = self.state_visitation(trajectories[0])
             print(f"State Frequency: {visits}")
-            print("----------")
-            print("Top Agents")
-            print("----------")
-            print("top_fitness", log["top_fitness"])
-
-            # print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
-            # print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
-            # print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
-            # print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
-            # print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
-            # for idx, agent_fitness in enumerate(log['top_fitness']):
-            #     print(f"Agent {idx} | Fitness: {agent_fitness}")
+            print("------------")
+            print("Top 5 Agents")
+            print("------------")
+            print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
+            print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
+            print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
+            print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
+            print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
             print()
+
             self.generations += 1
 
-            # logging
+            # Logging
+            wandb_log = {
+                "generations": self.generations,
+                "train/fitness/player_1": float(fitness.mean()),
+                "train/fitness/player_2": float(other_fitness.mean()),
+                "time/minutes": float((time.time() - self.start_time) / 60),
+                "time/seconds": float((time.time() - self.start_time)),
+            }
+
+            for idx, agent_fitness in enumerate(log["top_fitness"]):
+                wandb_log[f"train/fitness/top_agents_{idx+1}"] = agent_fitness
+
             if watchers:
                 agents.log(watchers)
-                wandb.log(
-                    {
-                        "generations": self.generations,
-                        "train/fitness/player_1": float(fitness.mean()),
-                        "train/fitness/player_2": float(other_fitness.mean()),
-                        "time/minutes": float(
-                            (time.time() - self.start_time) / 60
-                        ),
-                        "time/seconds": float((time.time() - self.start_time)),
-                        "train/fitness/top_agents_1": log["top_fitness"][0],
-                        "train/fitness/top_agents_2": log["top_fitness"][1],
-                        "train/fitness/top_agents_3": log["top_fitness"][2],
-                        "train/fitness/top_agents_4": log["top_fitness"][3],
-                        "train/fitness/top_agents_5": log["top_fitness"][4],
-                    },
-                )
+                wandb.log(wandb_log)
         print()
-        # update agents
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
         return agents
