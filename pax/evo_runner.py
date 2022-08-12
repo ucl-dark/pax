@@ -91,8 +91,8 @@ class Runner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
-        log_dir = f"{os.getcwd()}/pax/logging/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
-        save_dir = f"{os.getcwd()}/pax/top_params/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
+        log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
+        save_dir = f"{os.getcwd()}/pax/models/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
         os.mkdir(log_dir)
         os.mkdir(save_dir)
         print("Training")
@@ -346,34 +346,27 @@ class Runner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
-            if log["gen_counter"] % 100 == 0:
-                # don't know which parameters we actually want, so we save both
-                top_params = param_reshaper.reshape(log["top_params"][0:1])
-                top_gen_params = param_reshaper.reshape(
-                    log["top_gen_params"][0:1]
-                )
+            # if log["gen_counter"] % 100 == 0:
+            # don't know which parameters we actually want, so we save both
+            top_params = param_reshaper.reshape(log["top_params"][0:1])
+            top_gen_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+            jnp.save(
+                os.path.join(save_dir, f"top_overall_param_{gen}.npy"),
+                top_params,
+            )
+            jnp.save(
+                os.path.join(save_dir, f"top_gen_param_{gen}.npy"),
+                top_gen_params,
+            )
+
+            if self.args.es.algo == "OpenES" or self.args.es.algo == "PGPE":
                 jnp.save(
-                    os.path.join(save_dir, f"top_overall_param_{gen}.npy"),
-                    top_params,
-                )
-                jnp.save(
-                    os.path.join(save_dir, f"top_gen_param_{gen}.npy"),
-                    top_gen_params,
+                    os.path.join(save_dir, f"mean_param_{gen}.npy"),
+                    evo_state.mean,
                 )
 
-                if (
-                    self.args.es.algo == "OpenES"
-                    or self.args.es.algo == "PGPE"
-                ):
-                    jnp.save(
-                        os.path.join(save_dir, f"mean_param_{gen}.npy"),
-                        evo_state.mean,
-                    )
-
-                # ES logging
-                es_logging.save(
-                    log, f"{log_dir}/logging_{self.args.wandb.name}_{gen}"
-                )
+            # ES logging
+            es_logging.save(log, f"{log_dir}/log_{self.args.wandb.name}_{gen}")
 
             print(f"Generation: {log['gen_counter']}")
             print(
