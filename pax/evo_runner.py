@@ -337,6 +337,7 @@ class Runner:
             )
 
             visits = self.state_visitation(trajectories[0])
+            prob_visits = visits / visits.sum()
 
             # Logging
             log = es_logging.update(log, x, fitness)
@@ -350,22 +351,8 @@ class Runner:
             print(
                 f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
-            print(f"State Frequency: {visits}")
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(
-                f"Top 5: Overall | Mean: {log['log_top_mean'][gen]}"
-                f" | Std: {log['log_top_std'][gen]}"
-            )
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
-            print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
-            print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
-            print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
-            print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
+            # print(f"State Frequency: {visits}")
+            print(f"State Visitation: {prob_visits}")
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -395,6 +382,11 @@ class Runner:
                 "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
                 "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
                 "train/fitness/gen_std": log["log_top_std"][gen],
+                "train/state_visitation/CC": prob_visits[0],
+                "train/state_visitation/CD": prob_visits[1],
+                "train/state_visitation/DC": prob_visits[2],
+                "train/state_visitation/DD": prob_visits[3],
+                "train/state_visitation/START": prob_visits[4],
                 "time/minutes": float((time.time() - self.start_time) / 60),
                 "time/seconds": float((time.time() - self.start_time)),
             }
