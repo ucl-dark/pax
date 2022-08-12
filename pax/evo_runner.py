@@ -330,8 +330,8 @@ class Runner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
-            if log["gen_counter"] % 100 == 0:
-                es_logging.save(log, f"{save_path}{self.args.wandb.name}")
+            # if log["gen_counter"] % 100 == 0:
+            es_logging.save(log, f"{save_path}{self.args.wandb.name}")
 
             print(f"Generation: {log['gen_counter']}")
             print(
