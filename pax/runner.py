@@ -105,7 +105,6 @@ class Runner:
         else:
             init_hidden = jnp.zeros((self.num_opps, env.num_envs, 1))
 
-        # if naive learner we need to init without init_hidden
         a1_state, a1_mem = agent1.batch_init(
             rng, (env.observation_spec().num_values,), init_hidden
         )
