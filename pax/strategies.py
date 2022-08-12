@@ -303,7 +303,6 @@ class HyperDefect:
 class HyperTFT:
     def __init__(self, *args):
         self._state = TrainingState(None, None, None, None)
-
         self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     @partial(jax.jit, static_argnums=(0,))

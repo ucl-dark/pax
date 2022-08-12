@@ -71,7 +71,16 @@ class Runner:
             jax.vmap(env.runner_step, (0, None), (0, None))
         )
 
-        agent2.batch_init = jax.vmap(agent2.make_initial_state, (0, None), 0)
+        if self.args.agent2 == "Naive":
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None, None), 0
+            )
+        else:
+            # TODO: change fixed strategies to accept hidden
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None), 0
+            )
+
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
@@ -192,10 +201,17 @@ class Runner:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # currently assumes second agent has no memory
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng, self.num_opps),
-                (env.observation_spec().num_values,),
-            )
+            if self.args.agent2 != "Naive":
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps),
+                    (env.observation_spec().num_values,),
+                )
+            else:
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps),
+                    (env.observation_spec().num_values,),
+                    None,
+                )
 
             # num trials
             vals, trajectories = jax.lax.scan(
