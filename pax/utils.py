@@ -148,7 +148,19 @@ class ESLog(object):
             "log_top_std": jnp.zeros(self.num_generations)
             - 1e10 * self.maximize
             + 1e10 * (1 - self.maximize),
+            "top_gen_fitness": jnp.zeros(self.top_k)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "top_gen_params": jnp.zeros((self.top_k, self.num_dims))
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_gen_1": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_top_gen_mean": jnp.zeros(self.num_generations)
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
+            "log_top_gen_std": jnp.zeros(self.num_generations)
             - 1e10 * self.maximize
             + 1e10 * (1 - self.maximize),
             "log_gen_mean": jnp.zeros(self.num_generations)
@@ -167,11 +179,15 @@ class ESLog(object):
     ) -> chex.ArrayTree:
         """Update the logging storage with newest data."""
         # Check if there are solutions better than current archive
+        def get_top_idx(maximize: bool, vals: jnp.ndarray) -> jnp.ndarray:
+            top_idx = maximize * ((-1) * vals).argsort() + (
+                (1 - maximize) * vals.argsort()
+            )
+            return top_idx
+
         vals = jnp.hstack([log["top_fitness"], fitness])
         params = jnp.vstack([log["top_params"], x])
-        top_idx = self.maximize * ((-1) * vals).argsort() + (
-            (1 - self.maximize) * vals.argsort()
-        )
+        top_idx = get_top_idx(self.maximize, vals)
         log["top_fitness"] = vals[top_idx[: self.top_k]]
         log["top_params"] = params[top_idx[: self.top_k]]
         log["log_top_1"] = (
@@ -182,12 +198,14 @@ class ESLog(object):
             .at[log["gen_counter"]]
             .set(jnp.mean(log["top_fitness"]))
         )
-
         log["log_top_std"] = (
             log["log_top_std"]
             .at[log["gen_counter"]]
             .set(jnp.std(log["top_fitness"]))
         )
+        top_idx = get_top_idx(self.maximize, fitness)
+        log["top_gen_fitness"] = fitness[top_idx[: self.top_k]]
+        log["top_gen_params"] = x[top_idx[: self.top_k]]
         log["log_gen_1"] = (
             log["log_gen_1"]
             .at[log["gen_counter"]]
@@ -195,6 +213,16 @@ class ESLog(object):
                 self.maximize * jnp.max(fitness)
                 + (1 - self.maximize) * jnp.min(fitness)
             )
+        )
+        log["log_top_gen_mean"] = (
+            log["log_top_gen_mean"]
+            .at[log["gen_counter"]]
+            .set(jnp.mean(log["top_gen_fitness"]))
+        )
+        log["log_top_gen_std"] = (
+            log["log_top_gen_std"]
+            .at[log["gen_counter"]]
+            .set(jnp.std(log["top_gen_fitness"]))
         )
         log["log_gen_mean"] = (
             log["log_gen_mean"].at[log["gen_counter"]].set(jnp.mean(fitness))

@@ -2,7 +2,7 @@ import time
 from typing import List, NamedTuple
 import os
 
-from evosax import OpenES, CMA_ES, FitnessShaper
+from evosax import OpenES, CMA_ES, PGPE, FitnessShaper
 from evosax import ParameterReshaper
 
 # from evosax.utils import ESLog
@@ -56,6 +56,7 @@ class Runner:
         self.num_gens = args.num_gens
         self.popsize = args.popsize
         self.generations = 0
+        self.top_k = args.top_k
 
         # OpenES hyperparameters
         self.sigma_init = args.es.sigma_init
@@ -99,8 +100,8 @@ class Runner:
         if self.args.es.algo == "OpenES":
             print("Algo: OpenES")
             strategy = OpenES(
-                popsize=self.popsize,
                 num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
             )
             # Uncomment for specific param choices
             # Update basic parameters of PGPE strategy
@@ -125,15 +126,27 @@ class Runner:
                     eps=self.eps,
                 )
             )
-        else:
+        elif self.args.es.algo == "CMA_ES":
             print("Algo: CMA_ES")
             strategy = CMA_ES(
-                popsize=self.popsize,
                 num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
                 elite_ratio=0.5,
             )
             # Uncomment for default params
             es_params = strategy.default_params
+
+        elif self.args.es.algo == "PGPE":
+            print("Algo: PGPE")
+            strategy = PGPE(
+                num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
+                opt_name="adam",
+            )
+            # Uncomment for default params
+            es_params = strategy.default_params
+        else:
+            raise NotImplementedError
 
         evo_state = strategy.initialize(rng, es_params)
 
@@ -144,8 +157,8 @@ class Runner:
         es_logging = ESLog(
             param_reshaper.total_params,
             self.num_gens,
-            # top_k=5,
-            top_k=self.popsize,
+            top_k=self.top_k,
+            # top_k=self.popsize,
             maximize=True,
         )
 
@@ -285,7 +298,7 @@ class Runner:
                 env_state,
             ), trajectories
 
-        for _ in range(self.num_gens):
+        for gen in range(self.num_gens):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.popsize, num_opps, env.num_envs)
@@ -319,8 +332,6 @@ class Runner:
 
             # shape the fitness
             fitness_re = fit_shaper.apply(x, fitness)
-            other_fitness_re = fit_shaper.apply(x, other_fitness)
-
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
@@ -329,26 +340,47 @@ class Runner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
-
-            if log["gen_counter"] % 100 == 0:
-                es_logging.save(log, f"{save_path}{self.args.wandb.name}")
+            # if log["gen_counter"] % 100 == 0:
+            es_logging.save(log, f"{save_path}{self.args.wandb.name}")
 
             print(f"Generation: {log['gen_counter']}")
             print(
-                "-----------------------------------------------------------------"
+                "--------------------------------------------------------------------------"
             )
             print(
-                f"Fitness: {-fitness_re.mean()} | Other Fitness: {-other_fitness_re.mean()}"
+                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
             print(f"State Frequency: {visits}")
-            print("------------")
-            print("Top 5 Agents")
-            print("------------")
+            print(
+                "--------------------------------------------------------------------------"
+            )
+            print(
+                f"Top 5: Overall | Mean: {log['log_top_mean'][gen]}"
+                " | Std: {log['log_top_std'][gen]}"
+            )
+            print(
+                "--------------------------------------------------------------------------"
+            )
             print(f"Agent {1} | Fitness: {log['top_fitness'][0]}")
             print(f"Agent {2} | Fitness: {log['top_fitness'][1]}")
             print(f"Agent {3} | Fitness: {log['top_fitness'][2]}")
             print(f"Agent {4} | Fitness: {log['top_fitness'][3]}")
             print(f"Agent {5} | Fitness: {log['top_fitness'][4]}")
+            print(
+                "--------------------------------------------------------------------------"
+            )
+            print(
+                f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
+                " | Std: {log['log_top_gen_std'][gen]}"
+            )
+            print(
+                "--------------------------------------------------------------------------"
+            )
+            print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
+            print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
+            print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
+            print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
+            print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
             print()
 
             self.generations += 1
@@ -358,12 +390,22 @@ class Runner:
                 "generations": self.generations,
                 "train/fitness/player_1": float(fitness.mean()),
                 "train/fitness/player_2": float(other_fitness.mean()),
+                "train/fitness/top_overall_mean": log["log_top_mean"][gen],
+                "train/fitness/top_overall_std": log["log_top_std"][gen],
+                "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
+                "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
+                "train/fitness/gen_std": log["log_top_std"][gen],
                 "time/minutes": float((time.time() - self.start_time) / 60),
                 "time/seconds": float((time.time() - self.start_time)),
             }
 
-            for idx, agent_fitness in enumerate(log["top_fitness"]):
-                wandb_log[f"train/fitness/top_agents_{idx+1}"] = agent_fitness
+            for idx, (overall_fitness, gen_fitness) in enumerate(
+                zip(log["top_fitness"], log["top_gen_fitness"])
+            ):
+                wandb_log[
+                    f"train/fitness/top_overall_agent_{idx+1}"
+                ] = overall_fitness
+                wandb_log[f"train/fitness/top_gen_agent_{idx+1}"] = gen_fitness
 
             if watchers:
                 agents.log(watchers)

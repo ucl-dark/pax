@@ -14,8 +14,9 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
+top_k: 5
 popsize: 100
-num_gens: 5000
+num_gens: 3_000
 num_envs: 20
 num_opponents: 1
 num_steps: 10_000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
