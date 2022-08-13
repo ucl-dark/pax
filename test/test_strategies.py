@@ -95,9 +95,7 @@ def test_naive_alt():
 
     for _ in range(500):
         action = agent.select_action(timestep)
-        print(jax.nn.sigmoid(action))
         next_timestep, _ = env.step([action, alt_action])
-        agent.update(timestep, action, next_timestep)
         timestep = next_timestep
 
     action = agent.select_action(timestep)
@@ -123,7 +121,6 @@ def test_naive_defect():
     for _ in range(50):
         action = agent.select_action(timestep)
         next_timestep, _ = env.step([action, defect_action])
-        agent.update(timestep, action, next_timestep)
         timestep = next_timestep
 
     action = agent.select_action(timestep)
@@ -151,7 +148,6 @@ def test_naive_tft():
     for _ in range(50):
         action = agent.select_action(timestep)
         next_timestep, _ = env.step([action, tft_action])
-        agent.update(timestep, action, next_timestep)
         timestep = next_timestep
 
     action = agent.select_action(timestep)

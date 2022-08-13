@@ -133,8 +133,8 @@ class NaiveExact:
         t: TimeStep,
     ) -> jnp.ndarray:
 
-        action, self._state = self._policy(
-            self._state.params, t.observation, self._state
+        action, self._state, self._mem = self._policy(
+            self._state, t.observation, self._mem
         )
         self._logger.metrics["sgd_steps"] += 1
         self._logger.metrics["loss_total"] = self._state.loss

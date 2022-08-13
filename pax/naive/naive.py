@@ -396,7 +396,6 @@ class NaiveLearner:
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
-            hidden=None,
         )
         return memory
 
@@ -410,14 +409,14 @@ class NaiveLearner:
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, results = self._sgd_step(state, traj_batch)
+        state, new_mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
-        return state, mem
+        return state, new_mem._replace(hidden=mem.hidden)
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):

@@ -14,9 +14,8 @@ from pax.utils import MemoryState, TrainingState
 class GrimTrigger:
     @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
-        self._state = TrainingState(
-            None, None, None, None, {"log_probs": None, "values": None}, None
-        )
+        self._state = TrainingState(None, None, None, None)
+        self._mem = MemoryState(None, {"log_probs": None, "values": None})
 
     def select_action(
         self,

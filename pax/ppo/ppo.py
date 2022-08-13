@@ -372,7 +372,7 @@ class PPO:
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
-                hidden=None,
+                hidden=jnp.zeros((num_envs, 1)),
             )
             return new_state, new_mem, metrics
 
@@ -391,7 +391,7 @@ class PPO:
                 opt_state=initial_opt_state,
                 timesteps=0,
             ), MemoryState(
-                hidden=None,
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
