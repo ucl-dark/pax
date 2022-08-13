@@ -376,9 +376,7 @@ class PPO:
             )
             return new_state, new_mem, metrics
 
-        def make_initial_state(
-            key: Any, obs_spec: Tuple, hidden: Tuple
-        ) -> TrainingState:
+        def make_initial_state(key: Any, hidden: Tuple) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -400,7 +398,7 @@ class PPO:
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, obs_spec, None)
+        self._state, self._mem = make_initial_state(random_key, None)
         self._prepare_batch = jax.jit(prepare_batch)
         has_sgd_jit = True
         if has_sgd_jit:

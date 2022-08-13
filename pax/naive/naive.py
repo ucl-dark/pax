@@ -326,10 +326,7 @@ class NaiveLearner:
 
             return new_state, new_memory, metrics
 
-        @jax.jit
-        def make_initial_state(
-            key: Any, obs_spec: Tuple, hidden: jnp.array
-        ) -> TrainingState:
+        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             obs_spec = 5
             key, subkey = jax.random.split(key)
@@ -347,12 +344,12 @@ class NaiveLearner:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=jnp.zeros(num_envs, hidden.shape[-1]),
+                hidden=jnp.zeros((num_envs, 1)),
             )
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, obs_spec, None)
+        self._state, self._mem = make_initial_state(random_key, None)
         self.make_initial_state = make_initial_state
         self._prepare_batch = jax.jit(prepare_batch)
 

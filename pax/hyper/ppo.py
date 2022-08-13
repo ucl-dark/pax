@@ -351,10 +351,8 @@ class PPO:
 
             return new_state, new_memory, metrics
 
-        @partial(jax.jit, static_argnums=(1,))
-        def make_initial_state(
-            key: Any, obs_spec: Tuple, hidden: jnp.ndarray
-        ) -> TrainingState:
+        @jax.jit
+        def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)

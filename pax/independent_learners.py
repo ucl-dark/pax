@@ -2,14 +2,45 @@ from typing import Callable, List
 
 import jax.numpy as jnp
 from dm_env import TimeStep
+import jax
 
 
 class IndependentLearners:
     "Interface for a set of batched agents to work with environment"
 
-    def __init__(self, agents: list):
+    def __init__(self, agents: list, args: dict):
         self.num_agents: int = len(agents)
         self.agents: list = agents
+        self.args = args
+
+        # vmap agents to work in respective position
+        agent1, agent2 = self.agents
+
+        # batch MemoryState not TrainingState
+        agent1.batch_init = jax.vmap(
+            agent1.make_initial_state,
+            (None, 0),
+            (None, 0),
+        )
+        agent1.batch_reset = jax.jit(
+            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
+        )
+        agent1.batch_policy = jax.jit(
+            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
+        )
+
+        # we just batch all of agent2
+
+        if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
+            # let the RNG tell us the batch size.
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None), 0
+            )
+        elif self.args.agent2 == "NaiveEx":
+            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
+
+        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
     def select_action(self, timesteps: List[TimeStep]) -> List[jnp.ndarray]:
         assert len(timesteps) == self.num_agents

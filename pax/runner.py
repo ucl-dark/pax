@@ -61,6 +61,7 @@ class Runner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
+            """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
@@ -112,6 +113,8 @@ class Runner:
             )
 
         def _outer_rollout(carry, unused):
+            """Runner for trial"""
+
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
@@ -121,7 +124,7 @@ class Runner:
                 length=env.inner_episode_length,
             )
 
-            # do second agent update
+            # update second agent
             final_t2 = vals[1]._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
@@ -147,41 +150,9 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
-        if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
-            # let the RNG tell us the batch size.
-            agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None, None), 0
-            )
-        elif self.args.agent2 == "NaiveEx":
-            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
-        else:
-            # TODO: change fixed to take hidden
-            agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0
-            )
-
-        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
-        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
-
-        # batch MemoryState not TrainingState
-        agent1.batch_init = jax.vmap(
-            agent1.make_initial_state,
-            (None, None, 0),
-            (None, 0),
-        )
-        agent1.batch_reset = jax.jit(
-            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
-        )
-        agent1.batch_policy = jax.jit(
-            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
-        )
-
         # this needs to move into independent learners too
         init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
-        a1_state, a1_mem = agent1.batch_init(
-            rng, (env.observation_spec().num_values,), init_hidden
-        )
-
+        a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
         # run actual loop
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
@@ -190,15 +161,10 @@ class Runner:
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
+            # init agent 2 for this trial
             if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
-                if self.args.agent2 == "PPO_memory":
-                    init_hidden = jnp.zeros((env.num_envs, agent2._gru_dim))
-                else:
-                    init_hidden = jnp.zeros((env.num_envs, 1))
-
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps),
-                    (env.observation_spec().num_values,),
                     init_hidden,
                 )
             elif self.args.agent2 == "NaiveEx":
@@ -206,7 +172,6 @@ class Runner:
             else:
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps),
-                    (env.observation_spec().num_values,),
                 )
 
             # num trials

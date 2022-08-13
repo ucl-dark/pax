@@ -299,7 +299,7 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    return IndependentLearners([agent_0, agent_1])
+    return IndependentLearners([agent_0, agent_1], args)
 
 
 def watcher_setup(args, logger):
@@ -412,9 +412,8 @@ def main(args):
     for num_update in range(int(total_num_ep // train_num_ep)):
         print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
-
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
+        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":
