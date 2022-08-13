@@ -77,14 +77,19 @@ class MetaFiniteGame:
                 TimeStep(step_type, rewards, discount, obs),
             ), state
 
-        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
-        self.runner_reset = runner_reset
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
         self.state = (0.0, 0.0)
         self._reset_next_step = True
+
+        # for runner
+        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
+        self.batch_step = jax.jit(
+            jax.vmap(self.runner_step, (0, None), (0, None))
+        )
+        self.runner_reset = runner_reset
 
     def step(self, actions):
         if self._reset_next_step:
@@ -185,6 +190,13 @@ class InfiniteMatrixGame(Environment):
         self._state = (0.0, jax.random.PRNGKey(seed=seed))
         self.num_trials = 1
         self.inner_episode_length = episode_length
+
+        # for runner
+        self.num_trials = 1
+        self.inner_episode_length = episode_length
+        self.batch_step = jax.jit(
+            jax.vmap(self.runner_step, (0, None), (0, None))
+        )
 
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]

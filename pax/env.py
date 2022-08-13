@@ -39,6 +39,9 @@ class SequentialMatrixGame(Environment):
         self.num_trials = 1
         self.state = (0.0, 0.0)
         self.inner_episode_length = episode_length
+        self.batch_step = jax.jit(
+            jax.vmap(self.runner_step, (0, None), (0, None))
+        )
 
     def step(
         self,

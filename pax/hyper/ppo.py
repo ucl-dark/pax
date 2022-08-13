@@ -353,7 +353,7 @@ class PPO:
 
         @partial(jax.jit, static_argnums=(1,))
         def make_initial_state(
-            key: Any, obs_spec: Tuple, init
+            key: Any, obs_spec: Tuple, hidden: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -367,7 +367,7 @@ class PPO:
                 random_key=key,
                 timesteps=0,
             ), MemoryState(
-                hidden=None,
+                hidden=jnp.zeros((num_envs, hidden.shape[-1])),
                 extras={
                     "values": jnp.zeros((num_envs)),
                     "log_probs": jnp.zeros((num_envs)),

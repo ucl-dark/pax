@@ -360,6 +360,8 @@ class PPO:
             key: Any, obs_spec: Tuple, initial_hidden_state: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
+
+            # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
@@ -373,7 +375,9 @@ class PPO:
                 opt_state=initial_opt_state,
                 timesteps=0,
             ), MemoryState(
-                hidden=initial_hidden_state,  # initial_hidden_state,
+                hidden=jnp.zeros(
+                    (num_envs, initial_hidden_state.shape[-1])
+                ),  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),

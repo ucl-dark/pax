@@ -147,13 +147,6 @@ class Runner:
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
 
-        # we can move these vmaps into experiment at some point or independent learners
-        env.batch_step = jax.jit(
-            jax.vmap(env.runner_step, (0, None), (0, None))
-        )
-
-        # TODO: move all of this into independent agents so it's only done once.
-
         if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
             # let the RNG tell us the batch size.
             agent2.batch_init = jax.vmap(
@@ -184,13 +177,7 @@ class Runner:
         )
 
         # this needs to move into independent learners too
-        if self.args.agent1 == "PPO_memory":
-            init_hidden = jnp.zeros(
-                (self.num_opps, env.num_envs, agent1._gru_dim)
-            )
-        else:
-            init_hidden = jnp.zeros((self.num_opps, env.num_envs, 1))
-        # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
+        init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
         a1_state, a1_mem = agent1.batch_init(
             rng, (env.observation_spec().num_values,), init_hidden
         )

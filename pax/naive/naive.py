@@ -347,7 +347,7 @@ class NaiveLearner:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=hidden,
+                hidden=jnp.zeros(num_envs, hidden.shape[-1]),
             )
 
         # Initialise training state (parameters, optimiser state, extras).
