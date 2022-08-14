@@ -53,11 +53,13 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
+        self.algo = args.es.algo
         self.num_opps = args.num_opponents
         self.num_gens = args.num_gens
         self.popsize = args.popsize
         self.generations = 0
         self.top_k = args.top_k
+        self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
 
         # OpenES hyperparameters
         self.sigma_init = args.es.sigma_init
@@ -73,6 +75,8 @@ class Runner:
         self.beta_1 = args.es.lrate_decay
         self.beta_2 = args.es.lrate_decay
         self.eps = args.es.lrate_decay
+
+        os.mkdir(self.log_dir)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -91,10 +95,6 @@ class Runner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
-        log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
-        save_dir = f"{os.getcwd()}/pax/models/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
-        os.mkdir(log_dir)
-        os.mkdir(save_dir)
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
@@ -131,7 +131,7 @@ class Runner:
             #     )
             # )
             es_params = strategy.default_params
-        elif self.args.es.algo == "CMA_ES":
+        elif self.algo == "CMA_ES":
             print("Algo: CMA_ES")
             strategy = CMA_ES(
                 num_dims=param_reshaper.total_params,
@@ -141,7 +141,7 @@ class Runner:
             # Uncomment for default params
             es_params = strategy.default_params
 
-        elif self.args.es.algo == "PGPE":
+        elif self.algo == "PGPE":
             print("Algo: PGPE")
             strategy = PGPE(
                 num_dims=param_reshaper.total_params,
@@ -346,34 +346,21 @@ class Runner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
-
-            if log["gen_counter"] % 100 == 0:
-                # don't know which parameters we actually want, so we save both
-                top_params = param_reshaper.reshape(log["top_params"][0:1])
-                top_gen_params = param_reshaper.reshape(
-                    log["top_gen_params"][0:1]
-                )
-                jnp.save(
-                    os.path.join(save_dir, f"top_overall_param_{gen}.npy"),
-                    top_params,
-                )
-                jnp.save(
-                    os.path.join(save_dir, f"top_gen_param_{gen}.npy"),
-                    top_gen_params,
-                )
-
-                if (
-                    self.args.es.algo == "OpenES"
-                    or self.args.es.algo == "PGPE"
-                ):
+            if self.generations % 1 == 0:
+                if self.algo == "OpenES" or self.algo == "PGPE":
                     jnp.save(
-                        os.path.join(save_dir, f"mean_param_{gen}.npy"),
+                        os.path.join(
+                            self.log_dir,
+                            f"mean_param_{log['gen_counter']}.npy",
+                        ),
                         evo_state.mean,
                     )
 
-                # ES logging
                 es_logging.save(
-                    log, f"{log_dir}/log_{self.args.wandb.name}_{gen}"
+                    log,
+                    os.path.join(
+                        self.log_dir, f"generation_{log['gen_counter']}"
+                    ),
                 )
 
             print(f"Generation: {log['gen_counter']}")
@@ -383,7 +370,6 @@ class Runner:
             print(
                 f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
-            # print(f"State Frequency: {visits}")
             print(f"State Visitation: {prob_visits}")
             print(
                 "--------------------------------------------------------------------------"
@@ -404,7 +390,6 @@ class Runner:
 
             self.generations += 1
 
-            # Logging
             wandb_log = {
                 "generations": self.generations,
                 "train/fitness/player_1": float(fitness.mean()),
@@ -419,8 +404,10 @@ class Runner:
                 "train/state_visitation/DC": prob_visits[2],
                 "train/state_visitation/DD": prob_visits[3],
                 "train/state_visitation/START": prob_visits[4],
-                "time/minutes": float((time.time() - self.start_time) / 60),
-                "time/seconds": float((time.time() - self.start_time)),
+                "train/time/minutes": float(
+                    (time.time() - self.start_time) / 60
+                ),
+                "train/time/seconds": float((time.time() - self.start_time)),
             }
 
             for idx, (overall_fitness, gen_fitness) in enumerate(
@@ -435,69 +422,191 @@ class Runner:
                 agents.log(watchers)
                 wandb.log(wandb_log)
         print()
-        agents.agents[0]._state = a1_state
-        agents.agents[1]._state = a2_state
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):
-        """Run evaluation of agents against environment"""
+        """Run training of agents in environment"""
         print("Evaluating")
         print("-----------------------")
-        agents.eval(True)
         agent1, agent2 = agents.agents
-        agent1._mem = agent1.reset_memory(agent1._mem, eval=True)
-        agent2._mem = agent2.reset_memory(agent2._mem)
+        rng = jax.random.PRNGKey(0)
+        param_reshaper = ParameterReshaper(agent1._state.params)
+        es_logging = ESLog(
+            param_reshaper.total_params,
+            self.num_gens,
+            top_k=self.top_k,
+            maximize=True,
+        )
 
-        for _ in range(num_episodes // env.num_envs):
-            rewards_0, rewards_1 = [], []
-            timesteps = env.reset()
-            for _ in range(env.episode_length):
-                actions = agents.select_action(timesteps)
-                timesteps = env.step(actions)
-                r_0, r_1 = timesteps[0].reward, timesteps[1].reward
-                rewards_0.append(timesteps[0].reward)
-                rewards_1.append(timesteps[1].reward)
-
-                # update evaluation steps
-                self.eval_steps += 1
-
-                if watchers:
-                    agents.log(watchers)
-                    env_info = {
-                        "eval/evaluation_steps": self.eval_steps,
-                        "eval/step_reward/player_1": float(
-                            jnp.array(r_0).mean()
-                        ),
-                        "eval/step_reward/player_2": float(
-                            jnp.array(r_1).mean()
-                        ),
-                    }
-                    wandb.log(env_info)
-
-            # end of episode stats
-            self.eval_episodes += 1
-            rewards_0 = jnp.array(rewards_0)
-            rewards_1 = jnp.array(rewards_1)
-
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+        # vmap pop_size, num_opps dims
+        num_opps = self.num_opps
+        env.batch_step = jax.jit(
+            jax.vmap(
+                jax.vmap(env.runner_step, (0, None), (0, None)),
+                (0, None),
+                (0, None),
             )
+        )
+        a1_state, a1_mem = agent1.make_initial_state(
+            jax.random.split(rng, self.popsize),
+            (env.observation_spec().num_values,),
+            jnp.zeros((self.popsize, num_opps, env.num_envs, agent1._gru_dim)),
+        )
+
+        # Load previous parameters
+        log = es_logging.load(
+            os.path.join(self.log_dir, f"generation_{self.generations}")
+        )
+        # TODO: Figure out if we should be using the top_params for CMA_ES
+        params = param_reshaper.reshape(log["top_gen_params"][0:1])
+        params = jax.tree_util.tree_map(
+            lambda x: jnp.repeat(x, self.popsize, axis=0), params
+        )
+        a1_state = a1_state._replace(params=params)
+
+        def _inner_rollout(carry, unused):
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            a1, a1_state, new_a1_mem = agent1.batch_policy(
+                a1_state,
+                t1.observation,
+                a1_mem,
+            )
+
+            a2, a2_state, new_a2_mem = agent2.batch_policy(
+                a2_state,
+                t2.observation,
+                a2_mem,
+            )
+
+            (tprime_1, tprime_2), env_state = env.batch_step(
+                (a1, a2),
+                env_state,
+            )
+
+            traj1 = Sample(
+                t1.observation,
+                a1,
+                tprime_1.reward,
+                new_a1_mem.extras["log_probs"],
+                new_a1_mem.extras["values"],
+                tprime_1.last(),
+                a1_mem.hidden,
+            )
+            traj2 = Sample(
+                t2.observation,
+                a2,
+                tprime_2.reward,
+                new_a2_mem.extras["log_probs"],
+                new_a2_mem.extras["values"],
+                tprime_2.last(),
+                a2_mem.hidden,
+            )
+            return (
+                tprime_1,
+                tprime_2,
+                a1_state,
+                new_a1_mem,
+                a2_state,
+                new_a2_mem,
+                env_state,
+            ), (
+                traj1,
+                traj2,
+            )
+
+        def _outer_rollout(carry, unused):
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                carry,
+                None,
+                length=env.inner_episode_length,
+            )
+
+            # do second agent update
+            final_t2 = vals[1]._replace(
+                step_type=2 * jnp.ones_like(vals[1].step_type)
+            )
+            a2_state = vals[4]
+            a2_mem = vals[5]
+            a2_state, a2_mem = agent2.batch_update(
+                trajectories[1], final_t2, a2_state, a2_mem
+            )
+
+            return (
+                t1,
+                t2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+            ), trajectories
+
+        for gen in range(3):
+            rng, _ = jax.random.split(rng)
+            t_init, env_state = env.runner_reset(
+                (self.popsize, num_opps, env.num_envs)
+            )
+
+            rng, _, _ = jax.random.split(rng, 3)
+
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
+            a2_state, a2_mem = agent2.make_initial_state(
+                jax.random.split(rng, self.popsize * num_opps).reshape(
+                    self.popsize, num_opps, -1
+                ),
+                (env.observation_spec().num_values,),
+            )
+
+            # num trials
+            _, trajectories = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+
+            # calculate fitness
+            fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
+
+            # calculate state visitation
+            visits = self.state_visitation(trajectories[0])
+            prob_visits = visits / visits.sum()
+
+            print(f"Generation: {gen}")
+            print(
+                "--------------------------------------------------------------------------"
+            )
+            print(
+                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+            )
+            # print(f"State Frequency: {visits}")
+            print(f"State Visitation: {prob_visits}")
+            print(
+                "--------------------------------------------------------------------------"
+            )
+
+            # Logging
+            wandb_log = {
+                "eval/generations": gen + 1,
+                "eval/fitness/player_1": float(fitness.mean()),
+                "eval/fitness/player_2": float(other_fitness.mean()),
+                "eval/state_visitation/CC": prob_visits[0],
+                "eval/state_visitation/CD": prob_visits[1],
+                "eval/state_visitation/DC": prob_visits[2],
+                "eval/state_visitation/DD": prob_visits[3],
+                "eval/state_visitation/START": prob_visits[4],
+                "eval/time/minutes": float(
+                    (time.time() - self.start_time) / 60
+                ),
+                "eval/time/seconds": float((time.time() - self.start_time)),
+            }
             if watchers:
-                wandb.log(
-                    {
-                        "train/episodes": self.train_episodes,
-                        "eval/episodes": self.eval_episodes,
-                        "eval/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "eval/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
-                        "eval/joint_reward": float(
-                            rewards_0.mean() + rewards_1.mean() * 0.5
-                        ),
-                    }
-                )
-        agents.eval(False)
+                agents.log(watchers)
+                wandb.log(wandb_log)
         print()
         return agents

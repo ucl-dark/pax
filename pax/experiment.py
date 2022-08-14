@@ -413,8 +413,8 @@ def main(args):
         print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
 
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
+        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":
