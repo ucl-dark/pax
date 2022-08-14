@@ -544,7 +544,7 @@ class Runner:
                 env_state,
             ), trajectories
 
-        for gen in range(3):
+        for gen in range(100):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.popsize, num_opps, env.num_envs)
