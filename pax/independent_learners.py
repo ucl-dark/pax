@@ -13,9 +13,7 @@ class IndependentLearners:
         self.agents: list = agents
         self.args = args
 
-        # vmap agents to work in respective position
         agent1, agent2 = self.agents
-
         # batch MemoryState not TrainingState
         agent1.batch_init = jax.vmap(
             agent1.make_initial_state,
@@ -30,7 +28,7 @@ class IndependentLearners:
         )
 
         # batch all for Agent2
-        if self.args.agent2 == "NaiveEx":
+        if args.agent2 == "NaiveEx":
             # special case where NaiveEx has a different call signature
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
@@ -40,23 +38,26 @@ class IndependentLearners:
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
+        # init agents
+        init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opponents, 1, 1))
+        agent1._state, agent1._mem = agent1.batch_init(
+            agent1._state.random_key, init_hidden
+        )
+
+        if args.agent2 != "NaiveEx":
+            init_hidden = jnp.tile(
+                agent2._mem.hidden, (args.num_opponents, 1, 1)
+            )
+            agent2._state, agent2._mem = agent2.batch_init(
+                jax.random.split(agent2._state.random_key, args.num_opponents),
+                init_hidden,
+            )
+
     def select_action(self, timesteps: List[TimeStep]) -> List[jnp.ndarray]:
         assert len(timesteps) == self.num_agents
         return [
             agent.select_action(t) for agent, t in zip(self.agents, timesteps)
         ]
-
-    def update(
-        self,
-        old_timesteps: List[TimeStep],
-        actions: List[jnp.ndarray],
-        timesteps: List[TimeStep],
-    ) -> None:
-        # might have to add some centralised training to this
-        for agent, t, action, t_1 in zip(
-            self.agents, old_timesteps, actions, timesteps
-        ):
-            agent.update(t, action, t_1)
 
     def log(self, metrics: List[Callable]) -> None:
         for metric, agent in zip(metrics, self.agents):

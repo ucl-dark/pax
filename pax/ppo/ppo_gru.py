@@ -587,9 +587,6 @@ def make_gru_agent(
     )
     return agent
 
-    agent.player_id = player_id
-    return agent
-
 
 if __name__ == "__main__":
     pass

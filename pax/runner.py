@@ -43,6 +43,7 @@ class Runner:
         self.start_time = time.time()
         self.args = args
         self.num_opps = args.num_opponents
+        self.random_key = jax.random.PRNGKey(args.seed)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -114,7 +115,6 @@ class Runner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
@@ -148,11 +148,14 @@ class Runner:
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
-        rng = jax.random.PRNGKey(0)
+        rng, _ = jax.random.split(self.random_key)
 
-        # this needs to move into independent learners too
-        init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
-        a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
+        # # this needs to move into independent learners too
+        # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
+        # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
+
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
         # run actual loop
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
@@ -161,13 +164,13 @@ class Runner:
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # this is only for meta-experimetns / init second agent
-            init_hidden = jnp.tile(agent2._mem.hidden, (self.num_opps, 1, 1))
+            # for meta-experiments / we initialise a new 2nd agent per trial
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
-            else:
+
+            elif self.args.env_type != "meta":
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), init_hidden
+                    jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
 
             # run trials
@@ -184,6 +187,13 @@ class Runner:
             )
             a1_state = vals[2]
             a1_mem = vals[3]
+
+            # DEBUGGING MFOS
+            # print(trajectories[0].observations.shape)
+            # print(trajectories[0].actions.shape)
+            # print(trajectories[0].hiddens.shape)
+            # print(trajectories[0].rewards.shape)
+            # print(trajectories[0].behavior_log_probs.shape)
 
             a1_state, _ = agent1.update(
                 reduce_outer_traj(trajectories[0]),

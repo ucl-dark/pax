@@ -58,7 +58,7 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            state: TrainingState, observation: TimeStep, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -127,7 +127,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                get_advantages,
+                utils.get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
@@ -376,7 +376,7 @@ class PPO:
             )
             return new_state, new_mem, metrics
 
-        def make_initial_state(key: Any, hidden: Tuple) -> TrainingState:
+        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -398,7 +398,7 @@ class PPO:
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, None)
+        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self._prepare_batch = jax.jit(prepare_batch)
         has_sgd_jit = True
         if has_sgd_jit:

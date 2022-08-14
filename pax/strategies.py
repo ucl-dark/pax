@@ -14,9 +14,9 @@ from pax.utils import MemoryState, TrainingState
 class GrimTrigger:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.ones(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.ones(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -27,8 +27,8 @@ class GrimTrigger:
     ) -> jnp.ndarray:
         return self._trigger(timestep.observation)
 
-    def update(self, *args) -> None:
-        return self._state
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -57,9 +57,9 @@ class GrimTrigger:
 class TitForTat:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.ones(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.ones(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -104,9 +104,9 @@ class TitForTat:
 class Defect:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.zeros(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -121,8 +121,8 @@ class Defect:
         # return jnp.ones((batch_size, 1))
         return jnp.ones((batch_size,))
 
-    def update(self, *args) -> None:
-        return self._state, self._mem
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -140,15 +140,15 @@ class Defect:
         # state is [batch x time_step x num_players]
         # return [batch]
         batch_size = obs.shape[0]
-        return jnp.ones((batch_size,)), self._state, self._mem
+        return jnp.ones((batch_size,)), state, mem
 
 
 class Altruistic:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.zeros(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -178,8 +178,8 @@ class Altruistic:
         batch_size = obs.shape[0]
         return jnp.zeros((batch_size,)), state, mem
 
-    def update(self, *args) -> None:
-        return self._state, self._mem
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -228,9 +228,9 @@ class Random:
 class HyperAltruistic:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.zeros(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -259,8 +259,8 @@ class HyperAltruistic:
         action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, *args) -> None:
-        return self._state, self._mem
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -269,9 +269,9 @@ class HyperAltruistic:
 class HyperDefect:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.zeros(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, jax.random.PRNGKey(0), None, None
+            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
@@ -300,8 +300,8 @@ class HyperDefect:
         action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, *args) -> None:
-        return self._state, self._mem
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -315,14 +315,13 @@ class HyperDefect:
 class HyperTFT:
     def __init__(self, *args):
         def make_initial_state(key, hidden):
-            return TrainingState(None, None, None, None), MemoryState(
-                jnp.zeros(1), {"log_probs": None, "values": None}
-            )
+            return TrainingState(
+                None, None, jax.random.PRNGKey(0), None
+            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
 
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
-    @partial(jax.jit, static_argnums=(0,))
     def select_action(
         self,
         timestep: TimeStep,
@@ -338,7 +337,6 @@ class HyperTFT:
             20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
         )
 
-    @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:
@@ -354,8 +352,8 @@ class HyperTFT:
         )
         return action, state, mem
 
-    def update(self, *args) -> None:
-        return self._state, self._mem
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem

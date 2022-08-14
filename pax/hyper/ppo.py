@@ -82,6 +82,43 @@ class PPO:
             return actions, state, mem
 
         @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                action_extras["values"],
+                jnp.zeros_like(action_extras["values"]),
+            )
+
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
+
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+            return traj_batch
+
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
@@ -216,7 +253,6 @@ class PPO:
                 sample.dones,
             )
 
-            # vmap
             # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
@@ -341,15 +377,14 @@ class PPO:
                 timesteps=timesteps + batch_size,
             )
 
-            new_memory = MemoryState(
-                hidden=jnp.zeros(shape=(self._num_envs,) + (1,)),
+            new_mem = MemoryState(
                 extras={
-                    "log_probs": jnp.zeros(self._num_envs),
-                    "values": jnp.zeros(self._num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                    "values": jnp.zeros(num_envs),
                 },
+                hidden=jnp.zeros((num_envs, 1)),
             )
-
-            return new_state, new_memory, metrics
+            return new_state, new_mem, metrics
 
         @jax.jit
         def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
@@ -360,53 +395,17 @@ class PPO:
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
+                random_key=key,
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key,
                 timesteps=0,
             ), MemoryState(
-                hidden=jnp.zeros((num_envs, hidden.shape[-1])),
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
-                    "values": jnp.zeros((num_envs)),
-                    "log_probs": jnp.zeros((num_envs)),
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
                 },
             )
-
-        @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            _value = jax.lax.select(
-                t_prime.last(),
-                action_extras["values"],
-                jnp.zeros_like(action_extras["values"]),
-            )
-
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-
-            return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
         self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
@@ -442,20 +441,20 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
-            self._state.params, t.observation, self._state
+        actions, self._state, self._mem = self._policy(
+            self._state, t.observation, self._mem
         )
         return actions
 
-    def reset_memory(self, mem, eval=False) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-        self._mem = self._mem._replace(
+        memory = self._mem._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
-            }
+            },
         )
-        return self._mem
+        return memory
 
     def update(self, traj_batch, t_prime, state, mem):
 
