@@ -161,20 +161,16 @@ class Runner:
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # init agent 2 for this trial
-            if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps),
-                    init_hidden,
-                )
-            elif self.args.agent2 == "NaiveEx":
+            # this is only for meta-experimetns / init second agent
+            init_hidden = jnp.tile(agent2._mem.hidden, (self.num_opps, 1, 1))
+            if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
             else:
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps),
+                    jax.random.split(rng, self.num_opps), init_hidden
                 )
 
-            # num trials
+            # run trials
             vals, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -195,6 +191,8 @@ class Runner:
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
+
+            # logging
             self.train_episodes += 1
             rewards_0 = trajectories[0].rewards.mean()
             rewards_1 = trajectories[1].rewards.mean()
@@ -207,7 +205,6 @@ class Runner:
                 visits = self.state_visitation(trajectories[0])
                 print(f"State Frequency: {visits}")
 
-            # logging
             if watchers:
                 agents.log(watchers)
                 wandb.log(
@@ -222,7 +219,7 @@ class Runner:
                     },
                 )
         print()
-        # update agents
+        # update agents for eval loop exit
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
         return agents

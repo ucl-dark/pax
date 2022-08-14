@@ -29,16 +29,14 @@ class IndependentLearners:
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
-        # we just batch all of agent2
-
-        if self.args.agent2 in ["Naive", "PPO", "PPO_memory"]:
-            # let the RNG tell us the batch size.
+        # batch all for Agent2
+        if self.args.agent2 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
+        else:
             agent2.batch_init = jax.vmap(
                 agent2.make_initial_state, (0, None), 0
             )
-        elif self.args.agent2 == "NaiveEx":
-            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
-
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 

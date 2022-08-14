@@ -70,7 +70,7 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            state: TrainingState, observation: TimeStep, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -409,9 +409,7 @@ class PPO:
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state, self._mem = make_initial_state(
-            random_key, obs_spec, jnp.zeros(1)
-        )
+        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self.make_initial_state = make_initial_state
         self.prepare_batch = prepare_batch
         self._sgd_step = sgd_step
