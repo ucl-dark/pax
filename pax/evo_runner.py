@@ -689,8 +689,8 @@ class Runner:
                         wandb.log(
                             {
                                 "eval/trial": out_step + 1,
-                                f"eval/trial_reward/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
-                                f"eval/trial_reward/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
+                                f"eval/reward_trial/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
+                                f"eval/reward_trial/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
                                 f"eval/state_visitation_trial/CC_opp_{opp_i+1}": state_visit_trial_i[
                                     0
                                 ],
@@ -703,7 +703,7 @@ class Runner:
                                 f"eval/state_visitation_trial/DD_opp_{opp_i+1}": state_visit_trial_i[
                                     3
                                 ],
-                                f"eval/state_visitation_trial/START_{opp_i+1}": state_visit_trial_i[
+                                f"eval/state_visitation_trial/START_opp{opp_i+1}": state_visit_trial_i[
                                     4
                                 ],
                                 f"eval/state_visitation_trial/CC_probability_opp_{opp_i+1}": prob_visits[
@@ -743,8 +743,8 @@ class Runner:
                             wandb.log(
                                 {
                                     "eval/timestep": inner_steps + 1,
-                                    f"eval/step_reward/player_1_opp_{opp_i+1}": p1_step_rew_opp_i,
-                                    f"eval/step_reward/player_2_opp_{opp_i+1}": p2_step_rew_opp_i,
+                                    f"eval/reward_step/player_1_opp_{opp_i+1}": p1_step_rew_opp_i,
+                                    f"eval/reward_step/player_2_opp_{opp_i+1}": p2_step_rew_opp_i,
                                 }
                             )
                         inner_steps += 1
@@ -759,40 +759,40 @@ class Runner:
                     wandb.log(
                         {
                             "eval/seeds": opp_i + 1,
-                            f"eval/rewards/player_1_opp_{opp_i+1}": float(
-                                fitness.mean()
+                            "eval/reward_opp/player_1": float(
+                                p1_rew_opp_i.mean()
                             ),
-                            f"eval/rewards/player_2_opp_{opp_i+1}": float(
-                                other_fitness.mean()
+                            "eval/reward_opp/player_2_opp": float(
+                                p2_rew_opp_i.mean()
                             ),
-                            f"eval/state_visitation_opp/CC_opp_{opp_i+1}": state_visit_opp_i[
+                            "eval/state_visitation_opp/CC": state_visit_opp_i[
                                 0
                             ],
-                            f"eval/state_visitation_opp/CD_opp_{opp_i+1}": state_visit_opp_i[
+                            "eval/state_visitation_opp/CD": state_visit_opp_i[
                                 1
                             ],
-                            f"eval/state_visitation_opp/DC_opp_{opp_i+1}": state_visit_opp_i[
+                            "eval/state_visitation_opp/DC": state_visit_opp_i[
                                 2
                             ],
-                            f"eval/state_visitation_opp/DD_opp_{opp_i+1}": state_visit_opp_i[
+                            "eval/state_visitation_opp/DD": state_visit_opp_i[
                                 3
                             ],
-                            f"eval/state_visitation_opp/START_opp_{opp_i+1}": state_visit_opp_i[
+                            "eval/state_visitation_opp/START": state_visit_opp_i[
                                 4
                             ],
-                            f"eval/state_visitation_opp/CC_probability_opp_{opp_i+1}": prob_visits[
+                            "eval/state_visitation_opp/CC_probability": prob_visits[
                                 0
                             ],
-                            f"eval/state_visitation_opp/CD_probability_opp_{opp_i+1}": prob_visits[
+                            "eval/state_visitation_opp/CD_probability": prob_visits[
                                 1
                             ],
-                            f"eval/state_visitation_opp/DC_probability_opp_{opp_i+1}": prob_visits[
+                            "eval/state_visitation_opp/DC_probability": prob_visits[
                                 2
                             ],
-                            f"eval/state_visitation_opp/DD_probability_opp_{opp_i+1}": prob_visits[
+                            "eval/state_visitation_opp/DD_probability": prob_visits[
                                 3
                             ],
-                            f"eval/state_visitation_opp/START_probability_opp_{opp_i+1}": prob_visits[
+                            "eval/state_visitation_opp/START_probability": prob_visits[
                                 4
                             ],
                             "eval/time/minutes": float(
