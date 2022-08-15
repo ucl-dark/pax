@@ -1,8 +1,8 @@
 from typing import Callable, List
 
+import jax
 import jax.numpy as jnp
 from dm_env import TimeStep
-import jax
 
 
 class IndependentLearners:
