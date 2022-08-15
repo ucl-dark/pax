@@ -264,9 +264,9 @@ class InfiniteMatrixGame(Environment):
             dtype=float,
         )
 
-    def runner_reset(self, ndims):
+    def runner_reset(self, ndims, rng):
         """Exposed version of reset"""
-        self.key, _ = jax.random.split(self._state[1])
+        self.key, _ = jax.random.split(rng)
         new_state = (0, self.key)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)

@@ -161,7 +161,9 @@ class Runner:
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
             rng, _ = jax.random.split(rng)
-            t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
+            t_init, env_state = env.runner_reset(
+                (self.num_opps, env.num_envs), rng
+            )
 
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
