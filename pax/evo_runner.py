@@ -46,10 +46,7 @@ class Runner:
         self.popsize = args.popsize
         self.generations = 0
         self.top_k = args.top_k
-        # self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
-        self.log_dir = (
-            f"{os.getcwd()}/pax/log/2022-08-14_11_22_54.855149_CMA_ES"
-        )
+        self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
 
         # OpenES hyperparameters
         self.sigma_init = args.es.sigma_init
@@ -65,8 +62,6 @@ class Runner:
         self.beta_1 = args.es.lrate_decay
         self.beta_2 = args.es.lrate_decay
         self.eps = args.es.lrate_decay
-
-        # os.mkdir(self.log_dir)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -101,6 +96,7 @@ class Runner:
             return agents
         print("Training")
         print("-----------------------")
+        os.mkdir(self.log_dir)
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
         param_reshaper = ParameterReshaper(agent1._state.params)
@@ -214,6 +210,12 @@ class Runner:
             static_argnums=1,
         )
 
+        agent2.batch_reset = jax.jit(
+            jax.vmap(
+                jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
+            ),
+            static_argnums=1,
+        )
         agent1.batch_policy = jax.jit(
             jax.vmap(
                 jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
