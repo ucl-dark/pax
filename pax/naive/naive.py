@@ -387,7 +387,7 @@ class NaiveLearner:
         )
         return utils.to_numpy(actions)
 
-    def reset_memory(self, memory) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
         memory = memory._replace(
             extras={

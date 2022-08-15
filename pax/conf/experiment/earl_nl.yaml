@@ -22,7 +22,9 @@ num_opponents: 1
 num_steps: 10_000 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e9
-eval_every: 1.0e9 # timesteps 
+eval_every: 1.0e9 # set equal to total_timesteps for evo stuff 
+only_eval: True # only evaluate using the file below
+model_path: 2022-08-14_11_22_54.855149_CMA_ES/generation_3000 # must be in pax/log with structure folder/filename
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 

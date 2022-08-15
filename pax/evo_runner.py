@@ -30,19 +30,6 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-@jax.jit
-def reduce_outer_traj(traj: Sample) -> Sample:
-    """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
-    # x: [timestep, batch_size, ...]
-    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
-        traj,
-    )
-
-
 class Runner:
     """Holds the runner's state."""
 
@@ -59,7 +46,10 @@ class Runner:
         self.popsize = args.popsize
         self.generations = 0
         self.top_k = args.top_k
-        self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
+        # self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
+        self.log_dir = (
+            f"{os.getcwd()}/pax/log/2022-08-14_11_22_54.855149_CMA_ES"
+        )
 
         # OpenES hyperparameters
         self.sigma_init = args.es.sigma_init
@@ -76,7 +66,7 @@ class Runner:
         self.beta_2 = args.es.lrate_decay
         self.eps = args.es.lrate_decay
 
-        os.mkdir(self.log_dir)
+        # os.mkdir(self.log_dir)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -90,11 +80,21 @@ class Runner:
             obs = jnp.argmax(traj.observations, axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
+        def _get_observations(traj: Sample) -> List:
+            # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs]
+            obs = jnp.argmax(traj.observations, axis=-1)
+            return obs
+
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.state_visitation = jax.jit(_state_visitation)
+        self.get_observations = jax.jit(_get_observations)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
+        if self.args.only_eval:
+            print("Skipping Training: only_eval = True")
+            print()
+            return agents
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
@@ -398,7 +398,7 @@ class Runner:
                 "train/fitness/top_overall_std": log["log_top_std"][gen],
                 "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
                 "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                "train/fitness/gen_std": log["log_top_std"][gen],
+                "train/fitness/gen_std": log["log_gen_std"][gen],
                 "train/state_visitation/CC": prob_visits[0],
                 "train/state_visitation/CD": prob_visits[1],
                 "train/state_visitation/DC": prob_visits[2],
@@ -428,6 +428,9 @@ class Runner:
         """Run training of agents in environment"""
         print("Evaluating")
         print("-----------------------")
+        eval_dir = f"{os.getcwd()}/pax/log/"
+        # TODO: refactor to allow for popsize = 1
+        eval_popsize = 2
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
         param_reshaper = ParameterReshaper(agent1._state.params)
@@ -439,7 +442,7 @@ class Runner:
         )
 
         # vmap pop_size, num_opps dims
-        num_opps = self.num_opps
+        num_opps = 20
         env.batch_step = jax.jit(
             jax.vmap(
                 jax.vmap(env.runner_step, (0, None), (0, None)),
@@ -447,20 +450,83 @@ class Runner:
                 (0, None),
             )
         )
+
+        # Use only when you want to evaluate; you need to jit and vmap all of the functions first.
+        # TODO: Will be moved to indepenedent learners in upcoming PR
+        if self.args.only_eval:
+            # batch over TimeStep, TrainingState
+            agent2.make_initial_state = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent2.make_initial_state, (0, None), 0),
+                    (0, None),
+                    0,
+                )
+            )
+
+            agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy)))
+            # traj_batch : [inner_loop, pop_size, num_opps, num_envs, ...]
+            agent2.batch_update = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0)),
+                    (1, 0, 0, 0),
+                    (0, 0),
+                )
+            )
+
+            # batch over TimeStep, TrainingState
+            agent1.make_initial_state = jax.vmap(
+                jax.vmap(
+                    agent1.make_initial_state, (None, None, 0), (None, 0)
+                ),
+                (0, None, 0),
+                (0, 0),
+            )
+
+            agent1.batch_reset = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent1.reset_memory, (0, None), 0), (0, None), 0
+                ),
+                static_argnums=1,
+            )
+
+            agent2.batch_reset = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
+                ),
+                static_argnums=1,
+            )
+
+            agent1.batch_policy = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
+                    0,
+                    0,
+                )
+            )
+
+            # Load previous parameters
+            log = es_logging.load(os.path.join(eval_dir, self.args.model_path))
+
+        else:
+            # Load previous parameters from the training run above
+            log = es_logging.load(
+                os.path.join(self.log_dir, f"generation_{self.num_gens}")
+            )
+
         a1_state, a1_mem = agent1.make_initial_state(
-            jax.random.split(rng, self.popsize),
+            jax.random.split(rng, eval_popsize),
             (env.observation_spec().num_values,),
-            jnp.zeros((self.popsize, num_opps, env.num_envs, agent1._gru_dim)),
+            jnp.zeros((eval_popsize, num_opps, env.num_envs, agent1._gru_dim)),
         )
 
-        # Load previous parameters
-        log = es_logging.load(
-            os.path.join(self.log_dir, f"generation_{self.generations}")
-        )
-        # TODO: Figure out if we should be using the top_params for CMA_ES
+        # TODO: Add the ability to evaluate every n number of generations
+        #     log = es_logging.load(
+        #     os.path.join(self.log_dir, f"generation_{self.generations}")
+        # )
+
         params = param_reshaper.reshape(log["top_gen_params"][0:1])
         params = jax.tree_util.tree_map(
-            lambda x: jnp.repeat(x, self.popsize, axis=0), params
+            lambda x: jnp.repeat(x, eval_popsize, axis=0), params
         )
         a1_state = a1_state._replace(params=params)
 
@@ -533,6 +599,8 @@ class Runner:
             a2_state, a2_mem = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
+            # reset player 2 mem to num_envs = 1
+            a2_mem = agent2.batch_reset(a2_mem, True)
 
             return (
                 t1,
@@ -544,24 +612,23 @@ class Runner:
                 env_state,
             ), trajectories
 
-        for gen in range(100):
+        for gen in range(1):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (self.popsize, num_opps, env.num_envs)
+                (eval_popsize, num_opps, env.num_envs)
             )
 
-            rng, _, _ = jax.random.split(rng, 3)
-
-            a1_mem = agent1.batch_reset(a1_mem, False)
-
             a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, self.popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
+                jax.random.split(rng, eval_popsize * num_opps).reshape(
+                    eval_popsize, num_opps, -1
                 ),
                 (env.observation_spec().num_values,),
             )
 
-            # num trials
+            # EVAL ONLY
+            a1_mem = agent1.batch_reset(a1_mem, True)
+            a2_mem = agent2.batch_reset(a2_mem, True)
+
             _, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -577,7 +644,7 @@ class Runner:
             visits = self.state_visitation(trajectories[0])
             prob_visits = visits / visits.sum()
 
-            print(f"Generation: {gen}")
+            print(f"Generation: {gen+1}")
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -605,6 +672,63 @@ class Runner:
                 ),
                 "eval/time/seconds": float((time.time() - self.start_time)),
             }
+
+            # observations = self.get_observations(trajectories[0])
+            p1_rewards = trajectories[0].rewards
+            p2_rewards = trajectories[1].rewards
+
+            # Logging step rewards loop
+            # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs]
+            for opp_i in range(num_opps):
+                # TODO: Figure out a way to allow for popsize=1 so you can remove 0
+                # Canonically player 1
+                # obs_opp_i = observations[:, :, 0, opp_i, :].squeeze()
+                p1_rew_opp_i = p1_rewards[:, :, 0, opp_i, :].squeeze()
+                p2_rew_opp_i = p2_rewards[:, :, 0, opp_i, :].squeeze()
+                print(
+                    f"Opponent: {opp_i+1} | P1: {p1_rew_opp_i.mean()} | P2: {p2_rew_opp_i.mean()}"
+                )
+                inner_steps = 0
+                for out_step in range(env.num_trials):
+                    # obs_outer_opp_i = obs_opp_i[out_step]
+                    p1_ep_rew_opp_i = p1_rew_opp_i[out_step]
+                    p2_ep_rew_opp_i = p2_rew_opp_i[out_step]
+                    p1_ep_mean_rew_opp_i = p1_rew_opp_i[out_step].mean()
+                    p2_ep_mean_rew_opp_i = p2_rew_opp_i[out_step].mean()
+                    if watchers:
+                        wandb.log(
+                            {
+                                "eval/trial": out_step + 1,
+                                f"eval/ep_reward/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
+                                f"eval/ep_reward/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
+                            }
+                        )
+                    # print(f"Trial: {out_step+1} | Opp: {opp_i+1}"
+                    # "{p1_ep_mean_rew_opp_i}, {p2_ep_mean_rew_opp_i}")
+                    for in_step in range(env.inner_episode_length):
+                        p1_step_rew_opp_i = p1_ep_rew_opp_i[in_step]
+                        p2_step_rew_opp_i = p2_ep_rew_opp_i[in_step]
+                        # obs_inner_opp_i = obs_outer_opp_i[in_step]
+                        # if obs_inner_opp_i == 4:
+                        #     print(f"State: {obs_inner_opp_i} | START | Reward: {p1_step_rew_opp_i}")
+                        # elif obs_inner_opp_i == 3:
+                        #     print(f"State: {obs_inner_opp_i} | DD | Reward: {p1_step_rew_opp_i}")
+                        # elif obs_inner_opp_i == 2:
+                        #     print(f"State: {obs_inner_opp_i} | DC | Reward: {p1_step_rew_opp_i}")
+                        # elif obs_inner_opp_i == 1:
+                        #     print(f"State: {obs_inner_opp_i} | CD | Reward: {p1_step_rew_opp_i}")
+                        # elif obs_inner_opp_i == 0:
+                        #     print(f"State: {obs_inner_opp_i} | CC | Reward: {p1_step_rew_opp_i}")
+                        if watchers:
+                            wandb.log(
+                                {
+                                    "eval/timestep": inner_steps + 1,
+                                    f"eval/step_reward/player_1_opp_{opp_i+1}": p1_step_rew_opp_i,
+                                    f"eval/step_reward/player_2_opp_{opp_i+1}": p2_step_rew_opp_i,
+                                }
+                            )
+                        inner_steps += 1
+
             if watchers:
                 agents.log(watchers)
                 wandb.log(wandb_log)
