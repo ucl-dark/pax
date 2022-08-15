@@ -106,9 +106,9 @@ class SequentialMatrixGame(Environment):
             ),
         ), env_state
 
-    def runner_reset(self, ndims):
+    def runner_reset(self, ndims, rng):
         """Returns the first `TimeStep` of a new episode."""
-        state = (0.0, 0.0)
+        state = (0.0, 0.0, rng)
         obs = obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)

@@ -17,7 +17,7 @@ class MetaFiniteGame:
         self.payoff = jnp.array(payoff)
 
         def step(actions, state):
-            inner_t, outer_t = state
+            inner_t, outer_t, rng = state
             a1, a2 = actions
             inner_t += 1
 
@@ -63,11 +63,11 @@ class MetaFiniteGame:
             t1 = TimeStep(1, r1, 0, obs[0])
             t2 = TimeStep(1, r2, 0, obs[1])
 
-            return (t1, t2), (inner_t, outer_t)
+            return (t1, t2), (inner_t, outer_t, rng)
 
-        def runner_reset(ndims):
+        def runner_reset(ndims, rng):
             """Returns the first `TimeStep` of a new episode."""
-            state = (0.0, 0.0)
+            state = (0.0, 0.0, rng)
             obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
@@ -265,12 +265,12 @@ class InfiniteMatrixGame(Environment):
         )
 
     def runner_reset(self, ndims, rng):
-        """Exposed version of reset"""
-        self.key, _ = jax.random.split(rng)
-        new_state = (0, self.key)
+        """Pure version of reset"""
+        key, _ = jax.random.split(rng)
+        new_state = (0, key)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)
-        obs = jax.nn.sigmoid(jax.random.uniform(self.key, ndims + (10,)))
+        obs = jax.nn.sigmoid(jax.random.uniform(key, ndims + (10,)))
         return (
             TimeStep(step_type, jnp.zeros(ndims), discount, obs),
             TimeStep(step_type, jnp.zeros(ndims), discount, obs),
@@ -280,5 +280,6 @@ class InfiniteMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         self._num_steps = 0
-        t_init, self._state = self.runner_reset((self.num_envs,))
+        t_init, self._state = self.runner_reset((self.num_envs, self.key))
+        self.key = self._state[1]
         return t_init
