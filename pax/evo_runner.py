@@ -80,6 +80,9 @@ class Runner:
             obs = jnp.argmax(traj.observations, axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
+        def _get_state_visitation(obs: jnp.ndarray) -> List:
+            return jnp.bincount(obs.flatten(), length=5)
+
         def _get_observations(traj: Sample) -> List:
             # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs]
             obs = jnp.argmax(traj.observations, axis=-1)
@@ -87,6 +90,7 @@ class Runner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.state_visitation = jax.jit(_state_visitation)
+        self.get_state_visitation = jax.jit(_get_state_visitation)
         self.get_observations = jax.jit(_get_observations)
 
     def train_loop(self, env, agents, num_episodes, watchers):
@@ -612,7 +616,7 @@ class Runner:
                 env_state,
             ), trajectories
 
-        for gen in range(1):
+        for _ in range(1):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (eval_popsize, num_opps, env.num_envs)
@@ -644,12 +648,12 @@ class Runner:
             visits = self.state_visitation(trajectories[0])
             prob_visits = visits / visits.sum()
 
-            print(f"Generation: {gen+1}")
+            print(f"Summary: {num_opps} opponents")
             print(
                 "--------------------------------------------------------------------------"
             )
             print(
-                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                f"EARL: {fitness.mean()} | Naive Learners: {other_fitness.mean()}"
             )
             # print(f"State Frequency: {visits}")
             print(f"State Visitation: {prob_visits}")
@@ -657,50 +661,66 @@ class Runner:
                 "--------------------------------------------------------------------------"
             )
 
-            # Logging
-            wandb_log = {
-                "eval/generations": gen + 1,
-                "eval/fitness/player_1": float(fitness.mean()),
-                "eval/fitness/player_2": float(other_fitness.mean()),
-                "eval/state_visitation/CC": prob_visits[0],
-                "eval/state_visitation/CD": prob_visits[1],
-                "eval/state_visitation/DC": prob_visits[2],
-                "eval/state_visitation/DD": prob_visits[3],
-                "eval/state_visitation/START": prob_visits[4],
-                "eval/time/minutes": float(
-                    (time.time() - self.start_time) / 60
-                ),
-                "eval/time/seconds": float((time.time() - self.start_time)),
-            }
-
-            # observations = self.get_observations(trajectories[0])
-            p1_rewards = trajectories[0].rewards
-            p2_rewards = trajectories[1].rewards
-
             # Logging step rewards loop
             # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs]
+            observations = self.get_observations(trajectories[0])
+            p1_rewards = trajectories[0].rewards
+            p2_rewards = trajectories[1].rewards
             for opp_i in range(num_opps):
                 # TODO: Figure out a way to allow for popsize=1 so you can remove 0
                 # Canonically player 1
-                # obs_opp_i = observations[:, :, 0, opp_i, :].squeeze()
+                obs_opp_i = observations[:, :, 0, opp_i, :].squeeze()
                 p1_rew_opp_i = p1_rewards[:, :, 0, opp_i, :].squeeze()
                 p2_rew_opp_i = p2_rewards[:, :, 0, opp_i, :].squeeze()
-                print(
-                    f"Opponent: {opp_i+1} | P1: {p1_rew_opp_i.mean()} | P2: {p2_rew_opp_i.mean()}"
-                )
                 inner_steps = 0
                 for out_step in range(env.num_trials):
-                    # obs_outer_opp_i = obs_opp_i[out_step]
+                    obs_outer_opp_i = obs_opp_i[out_step]
                     p1_ep_rew_opp_i = p1_rew_opp_i[out_step]
                     p2_ep_rew_opp_i = p2_rew_opp_i[out_step]
                     p1_ep_mean_rew_opp_i = p1_rew_opp_i[out_step].mean()
                     p2_ep_mean_rew_opp_i = p2_rew_opp_i[out_step].mean()
+                    state_visit_trial_i = self.get_state_visitation(
+                        obs_outer_opp_i
+                    )
+                    prob_visits = (
+                        state_visit_trial_i / state_visit_trial_i.sum()
+                    )
                     if watchers:
                         wandb.log(
                             {
                                 "eval/trial": out_step + 1,
-                                f"eval/ep_reward/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
-                                f"eval/ep_reward/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
+                                f"eval/trial_reward/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
+                                f"eval/trial_reward/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
+                                f"eval/state_visitation_trial/CC_opp_{opp_i+1}": state_visit_trial_i[
+                                    0
+                                ],
+                                f"eval/state_visitation_trial/CD_opp_{opp_i+1}": state_visit_trial_i[
+                                    1
+                                ],
+                                f"eval/state_visitation_trial/DC_opp_{opp_i+1}": state_visit_trial_i[
+                                    2
+                                ],
+                                f"eval/state_visitation_trial/DD_opp_{opp_i+1}": state_visit_trial_i[
+                                    3
+                                ],
+                                f"eval/state_visitation_trial/START_{opp_i+1}": state_visit_trial_i[
+                                    4
+                                ],
+                                f"eval/state_visitation_trial/CC_probability_opp_{opp_i+1}": prob_visits[
+                                    0
+                                ],
+                                f"eval/state_visitation_trial/CD_probability_opp_{opp_i+1}": prob_visits[
+                                    1
+                                ],
+                                f"eval/state_visitation_trial/DC_probability_opp_{opp_i+1}": prob_visits[
+                                    2
+                                ],
+                                f"eval/state_visitation_trial/DD_probability_opp_{opp_i+1}": prob_visits[
+                                    3
+                                ],
+                                f"eval/state_visitation_trial/START_probability_opp_{opp_i+1}": prob_visits[
+                                    4
+                                ],
                             }
                         )
                     # print(f"Trial: {out_step+1} | Opp: {opp_i+1}"
@@ -729,8 +749,62 @@ class Runner:
                             )
                         inner_steps += 1
 
+                state_visit_opp_i = self.get_state_visitation(obs_opp_i)
+                prob_visits = state_visit_opp_i / state_visit_opp_i.sum()
+                print(
+                    f"Opponent: {opp_i+1} | P1: {p1_rew_opp_i.mean()} | P2: {p2_rew_opp_i.mean()}"
+                )
+                print(f"State visitation: {prob_visits}")
+                if watchers:
+                    wandb.log(
+                        {
+                            "eval/seeds": opp_i + 1,
+                            f"eval/rewards/player_1_opp_{opp_i+1}": float(
+                                fitness.mean()
+                            ),
+                            f"eval/rewards/player_2_opp_{opp_i+1}": float(
+                                other_fitness.mean()
+                            ),
+                            f"eval/state_visitation_opp/CC_opp_{opp_i+1}": state_visit_opp_i[
+                                0
+                            ],
+                            f"eval/state_visitation_opp/CD_opp_{opp_i+1}": state_visit_opp_i[
+                                1
+                            ],
+                            f"eval/state_visitation_opp/DC_opp_{opp_i+1}": state_visit_opp_i[
+                                2
+                            ],
+                            f"eval/state_visitation_opp/DD_opp_{opp_i+1}": state_visit_opp_i[
+                                3
+                            ],
+                            f"eval/state_visitation_opp/START_opp_{opp_i+1}": state_visit_opp_i[
+                                4
+                            ],
+                            f"eval/state_visitation_opp/CC_probability_opp_{opp_i+1}": prob_visits[
+                                0
+                            ],
+                            f"eval/state_visitation_opp/CD_probability_opp_{opp_i+1}": prob_visits[
+                                1
+                            ],
+                            f"eval/state_visitation_opp/DC_probability_opp_{opp_i+1}": prob_visits[
+                                2
+                            ],
+                            f"eval/state_visitation_opp/DD_probability_opp_{opp_i+1}": prob_visits[
+                                3
+                            ],
+                            f"eval/state_visitation_opp/START_probability_opp_{opp_i+1}": prob_visits[
+                                4
+                            ],
+                            "eval/time/minutes": float(
+                                (time.time() - self.start_time) / 60
+                            ),
+                            "eval/time/seconds": float(
+                                (time.time() - self.start_time)
+                            ),
+                        }
+                    )
+
             if watchers:
                 agents.log(watchers)
-                wandb.log(wandb_log)
         print()
         return agents
