@@ -11,13 +11,14 @@ from pax.utils import MemoryState, TrainingState
 # actions are cooperate = 0 or defect = 1
 
 
+def make_initial_state(key, hidden):
+    return TrainingState(None, None, jax.random.PRNGKey(0), None), MemoryState(
+        jnp.ones(1), {"log_probs": None, "values": None}
+    )
+
+
 class GrimTrigger:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.ones(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -56,11 +57,6 @@ class GrimTrigger:
 
 class TitForTat:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.ones(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -102,11 +98,6 @@ class TitForTat:
 
 class Defect:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -144,11 +135,6 @@ class Defect:
 
 class Altruistic:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -208,6 +194,7 @@ class Human:
 class Random:
     def __init__(self, seed: int):
         self.rng = jax.random.PRNGKey(seed)
+        raise DeprecationWarning()
 
     def actor_step(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
         batch_size, _ = timestep.observation.shape
@@ -226,11 +213,6 @@ class Random:
 
 class HyperAltruistic:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -267,11 +249,6 @@ class HyperAltruistic:
 
 class HyperDefect:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, jax.random.PRNGKey(0), None, None
-            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
@@ -313,11 +290,6 @@ class HyperDefect:
 
 class HyperTFT:
     def __init__(self, *args):
-        def make_initial_state(key, hidden):
-            return TrainingState(
-                None, None, jax.random.PRNGKey(0), None
-            ), MemoryState(jnp.zeros(1), {"log_probs": None, "values": None})
-
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
 
