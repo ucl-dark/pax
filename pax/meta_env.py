@@ -67,7 +67,10 @@ class MetaFiniteGame:
 
         def runner_reset(ndims, rng):
             """Returns the first `TimeStep` of a new episode."""
-            state = (0.0, 0.0, rng)
+            # ndims: [num_opps, num_envs]
+            rngs = jax.lax.expand_dims(jax.random.split(rng, ndims[-1]), [0])
+            batched_rngs = jnp.tile(rngs, (ndims[:-1] + (1, 1)))
+            state = (jnp.zeros(ndims), jnp.zeros(ndims), batched_rngs)
             obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
@@ -81,14 +84,11 @@ class MetaFiniteGame:
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
-        self.state = (0.0, 0.0)
         self._reset_next_step = True
 
         # for runner
-        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
-        self.batch_step = jax.jit(
-            jax.vmap(self.runner_step, (0, None), (0, None))
-        )
+        self.runner_step = jax.jit(jax.vmap(step, 0, 0))
+        self.batch_step = jax.jit(jax.vmap(jax.vmap(step, 0, 0), 0, 0))
         self.runner_reset = runner_reset
 
     def step(self, actions):
@@ -124,7 +124,7 @@ class MetaFiniteGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        t, self.state = self.runner_reset(self.num_envs)
+        t, self.state = self.runner_reset(self.num_envs, jax.random.PRNGKey(0))
         self._reset_next_step = False
         return t
 

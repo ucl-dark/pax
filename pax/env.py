@@ -37,11 +37,8 @@ class SequentialMatrixGame(Environment):
         # Dummy variable used to make Runner work with
         # regular and meta learning.
         self.num_trials = 1
-        self.state = (0.0, 0.0)
         self.inner_episode_length = episode_length
-        self.batch_step = jax.jit(
-            jax.vmap(self.runner_step, (0, None), (0, None))
-        )
+        self.batch_step = jax.jit(jax.vmap(self.runner_step, 0, 0))
 
     def step(
         self,
@@ -106,9 +103,13 @@ class SequentialMatrixGame(Environment):
             ),
         ), env_state
 
-    def runner_reset(self, ndims, rng):
+    def runner_reset(self, ndims: Tuple[int], rng: jax.random.PRNGKey):
         """Returns the first `TimeStep` of a new episode."""
-        state = (0.0, 0.0, rng)
+        # ndims: [num_opps, num_envs]
+        rngs = jax.lax.expand_dims(jax.random.split(rng, ndims[-1]), [0])
+        # copy for num_opps
+        batched_rngs = jnp.tile(rngs, (ndims[:-1] + (1, 1)))
+        state = (jnp.zeros(ndims), jnp.zeros(ndims), batched_rngs)
         obs = obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)

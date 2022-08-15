@@ -76,7 +76,6 @@ class Runner:
                 t2.observation,
                 a2_mem,
             )
-
             (tprime_1, tprime_2), env_state = env.batch_step(
                 (a1, a2),
                 env_state,
