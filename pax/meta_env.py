@@ -145,6 +145,7 @@ class InfiniteMatrixGame(Environment):
         def _step(actions, state):
             theta1, theta2 = actions
             (t, rng) = state
+            rng, _ = jax.random.split(rng, 2)
             theta1, theta2 = jax.nn.sigmoid(theta1), jax.nn.sigmoid(theta2)
             obs1 = jnp.concatenate([theta1, theta2])
             obs2 = jnp.concatenate([theta2, theta1])

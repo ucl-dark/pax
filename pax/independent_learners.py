@@ -45,6 +45,7 @@ class IndependentLearners:
         )
 
         if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(
                 agent2._mem.hidden, (args.num_opponents, 1, 1)
             )
