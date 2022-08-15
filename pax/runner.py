@@ -230,7 +230,7 @@ class Runner:
                             rewards_1.mean()
                         ),
                         "eval/joint_reward": float(
-                            rewards_0.mean() + rewards_1.mean() * 0.5
+                            (rewards_0.mean() + rewards_1.mean()) * 0.5
                         ),
                     }
                 )

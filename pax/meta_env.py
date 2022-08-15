@@ -1,4 +1,5 @@
 from typing import Tuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -279,3 +280,145 @@ class InfiniteMatrixGame(Environment):
         return TimeStep(0, jnp.zeros(self.num_envs), 0.0, obs), TimeStep(
             0, jnp.zeros(self.num_envs), 0.0, obs
         )
+
+
+class CoinGameState(NamedTuple):
+    red_pos: jnp.ndarray
+    blue_pos: jnp.ndarray
+    red_coin_pos: jnp.ndarray
+    blue_coin_pos: jnp.ndarray
+    steps_left: jnp.ndarray
+    key: jnp.ndarray
+
+# class CoinGameJAX:
+MOVES = jax.device_put(
+    jnp.array(
+        [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+        ]
+    )
+)
+
+class CoinGame:
+    def __init__(self, config, seed):
+        self.config = config
+        self.key = jax.random.PRNGKey(seed=seed)
+
+        def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
+            obs = jnp.zeros((4, 3, 3))
+            obs = obs.at[0, state.red_pos[0], state.red_pos[1]].set(1.0)
+            obs = obs.at[1, state.blue_pos[0], state.blue_pos[1]].set(1.0)
+            obs = obs.at[2, state.red_coin_pos[0], state.red_coin_pos[1]].set(1.0)
+            obs = obs.at[3, state.blue_coin_pos[0], state.blue_coin_pos[1]].set(1.0)
+            return obs
+        
+        self.jit_state_to_obs = jax.jit(_state_to_obs)
+
+        def _step(actions: Tuple[int, int], state: CoinGameState)-> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, CoinGameState]:
+            action_0, action_1 = actions
+            new_red_pos = (state.red_pos + MOVES[action_0]) % 3
+            new_blue_pos = (state.blue_pos + MOVES[action_1]) % 3
+
+            red_reward = jnp.zeros(1)
+            blue_reward = jnp.zeros(1)
+
+            red_red_matches = jnp.all(new_red_pos == state.red_coin_pos, axis=-1)
+            red_blue_matches = jnp.all(new_red_pos == state.blue_coin_pos, axis=-1)
+
+            red_reward = jnp.where(red_red_matches, red_reward + 1, red_reward)
+            red_reward = jnp.where(red_blue_matches, red_reward + 1, red_reward)
+
+            blue_red_matches = jnp.all(new_blue_pos == state.red_coin_pos, axis=-1)
+            blue_blue_matches = jnp.all(new_blue_pos == state.blue_coin_pos, axis=-1)
+
+            blue_reward = jnp.where(blue_red_matches, blue_reward + 1, blue_reward)
+            blue_reward = jnp.where(blue_blue_matches, blue_reward + 1, blue_reward)
+            
+            key, subkey = jax.random.split(state.key)
+            new_random_coin_poses = jax.random.randint(subkey, shape=(2, 2), minval=0, maxval=3)
+            new_red_coin_pos = jnp.where(jnp.logical_or(red_red_matches, blue_red_matches), new_random_coin_poses[0], state.red_coin_pos)
+            new_blue_coin_pos = jnp.where(jnp.logical_or(red_blue_matches, blue_blue_matches), new_random_coin_poses[1], state.blue_coin_pos)
+            step_count = state.step_count + 1
+
+            new_state = CoinGameState(new_red_pos, new_blue_pos, new_red_coin_pos, new_blue_coin_pos, step_count, key)
+            obs = self.jit_state_to_obs(new_state)
+
+            return obs, red_reward, blue_reward, new_state
+
+        self._jit_step = jax.jit(jax.vmap(_step))
+
+        # key, subkey = jax.random.split(self.key)
+        # all_pos = jax.random.randint(subkey, shape=(4, 2), minval=0, maxval=3)
+        # step_count = jnp.zeros(1)
+        # self._state = CoinGameState(all_pos[0], all_pos[1], all_pos[2], all_pos[3], step_count, key)
+
+    def runner_reset(self, key, ndims: Tuple[int]) -> Tuple[jnp.ndarray, CoinGameState]:
+        key, subkey = jax.random.split(key)
+        all_pos = jax.random.randint(subkey, shape=(4, 2), minval=0, maxval=3)
+        discount = jnp.zeros(1)
+        step_type = jnp.zeros(1)
+        rewards = jnp.zeros(1)
+        step_count = jnp.zeros(1)
+        state = CoinGameState(all_pos[:, 0,:], all_pos[:, 1, :], all_pos[:, 2, :], all_pos[:, 3, :], step_count, key)
+        obs = self.jit_state_to_obs(state)
+
+        output = [
+            TimeStep(step_type, rewards, discount, obs), 
+            TimeStep(step_type, rewards, discount, obs)
+        ]
+
+        return state, output
+
+    def reset(self, key) -> Tuple[TimeStep, TimeStep]:
+        self._state, output = self.runner_reset(key)
+
+        return output
+
+    def runner_step(
+        self,
+        actions: Tuple[int, int],
+        env_state: CoinGameState,
+    )-> Tuple[Tuple[TimeStep, TimeStep], CoinGameState]:
+
+        obs, red_reward, blue_reward, new_state = self._jit_step(actions, env_state)
+
+        output = [
+            TimeStep(
+                step_type=jnp.ones_like(red_reward, dtype=int),
+                reward=red_reward,
+                discount=jnp.zeros_like(red_reward, dtype=int),
+                observation=obs),
+            TimeStep(
+                step_type=jnp.ones_like(blue_reward, dtype=int),
+                reward=blue_reward,
+                discount=jnp.zeros_like(blue_reward, dtype=int),
+                observation=obs),
+        ]
+
+        return output, new_state
+
+    def step(self, 
+        actions: Tuple[int, int]) -> Tuple[TimeStep, TimeStep]:
+        output, self._state = self.runner_step(actions, self._state)
+        return output
+
+
+    def observation_spec(self) -> specs.BoundedArray:
+        """Returns the observation spec."""
+        return specs.BoundedArray(
+            shape=(self.num_envs, 4, 3, 3),
+            minimum=0,
+            maximum=1,
+            name="obs",
+            dtype=int,
+        )
+
+    def action_spec(self) -> specs.DiscreteArray:
+        """Returns the action spec."""
+        return specs.DiscreteArray(num_values=4, name="actions")
+
+
+
