@@ -162,15 +162,15 @@ class Runner:
         ):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
-            a1_mem = agent1.batch_reset(a1_mem, False)
 
-            if self.args.env_type in ["meta", "infinite"]:
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
+
+            elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
-            elif self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
 
             # run trials
             vals, trajectories = jax.lax.scan(
@@ -193,6 +193,10 @@ class Runner:
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
+            # update second agent
+            a2_state, a2_mem = vals[4], vals[5]
 
             # logging
             self.train_episodes += 1
