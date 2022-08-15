@@ -122,7 +122,7 @@ class SequentialMatrixGame(Environment):
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
-        t_init, _ = self.runner_reset((self.num_envs))
+        t_init, _ = self.runner_reset((self.num_envs,), jax.random.PRNGKey(0))
         self._num_steps = 0
         return t_init
 

@@ -67,10 +67,15 @@ class MetaFiniteGame:
 
         def runner_reset(ndims, rng):
             """Returns the first `TimeStep` of a new episode."""
-            # ndims: [num_opps, num_envs]
-            rngs = jax.lax.expand_dims(jax.random.split(rng, ndims[-1]), [0])
-            batched_rngs = jnp.tile(rngs, (ndims[:-1] + (1, 1)))
-            state = (jnp.zeros(ndims), jnp.zeros(ndims), batched_rngs)
+            # ndims: [num_opps, num_envs] or [num_envs]
+
+            rngs = jax.random.split(rng, ndims[-1])
+            if len(ndims) != 1:
+                rngs = jnp.tile(
+                    jax.lax.expand_dims(rngs, [0]), (ndims[:-1] + (1, 1))
+                )
+
+            state = (jnp.zeros(ndims), jnp.zeros(ndims), rngs)
             obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
@@ -95,8 +100,8 @@ class MetaFiniteGame:
         if self._reset_next_step:
             return self.reset()
 
-        output, self.state = self.runner_step(actions, self.state)
-        if self.state[1] == self.num_trials:
+        output, self._state = self.runner_step(actions, self._state)
+        if (self._state[1] == self.num_trials).all():
             self._reset_next_step = True
             output = (
                 TimeStep(
@@ -124,7 +129,9 @@ class MetaFiniteGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        t, self.state = self.runner_reset(self.num_envs, jax.random.PRNGKey(0))
+        t, self._state = self.runner_reset(
+            (self.num_envs,), jax.random.PRNGKey(0)
+        )
         self._reset_next_step = False
         return t
 
@@ -280,6 +287,8 @@ class InfiniteMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         self._num_steps = 0
-        t_init, self._state = self.runner_reset((self.num_envs, self.key))
+        t_init, self._state = self.runner_reset(
+            (self.num_envs,), self._state[1]
+        )
         self.key = self._state[1]
         return t_init
