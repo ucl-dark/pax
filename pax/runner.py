@@ -164,14 +164,13 @@ class Runner:
             t_init, env_state = env.runner_reset((self.num_opps, env.num_envs))
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # for meta-experiments / we initialise a new 2nd agent per trial
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
-
-            elif self.args.env_type != "meta":
+            if self.args.env_type in ["meta", "infinite"]:
+                # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
+            elif self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
 
             # run trials
             vals, trajectories = jax.lax.scan(
@@ -187,13 +186,6 @@ class Runner:
             )
             a1_state = vals[2]
             a1_mem = vals[3]
-
-            # DEBUGGING MFOS
-            # print(trajectories[0].observations.shape)
-            # print(trajectories[0].actions.shape)
-            # print(trajectories[0].hiddens.shape)
-            # print(trajectories[0].rewards.shape)
-            # print(trajectories[0].behavior_log_probs.shape)
 
             a1_state, _ = agent1.update(
                 reduce_outer_traj(trajectories[0]),

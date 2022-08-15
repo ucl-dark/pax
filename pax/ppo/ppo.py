@@ -218,6 +218,7 @@ class PPO:
                 "entropy_cost": entropy_cost,
             }
 
+        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:

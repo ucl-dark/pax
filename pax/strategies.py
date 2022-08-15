@@ -97,7 +97,6 @@ class TitForTat:
         # if 1 | 3 -> D
         obs = obs % 2
         action = jnp.where(obs > 0.0, 1.0, 0.0)
-        # action = jnp.expand_dims(action, axis=-1) # removing this in preference for (action, )
         return action
 
 
@@ -337,6 +336,7 @@ class HyperTFT:
             20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
         )
 
+    @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:

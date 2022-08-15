@@ -408,8 +408,8 @@ class PPO:
             )
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self.make_initial_state = make_initial_state
+        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self.prepare_batch = prepare_batch
         self._sgd_step = sgd_step
 
@@ -448,7 +448,7 @@ class PPO:
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-        memory = self._mem._replace(
+        memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
