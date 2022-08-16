@@ -75,8 +75,8 @@ class NaiveLearner:
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
             _done = jax.lax.select(
