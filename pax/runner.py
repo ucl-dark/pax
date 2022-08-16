@@ -3,6 +3,7 @@ from typing import List, NamedTuple
 
 import jax
 import jax.numpy as jnp
+from dm_env import TimeStep
 
 import wandb
 
@@ -44,6 +45,8 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opponents
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.num_opps = args.num_opponents
+        self.random_key = jax.random.PRNGKey(args.seed)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -53,8 +56,18 @@ class Runner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        def _state_visitation(traj: Sample) -> List:
-            obs = jnp.argmax(traj.observations, axis=-1)
+        def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
+            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+            # final_t [num_opps, num_envs, ...]
+            num_timesteps = (
+                traj.observations.shape[0] * traj.observations.shape[1]
+            )
+            obs = jnp.reshape(
+                traj.observations,
+                (num_timesteps,) + traj.observations.shape[2:],
+            )
+            final_obs = jax.lax.expand_dims(final_t.observation, [0])
+            obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
@@ -115,9 +128,6 @@ class Runner:
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
-
-            # env reset here
-
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
@@ -127,11 +137,12 @@ class Runner:
             )
 
             # update second agent
-            final_t2 = vals[1]._replace(
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
-            a2_state = vals[4]
-            a2_mem = vals[5]
+
             a2_state, a2_mem = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
@@ -155,6 +166,7 @@ class Runner:
         # # this needs to move into independent learners too
         # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
         # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
+
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         # run actual loop
@@ -162,7 +174,7 @@ class Runner:
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
             rng, _ = jax.random.split(rng)
-            t_init, env_state = env.init_state(
+            t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng
             )
 
@@ -211,7 +223,7 @@ class Runner:
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                visits = self.state_visitation(trajectories[0])
+                visits = self.state_visitation(trajectories[0], final_t1)
                 print(f"State Frequency: {visits}")
 
             if watchers:

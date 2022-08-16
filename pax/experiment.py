@@ -8,12 +8,12 @@ import wandb
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
-from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame, CoinGame
-from pax.runner import Runner
+from pax.meta_env import CoinGame, InfiniteMatrixGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
     Defect,

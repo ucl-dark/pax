@@ -1,5 +1,4 @@
-from typing import Tuple
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -77,7 +76,7 @@ class MetaFiniteGame:
                 )
 
             state = (jnp.zeros(ndims), jnp.zeros(ndims), rngs)
-            obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
+            obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
             rewards = jnp.zeros(ndims)
@@ -199,13 +198,6 @@ class InfiniteMatrixGame(Environment):
         self._state = (0.0, jax.random.PRNGKey(seed=seed))
         self.num_trials = 1
         self.inner_episode_length = episode_length
-
-        # for runner
-        self.num_trials = 1
-        self.inner_episode_length = episode_length
-        self.batch_step = jax.jit(
-            jax.vmap(self.runner_step, (0, None), (0, None))
-        )
 
         # for runner
         self.num_trials = 1
@@ -341,7 +333,7 @@ class CoinGame:
             ].set(1.0)
             return obs.flatten()
 
-        def _runner_reset(
+        def _reset(
             key: jnp.ndarray,
         ) -> Tuple[jnp.ndarray, CoinGameState]:
             key, subkey = jax.random.split(key)
@@ -439,7 +431,7 @@ class CoinGame:
             done = inner_t % inner_ep_length == 0
 
             # if inner episode is done, return start state for next game
-            new_ep_outputs, new_ep_state = _runner_reset(state.key)
+            new_ep_outputs, new_ep_state = _reset(state.key)
             new_ep_state = new_ep_state._replace(
                 outer_t=new_ep_state.outer_t + 1
             )
@@ -484,7 +476,7 @@ class CoinGame:
             return output, new_state
 
         self._jit_step = jax.jit(jax.vmap(_step))
-        self.runner_reset = jax.vmap(_runner_reset)
+        self._reset = jax.vmap(_reset)
         self.key = jax.random.split(jax.random.PRNGKey(seed=seed), num_envs)
 
         self.num_envs = num_envs
@@ -494,9 +486,9 @@ class CoinGame:
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0)
 
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))
-        self.batch_reset = jax.jit(jax.vmap(jax.vmap(_runner_reset)))
+        self.batch_reset = jax.jit(jax.vmap(jax.vmap(_reset)))
 
-    def init_state(
+    def runner_reset(
         self, ndims: Tuple[int], key: jax.random.PRNGKey
     ) -> Tuple[jnp.ndarray, CoinGameState]:
 
@@ -509,7 +501,7 @@ class CoinGame:
         return output, state
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
-        self._state, output = self.runner_reset(self.key)
+        self._state, output = self._reset(self.key)
         return output
 
     def step(self, actions: Tuple[int, int]) -> Tuple[TimeStep, TimeStep]:

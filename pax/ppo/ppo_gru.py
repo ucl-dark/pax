@@ -72,6 +72,7 @@ class PPO:
             (dist, values), hidden_state = network.apply(
                 state.params, observation, mem.hidden
             )
+
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
@@ -393,8 +394,8 @@ class PPO:
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
             _done = jax.lax.select(

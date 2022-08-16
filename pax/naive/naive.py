@@ -72,12 +72,11 @@ class NaiveLearner:
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-            print(t_prime.last().shape)
-            print(action_extras["values"].shape)
+
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
             _done = jax.lax.select(
@@ -207,8 +206,8 @@ class NaiveLearner:
                 behavior_values=behavior_values,
             )
 
-            # # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
-            # # to [num_envs * num_steps,..]
+            # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
+            # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
             num_envs = target_values.shape[1]
             num_steps = target_values.shape[0]
@@ -318,11 +317,11 @@ class NaiveLearner:
             )
 
             new_memory = MemoryState(
-                hidden=None,
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
+                hidden=jnp.zeros((num_envs, 1)),  # None earlier
             )
 
             return new_state, new_memory, metrics

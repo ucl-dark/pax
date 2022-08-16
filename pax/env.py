@@ -107,10 +107,11 @@ class SequentialMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         # ndims: [num_opps, num_envs]
         rngs = jax.lax.expand_dims(jax.random.split(rng, ndims[-1]), [0])
-        # copy for num_opps
+        # rngs: (1, num_envs, 2)
         batched_rngs = jnp.tile(rngs, (ndims[:-1] + (1, 1)))
+        # batched_rngs: (num_opps, num_envs, 2)
         state = (jnp.zeros(ndims), jnp.zeros(ndims), batched_rngs)
-        obs = obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
+        obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)
         rewards = jnp.zeros(ndims)

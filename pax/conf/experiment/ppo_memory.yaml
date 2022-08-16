@@ -15,8 +15,8 @@ payoff:
 num_envs: 100
 num_opponents: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 2_000_000
-eval_every: 2_000_000 # timesteps
+total_timesteps: 2e7
+eval_every: 2e7 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -25,8 +25,8 @@ eval_every: 2_000_000 # timesteps
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 10
-  num_epochs: 4 
+  num_minibatches: 4
+  num_epochs: 2 
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -35,7 +35,7 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.02
-  entropy_coeff_horizon: 1_000_000
+  entropy_coeff_horizon: 1e9
   entropy_coeff_end: 0.001
   lr_scheduling: True
   learning_rate: 3e-4

@@ -282,13 +282,9 @@ class HyperDefect:
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
 
-    def make_initial_state(
-        self, _unused, *args
-    ) -> Tuple[TrainingState, MemoryState]:
-        return self._state, self._mem
-
 
 class HyperTFT:
+    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)

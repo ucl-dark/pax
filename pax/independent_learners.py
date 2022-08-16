@@ -23,6 +23,7 @@ class IndependentLearners:
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
         )
+
         agent1.batch_policy = jax.jit(
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
@@ -36,6 +37,9 @@ class IndependentLearners:
                 agent2.make_initial_state, (0, None), 0
             )
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy, 0, 0))
+        agent2.batch_reset = jax.jit(
+            jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
+        )
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         # init agents
