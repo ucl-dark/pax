@@ -435,8 +435,6 @@ class Runner:
         print("Evaluating")
         print("-----------------------")
         eval_dir = f"{os.getcwd()}/pax/log/"
-        # TODO: refactor to allow for popsize = 1
-        eval_popsize = 2
         agent1, agent2 = agents.agents
         rng = jax.random.PRNGKey(0)
         param_reshaper = ParameterReshaper(agent1._state.params)
@@ -447,8 +445,11 @@ class Runner:
             maximize=True,
         )
 
-        # vmap pop_size, num_opps dims
+        # Evaluation parameters
         num_opps = 20
+        eval_popsize = 1
+
+        # TODO: Remove after f/batched_naive is merged. Moved to IndependentLearners
         env.batch_step = jax.jit(
             jax.vmap(
                 jax.vmap(env.runner_step, (0, None), (0, None)),
@@ -650,7 +651,7 @@ class Runner:
             visits = self.state_visitation(trajectories[0])
             prob_visits = visits / visits.sum()
 
-            print(f"Summary: {num_opps} opponents")
+            print(f"Summary | Number of opponents: {num_opps}")
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -671,9 +672,9 @@ class Runner:
             for opp_i in range(num_opps):
                 # TODO: Figure out a way to allow for popsize=1 so you can remove 0
                 # Canonically player 1
-                obs_opp_i = observations[:, :, 0, opp_i, :].squeeze()
-                p1_rew_opp_i = p1_rewards[:, :, 0, opp_i, :].squeeze()
-                p2_rew_opp_i = p2_rewards[:, :, 0, opp_i, :].squeeze()
+                obs_opp_i = observations[:, :, :, opp_i, :].squeeze()
+                p1_rew_opp_i = p1_rewards[:, :, :, opp_i, :].squeeze()
+                p2_rew_opp_i = p2_rewards[:, :, :, opp_i, :].squeeze()
                 inner_steps = 0
                 for out_step in range(env.num_trials):
                     obs_outer_opp_i = obs_opp_i[out_step]
@@ -725,22 +726,10 @@ class Runner:
                                 ],
                             }
                         )
-                    # print(f"Trial: {out_step+1} | Opp: {opp_i+1}"
-                    # "{p1_ep_mean_rew_opp_i}, {p2_ep_mean_rew_opp_i}")
+
                     for in_step in range(env.inner_episode_length):
                         p1_step_rew_opp_i = p1_ep_rew_opp_i[in_step]
                         p2_step_rew_opp_i = p2_ep_rew_opp_i[in_step]
-                        # obs_inner_opp_i = obs_outer_opp_i[in_step]
-                        # if obs_inner_opp_i == 4:
-                        #     print(f"State: {obs_inner_opp_i} | START | Reward: {p1_step_rew_opp_i}")
-                        # elif obs_inner_opp_i == 3:
-                        #     print(f"State: {obs_inner_opp_i} | DD | Reward: {p1_step_rew_opp_i}")
-                        # elif obs_inner_opp_i == 2:
-                        #     print(f"State: {obs_inner_opp_i} | DC | Reward: {p1_step_rew_opp_i}")
-                        # elif obs_inner_opp_i == 1:
-                        #     print(f"State: {obs_inner_opp_i} | CD | Reward: {p1_step_rew_opp_i}")
-                        # elif obs_inner_opp_i == 0:
-                        #     print(f"State: {obs_inner_opp_i} | CC | Reward: {p1_step_rew_opp_i}")
                         if watchers:
                             wandb.log(
                                 {
@@ -754,9 +743,10 @@ class Runner:
                 state_visit_opp_i = self.get_state_visitation(obs_opp_i)
                 prob_visits = state_visit_opp_i / state_visit_opp_i.sum()
                 print(
-                    f"Opponent: {opp_i+1} | P1: {p1_rew_opp_i.mean()} | P2: {p2_rew_opp_i.mean()}"
+                    f"Opponent: {opp_i+1} | EARL: {p1_rew_opp_i.mean()} "
+                    f"| Naive Learner {opp_i+1}: {p2_rew_opp_i.mean()}"
                 )
-                print(f"State visitation: {prob_visits}")
+                print(f"State visitations: {prob_visits}")
                 if watchers:
                     wandb.log(
                         {
