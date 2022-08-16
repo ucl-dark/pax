@@ -446,7 +446,7 @@ class Runner:
         )
 
         # Evaluation parameters
-        num_opps = 2
+        num_opps = 20
         eval_popsize = 1
 
         # TODO: Remove after f/batched_naive is merged. Moved to IndependentLearners
@@ -532,6 +532,7 @@ class Runner:
         # )
 
         params = param_reshaper.reshape(log["top_gen_params"][0:1])
+        # Adds n copies of a pytree
         params = jax.tree_util.tree_map(
             lambda x: jnp.repeat(x, eval_popsize, axis=0), params
         )
