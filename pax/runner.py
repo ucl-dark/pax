@@ -115,6 +115,9 @@ class Runner:
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+
+            # env reset here
+
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
@@ -152,7 +155,6 @@ class Runner:
         # # this needs to move into independent learners too
         # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
         # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
-
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         # run actual loop
@@ -160,7 +162,7 @@ class Runner:
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
             rng, _ = jax.random.split(rng)
-            t_init, env_state = env.runner_reset(
+            t_init, env_state = env.init_state(
                 (self.num_opps, env.num_envs), rng
             )
 

@@ -72,7 +72,8 @@ class NaiveLearner:
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-
+            print(t_prime.last().shape)
+            print(action_extras["values"].shape)
             _value = jax.lax.select(
                 t_prime.last(),
                 action_extras["values"],
@@ -328,7 +329,6 @@ class NaiveLearner:
 
         def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
-            obs_spec = 5
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
