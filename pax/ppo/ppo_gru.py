@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -46,6 +46,7 @@ class PPO:
         random_key: jnp.ndarray,
         gru_dim: int,
         obs_spec: Tuple,
+        batch_size: int = 2000,
         num_envs: int = 4,
         num_steps: int = 500,
         num_minibatches: int = 16,
@@ -64,22 +65,24 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: TimeStep, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
             (dist, values), hidden_state = network.apply(
-                params, observation, state.hidden
+                state.params, observation, mem.hidden
             )
+
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = state._replace(
-                random_key=key, hidden=hidden_state, extras=state.extras
-            )
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(hidden=hidden_state, extras=mem.extras)
+
+            state = state._replace(random_key=key)
             return (
                 actions,
                 state,
+                mem,
             )
 
         def gae_advantages(
@@ -231,8 +234,6 @@ class PPO:
             metrics["norm_updates"] = optax.global_norm(updates)
             return (params, opt_state, timesteps), metrics
 
-        batch_size = num_envs * num_steps
-
         @jax.jit
         def model_update_epoch(
             carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
@@ -344,20 +345,25 @@ class PPO:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
+                timesteps=timesteps + batch_size,
+            )
+
+            new_memory = MemoryState(
+                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
-                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
             )
 
-            return new_state, metrics
+            return new_state, new_memory, metrics
 
         def make_initial_state(
-            key: Any, obs_spec: Tuple, initial_hidden_state
+            key: Any, initial_hidden_state: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
+
+            # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
@@ -366,15 +372,18 @@ class PPO:
             )
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
+                random_key=key,
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key,
                 timesteps=0,
+            ), MemoryState(
+                hidden=jnp.zeros(
+                    (num_envs, initial_hidden_state.shape[-1])
+                ),  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=initial_hidden_state,  # initial_hidden_state,
             )
 
         @jax.jit
@@ -386,17 +395,18 @@ class PPO:
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -414,9 +424,11 @@ class PPO:
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._state = make_initial_state(
-            random_key, obs_spec, initial_hidden_state
+        self._state, self._mem = make_initial_state(
+            random_key, initial_hidden_state
         )
+
+        self.make_initial_state = make_initial_state
 
         self.prepare_batch = prepare_batch
         if has_sgd_jit:
@@ -449,40 +461,45 @@ class PPO:
         self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
+        self._gru_dim = gru_dim
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
-            self._state.params, t.observation, self._state
-        )
+        (
+            actions,
+            self._state,
+            self._mem,
+        ) = self._policy(self._state, t.observation, self._mem)
         return utils.to_numpy(actions)
 
-    def reset_memory(self) -> TrainingState:
-        num_envs = 1 if self.eval else self._num_envs
+    def reset_memory(self, memory, eval=False) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
 
-        new_state = self._state._replace(
+        memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
-            hidden=jnp.zeros((num_envs, self._state.hidden.shape[1])),
+            hidden=jnp.zeros((num_envs, self._gru_dim)),
         )
-
-        self._state = new_state
-        return self._state
+        return memory
 
     def update(
         self,
         traj_batch,
         t_prime: TimeStep,
         state,
+        mem,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
 
-        traj_batch = self.prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
+        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, results = self._sgd_step(state, traj_batch)
+
+        # update logging
+
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -491,8 +508,7 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        self._state = state
-        return state
+        return state, mem
 
 
 # TODO: seed, and player_id not used in CartPole
@@ -516,7 +532,7 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opponents)
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -554,6 +570,7 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
+        batch_size=args.num_envs * args.num_opponents,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,
@@ -570,9 +587,6 @@ def make_gru_agent(
         player_id=player_id,
         has_sgd_jit=has_sgd_jit,
     )
-    return agent
-
-    agent.player_id = player_id
     return agent
 
 

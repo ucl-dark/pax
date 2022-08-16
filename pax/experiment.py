@@ -5,16 +5,15 @@ import hydra
 import omegaconf
 
 import wandb
-from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
-from pax.runner import Runner
 from pax.naive.naive import make_naive_pg
-from pax.naive_exact import NaiveLearnerEx
+from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -33,10 +32,8 @@ from pax.watchers import (
     losses_naive,
     losses_ppo,
     naive_pg_losses,
-    policy_logger_dqn,
     policy_logger_ppo,
     policy_logger_ppo_with_memory,
-    value_logger_dqn,
     value_logger_ppo,
 )
 
@@ -155,21 +152,6 @@ def runner_setup(args):
 def agent_setup(args, logger):
     """Set up agent variables."""
 
-    def get_DQN_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        dummy_env = SequentialMatrixGame(
-            args.num_envs, args.payoff, args.num_steps
-        )
-
-        dqn_agent = default_agent(
-            args,
-            obs_spec=dummy_env.observation_spec(),
-            action_spec=dummy_env.action_spec(),
-            seed=seed,
-            player_id=player_id,
-        )
-        return dqn_agent
-
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
@@ -252,7 +234,7 @@ def agent_setup(args, logger):
             args.seed,
         )
 
-        agent = NaiveLearnerEx(
+        agent = NaiveExact(
             action_dim=dummy_env.action_spec().shape[1],
             env=dummy_env,
             lr=args.naive.lr,
@@ -268,13 +250,12 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": Random,
         "Grim": GrimTrigger,
-        "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearnerEx": get_naive_learner,
+        "NaiveEx": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -299,19 +280,11 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    return IndependentLearners([agent_0, agent_1])
+    return IndependentLearners([agent_0, agent_1], args)
 
 
 def watcher_setup(args, logger):
     """Set up watcher variables."""
-
-    def dqn_log(agent):
-        policy_dict = policy_logger_dqn(agent)
-        value_dict = value_logger_dqn(agent)
-        policy_dict.update(value_dict)
-        if args.wandb.log:
-            wandb.log(policy_dict)
-        return
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
@@ -362,12 +335,11 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
-        "DQN": dqn_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
-        "NaiveLearnerEx": naive_logger,
+        "NaiveEx": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
@@ -412,9 +384,8 @@ def main(args):
     for num_update in range(int(total_num_ep // train_num_ep)):
         print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
-
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
+        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":

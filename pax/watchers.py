@@ -3,7 +3,7 @@ from flax import linen as nn
 
 import pax.hyper.ppo as HyperPPO
 import pax.ppo.ppo as PPO
-from pax.naive_exact import NaiveLearnerEx
+from pax.naive_exact import NaiveExact
 
 from .env import State
 
@@ -101,25 +101,25 @@ def value_logger_ppo(agent: PPO) -> dict:
 def policy_logger_ppo_with_memory(agent) -> dict:
     """Calculate probability of coopreation"""
     # n = 5
-    params = agent._state.params
-    hidden = agent._state.hidden
-    pid = agent.player_id
+    # params = agent._state.params
+    # hidden = agent._state.hidden
+    # pid = agent.player_id
 
-    # episode = int(
-    #     agent._logger.metrics["total_steps"]
-    #     / (agent._num_steps * agent._num_envs)
-    # )
-    episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
-    cooperation_probs = {"episode": episode}
+    # # episode = int(
+    # #     agent._logger.metrics["total_steps"]
+    # #     / (agent._num_steps * agent._num_envs)
+    # # )
+    # episode = int(agent._logger.metrics["total_steps"] / agent._num_steps)
+    # cooperation_probs = {"episode": episode}
 
     # TODO: Figure out how to JIT the forward function
     # Works when the forward function is not jitted.
-    for state, state_name in zip(ALL_STATES, STATE_NAMES):
-        (dist, _), hidden = agent.forward(params, state, hidden)
-        cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = float(
-            dist.probs[0][0]
-        )
-    return cooperation_probs
+    # for state, state_name in zip(ALL_STATES, STATE_NAMES):
+    #     (dist, _), hidden = agent.forward(params, state, hidden)
+    #     cooperation_probs[f"policy/ppo_{pid}/{state_name}"] = float(
+    #         dist.probs[0][0].mean()
+    #         )
+    return {}
 
 
 def naive_pg_losses(agent) -> None:
@@ -165,7 +165,7 @@ def losses_ppo(agent: PPO) -> dict:
     return losses
 
 
-def losses_naive(agent: NaiveLearnerEx) -> dict:
+def losses_naive(agent: NaiveExact) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
@@ -178,7 +178,7 @@ def losses_naive(agent: NaiveLearnerEx) -> dict:
     return losses
 
 
-def logger_naive(agent: NaiveLearnerEx) -> dict:
+def logger_naive(agent: NaiveExact) -> dict:
     params = agent._state.params
     pid = agent.player_id
     params = params.mean(axis=0)
