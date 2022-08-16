@@ -215,16 +215,18 @@ class Runner:
 
             # logging
             self.train_episodes += 1
-            rewards_0 = trajectories[0].rewards.mean()
-            rewards_1 = trajectories[1].rewards.mean()
+            # sum over inner t dimmension
+            rewards_0 = trajectories[0].rewards.sum(axis=1).mean()
+            rewards_1 = trajectories[1].rewards.sum(axis=1).mean()
 
             if i % 5 == 0:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                visits = self.state_visitation(trajectories[0], final_t1)
-                print(f"State Frequency: {visits}")
+                if self.args.env_type not in ["coin_game"]:
+                    visits = self.state_visitation(trajectories[0], final_t1)
+                    print(f"State Frequency: {visits}")
 
             if watchers:
                 agents.log(watchers)

@@ -1,17 +1,4 @@
-hydra:
-  run:
-    dir: .
-  sweep:
-    dir: .
-    subdir: .
-  job_logging:
-    root:
-      level: INFO
-
-# Global variables 
-seed: 25
-save_dir: "./exp/${wandb.group}/${wandb.name}"
-debug: False
+# @package _global_
 
 # Agents  
 agent1: 'PPO'
@@ -58,20 +45,10 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
 
-# Naive Learner parameters 
-naive:
-  num_minibatches: 1
-  num_epochs: 1
-  gamma: 0.96
-  gae_lambda: 0.95
-  max_gradient_norm: 1.0
-  learning_rate: 1.0
-  adam_epsilon: 1e-5
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: ??
+  group: 'cg-inner-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: False

@@ -122,7 +122,7 @@ def env_setup(args, logger=None):
         if logger:
             logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
-    elif args.env_type == "cg":
+    elif args.env_type == "coin_game":
         train_env = CoinGame(
             args.num_envs,
             inner_ep_length=args.num_inner_steps,
@@ -173,7 +173,7 @@ def agent_setup(args, logger):
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
 
-        if args.env_type == "cg":
+        if args.env_type == "coin_gmae":
             dummy_env = CoinGame(
                 args.num_envs, args.num_steps, args.num_steps, 0
             )
@@ -200,9 +200,16 @@ def agent_setup(args, logger):
 
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        dummy_env = SequentialMatrixGame(
-            args.num_envs, args.payoff, args.num_steps
-        )
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs, args.num_steps, args.num_steps, 0
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
+            )
+            obs_spec = (dummy_env.observation_spec().num_values,)
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -211,7 +218,7 @@ def agent_setup(args, logger):
 
         ppo_agent = make_agent(
             args,
-            obs_spec=(dummy_env.observation_spec().num_values,),
+            obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
@@ -239,7 +246,7 @@ def agent_setup(args, logger):
         return hyper_agent
 
     def get_naive_pg(seed, player_id):
-        if args.env_type == "cg":
+        if args.env_type == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs, args.num_steps, args.num_steps, 0
             )
