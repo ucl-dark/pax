@@ -9,7 +9,7 @@ from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
-from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
+from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame, CoinGame
 from pax.runner import Runner
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveLearnerEx
@@ -124,6 +124,24 @@ def env_setup(args, logger=None):
         )
         if logger:
             logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
+
+    elif args.env_type == "cg":
+        train_env = CoinGame(
+            args.num_envs,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
+            seed=args.seed,
+        )
+        test_env = CoinGame(
+            args.num_envs,
+            inner_ep_length=args.num_inner_steps,
+            num_steps=args.num_steps,
+            seed=args.seed,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: CoinGame | Episode Length: {args.num_steps}"
+            )
 
     else:
         train_env = InfiniteMatrixGame(
