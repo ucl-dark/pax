@@ -55,7 +55,9 @@ def global_setup(args):
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),
+            settings=wandb.Settings(code_dir="."),
         )
+        wandb.run.log_code(".")
 
 
 def payoff_setup(args, logger):

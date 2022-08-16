@@ -446,7 +446,7 @@ class Runner:
         )
 
         # Evaluation parameters
-        num_opps = 20
+        num_opps = 2
         eval_popsize = 1
 
         # TODO: Remove after f/batched_naive is merged. Moved to IndependentLearners
