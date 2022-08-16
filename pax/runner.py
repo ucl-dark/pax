@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 
 import wandb
+from dm_env import TimeStep
 
 
 class Sample(NamedTuple):
@@ -53,8 +54,18 @@ class Runner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        def _state_visitation(traj: Sample) -> List:
-            obs = jnp.argmax(traj.observations, axis=-1)
+        def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
+            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+            # final_t [num_opps, num_envs, ...]
+            num_timesteps = (
+                traj.observations.shape[0] * traj.observations.shape[1]
+            )
+            obs = jnp.reshape(
+                traj.observations,
+                (num_timesteps,) + traj.observations.shape[2:],
+            )
+            final_obs = jax.lax.expand_dims(final_t.observation, [0])
+            obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
@@ -210,7 +221,7 @@ class Runner:
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                visits = self.state_visitation(trajectories[0])
+                visits = self.state_visitation(trajectories[0], final_t1)
                 print(f"State Frequency: {visits}")
 
             if watchers:
