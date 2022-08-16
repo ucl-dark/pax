@@ -5,7 +5,6 @@ import hydra
 import omegaconf
 
 import wandb
-from pax.dqn.agent import default_agent
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
@@ -33,10 +32,8 @@ from pax.watchers import (
     losses_naive,
     losses_ppo,
     naive_pg_losses,
-    policy_logger_dqn,
     policy_logger_ppo,
     policy_logger_ppo_with_memory,
-    value_logger_dqn,
     value_logger_ppo,
 )
 
@@ -155,21 +152,6 @@ def runner_setup(args):
 def agent_setup(args, logger):
     """Set up agent variables."""
 
-    def get_DQN_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        dummy_env = SequentialMatrixGame(
-            args.num_envs, args.payoff, args.num_steps
-        )
-
-        dqn_agent = default_agent(
-            args,
-            obs_spec=dummy_env.observation_spec(),
-            action_spec=dummy_env.action_spec(),
-            seed=seed,
-            player_id=player_id,
-        )
-        return dqn_agent
-
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
         dummy_env = SequentialMatrixGame(
@@ -268,7 +250,6 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": Random,
         "Grim": GrimTrigger,
-        "DQN": get_DQN_agent,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
@@ -304,14 +285,6 @@ def agent_setup(args, logger):
 
 def watcher_setup(args, logger):
     """Set up watcher variables."""
-
-    def dqn_log(agent):
-        policy_dict = policy_logger_dqn(agent)
-        value_dict = value_logger_dqn(agent)
-        policy_dict.update(value_dict)
-        if args.wandb.log:
-            wandb.log(policy_dict)
-        return
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
@@ -362,7 +335,6 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
-        "DQN": dqn_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "Naive": naive_pg_log,
