@@ -318,8 +318,8 @@ class NaiveLearner:
 
             new_memory = MemoryState(
                 extras={
-                    "log_probs": jnp.zeros(self._num_envs),
-                    "values": jnp.zeros(self._num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                    "values": jnp.zeros(num_envs),
                 },
                 hidden=jnp.zeros((num_envs, 1)),  # None earlier
             )

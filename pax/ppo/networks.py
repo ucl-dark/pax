@@ -146,7 +146,7 @@ def make_GRU_cartpole_network(num_actions: int):
 def test_GRU():
     key = jax.random.PRNGKey(seed=0)
     num_actions = 2
-    obs_spec = (36,)
+    obs_spec = (5,)
     key, subkey = jax.random.split(key)
     dummy_obs = jnp.zeros(shape=obs_spec)
     dummy_obs = utils.add_batch_dim(dummy_obs)
