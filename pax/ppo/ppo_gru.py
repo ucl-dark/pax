@@ -72,10 +72,12 @@ class PPO:
             (dist, values), hidden_state = network.apply(
                 state.params, observation, mem.hidden
             )
+
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
             mem = mem._replace(hidden=hidden_state, extras=mem.extras)
+
             state = state._replace(random_key=key)
             return (
                 actions,

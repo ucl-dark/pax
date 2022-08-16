@@ -124,11 +124,12 @@ class Runner:
             )
 
             # update second agent
-            final_t2 = vals[1]._replace(
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
-            a2_state = vals[4]
-            a2_mem = vals[5]
+
             a2_state, a2_mem = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
