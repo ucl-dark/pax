@@ -76,7 +76,7 @@ class MetaFiniteGame:
                 )
 
             state = (jnp.zeros(ndims), jnp.zeros(ndims), rngs)
-            obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
+            obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
             discount = jnp.zeros(ndims, dtype=int)
             step_type = jnp.zeros(ndims, dtype=int)
             rewards = jnp.zeros(ndims)
