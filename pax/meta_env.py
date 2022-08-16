@@ -18,7 +18,7 @@ class MetaFiniteGame:
         self.payoff = jnp.array(payoff)
 
         def step(actions, state):
-            inner_t, outer_t = state
+            inner_t, outer_t, rng = state
             a1, a2 = actions
             inner_t += 1
 
@@ -64,22 +64,45 @@ class MetaFiniteGame:
             t1 = TimeStep(1, r1, 0, obs[0])
             t2 = TimeStep(1, r2, 0, obs[1])
 
-            return (t1, t2), (inner_t, outer_t)
+            return (t1, t2), (inner_t, outer_t, rng)
 
-        self.runner_step = jax.jit(jax.vmap(step, (0, None), (0, None)))
+        def runner_reset(ndims, rng):
+            """Returns the first `TimeStep` of a new episode."""
+            # ndims: [num_opps, num_envs] or [num_envs]
+
+            rngs = jax.random.split(rng, ndims[-1])
+            if len(ndims) != 1:
+                rngs = jnp.tile(
+                    jax.lax.expand_dims(rngs, [0]), (ndims[:-1] + (1, 1))
+                )
+
+            state = (jnp.zeros(ndims), jnp.zeros(ndims), rngs)
+            obs = obs = jax.nn.one_hot(4 * jnp.ones(ndims), 5)
+            discount = jnp.zeros(ndims, dtype=int)
+            step_type = jnp.zeros(ndims, dtype=int)
+            rewards = jnp.zeros(ndims)
+            return (
+                TimeStep(step_type, rewards, discount, obs),
+                TimeStep(step_type, rewards, discount, obs),
+            ), state
+
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
-        self.state = (0.0, 0.0)
         self._reset_next_step = True
+
+        # for runner
+        self.runner_step = jax.jit(jax.vmap(step, 0, 0))
+        self.batch_step = jax.jit(jax.vmap(jax.vmap(step, 0, 0), 0, 0))
+        self.runner_reset = runner_reset
 
     def step(self, actions):
         if self._reset_next_step:
             return self.reset()
 
-        output, self.state = self.runner_step(actions, self.state)
-        if self.state[1] == self.num_trials:
+        output, self._state = self.runner_step(actions, self._state)
+        if (self._state[1] == self.num_trials).all():
             self._reset_next_step = True
             output = (
                 TimeStep(
@@ -107,14 +130,11 @@ class MetaFiniteGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        self.state = (0.0, 0.0)
+        t, self._state = self.runner_reset(
+            (self.num_envs,), jax.random.PRNGKey(0)
+        )
         self._reset_next_step = False
-        obs = jax.nn.one_hot(4 * jnp.ones(self.num_envs), 5)
-        discount = jnp.zeros(self.num_envs, dtype=int)
-        step_type = jnp.zeros(self.num_envs, dtype=int)
-        return TimeStep(
-            step_type, jnp.zeros(self.num_envs), discount, obs
-        ), TimeStep(step_type, jnp.zeros(self.num_envs), discount, obs)
+        return t
 
 
 class InfiniteMatrixGame(Environment):
@@ -130,7 +150,10 @@ class InfiniteMatrixGame(Environment):
         payout_mat_1 = jnp.array([[r[0] for r in self.payoff]])
         payout_mat_2 = jnp.array([[r[1] for r in self.payoff]])
 
-        def _step(theta1, theta2):
+        def _step(actions, state):
+            theta1, theta2 = actions
+            (t, rng) = state
+            rng, _ = jax.random.split(rng, 2)
             theta1, theta2 = jax.nn.sigmoid(theta1), jax.nn.sigmoid(theta2)
             obs1 = jnp.concatenate([theta1, theta2])
             obs2 = jnp.concatenate([theta2, theta1])
@@ -163,53 +186,33 @@ class InfiniteMatrixGame(Environment):
             M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
             L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
             L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
-            return L_1.sum(), L_2.sum(), obs1, obs2, M
+            return (L_1.sum(), L_2.sum(), obs1, obs2, M), (t + 1, rng)
 
-        def _loss(theta1, theta2):
-            theta1 = jax.nn.sigmoid(theta1)
-            _th2 = jnp.array(
-                [theta2[0], theta2[2], theta2[1], theta2[3], theta2[4]]
-            )
-
-            p_1_0 = theta1[4:5]
-            p_2_0 = _th2[4:5]
-            p = jnp.concatenate(
-                [
-                    p_1_0 * p_2_0,
-                    p_1_0 * (1 - p_2_0),
-                    (1 - p_1_0) * p_2_0,
-                    (1 - p_1_0) * (1 - p_2_0),
-                ]
-            )
-            p_1 = jnp.reshape(theta1[0:4], (4, 1))
-            p_2 = jnp.reshape(_th2[0:4], (4, 1))
-            P = jnp.concatenate(
-                [
-                    p_1 * p_2,
-                    p_1 * (1 - p_2),
-                    (1 - p_1) * p_2,
-                    (1 - p_1) * (1 - p_2),
-                ],
-                axis=1,
-            )
-            M = jnp.matmul(p, jnp.linalg.inv(jnp.eye(4) - gamma * P))
-            L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
-            return L_1.sum(), M
-
-        self._jit_step = jax.jit(jax.vmap(_step))
-        self.grad = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
+        self._jit_step = jax.jit(jax.vmap(_step, (0, None), (0, None)))
         self.gamma = gamma
 
         self.num_envs = num_envs
         self.episode_length = episode_length
-        self.key = jax.random.PRNGKey(seed=seed)
         self._num_steps = 0
         self._reset_next_step = True
 
-        # Dummy variables to work with meta_runner
-        self.state = (0.0, 0.0)
+        self._state = (0.0, jax.random.PRNGKey(seed=seed))
         self.num_trials = 1
         self.inner_episode_length = episode_length
+
+        # for runner
+        self.num_trials = 1
+        self.inner_episode_length = episode_length
+        self.batch_step = jax.jit(
+            jax.vmap(self.runner_step, (0, None), (0, None))
+        )
+
+        # for runner
+        self.num_trials = 1
+        self.inner_episode_length = episode_length
+        self.batch_step = jax.jit(
+            jax.vmap(self.runner_step, (0, None), (0, None))
+        )
 
     def step(
         self, actions: Tuple[jnp.ndarray, jnp.ndarray]
@@ -226,10 +229,8 @@ class InfiniteMatrixGame(Environment):
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 5)
 
-        r1, r2, obs1, obs2, _ = self._jit_step(
-            action_1,
-            action_2,
-        )
+        outputs, self._state = self._jit_step(actions, self._state)
+        r1, r2, obs1, obs2, _ = outputs
         r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
 
         if self._num_steps == self.episode_length:
@@ -247,14 +248,21 @@ class InfiniteMatrixGame(Environment):
         env_state: Tuple[float, float],
     ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
-        r1, r2, obs1, obs2, _ = self._jit_step(
-            actions[0],
-            actions[1],
-        )
+        (r1, r2, obs1, obs2, _), env_state = self._jit_step(actions, env_state)
         r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
         return (
-            transition(reward=r1, observation=obs1),
-            transition(reward=r2, observation=obs2),
+            TimeStep(
+                jnp.ones_like(r1, dtype=int),
+                reward=r1,
+                discount=jnp.zeros_like(r1, dtype=int),
+                observation=obs1,
+            ),
+            TimeStep(
+                jnp.ones_like(r1, dtype=int),
+                reward=r2,
+                discount=jnp.zeros_like(r1, dtype=int),
+                observation=obs2,
+            ),
         ), env_state
 
     def observation_spec(self) -> specs.DiscreteArray:
@@ -271,15 +279,27 @@ class InfiniteMatrixGame(Environment):
             dtype=float,
         )
 
+    def runner_reset(self, ndims, rng):
+        """Pure version of reset"""
+        key, _ = jax.random.split(rng)
+        new_state = (0, key)
+        discount = jnp.zeros(ndims, dtype=int)
+        step_type = jnp.zeros(ndims, dtype=int)
+        obs = jax.nn.sigmoid(jax.random.uniform(key, ndims + (10,)))
+        return (
+            TimeStep(step_type, jnp.zeros(ndims), discount, obs),
+            TimeStep(step_type, jnp.zeros(ndims), discount, obs),
+        ), (new_state)
+
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         self._num_steps = 0
-        self.key, _ = jax.random.split(self.key)
-        obs = jax.nn.sigmoid(jax.random.uniform(self.key, (self.num_envs, 10)))
-        return TimeStep(0, jnp.zeros(self.num_envs), 0.0, obs), TimeStep(
-            0, jnp.zeros(self.num_envs), 0.0, obs
+        t_init, self._state = self.runner_reset(
+            (self.num_envs,), self._state[1]
         )
+        self.key = self._state[1]
+        return t_init
 
 
 class CoinGameState(NamedTuple):

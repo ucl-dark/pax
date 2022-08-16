@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_cartpole_network, make_network
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -58,23 +58,16 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(params, observation)
+            dist, values = network.apply(state.params, observation)
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = TrainingState(
-                params=params,
-                opt_state=state.opt_state,
-                random_key=key,
-                timesteps=state.timesteps,
-                extras=state.extras,
-                hidden=None,
-            )
-            return actions, state
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            state = state._replace(random_key=key)
+            return actions, state, mem
 
         @jax.jit
         def prepare_batch(
@@ -89,13 +82,15 @@ class PPO:
                 jnp.zeros_like(action_extras["values"]),
             )
 
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.select(
                 t_prime.last(),
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -132,7 +127,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                get_advantages,
+                utils.get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
@@ -223,6 +218,7 @@ class PPO:
                 "entropy_cost": entropy_cost,
             }
 
+        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -369,16 +365,19 @@ class PPO:
                 params=params,
                 opt_state=opt_state,
                 random_key=key,
-                timesteps=timesteps,
+                timesteps=timesteps + batch_size,
+            )
+
+            new_mem = MemoryState(
                 extras={
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
-                hidden=None,
+                hidden=jnp.zeros((num_envs, 1)),
             )
-            return new_state, metrics
+            return new_state, new_mem, metrics
 
-        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
+        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -386,21 +385,23 @@ class PPO:
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
+                random_key=key,
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key,
                 timesteps=0,
+            ), MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=None,
             )
 
         # Initialise training state (parameters, optimiser state, extras).
-        self._make_initial_state = make_initial_state
-        self._state = make_initial_state(random_key, obs_spec)
+        self.make_initial_state = make_initial_state
+        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self._prepare_batch = jax.jit(prepare_batch)
+        has_sgd_jit = True
         if has_sgd_jit:
             self._sgd_step = jax.jit(sgd_step)
         else:
@@ -432,26 +433,28 @@ class PPO:
 
     def select_action(self, t: TimeStep):
         """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
-            self._state.params, t.observation, self._state
+        actions, self._state, self._mem = self._policy(
+            self._state, t.observation, self._mem
         )
         return utils.to_numpy(actions)
 
-    def reset_memory(self) -> TrainingState:
-        self._state = self._state._replace(
+    def reset_memory(self, memory, eval=False) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
+
+        memory = memory._replace(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            }
+                "values": jnp.zeros(num_envs),
+                "log_probs": jnp.zeros(num_envs),
+            },
         )
-        return self._state
+        return memory
 
-    def update(self, traj_batch, t_prime: TimeStep, state):
+    def update(self, traj_batch, t_prime, state, mem):
         """Update the agent -> only called at the end of a trajectory"""
-        _, state = self._policy(state.params, t_prime.observation, state)
+        _, _, mem = self._policy(state, t_prime.observation, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, t_prime, state.extras)
-        state, results = self._sgd_step(state, traj_batch)
+        traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -461,7 +464,7 @@ class PPO:
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
 
-        return state
+        return state, mem
 
 
 def make_agent(
