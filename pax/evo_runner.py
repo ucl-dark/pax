@@ -698,6 +698,8 @@ class Runner:
                     state_visit_trial_i = self.get_state_visitation(
                         obs_outer_opp_i
                     )
+
+                    # Over trials
                     state_visit_avg = (
                         self.get_state_visitation(observations[out_step])
                         / num_opps
@@ -705,6 +707,8 @@ class Runner:
                     state_visit_prob = state_visit_avg / state_visit_avg.sum()
                     p1_ep_rew_mean = p1_rewards[out_step].mean()
                     p2_ep_rew_mean = p2_rewards[out_step].mean()
+                    p1_ep_rew_median = jnp.median(p1_rewards[out_step])
+                    p2_ep_rew_median = jnp.median(p2_rewards[out_step])
                     prob_visits = (
                         state_visit_trial_i / state_visit_trial_i.sum()
                     )
@@ -712,8 +716,10 @@ class Runner:
                         wandb.log(
                             {
                                 "eval/trial": out_step + 1,
-                                "eval/reward/player_1": p1_ep_rew_mean,
-                                "eval/reward/player_2": p2_ep_rew_mean,
+                                "eval/reward/player_1_mean": p1_ep_rew_mean,
+                                "eval/reward/player_2_mean": p2_ep_rew_mean,
+                                "eval/reward/player_1_median": p1_ep_rew_median,
+                                "eval/reward/player_2_median": p2_ep_rew_median,
                                 f"eval/reward_trial/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
                                 f"eval/reward_trial/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
                                 "eval/state_visitation/CC": state_visit_avg[0],
