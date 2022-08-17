@@ -25,6 +25,9 @@ num_inner_steps: 100
 total_timesteps: 1.0e9
 eval_every: 1.0e9 
 
+# Evaluation 
+only_eval: False # If true, only evaluate model at model_path
+model_path: 2022-08-14_11:22:54.855149_CMA_ES/generation_3000 # must be in pax/log with structure folder/filename
 
 # PPO agent parameters
 ppo:
