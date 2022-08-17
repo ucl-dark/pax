@@ -51,4 +51,4 @@ wandb:
   project: ipd
   group: 'cg-inner-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
-  log: False
+  log: True

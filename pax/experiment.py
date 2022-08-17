@@ -336,8 +336,9 @@ def watcher_setup(args, logger):
             value = value_logger_ppo(agent)
             losses.update(value)
         losses.update(policy)
-        if args.wandb.log:
-            wandb.log(losses)
+        # if args.wandb.log:
+        # print(losses)
+        # wandb.log(losses)
         return
 
     def dumb_log(agent, *args):

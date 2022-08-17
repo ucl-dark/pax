@@ -381,11 +381,6 @@ class CoinGame:
                 new_red_pos == state.blue_coin_pos, axis=-1
             )
 
-            red_reward = jnp.where(red_red_matches, red_reward + 1, red_reward)
-            red_reward = jnp.where(
-                red_blue_matches, red_reward + 1, red_reward
-            )
-
             blue_red_matches = jnp.all(
                 new_blue_pos == state.red_coin_pos, axis=-1
             )
@@ -393,11 +388,22 @@ class CoinGame:
                 new_blue_pos == state.blue_coin_pos, axis=-1
             )
 
+            red_reward = jnp.where(red_red_matches, red_reward + 1, red_reward)
+            red_reward = jnp.where(
+                red_blue_matches, red_reward + 1, red_reward
+            )
+            red_reward = jnp.where(
+                blue_red_matches, red_reward - 2, red_reward
+            )
+
             blue_reward = jnp.where(
                 blue_red_matches, blue_reward + 1, blue_reward
             )
             blue_reward = jnp.where(
                 blue_blue_matches, blue_reward + 1, blue_reward
+            )
+            blue_reward = jnp.where(
+                red_blue_matches, blue_reward - 2, blue_reward
             )
 
             key, subkey = jax.random.split(state.key)
@@ -449,7 +455,6 @@ class CoinGame:
             obs = jnp.where(done, new_ep_outputs[0].observation, obs)
             blue_reward = jnp.where(done, 0, blue_reward)
             red_reward = jnp.where(done, 0, red_reward)
-
             return obs, red_reward, blue_reward, next_state
 
         def runner_step(
