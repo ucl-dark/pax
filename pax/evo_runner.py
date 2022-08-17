@@ -352,7 +352,7 @@ class Runner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
-            if self.generations % 1 == 0:
+            if self.generations % 100 == 0:
                 if self.algo == "OpenES" or self.algo == "PGPE":
                     jnp.save(
                         os.path.join(
@@ -670,6 +670,18 @@ class Runner:
             observations = self.get_observations(trajectories[0])
             p1_rewards = trajectories[0].rewards
             p2_rewards = trajectories[1].rewards
+
+            # state_visits = self.get_state_visitation(observations)
+            # state_visits_mean = state_visits.mean(axis=(1, 2, 3, 4))
+            # state_visits_sum = state_visits.sum(axis=(1, 2, 3, 4))
+            # print(state_visits_mean.shape)       # (100, 5)
+            # print(state_visits_mean[0].shape)    # (1, 5) or # (5, 1)
+            # print(state_visits_mean[0][0])       # mean of cooperation
+
+            # print(state_visits_sum.shape)
+            # print(state_visits_sum[0].shape)
+            # print(state_visits_sum[0][0])
+
             for opp_i in range(num_opps):
                 # TODO: Figure out a way to allow for popsize=1 so you can remove 0
                 # Canonically player 1
@@ -686,6 +698,13 @@ class Runner:
                     state_visit_trial_i = self.get_state_visitation(
                         obs_outer_opp_i
                     )
+                    state_visit_avg = (
+                        self.get_state_visitation(observations[out_step])
+                        / num_opps
+                    )
+                    state_visit_prob = state_visit_avg / state_visit_avg.sum()
+                    p1_ep_rew_mean = p1_rewards[out_step].mean()
+                    p2_ep_rew_mean = p2_rewards[out_step].mean()
                     prob_visits = (
                         state_visit_trial_i / state_visit_trial_i.sum()
                     )
@@ -693,8 +712,32 @@ class Runner:
                         wandb.log(
                             {
                                 "eval/trial": out_step + 1,
+                                "eval/reward/player_1": p1_ep_rew_mean,
+                                "eval/reward/player_2": p2_ep_rew_mean,
                                 f"eval/reward_trial/player_1_opp_{opp_i+1}": p1_ep_mean_rew_opp_i,
                                 f"eval/reward_trial/player_2_opp_{opp_i+1}": p2_ep_mean_rew_opp_i,
+                                "eval/state_visitation/CC": state_visit_avg[0],
+                                "eval/state_visitation/CD": state_visit_avg[1],
+                                "eval/state_visitation/DC": state_visit_avg[2],
+                                "eval/state_visitation/DD": state_visit_avg[3],
+                                "eval/state_visitation/START": state_visit_avg[
+                                    4
+                                ],
+                                "eval/state_visitation/CC_prob": state_visit_prob[
+                                    0
+                                ],
+                                "eval/state_visitation/CD_prob": state_visit_prob[
+                                    1
+                                ],
+                                "eval/state_visitation/DC_prob": state_visit_prob[
+                                    2
+                                ],
+                                "eval/state_visitation/DD_prob": state_visit_prob[
+                                    3
+                                ],
+                                "eval/state_visitation/START_prob": state_visit_prob[
+                                    4
+                                ],
                                 f"eval/state_visitation_trial/CC_opp_{opp_i+1}": state_visit_trial_i[
                                     0
                                 ],
@@ -751,43 +794,6 @@ class Runner:
                 if watchers:
                     wandb.log(
                         {
-                            "eval/seeds": opp_i + 1,
-                            "eval/reward_opp/player_1": float(
-                                p1_rew_opp_i.mean()
-                            ),
-                            "eval/reward_opp/player_2_opp": float(
-                                p2_rew_opp_i.mean()
-                            ),
-                            "eval/state_visitation_opp/CC": state_visit_opp_i[
-                                0
-                            ],
-                            "eval/state_visitation_opp/CD": state_visit_opp_i[
-                                1
-                            ],
-                            "eval/state_visitation_opp/DC": state_visit_opp_i[
-                                2
-                            ],
-                            "eval/state_visitation_opp/DD": state_visit_opp_i[
-                                3
-                            ],
-                            "eval/state_visitation_opp/START": state_visit_opp_i[
-                                4
-                            ],
-                            "eval/state_visitation_opp/CC_probability": prob_visits[
-                                0
-                            ],
-                            "eval/state_visitation_opp/CD_probability": prob_visits[
-                                1
-                            ],
-                            "eval/state_visitation_opp/DC_probability": prob_visits[
-                                2
-                            ],
-                            "eval/state_visitation_opp/DD_probability": prob_visits[
-                                3
-                            ],
-                            "eval/state_visitation_opp/START_probability": prob_visits[
-                                4
-                            ],
                             "eval/time/minutes": float(
                                 (time.time() - self.start_time) / 60
                             ),
