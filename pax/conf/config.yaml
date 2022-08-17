@@ -24,8 +24,10 @@ env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
-# Training hyperparameters
+# Runner 
+evo: False
 
+# Training hyperparameters
 # env_batch_size = num_envs * num_opponents
 popsize: 20
 num_gens: 50

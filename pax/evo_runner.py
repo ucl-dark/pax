@@ -1,4 +1,5 @@
 from datetime import datetime
+from multiprocessing.sharedctypes import Value
 import time
 from typing import List, NamedTuple
 import os
@@ -11,11 +12,7 @@ from pax.utils import ESLog
 import jax
 import jax.numpy as jnp
 
-
 import wandb
-
-path = os.getcwd()
-print(path)
 
 
 class Sample(NamedTuple):
@@ -47,6 +44,7 @@ class EvoRunner:
         self.generations = 0
         self.top_k = args.top_k
         self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
+        self.random_key = jax.random.PRNGKey(args.seed)
 
         # OpenES hyperparameters
         self.sigma_init = args.es.sigma_init
@@ -98,9 +96,11 @@ class EvoRunner:
         print("-----------------------")
         os.mkdir(self.log_dir)
         agent1, agent2 = agents.agents
-        rng = jax.random.PRNGKey(0)
+        num_opps = self.num_opps
+        rng, _ = jax.random.split(self.random_key)
         param_reshaper = ParameterReshaper(agent1._state.params)
 
+        # TODO: Move these to agent_setup()
         if self.args.es.algo == "OpenES":
             print("Algo: OpenES")
             strategy = OpenES(
@@ -140,7 +140,6 @@ class EvoRunner:
             )
             # Uncomment for default params
             es_params = strategy.default_params
-
         elif self.algo == "PGPE":
             print("Algo: PGPE")
             strategy = PGPE(
@@ -163,71 +162,27 @@ class EvoRunner:
             param_reshaper.total_params,
             self.num_gens,
             top_k=self.top_k,
-            # top_k=self.popsize,
             maximize=True,
         )
 
         log = es_logging.initialize()
 
-        # vmap pop_size, num_opps dims
-        num_opps = self.num_opps
+        # init agents
+        init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (self.args.popsize, self.args.num_opponents, 1, 1),
+        )
+        agent1._state, agent1._mem = agent1.batch_init(
+            jax.random.split(agent1._state.random_key, self.args.popsize),
+            init_hidden,
+        )
+
         env.batch_step = jax.jit(
-            jax.vmap(
-                jax.vmap(env.runner_step, (0, None), (0, None)),
-                (0, None),
-                (0, None),
-            )
+            jax.vmap(env.batch_step),
         )
 
-        # batch over TimeStep, TrainingState
-        agent2.make_initial_state = jax.jit(
-            jax.vmap(
-                jax.vmap(agent2.make_initial_state, (0, None), 0), (0, None), 0
-            )
-        )
-
-        agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy)))
-        # traj_batch : [inner_loop, pop_size, num_opps, num_envs, ...]
-        agent2.batch_update = jax.jit(
-            jax.vmap(
-                jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0)),
-                (1, 0, 0, 0),
-                (0, 0),
-            )
-        )
-
-        # batch over TimeStep, TrainingState
-        agent1.make_initial_state = jax.vmap(
-            jax.vmap(agent1.make_initial_state, (None, None, 0), (None, 0)),
-            (0, None, 0),
-            (0, 0),
-        )
-
-        agent1.batch_reset = jax.jit(
-            jax.vmap(
-                jax.vmap(agent1.reset_memory, (0, None), 0), (0, None), 0
-            ),
-            static_argnums=1,
-        )
-
-        agent2.batch_reset = jax.jit(
-            jax.vmap(
-                jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
-            ),
-            static_argnums=1,
-        )
-        agent1.batch_policy = jax.jit(
-            jax.vmap(
-                jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
-                0,
-                0,
-            )
-        )
-        a1_state, a1_mem = agent1.make_initial_state(
-            jax.random.split(rng, self.popsize),
-            (env.observation_spec().num_values,),
-            jnp.zeros((self.popsize, num_opps, env.num_envs, agent1._gru_dim)),
-        )
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
 
         def _inner_rollout(carry, unused):
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
@@ -289,12 +244,13 @@ class EvoRunner:
                 length=env.inner_episode_length,
             )
 
+            # update second agent
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
             # do second agent update
             final_t2 = vals[1]._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
-            a2_state = vals[4]
-            a2_mem = vals[5]
             a2_state, a2_mem = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
@@ -312,21 +268,29 @@ class EvoRunner:
         for gen in range(self.num_gens):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (self.popsize, num_opps, env.num_envs)
+                (self.popsize, num_opps, env.num_envs), rng
             )
 
             rng, rng_gen, _ = jax.random.split(rng, 3)
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
-            batched_params = param_reshaper.reshape(x)
-            a1_state = a1_state._replace(params=batched_params)
+            a1_state = a1_state._replace(
+                params=param_reshaper.reshape(x),
+            )
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, self.popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                (env.observation_spec().num_values,),
+            a2_keys = jax.random.split(rng, self.popsize * num_opps).reshape(
+                self.popsize, num_opps, -1
+            )
+            a2_state, a2_mem = agent2.batch_init(
+                a2_keys,
+                init_hidden,
+            )
+
+            a1, a1_state, a1_new_mem = agent1.batch_policy(
+                a1_state,
+                t_init[0].observation,
+                a1_mem,
             )
 
             # num trials
@@ -449,68 +413,11 @@ class EvoRunner:
         num_opps = 20
         eval_popsize = 1
 
-        # TODO: Remove after f/batched_naive is merged. Moved to IndependentLearners
         env.batch_step = jax.jit(
-            jax.vmap(
-                jax.vmap(env.runner_step, (0, None), (0, None)),
-                (0, None),
-                (0, None),
-            )
+            jax.vmap(env.batch_step),
         )
 
-        # Use only when you want to evaluate; you need to jit and vmap all of the functions first.
-        # TODO: Will be moved to indepenedent learners in upcoming PR
         if self.args.only_eval:
-            # batch over TimeStep, TrainingState
-            agent2.make_initial_state = jax.jit(
-                jax.vmap(
-                    jax.vmap(agent2.make_initial_state, (0, None), 0),
-                    (0, None),
-                    0,
-                )
-            )
-
-            agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy)))
-            # traj_batch : [inner_loop, pop_size, num_opps, num_envs, ...]
-            agent2.batch_update = jax.jit(
-                jax.vmap(
-                    jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0)),
-                    (1, 0, 0, 0),
-                    (0, 0),
-                )
-            )
-
-            # batch over TimeStep, TrainingState
-            agent1.make_initial_state = jax.vmap(
-                jax.vmap(
-                    agent1.make_initial_state, (None, None, 0), (None, 0)
-                ),
-                (0, None, 0),
-                (0, 0),
-            )
-
-            agent1.batch_reset = jax.jit(
-                jax.vmap(
-                    jax.vmap(agent1.reset_memory, (0, None), 0), (0, None), 0
-                ),
-                static_argnums=1,
-            )
-
-            agent2.batch_reset = jax.jit(
-                jax.vmap(
-                    jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
-                ),
-                static_argnums=1,
-            )
-
-            agent1.batch_policy = jax.jit(
-                jax.vmap(
-                    jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
-                    0,
-                    0,
-                )
-            )
-
             # Load previous parameters
             log = es_logging.load(os.path.join(eval_dir, self.args.model_path))
 
@@ -520,18 +427,26 @@ class EvoRunner:
                 os.path.join(self.log_dir, f"generation_{self.num_gens}")
             )
 
-        a1_state, a1_mem = agent1.make_initial_state(
-            jax.random.split(rng, eval_popsize),
-            (env.observation_spec().num_values,),
-            jnp.zeros((eval_popsize, num_opps, env.num_envs, agent1._gru_dim)),
-        )
-
         # TODO: Add the ability to evaluate every n number of generations
         #     log = es_logging.load(
         #     os.path.join(self.log_dir, f"generation_{self.generations}")
         # )
 
+        # init agents
+        init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (eval_popsize, num_opps, 1, 1),
+        )
+        agent1._state, agent1._mem = agent1.batch_init(
+            jax.random.split(agent1._state.random_key, eval_popsize),
+            init_hidden,
+        )
+
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
+
         params = param_reshaper.reshape(log["top_gen_params"][0:1])
+
         # Adds n copies of a pytree
         params = jax.tree_util.tree_map(
             lambda x: jnp.repeat(x, eval_popsize, axis=0), params
@@ -623,19 +538,33 @@ class EvoRunner:
         for _ in range(1):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (eval_popsize, num_opps, env.num_envs)
+                (eval_popsize, num_opps, env.num_envs), rng
             )
 
-            a2_state, a2_mem = agent2.make_initial_state(
-                jax.random.split(rng, eval_popsize * num_opps).reshape(
-                    eval_popsize, num_opps, -1
-                ),
-                (env.observation_spec().num_values,),
+            # a2_state, a2_mem = agent2.make_initial_state(
+            #     jax.random.split(rng, eval_popsize * num_opps).reshape(
+            #         eval_popsize, num_opps, -1
+            #     ),
+            #     (env.observation_spec().num_values,),
+            # )
+
+            a2_keys = jax.random.split(rng, eval_popsize * num_opps).reshape(
+                eval_popsize, num_opps, -1
+            )
+            a2_state, a2_mem = agent2.batch_init(
+                a2_keys,
+                init_hidden,
             )
 
             # EVAL ONLY
             a1_mem = agent1.batch_reset(a1_mem, True)
             a2_mem = agent2.batch_reset(a2_mem, True)
+
+            a1, a1_state, a1_new_mem = agent1.batch_policy(
+                a1_state,
+                t_init[0].observation,
+                a1_mem,
+            )
 
             _, trajectories = jax.lax.scan(
                 _outer_rollout,
