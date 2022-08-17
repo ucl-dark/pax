@@ -21,4 +21,5 @@ command:
   - python3
   - -m
   - pax.experiment
+  - +experiment=marl2_nl
   - ${args_no_hyphens}
