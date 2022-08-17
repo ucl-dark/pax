@@ -671,17 +671,6 @@ class Runner:
             p1_rewards = trajectories[0].rewards
             p2_rewards = trajectories[1].rewards
 
-            # state_visits = self.get_state_visitation(observations)
-            # state_visits_mean = state_visits.mean(axis=(1, 2, 3, 4))
-            # state_visits_sum = state_visits.sum(axis=(1, 2, 3, 4))
-            # print(state_visits_mean.shape)       # (100, 5)
-            # print(state_visits_mean[0].shape)    # (1, 5) or # (5, 1)
-            # print(state_visits_mean[0][0])       # mean of cooperation
-
-            # print(state_visits_sum.shape)
-            # print(state_visits_sum[0].shape)
-            # print(state_visits_sum[0][0])
-
             for opp_i in range(num_opps):
                 # TODO: Figure out a way to allow for popsize=1 so you can remove 0
                 # Canonically player 1
@@ -707,8 +696,12 @@ class Runner:
                     state_visit_prob = state_visit_avg / state_visit_avg.sum()
                     p1_ep_rew_mean = p1_rewards[out_step].mean()
                     p2_ep_rew_mean = p2_rewards[out_step].mean()
-                    p1_ep_rew_median = jnp.median(p1_rewards[out_step])
-                    p2_ep_rew_median = jnp.median(p2_rewards[out_step])
+                    p1_ep_rew_median = jnp.median(
+                        p1_rewards[out_step].mean(axis=(0, 1, 3))
+                    )
+                    p2_ep_rew_median = jnp.median(
+                        p2_rewards[out_step].mean(axis=(0, 1, 3))
+                    )
                     prob_visits = (
                         state_visit_trial_i / state_visit_trial_i.sum()
                     )
