@@ -13,6 +13,9 @@ class TrainingState(NamedTuple):
     timesteps: int
     num_episodes: int
     loss: float
+
+
+class MemoryState(NamedTuple):
     extras: Mapping[str, jnp.ndarray]
     hidden: None
 
@@ -21,7 +24,7 @@ class Logger:
     metrics: dict
 
 
-class NaiveLearnerEx:
+class NaiveExact:
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(
@@ -70,25 +73,23 @@ class NaiveLearnerEx:
 
         grad_fn = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
 
-        def policy(params, obs, state):
-            action = params
+        def policy(state, obs, mem):
+            action = state.params
             other_action = obs[:, 5:]
 
             (loss, _), grad = grad_fn(action, other_action)
 
             # gradient ascent
-            new_params = action + jnp.multiply(grad, lr)
+            action = action + jnp.multiply(grad, lr)
 
             # update state
             _state = TrainingState(
-                params=new_params,
+                params=action,
                 timesteps=state.timesteps + 1,
                 num_episodes=state.num_episodes,
                 loss=loss.sum(),
-                hidden=0,
-                extras={"log_probs": None, "values": None},
             )
-            return new_params, _state
+            return action, _state, mem
 
         self._policy = policy
 
@@ -112,9 +113,9 @@ class NaiveLearnerEx:
             timesteps=0,
             num_episodes=0,
             loss=0,
-            hidden=0,
-            extras={"log_probs": None, "values": None},
         )
+
+        self._mem = MemoryState({"log_probs": None, "values": None}, 0)
 
     def make_initial_state(self, t: TimeStep):
         return TrainingState(
@@ -122,11 +123,9 @@ class NaiveLearnerEx:
             timesteps=0,
             num_episodes=0,
             loss=0,
-            extras={"log_probs": None, "values": None},
-            hidden=0,
-        )
+        ), MemoryState(extras={"log_probs": None, "values": None}, hidden=None)
 
-    def reset_memory(self):
+    def reset_memory(self, *args):
         return self._state
 
     def select_action(
@@ -134,8 +133,8 @@ class NaiveLearnerEx:
         t: TimeStep,
     ) -> jnp.ndarray:
 
-        action, self._state = self._policy(
-            self._state.params, t.observation, self._state
+        action, self._state, self._mem = self._policy(
+            self._state, t.observation, self._mem
         )
         self._logger.metrics["sgd_steps"] += 1
         self._logger.metrics["loss_total"] = self._state.loss
@@ -143,7 +142,5 @@ class NaiveLearnerEx:
         self._logger.metrics["total_steps"] = self._total_steps
         return action
 
-    def update(
-        self, t: TimeStep, action: jnp.array, t_prime: TimeStep
-    ) -> TrainingState:
-        return self._state
+    def update(self, traj_batch, t_prime, state, mem) -> TrainingState:
+        return state, mem

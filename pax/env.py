@@ -37,8 +37,8 @@ class SequentialMatrixGame(Environment):
         # Dummy variable used to make Runner work with
         # regular and meta learning.
         self.num_trials = 1
-        self.state = (0.0, 0.0)
         self.inner_episode_length = episode_length
+        self.batch_step = jax.jit(jax.vmap(self.runner_step, 0, 0))
 
     def step(
         self,
@@ -84,19 +84,34 @@ class SequentialMatrixGame(Environment):
         env_state: Tuple[float, float],
     ) -> Tuple[Tuple[TimeStep, TimeStep], Tuple[float, float]]:
 
-        r_1, r_2 = self._get_reward(actions[0], actions[1])
+        r1, r2 = self._get_reward(actions[0], actions[1])
         state = self._get_state(actions[0], actions[1])
-        obs_1, obs_2 = self._observation(state)
+        obs1, obs2 = self._observation(state)
 
         return (
-            TimeStep(1, r_1, 0, obs_1),
-            TimeStep(1, r_2, 0, obs_2),
+            TimeStep(
+                jnp.ones_like(r1, dtype=int),
+                r1,
+                jnp.zeros_like(r1, dtype=int),
+                obs1,
+            ),
+            TimeStep(
+                jnp.ones_like(r2, dtype=int),
+                r2,
+                jnp.zeros_like(r2, dtype=int),
+                obs2,
+            ),
         ), env_state
 
-    def runner_reset(self, ndims):
+    def runner_reset(self, ndims: Tuple[int], rng: jax.random.PRNGKey):
         """Returns the first `TimeStep` of a new episode."""
-        state = (0.0, 0.0)
-        obs = obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
+        # ndims: [num_opps, num_envs]
+        rngs = jax.lax.expand_dims(jax.random.split(rng, ndims[-1]), [0])
+        # rngs: (1, num_envs, 2)
+        batched_rngs = jnp.tile(rngs, (ndims[:-1] + (1, 1)))
+        # batched_rngs: (num_opps, num_envs, 2)
+        state = (jnp.zeros(ndims), jnp.zeros(ndims), batched_rngs)
+        obs = jax.nn.one_hot(State.START * jnp.ones(ndims), 5)
         discount = jnp.zeros(ndims, dtype=int)
         step_type = jnp.zeros(ndims, dtype=int)
         rewards = jnp.zeros(ndims)
@@ -108,7 +123,7 @@ class SequentialMatrixGame(Environment):
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
-        t_init, _ = self.runner_reset((self.num_envs))
+        t_init, _ = self.runner_reset((self.num_envs,), jax.random.PRNGKey(0))
         self._num_steps = 0
         return t_init
 

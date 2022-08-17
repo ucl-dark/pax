@@ -72,10 +72,12 @@ class PPO:
             (dist, values), hidden_state = network.apply(
                 state.params, observation, mem.hidden
             )
+
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
             mem = mem._replace(hidden=hidden_state, extras=mem.extras)
+
             state = state._replace(random_key=key)
             return (
                 actions,
@@ -357,9 +359,11 @@ class PPO:
             return new_state, new_memory, metrics
 
         def make_initial_state(
-            key: Any, obs_spec: Tuple, initial_hidden_state: jnp.ndarray
+            key: Any, initial_hidden_state: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
+
+            # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
@@ -373,7 +377,9 @@ class PPO:
                 opt_state=initial_opt_state,
                 timesteps=0,
             ), MemoryState(
-                hidden=initial_hidden_state,  # initial_hidden_state,
+                hidden=jnp.zeros(
+                    (num_envs, initial_hidden_state.shape[-1])
+                ),  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
@@ -389,8 +395,8 @@ class PPO:
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
             _done = jax.lax.select(
@@ -419,7 +425,7 @@ class PPO:
 
         # Initialise training state (parameters, optimiser state, extras).
         self._state, self._mem = make_initial_state(
-            random_key, obs_spec, initial_hidden_state
+            random_key, initial_hidden_state
         )
 
         self.make_initial_state = make_initial_state
@@ -581,9 +587,6 @@ def make_gru_agent(
         player_id=player_id,
         has_sgd_jit=has_sgd_jit,
     )
-    return agent
-
-    agent.player_id = player_id
     return agent
 
 

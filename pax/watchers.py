@@ -3,7 +3,7 @@ from flax import linen as nn
 
 import pax.hyper.ppo as HyperPPO
 import pax.ppo.ppo as PPO
-from pax.naive_exact import NaiveLearnerEx
+from pax.naive_exact import NaiveExact
 
 from .env import State
 
@@ -165,7 +165,7 @@ def losses_ppo(agent: PPO) -> dict:
     return losses
 
 
-def losses_naive(agent: NaiveLearnerEx) -> dict:
+def losses_naive(agent: NaiveExact) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
@@ -178,7 +178,7 @@ def losses_naive(agent: NaiveLearnerEx) -> dict:
     return losses
 
 
-def logger_naive(agent: NaiveLearnerEx) -> dict:
+def logger_naive(agent: NaiveExact) -> dict:
     params = agent._state.params
     pid = agent.player_id
     params = params.mean(axis=0)

@@ -75,8 +75,8 @@ class NaiveLearner:
 
             _value = jax.lax.select(
                 t_prime.last(),
-                action_extras["values"],
                 jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
             )
 
             _done = jax.lax.select(
@@ -317,17 +317,16 @@ class NaiveLearner:
             )
 
             new_memory = MemoryState(
-                hidden=None,
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
                 },
+                hidden=jnp.zeros((num_envs, 1)),  # None earlier
             )
 
             return new_state, new_memory, metrics
 
-        @jax.jit
-        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
+        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             obs_spec = 5
             key, subkey = jax.random.split(key)
@@ -345,12 +344,12 @@ class NaiveLearner:
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=None,
+                hidden=jnp.zeros((num_envs, 1)),
             )
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, obs_spec)
+        self._state, self._mem = make_initial_state(random_key, None)
         self.make_initial_state = make_initial_state
         self._prepare_batch = jax.jit(prepare_batch)
 
@@ -394,7 +393,6 @@ class NaiveLearner:
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
-            hidden=None,
         )
         return memory
 
@@ -408,14 +406,14 @@ class NaiveLearner:
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, results = self._sgd_step(state, traj_batch)
+        state, new_mem, results = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
         self._logger.metrics["loss_total"] = results["loss_total"]
         self._logger.metrics["loss_policy"] = results["loss_policy"]
         self._logger.metrics["loss_value"] = results["loss_value"]
-        return state, mem
+        return state, new_mem._replace(hidden=mem.hidden)
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):

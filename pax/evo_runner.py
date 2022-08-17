@@ -30,7 +30,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class Runner:
+class EvoRunner:
     """Holds the runner's state."""
 
     def __init__(self, args):

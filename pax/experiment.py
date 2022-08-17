@@ -10,11 +10,12 @@ from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
-from pax.evo_runner import Runner
 from pax.naive.naive import make_naive_pg
-from pax.naive_exact import NaiveLearnerEx
+from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.evo_runner import EvoRunner
+from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -149,7 +150,10 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args):
-    return Runner(args)
+    if args.evo:
+        return EvoRunner(args)
+    else:
+        return Runner(args)
 
 
 def agent_setup(args, logger):
@@ -237,7 +241,7 @@ def agent_setup(args, logger):
             args.seed,
         )
 
-        agent = NaiveLearnerEx(
+        agent = NaiveExact(
             action_dim=dummy_env.action_spec().shape[1],
             env=dummy_env,
             lr=args.naive.lr,
@@ -258,7 +262,7 @@ def agent_setup(args, logger):
         "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "NaiveLearnerEx": get_naive_learner,
+        "NaiveEx": get_naive_learner,
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
@@ -283,7 +287,7 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    return IndependentLearners([agent_0, agent_1])
+    return IndependentLearners([agent_0, agent_1], args)
 
 
 def watcher_setup(args, logger):
@@ -342,7 +346,7 @@ def watcher_setup(args, logger):
         "PPO_memory": ppo_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
-        "NaiveLearnerEx": naive_logger,
+        "NaiveEx": naive_logger,
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
@@ -388,8 +392,8 @@ def main(args):
         print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
 
-        runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
         runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+        runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
 
 
 if __name__ == "__main__":
