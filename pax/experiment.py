@@ -3,7 +3,7 @@ import os
 
 import hydra
 import omegaconf
-
+from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper
 
 import wandb
 from pax.env import SequentialMatrixGame
@@ -149,9 +149,77 @@ def env_setup(args, logger=None):
     return train_env, test_env
 
 
-def runner_setup(args):
+def runner_setup(args, agents, logger):
     if args.evo:
-        return EvoRunner(args)
+        agent1, _ = agents.agents
+        algo = args.es.algo
+        strategies = {"CMA_ES": CMA_ES, "OpenES": OpenES, "PGPE": PGPE}
+        assert algo in strategies, f"{algo} not in evolution strategies"
+
+        def get_cma_strategy(agent):
+            """Returns the CMA strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = CMA_ES(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+                elite_ratio=args.elite_ratio,
+            )
+            es_params = strategy.default_params
+            return strategy, es_params, param_reshaper
+
+        def get_openes_strategy(agent):
+            """Returns the OpenES strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = OpenES(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+                elite_ratio=args.elite_ratio,
+            )
+            # Update basic parameters of OpenES strategy
+            es_params = strategy.default_params.replace(
+                sigma_init=args.sigma_init,
+                sigma_decay=args.sigma_decay,
+                sigma_limit=args.sigma_limit,
+                init_min=args.init_min,
+                init_max=args.init_max,
+                clip_min=args.clip_min,
+                clip_max=args.clip_max,
+            )
+
+            # Update optimizer-specific parameters of Adam
+            es_params = es_params.replace(
+                opt_params=es_params.opt_params.replace(
+                    lrate_init=args.lrate_init,
+                    lrate_decay=args.lrate_decay,
+                    lrate_limit=args.lrate_limit,
+                    beta_1=args.beta_1,
+                    beta_2=args.beta_2,
+                    eps=args.eps,
+                )
+            )
+            return strategy, es_params, param_reshaper
+
+        def get_pgpe_strategy(agent):
+            """Returns the PGPE strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = PGPE(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+                elite_ratio=args.elite_ratio,
+            )
+            es_params = strategy.default_params
+            return strategy, es_params, param_reshaper
+
+        if algo == "CMA_ES":
+            strategy, es_params, param_reshaper = get_cma_strategy(agent1)
+        elif algo == "OpenES":
+            strategy, es_params, param_reshaper = get_openes_strategy(agent1)
+        elif algo == "PGPE":
+            strategy, es_params, param_reshaper = get_pgpe_strategy(agent1)
+
+        logger.info(f"Evolution Strategy: {algo}")
+
+        return EvoRunner(args, strategy, es_params, param_reshaper)
     else:
         return Runner(args)
 
@@ -288,6 +356,7 @@ def agent_setup(args, logger):
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     if args.evo:
+        # TODO: Put the strategy abstraction here?
         return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
@@ -380,7 +449,7 @@ def main(args):
         watchers = watcher_setup(args, logger)
 
     with Section("Runner setup", logger=logger):
-        runner = runner_setup(args)
+        runner = runner_setup(args, agent_pair, logger)
 
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
@@ -395,7 +464,8 @@ def main(args):
         print()
 
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
-        runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+        # TODO: Remove fully in evaluation PR
+        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":
