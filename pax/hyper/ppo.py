@@ -471,7 +471,7 @@ class PPO:
         self._logger.metrics["loss_value"] = results["loss_value"]
         self._logger.metrics["loss_entropy"] = results["loss_entropy"]
         self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        return state, mem
+        return state, mem, results
 
 
 # TODO: seed, and player_id not used in CartPole
