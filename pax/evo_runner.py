@@ -3,6 +3,7 @@ import os
 import time
 from typing import List, NamedTuple
 
+from dm_env import TimeStep
 from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
@@ -40,38 +41,24 @@ class EvoRunner:
         self.popsize = args.popsize
         self.generations = 0
         self.top_k = args.top_k
-        self.log_dir = f"{os.getcwd()}/pax/log/{str(datetime.now()).replace(' ', '_')}_{self.args.es.algo}"
         self.random_key = jax.random.PRNGKey(args.seed)
         self.strategy = strategy
         self.es_params = es_params
         self.param_reshaper = param_reshaper
 
-        # OpenES hyperparameters
-        self.sigma_init = args.es.sigma_init
-        self.sigma_decay = args.es.sigma_decay
-        self.sigma_limit = args.es.sigma_limit
-        self.init_min = args.es.init_min
-        self.init_max = args.es.init_max
-        self.clip_min = args.es.clip_min
-        self.clip_max = args.es.lrate_decay
-        self.lrate_init = args.es.lrate_decay
-        self.lrate_decay = args.es.lrate_decay
-        self.lrate_limit = args.es.lrate_decay
-        self.beta_1 = args.es.lrate_decay
-        self.beta_2 = args.es.lrate_decay
-        self.eps = args.es.lrate_decay
-
-        def _reshape_opp_dim(x):
-            # x: [num_opps, num_envs ...]
-            # x: [batch_size, ...]
-            batch_size = args.num_envs * args.num_opponents
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape((batch_size,) + x.shape[2:]), x
-            )
-
         # TODO: Pull in from main
-        def _state_visitation(traj: Sample) -> List:
-            obs = jnp.argmax(traj.observations, axis=-1)
+        def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
+            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+            # final_t [num_opps, num_envs, ...]
+            num_timesteps = (
+                traj.observations.shape[0] * traj.observations.shape[1]
+            )
+            obs = jnp.reshape(
+                traj.observations,
+                (num_timesteps,) + traj.observations.shape[2:],
+            )
+            final_obs = jax.lax.expand_dims(final_t.observation, [0])
+            obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
         def _get_state_visitation(obs: jnp.ndarray) -> List:
@@ -82,7 +69,6 @@ class EvoRunner:
             obs = jnp.argmax(traj.observations, axis=-1)
             return obs
 
-        self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.state_visitation = jax.jit(_state_visitation)
         self.get_state_visitation = jax.jit(_get_state_visitation)
         self.get_observations = jax.jit(_get_observations)
