@@ -518,11 +518,9 @@ def make_gru_agent(
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
 
     else:
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]

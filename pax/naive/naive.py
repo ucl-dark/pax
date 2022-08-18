@@ -418,8 +418,6 @@ class NaiveLearner:
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
-
-    print(f"Making network for {args.env_id}")
     network = make_network(action_spec)
 
     optimizer = optax.chain(

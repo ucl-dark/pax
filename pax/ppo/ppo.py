@@ -473,11 +473,9 @@ def make_agent(
     """Make PPO agent"""
 
     if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
         network = make_cartpole_network(action_spec)
 
     else:
-        print(f"Making network for {args.env_id}")
         network = make_network(action_spec)
 
     # Optimizer

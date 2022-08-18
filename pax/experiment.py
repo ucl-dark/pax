@@ -1,11 +1,12 @@
+from datetime import datetime
 import logging
 import os
 
+from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper
 import hydra
 import omegaconf
-from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper
-
 import wandb
+
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.independent_learners import IndependentLearners, EvolutionaryLearners
@@ -42,7 +43,10 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    os.makedirs(args.save_dir, exist_ok=True)
+    os.makedirs(
+        f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}",
+        exist_ok=True,
+    )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -153,7 +157,7 @@ def runner_setup(args, agents, logger):
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
-        strategies = {"CMA_ES": CMA_ES, "OpenES": OpenES, "PGPE": PGPE}
+        strategies = {"CMA_ES", "OpenES", "PGPE"}
         assert algo in strategies, f"{algo} not in evolution strategies"
 
         def get_cma_strategy(agent):
@@ -162,7 +166,7 @@ def runner_setup(args, agents, logger):
             strategy = CMA_ES(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
-                elite_ratio=args.elite_ratio,
+                elite_ratio=args.es.elite_ratio,
             )
             es_params = strategy.default_params
             return strategy, es_params, param_reshaper
@@ -173,7 +177,6 @@ def runner_setup(args, agents, logger):
             strategy = OpenES(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
-                elite_ratio=args.elite_ratio,
             )
             # Update basic parameters of OpenES strategy
             es_params = strategy.default_params.replace(
@@ -205,7 +208,7 @@ def runner_setup(args, agents, logger):
             strategy = PGPE(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
-                elite_ratio=args.elite_ratio,
+                elite_ratio=args.es.elite_ratio,
             )
             es_params = strategy.default_params
             return strategy, es_params, param_reshaper
@@ -350,8 +353,6 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    if args.agent1 == "PPO_memory":
-        logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
@@ -454,9 +455,10 @@ def main(args):
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
     train_num_ep = int(args.eval_every / args.num_steps)
-
-    print(f"Number of training episodes = {total_num_ep}")
-    print(f"Evaluating every {train_num_ep} episodes")
+    if args.evo:
+        print(f"Number of generations = {total_num_ep}")
+    else:
+        print(f"Number of training episodes = {total_num_ep}")
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):

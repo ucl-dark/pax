@@ -1,17 +1,16 @@
 from datetime import datetime
-from multiprocessing.sharedctypes import Value
+import os
 import time
 from typing import List, NamedTuple
-import os
 
-from evosax import OpenES, CMA_ES, PGPE, FitnessShaper, ParameterReshaper
-
-# from evosax.utils import ESLog
-from pax.utils import ESLog
+from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
-
 import wandb
+
+# TODO: import when evosax library is updated
+# from evosax.utils import ESLog
+from pax.watchers import ESLog
 
 
 class Sample(NamedTuple):
@@ -38,7 +37,6 @@ class EvoRunner:
         self.args = args
         self.algo = args.es.algo
         self.num_opps = args.num_opponents
-        self.num_gens = args.num_gens
         self.popsize = args.popsize
         self.generations = 0
         self.top_k = args.top_k
@@ -71,6 +69,7 @@ class EvoRunner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
+        # TODO: Pull in from main
         def _state_visitation(traj: Sample) -> List:
             obs = jnp.argmax(traj.observations, axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
@@ -98,8 +97,6 @@ class EvoRunner:
         num_opps = self.num_opps
         agent1, agent2 = agents.agents
 
-        # TODO: remove and put into experiment
-        os.mkdir(self.log_dir)
         rng, _ = jax.random.split(self.random_key)
         evo_state = strategy.initialize(rng, es_params)
         fit_shaper = FitnessShaper(maximize=True)
@@ -209,7 +206,8 @@ class EvoRunner:
                 env_state,
             ), trajectories
 
-        for gen in range(self.num_gens):
+        # num_gens
+        for gen in range(0, int(num_episodes)):
             rng, _ = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.popsize, num_opps, env.num_envs), rng
@@ -231,6 +229,7 @@ class EvoRunner:
                 init_hidden,
             )
 
+            # TODO: This hsould be a1_new_mem
             a1, a1_state, a1_new_mem = agent1.batch_policy(
                 a1_state,
                 t_init[0].observation,
