@@ -161,7 +161,7 @@ class Runner:
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
 
-        # # this needs to move into independent learners too
+        # this needs to move into independent learners too
         # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
         # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
 
@@ -171,9 +171,9 @@ class Runner:
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
-            rng, _ = jax.random.split(rng)
+            rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (self.num_opps, env.num_envs), rng
+                (self.num_opps, env.num_envs), rng_run
             )
 
             if self.args.agent2 == "NaiveEx":

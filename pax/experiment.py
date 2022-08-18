@@ -180,24 +180,24 @@ def runner_setup(args, agents, logger):
             )
             # Update basic parameters of OpenES strategy
             es_params = strategy.default_params.replace(
-                sigma_init=args.sigma_init,
-                sigma_decay=args.sigma_decay,
-                sigma_limit=args.sigma_limit,
-                init_min=args.init_min,
-                init_max=args.init_max,
-                clip_min=args.clip_min,
-                clip_max=args.clip_max,
+                sigma_init=args.es.sigma_init,
+                sigma_decay=args.es.sigma_decay,
+                sigma_limit=args.es.sigma_limit,
+                init_min=args.es.init_min,
+                init_max=args.es.init_max,
+                clip_min=args.es.clip_min,
+                clip_max=args.es.clip_max,
             )
 
             # Update optimizer-specific parameters of Adam
             es_params = es_params.replace(
                 opt_params=es_params.opt_params.replace(
-                    lrate_init=args.lrate_init,
-                    lrate_decay=args.lrate_decay,
-                    lrate_limit=args.lrate_limit,
-                    beta_1=args.beta_1,
-                    beta_2=args.beta_2,
-                    eps=args.eps,
+                    lrate_init=args.es.lrate_init,
+                    lrate_decay=args.es.lrate_decay,
+                    lrate_limit=args.es.lrate_limit,
+                    beta_1=args.es.beta_1,
+                    beta_2=args.es.beta_2,
+                    eps=args.es.eps,
                 )
             )
             return strategy, es_params, param_reshaper

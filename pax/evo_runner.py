@@ -30,23 +30,22 @@ class EvoRunner:
     """Holds the runner's state."""
 
     def __init__(self, args, strategy, es_params, param_reshaper):
-        self.train_steps = 0
-        self.eval_steps = 0
-        self.train_episodes = 0
-        self.eval_episodes = 0
-        self.start_time = time.time()
-        self.args = args
         self.algo = args.es.algo
-        self.num_opps = args.num_opponents
-        self.popsize = args.popsize
-        self.generations = 0
-        self.top_k = args.top_k
-        self.random_key = jax.random.PRNGKey(args.seed)
-        self.strategy = strategy
+        self.args = args
         self.es_params = es_params
+        self.generations = 0
+        self.num_opps = args.num_opponents
+        self.eval_steps = 0
+        self.eval_episodes = 0
         self.param_reshaper = param_reshaper
+        self.popsize = args.popsize
+        self.random_key = jax.random.PRNGKey(args.seed)
+        self.start_time = time.time()
+        self.strategy = strategy
+        self.top_k = args.top_k
+        self.train_steps = 0
+        self.train_episodes = 0
 
-        # TODO: Pull in from main
         def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
             # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
             # final_t [num_opps, num_envs, ...]
@@ -61,58 +60,15 @@ class EvoRunner:
             obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
 
-        def _get_state_visitation(obs: jnp.ndarray) -> List:
-            return jnp.bincount(obs.flatten(), length=5)
-
-        def _get_observations(traj: Sample) -> List:
-            # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs]
-            obs = jnp.argmax(traj.observations, axis=-1)
-            return obs
-
         self.state_visitation = jax.jit(_state_visitation)
-        self.get_state_visitation = jax.jit(_get_state_visitation)
-        self.get_observations = jax.jit(_get_observations)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
-        print("Training")
-        print("-----------------------")
-        strategy = self.strategy
-        es_params = self.es_params
-        param_reshaper = self.param_reshaper
-        num_opps = self.num_opps
-        agent1, agent2 = agents.agents
-
-        rng, _ = jax.random.split(self.random_key)
-        evo_state = strategy.initialize(rng, es_params)
-        fit_shaper = FitnessShaper(maximize=True)
-        es_logging = ESLog(
-            param_reshaper.total_params,
-            self.num_gens,
-            top_k=self.top_k,
-            maximize=True,
-        )
-        log = es_logging.initialize()
-
-        # batch environment step for evolution games (i.e. add popsize)
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
-        # init player 1
-        init_hidden = jnp.tile(
-            agent1._mem.hidden,
-            (self.args.popsize, self.args.num_opponents, 1, 1),
-        )
-        agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, self.args.popsize),
-            init_hidden,
-        )
-
-        a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
 
         def _inner_rollout(carry, unused):
+            """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
@@ -162,6 +118,7 @@ class EvoRunner:
             )
 
         def _outer_rollout(carry, unused):
+            """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
@@ -175,7 +132,7 @@ class EvoRunner:
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # do second agent update
-            final_t2 = vals[1]._replace(
+            final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
             a2_state, a2_mem = agent2.batch_update(
@@ -192,14 +149,53 @@ class EvoRunner:
                 env_state,
             ), trajectories
 
+        print("Training")
+        print("-----------------------")
+        # Initialize agents and RNG
+        agent1, agent2 = agents.agents
+        rng, _ = jax.random.split(self.random_key)
+
+        # Initialize evolution
+        num_gens = num_episodes
+        strategy = self.strategy
+        es_params = self.es_params
+        param_reshaper = self.param_reshaper
+        popsize = self.popsize
+        num_opps = self.num_opps
+        evo_state = strategy.initialize(rng, es_params)
+        fit_shaper = FitnessShaper(maximize=True)
+        es_logging = ESLog(
+            param_reshaper.total_params,
+            num_gens,
+            top_k=self.top_k,
+            maximize=True,
+        )
+        log = es_logging.initialize()
+
+        # Evolution specific: add pop size dimension
+        env.batch_step = jax.jit(
+            jax.vmap(env.batch_step),
+        )
+
+        # Evolution specific: initialize player 1
+        init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (popsize, num_opps, 1, 1),
+        )
+        agent1._state, agent1._mem = agent1.batch_init(
+            jax.random.split(agent1._state.random_key, popsize),
+            init_hidden,
+        )
+
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
+
         # num_gens
         for gen in range(0, int(num_episodes)):
-            rng, _ = jax.random.split(rng)
+            rng, rng_run, rng_gen = jax.random.split(rng, 3)
             t_init, env_state = env.runner_reset(
-                (self.popsize, num_opps, env.num_envs), rng
+                (popsize, num_opps, env.num_envs), rng_run
             )
-
-            rng, rng_gen, _ = jax.random.split(rng, 3)
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
             a1_state = a1_state._replace(
@@ -207,7 +203,10 @@ class EvoRunner:
             )
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            a2_keys = jax.random.split(rng, self.popsize * num_opps).reshape(
+            init_hidden = jnp.tile(
+                agent2._mem.hidden, (popsize, num_opps, 1, 1)
+            )
+            a2_keys = jax.random.split(rng, popsize * num_opps).reshape(
                 self.popsize, num_opps, -1
             )
             a2_state, a2_mem = agent2.batch_init(
@@ -223,11 +222,15 @@ class EvoRunner:
             )
 
             # num trials
-            _, trajectories = jax.lax.scan(
+            vals, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
+            )
+
+            final_t1 = vals[0]._replace(
+                step_type=2 * jnp.ones_like(vals[0].step_type)
             )
 
             # calculate fitness
@@ -240,7 +243,7 @@ class EvoRunner:
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
 
-            visits = self.state_visitation(trajectories[0])
+            visits = self.state_visitation(trajectories[0], final_t1)
             prob_visits = visits / visits.sum()
 
             # Logging
