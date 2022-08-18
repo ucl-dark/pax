@@ -224,10 +224,14 @@ class Runner:
                 print(f"State Frequency: {visits}")
 
             if watchers:
-                trajectories[2]["sgd_steps"] = agent2._logger.metrics[
-                    "sgd_steps"
-                ]
-                agent2._logger.metrics = trajectories[2]
+                # metrics [outer_timesteps, num_opps]
+                flattened_metrics = jax.tree_util.tree_map(
+                    lambda x: jnp.sum(jnp.mean(x, 1)), trajectories[2]
+                )
+                agent2._logger.metrics = (
+                    agent2._logger.metrics | flattened_metrics
+                )
+
                 agents.log(watchers)
                 wandb.log(
                     {
