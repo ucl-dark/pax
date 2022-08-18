@@ -19,7 +19,7 @@ top_k: 100
 popsize: 100
 num_gens: 3_000 
 num_envs: 20
-num_opponents: 1
+num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 3.0e7
@@ -77,7 +77,7 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opponents}
+  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
   log: False
 
 

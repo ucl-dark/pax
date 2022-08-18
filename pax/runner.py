@@ -43,13 +43,13 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
-        self.num_opps = args.num_opponents
+        self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
             # x: [batch_size, ...]
-            batch_size = args.num_envs * args.num_opponents
+            batch_size = args.num_envs * args.num_opps
             return jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )

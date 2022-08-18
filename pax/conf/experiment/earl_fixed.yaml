@@ -19,7 +19,7 @@ top_k: 5
 popsize: 200
 num_gens: 50
 num_envs: 20
-num_opponents: 1
+num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 1.0e9

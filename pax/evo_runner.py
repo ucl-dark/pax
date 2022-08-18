@@ -34,7 +34,7 @@ class EvoRunner:
         self.args = args
         self.es_params = es_params
         self.generations = 0
-        self.num_opps = args.num_opponents
+        self.num_opps = args.num_opps
         self.eval_steps = 0
         self.eval_episodes = 0
         self.param_reshaper = param_reshaper

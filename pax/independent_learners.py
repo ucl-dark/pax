@@ -43,18 +43,16 @@ class IndependentLearners:
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         # init agents
-        init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opponents, 1, 1))
+        init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
         agent1._state, agent1._mem = agent1.batch_init(
             agent1._state.random_key, init_hidden
         )
 
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(
-                agent2._mem.hidden, (args.num_opponents, 1, 1)
-            )
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
             agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opponents),
+                jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
             )
 
@@ -130,13 +128,11 @@ class EvolutionaryLearners:
 
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(
-                agent2._mem.hidden, (args.num_opponents, 1, 1)
-            )
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
 
             key = jax.random.split(
-                agent2._state.random_key, args.popsize * args.num_opponents
-            ).reshape(args.popsize, args.num_opponents, -1)
+                agent2._state.random_key, args.popsize * args.num_opps
+            ).reshape(args.popsize, args.num_opps, -1)
 
             agent2._state, agent2._mem = agent2.batch_init(
                 key,
