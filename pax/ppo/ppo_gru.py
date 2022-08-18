@@ -9,7 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.ppo.networks import make_GRU, make_GRU_cartpole_network, make_GRU_coingame_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -519,7 +519,9 @@ def make_gru_agent(
     if args.env_id == "CartPole-v1":
         print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
-
+    elif args.env_id == 'coin_game' and args.ppo.with_cnn:
+        print(f"Making network for {args.env_id} with CNN")
+        network = make_GRU_coingame_network(action_spec)
     else:
         print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU(action_spec)

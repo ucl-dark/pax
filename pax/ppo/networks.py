@@ -98,6 +98,24 @@ def make_coingame_network(num_actions: int):
     return network
 
 
+def make_GRU_coingame_network(num_actions: int):
+    hidden_size = 25
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        x = CNN()(inputs)
+        gru = hk.GRU(hidden_size)
+        embedding, state = gru(x, state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+
+        return (logits, values), state
+    
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
 def make_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
