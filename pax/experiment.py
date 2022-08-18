@@ -128,12 +128,14 @@ def env_setup(args, logger=None):
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
             seed=args.seed,
+            cnn=args.ppo.with_cnn,
         )
         test_env = CoinGame(
             args.num_envs,
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
             seed=args.seed,
+            cnn=args.ppo.with_cnn,
         )
         if logger:
             logger.info(
@@ -173,7 +175,7 @@ def agent_setup(args, logger):
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
 
-        if args.env_type == "coin_gmae":
+        if args.env_type == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs, args.num_steps, args.num_steps, 0
             )
@@ -202,7 +204,7 @@ def agent_setup(args, logger):
         # dummy environment to get observation and action spec
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
-                args.num_envs, args.num_steps, args.num_steps, 0
+                args.num_envs, args.num_steps, args.num_steps, 0, args.ppo.with_cnn
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -318,6 +320,8 @@ def agent_setup(args, logger):
 
     if args.agent1 == "PPO_memory":
         logger.info(f"PPO with memory: {args.ppo.with_memory}")
+    elif args.agent1 == "PPO" and args.ppo.with_cnn:
+        logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 

@@ -60,6 +60,44 @@ class ContinuousValueHead(hk.Module):
         return (distrax.MultivariateNormalDiag(loc=logits), value)
 
 
+class CNN(hk.Module):
+    def __init__(self, num_actions: int):
+        super().__init__(name="CNN")
+        self.conv_a_0 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
+        self.conv_a_1 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
+        self.linear_a_0 = hk.Linear(16)
+
+        self.flatten = hk.Flatten()
+
+
+    def __call__(self, inputs: jnp.ndarray):
+        # Actor
+        x = self.conv_a_0(inputs)
+        x = jax.nn.relu(x)
+        x = self.conv_a_1(x)
+        x = jax.nn.relu(x)
+        x = self.flatten(x)
+        x = self.linear_a_0(x)
+        x = jax.nn.relu(x)
+
+        return x
+
+
+def make_coingame_network(num_actions: int):
+    def forward_fn(inputs):
+        layers = []
+        layers.extend([
+            CNN(num_actions),
+            CategoricalValueHead(num_values=num_actions)
+        ]
+        )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+    
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
 def make_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 

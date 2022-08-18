@@ -5,7 +5,7 @@ agent1: 'PPO'
 agent2: 'PPO'
 
 # Environment
-env_id: ipd
+env_id: coin_game
 game: ipd 
 env_type: coin_game
 env_discount: 0.96
@@ -43,12 +43,13 @@ ppo:
   lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
-  with_memory: True
+  with_memory: False
+  with_cnn: True
 
 # Logging setup
 wandb:
   entity: "timon"
   project: marl-squared
-  group: 'cg-inner-${agent1}-vs-${agent2}-parity'
+  group: 'cg-cnn-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
