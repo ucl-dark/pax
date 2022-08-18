@@ -30,7 +30,6 @@ evo: False
 # Training hyperparameters
 # env_batch_size = num_envs * num_opponents
 popsize: 20
-num_gens: 50
 num_envs: 2
 num_opponents: 60
 num_steps: 100 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
@@ -79,7 +78,6 @@ wandb:
   group: 'MARL^2-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: False
-
 
 # DQN agent parameters
 dqn: 
