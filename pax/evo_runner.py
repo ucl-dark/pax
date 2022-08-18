@@ -316,12 +316,12 @@ class EvoRunner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
-            if self.generations % 100 == 0:
+            if log["gen_counter"] % 100 == 0:
                 if self.algo == "OpenES" or self.algo == "PGPE":
                     jnp.save(
                         os.path.join(
                             self.log_dir,
-                            f"mean_param_{log['gen_counter']}.npy",
+                            f"mean_param_{self.generations}.npy",
                         ),
                         evo_state.mean,
                     )
@@ -329,7 +329,7 @@ class EvoRunner:
                 es_logging.save(
                     log,
                     os.path.join(
-                        self.log_dir, f"generation_{log['gen_counter']}"
+                        self.log_dir, f"generation_{self.generations}"
                     ),
                 )
 
@@ -410,7 +410,7 @@ class EvoRunner:
         )
 
         # Evaluation parameters
-        num_opps = 20
+        num_opps = self.args.eval_num_opps
         eval_popsize = 1
 
         env.batch_step = jax.jit(
