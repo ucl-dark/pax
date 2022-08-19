@@ -204,6 +204,7 @@ class EvoRunner:
             a1_state = a1_state._replace(
                 params=param_reshaper.reshape(x),
             )
+            # print(a1_state.params)
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             init_hidden = jnp.tile(
