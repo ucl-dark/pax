@@ -521,7 +521,7 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
     elif args.env_id == 'coin_game' and args.ppo.with_cnn:
         print(f"Making network for {args.env_id} with CNN")
-        network = make_GRU_coingame_network(action_spec)
+        network, initial_hidden_state = make_GRU_coingame_network(action_spec)
     else:
         print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU(action_spec)

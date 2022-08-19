@@ -177,7 +177,7 @@ def agent_setup(args, logger):
 
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
-                args.num_envs, args.num_steps, args.num_steps, 0
+                args.num_envs, args.num_steps, args.num_steps, 0, args.ppo.with_cnn
             )
             obs_spec = dummy_env.observation_spec().shape
         else:

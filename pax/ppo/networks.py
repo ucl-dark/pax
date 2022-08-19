@@ -61,7 +61,7 @@ class ContinuousValueHead(hk.Module):
 
 
 class CNN(hk.Module):
-    def __init__(self, num_actions: int):
+    def __init__(self):
         super().__init__(name="CNN")
         self.conv_a_0 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
         self.conv_a_1 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
@@ -87,7 +87,7 @@ def make_coingame_network(num_actions: int):
     def forward_fn(inputs):
         layers = []
         layers.extend([
-            CNN(num_actions),
+            CNN(),
             CategoricalValueHead(num_values=num_actions)
         ]
         )

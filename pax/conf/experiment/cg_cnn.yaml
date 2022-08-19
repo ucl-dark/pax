@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
@@ -43,7 +43,7 @@ ppo:
   lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: True
 
 # Logging setup
