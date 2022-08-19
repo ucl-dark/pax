@@ -357,7 +357,6 @@ def agent_setup(args, logger):
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     if args.evo:
-        # TODO: Put the strategy abstraction here?
         return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
