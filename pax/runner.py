@@ -60,16 +60,25 @@ class Runner:
             num_timesteps = (
                 traj.observations.shape[0] * traj.observations.shape[1]
             )
-            obs = jnp.reshape(
-                traj.observations,
-                (num_timesteps,) + traj.observations.shape[2:],
+            # obs = [0, 1, 2, 3, 4], a = [0, 1]
+            # combine = [0, .... 9]
+            state_actions = (
+                2 * jnp.argmax(traj.observations, axis=-1) + traj.actions
             )
-            final_obs = jax.lax.expand_dims(final_t.observation, [0])
-            obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
-            return jnp.bincount(obs.flatten(), length=5)
+            state_actions = jnp.reshape(
+                state_actions,
+                (num_timesteps,) + state_actions.shape[2:],
+            )
+            # assume final step taken is cooperate
+            final_obs = jax.lax.expand_dims(
+                2 * jnp.argmax(final_t.observation, axis=-1), [0]
+            )
+            state_actions = jnp.append(state_actions, final_obs, axis=0)
+            return jnp.bincount(state_actions.flatten(), length=10)
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
-        self.state_visitation = jax.jit(_state_visitation)
+        # self.state_visitation = jax.jit(_state_visitation)
+        self.state_visitation = _state_visitation
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
@@ -202,7 +211,7 @@ class Runner:
             a1_mem = vals[3]
 
             a1_state, _, _ = agent1.update(
-                reduce_outer_traj(stack[0]),
+                reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(final_t1),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
@@ -221,7 +230,7 @@ class Runner:
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                visits = self.state_visitation(stack[0], final_t1)
+                visits = self.state_visitation(traj_1, final_t1)
                 print(f"State Frequency: {visits}")
 
             if watchers:
