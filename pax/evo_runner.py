@@ -220,6 +220,12 @@ class EvoRunner:
                 init_hidden,
             )
 
+            a1, a1_state, a1_mem = agent1.batch_policy(
+                a1_state,
+                t_init[0].observation,
+                a1_mem,
+            )
+
             vals, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
