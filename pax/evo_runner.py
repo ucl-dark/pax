@@ -163,14 +163,17 @@ class EvoRunner:
 
         print("Training")
         print("------------------------------")
-        print(
-            f"Number of Generations: "
-            f"{max(int(num_episodes / (self.popsize * env.num_envs * self.num_opps)), 1)}"
+        num_iters = max(
+            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
+            1,
         )
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_iters}")
         print(f"Number of Meta Episodes: {num_episodes}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
+        print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
@@ -210,13 +213,6 @@ class EvoRunner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
-
-        num_iters = max(
-            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
-            1,
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-        print(f"Log Interval {log_interval}")
 
         for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -289,7 +285,7 @@ class EvoRunner:
             action_probs = visits[::2] / states
 
             if gen % log_interval == 0:
-                print(f"Generation: {log['gen_counter']}")
+                print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -371,5 +367,5 @@ class EvoRunner:
                 )
                 agents.log(watchers)
                 wandb.log(wandb_log)
-            print()
+
         return agents
