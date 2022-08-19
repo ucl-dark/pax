@@ -288,31 +288,32 @@ class EvoRunner:
             state_freq = states / states.sum()
             action_probs = visits[::2] / states
 
-            print(f"Generation: {log['gen_counter']}")
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(
-                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
-            )
-            print(f"State Visitation: {states}")
-            print(f"Cooperation Frequency: {action_probs}")
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(
-                f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                f" | Std: {log['log_top_gen_std'][gen]}"
-            )
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
-            print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
-            print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
-            print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
-            print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
-            print()
+            if gen % log_interval == 0:
+                print(f"Generation: {log['gen_counter']}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(
+                    f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                )
+                print(f"State Visitation: {states}")
+                print(f"Cooperation Frequency: {action_probs}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(
+                    f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
+                    f" | Std: {log['log_top_gen_std'][gen]}"
+                )
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
+                print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
+                print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
+                print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
+                print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
+                print()
 
             self.generations += 1
 
