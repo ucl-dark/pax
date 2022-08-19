@@ -29,7 +29,7 @@ class Sample(NamedTuple):
 class EvoRunner:
     """Holds the runner's state."""
 
-    def __init__(self, args, strategy, es_params, param_reshaper):
+    def __init__(self, args, strategy, es_params, param_reshaper, save_dir):
         self.algo = args.es.algo
         self.args = args
         self.es_params = es_params
@@ -40,6 +40,8 @@ class EvoRunner:
         self.param_reshaper = param_reshaper
         self.popsize = args.popsize
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.start_datetime = datetime.now()
+        self.save_dir = save_dir
         self.start_time = time.time()
         self.strategy = strategy
         self.top_k = args.top_k
@@ -192,10 +194,11 @@ class EvoRunner:
 
         # num_gens
         for gen in range(0, int(num_episodes)):
-            rng, rng_run, rng_gen = jax.random.split(rng, 3)
+            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )
+            # Prepare player 1
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
             a1_state = a1_state._replace(
@@ -206,7 +209,9 @@ class EvoRunner:
             init_hidden = jnp.tile(
                 agent2._mem.hidden, (popsize, num_opps, 1, 1)
             )
-            a2_keys = jax.random.split(rng, popsize * num_opps).reshape(
+
+            # Prepare player 2
+            a2_keys = jax.random.split(rng_key, popsize * num_opps).reshape(
                 self.popsize, num_opps, -1
             )
             a2_state, a2_mem = agent2.batch_init(
@@ -214,14 +219,6 @@ class EvoRunner:
                 init_hidden,
             )
 
-            # TODO: This hsould be a1_new_mem
-            a1, a1_state, a1_new_mem = agent1.batch_policy(
-                a1_state,
-                t_init[0].observation,
-                a1_mem,
-            )
-
-            # num trials
             vals, trajectories = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -252,7 +249,7 @@ class EvoRunner:
                 if self.algo == "OpenES" or self.algo == "PGPE":
                     jnp.save(
                         os.path.join(
-                            self.log_dir,
+                            self.save_dir,
                             f"mean_param_{self.generations}.npy",
                         ),
                         evo_state.mean,
@@ -261,7 +258,7 @@ class EvoRunner:
                 es_logging.save(
                     log,
                     os.path.join(
-                        self.log_dir, f"generation_{self.generations}"
+                        self.save_dir, f"generation_{self.generations}"
                     ),
                 )
 

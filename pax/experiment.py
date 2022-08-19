@@ -43,8 +43,9 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
+    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
     os.makedirs(
-        f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}",
+        save_dir,
         exist_ok=True,
     )
     if args.wandb.log:
@@ -63,6 +64,7 @@ def global_setup(args):
             settings=wandb.Settings(code_dir="."),
         )
         wandb.run.log_code(".")
+    return save_dir
 
 
 def payoff_setup(args, logger):
@@ -153,7 +155,7 @@ def env_setup(args, logger=None):
     return train_env, test_env
 
 
-def runner_setup(args, agents, logger):
+def runner_setup(args, agents, save_dir, logger):
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
@@ -222,7 +224,7 @@ def runner_setup(args, agents, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(args, strategy, es_params, param_reshaper)
+        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
         return Runner(args)
 
@@ -437,7 +439,7 @@ def main(args):
     """Set up main."""
     logger = logging.getLogger()
     with Section("Global setup", logger=logger):
-        global_setup(args)
+        save_dir = global_setup(args)
 
     with Section("Env setup", logger=logger):
         train_env, test_env = env_setup(args, logger)
@@ -449,7 +451,7 @@ def main(args):
         watchers = watcher_setup(args, logger)
 
     with Section("Runner setup", logger=logger):
-        runner = runner_setup(args, agent_pair, logger)
+        runner = runner_setup(args, agent_pair, save_dir, logger)
 
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
