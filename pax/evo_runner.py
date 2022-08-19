@@ -48,19 +48,41 @@ class EvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
 
+        # def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
+        #     # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+        #     # final_t [num_opps, num_envs, ...]
+        #     num_timesteps = (
+        #         traj.observations.shape[0] * traj.observations.shape[1]
+        #     )
+        #     obs = jnp.reshape(
+        #         traj.observations,
+        #         (num_timesteps,) + traj.observations.shape[2:],
+        #     )
+        #     final_obs = jax.lax.expand_dims(final_t.observation, [0])
+        #     obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
+        #     return jnp.bincount(obs.flatten(), length=5)
+
         def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
             # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
             # final_t [num_opps, num_envs, ...]
             num_timesteps = (
                 traj.observations.shape[0] * traj.observations.shape[1]
             )
-            obs = jnp.reshape(
-                traj.observations,
-                (num_timesteps,) + traj.observations.shape[2:],
+            # obs = [0, 1, 2, 3, 4], a = [0, 1]
+            # combine = [0, .... 9]
+            state_actions = (
+                2 * jnp.argmax(traj.observations, axis=-1) + traj.actions
             )
-            final_obs = jax.lax.expand_dims(final_t.observation, [0])
-            obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
-            return jnp.bincount(obs.flatten(), length=5)
+            state_actions = jnp.reshape(
+                state_actions,
+                (num_timesteps,) + state_actions.shape[2:],
+            )
+            # assume final step taken is cooperate
+            final_obs = jax.lax.expand_dims(
+                2 * jnp.argmax(final_t.observation, axis=-1), [0]
+            )
+            state_actions = jnp.append(state_actions, final_obs, axis=0)
+            return jnp.bincount(state_actions.flatten(), length=10)
 
         self.state_visitation = jax.jit(_state_visitation)
 
@@ -258,8 +280,10 @@ class EvoRunner:
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
             )
-            visits = self.state_visitation(stack[0], final_t1)
-            prob_visits = visits / visits.sum()
+            visits = self.state_visitation(traj_1, final_t1)
+            states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
+            state_freq = states / states.sum()
+            action_probs = visits[::2] / states
 
             print(f"Generation: {log['gen_counter']}")
             print(
@@ -268,7 +292,8 @@ class EvoRunner:
             print(
                 f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
             )
-            print(f"State Visitation: {prob_visits}")
+            print(f"State Visitation: {states}")
+            print(f"Cooperation Frequency: {action_probs}")
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -299,11 +324,16 @@ class EvoRunner:
                     "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
                     "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
                     "train/fitness/gen_std": log["log_gen_std"][gen],
-                    "train/state_visitation/CC": prob_visits[0],
-                    "train/state_visitation/CD": prob_visits[1],
-                    "train/state_visitation/DC": prob_visits[2],
-                    "train/state_visitation/DD": prob_visits[3],
-                    "train/state_visitation/START": prob_visits[4],
+                    "train/state_visitation/CC": state_freq[0],
+                    "train/state_visitation/CD": state_freq[1],
+                    "train/state_visitation/DC": state_freq[2],
+                    "train/state_visitation/DD": state_freq[3],
+                    "train/state_visitation/START": state_freq[4],
+                    "train/cooperation_probability/CC": action_probs[0],
+                    "train/cooperation_probability/CD": action_probs[1],
+                    "train/cooperation_probability/DC": action_probs[2],
+                    "train/cooperation_probability/DD": action_probs[3],
+                    "train/cooperation_probability/START": action_probs[4],
                     "train/time/minutes": float(
                         (time.time() - self.start_time) / 60
                     ),
@@ -325,15 +355,9 @@ class EvoRunner:
 
                 # player 2 metrics
                 # metrics [outer_timesteps, num_opps]
-
-                print(a2_metrics.keys())
-                # print(a2_metrics['sgd_steps'])
-                # print(a2_metrics.shape)
                 flattened_metrics = jax.tree_util.tree_map(
                     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                 )
-                # print(flattened_metrics)
-                # print(flattened_metrics.shape)
                 agent2._logger.metrics = (
                     agent2._logger.metrics | flattened_metrics
                 )
