@@ -277,28 +277,28 @@ class EvoRunner:
             jax.vmap(env.batch_step),
         )
 
-        # # Evolution specific: initialize player 1
-        # init_hidden = jnp.tile(
-        #     agent1._mem.hidden,
-        #     (popsize, num_opps, 1, 1),
-        # )
-        # agent1._state, agent1._mem = agent1.batch_init(
-        #     jax.random.split(agent1._state.random_key, popsize),
-        #     init_hidden,
-        # )
+        # TODO: Why can't this be moved to EvolutionaryLearners?
+        # Evolution specific: initialize player 1
+        init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (popsize, num_opps, 1, 1),
+        )
+        agent1._state, agent1._mem = agent1.batch_init(
+            jax.random.split(agent1._state.random_key, popsize),
+            init_hidden,
+        )
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
         # num_gens
         for gen in range(0, int(num_episodes)):
-            rng, _ = jax.random.split(rng)
-            #  rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            # rng, _ = jax.random.split(rng)
+            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng
+                (popsize, num_opps, env.num_envs), rng_run
             )
-            # Prepare player 1
-            rng, rng_gen, _ = jax.random.split(rng, 3)
+            # rng, rng_gen, _ = jax.random.split(rng, 3)
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
             a1_state = a1_state._replace(
@@ -307,17 +307,16 @@ class EvoRunner:
 
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            init_hidden = jnp.tile(
-                agent2._mem.hidden, (popsize, num_opps, 1, 1)
-            )
+            # init_hidden = jnp.tile(
+            #     agent2._mem.hidden, (popsize, num_opps, 1, 1)
+            # )
 
             # Prepare player 2
-            a2_keys = jax.random.split(rng, popsize * num_opps).reshape(
-                self.popsize, num_opps, -1
-            )
             a2_state, a2_mem = agent2.batch_init(
-                a2_keys,
-                init_hidden,
+                jax.random.split(rng_key, popsize * num_opps).reshape(
+                    self.popsize, num_opps, -1
+                ),
+                a2_mem.hidden,
             )
 
             vals, trajectories = jax.lax.scan(
