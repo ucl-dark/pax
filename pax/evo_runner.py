@@ -194,11 +194,13 @@ class EvoRunner:
 
         # num_gens
         for gen in range(0, int(num_episodes)):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, _ = jax.random.split(rng)
+            #  rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
+                (popsize, num_opps, env.num_envs), rng
             )
             # Prepare player 1
+            rng, rng_gen, _ = jax.random.split(rng, 3)
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
             a1_state = a1_state._replace(
@@ -212,7 +214,7 @@ class EvoRunner:
             )
 
             # Prepare player 2
-            a2_keys = jax.random.split(rng_key, popsize * num_opps).reshape(
+            a2_keys = jax.random.split(rng, popsize * num_opps).reshape(
                 self.popsize, num_opps, -1
             )
             a2_state, a2_mem = agent2.batch_init(
