@@ -240,7 +240,7 @@ class EvoRunner:
                     jnp.save(
                         os.path.join(
                             self.save_dir,
-                            f"mean_param_{self.generations}.npy",
+                            f"mean_param_{log['gen_counter']}.npy",
                         ),
                         evo_state.mean,
                     )
@@ -248,7 +248,7 @@ class EvoRunner:
                 es_logging.save(
                     log,
                     os.path.join(
-                        self.save_dir, f"generation_{self.generations}"
+                        self.save_dir, f"generation_{log['gen_counter']}"
                     ),
                 )
 
