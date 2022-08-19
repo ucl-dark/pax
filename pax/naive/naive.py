@@ -406,14 +406,14 @@ class NaiveLearner:
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, new_mem, results = self._sgd_step(state, traj_batch)
+        state, new_mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        return state, new_mem._replace(hidden=mem.hidden)
+        self._logger.metrics["loss_total"] = metrics["loss_total"]
+        self._logger.metrics["loss_policy"] = metrics["loss_policy"]
+        self._logger.metrics["loss_value"] = metrics["loss_value"]
+        return state, new_mem._replace(hidden=mem.hidden), metrics
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
