@@ -231,7 +231,12 @@ class Runner:
                 )
 
                 visits = self.state_visitation(traj_1, final_t1)
-                print(f"State Frequency: {visits}")
+                states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(
+                    axis=1
+                )
+                print(f"State Frequency: {states}")
+                action_probs = visits[::2] / states
+                print(f"Action Frequency: {action_probs}")
 
             if watchers:
                 # metrics [outer_timesteps, num_opps]
