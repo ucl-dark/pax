@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-from pax.utils import MemoryState, TrainingState
+from pax.utils import MemoryState, TrainingState, Logger
 
 # states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1
@@ -21,6 +21,8 @@ class GrimTrigger:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -59,6 +61,8 @@ class TitForTat:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -100,6 +104,8 @@ class Defect:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -137,6 +143,8 @@ class Altruistic:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -215,6 +223,7 @@ class HyperAltruistic:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -251,6 +260,8 @@ class HyperDefect:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -292,6 +303,8 @@ class HyperTFT:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
