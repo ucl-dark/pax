@@ -18,7 +18,6 @@ evo: True
 top_k: 100
 popsize: 500
 num_envs: 2
-num_gens: 15000
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 

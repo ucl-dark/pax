@@ -17,7 +17,6 @@ evo: True
 # Training
 top_k: 100
 popsize: 100
-num_gens: 3_000 
 num_envs: 20
 num_opps: 1
 num_steps: 10_000 
