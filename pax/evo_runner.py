@@ -48,20 +48,6 @@ class EvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
 
-        # def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
-        #     # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
-        #     # final_t [num_opps, num_envs, ...]
-        #     num_timesteps = (
-        #         traj.observations.shape[0] * traj.observations.shape[1]
-        #     )
-        #     obs = jnp.reshape(
-        #         traj.observations,
-        #         (num_timesteps,) + traj.observations.shape[2:],
-        #     )
-        #     final_obs = jax.lax.expand_dims(final_t.observation, [0])
-        #     obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
-        #     return jnp.bincount(obs.flatten(), length=5)
-
         def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
             # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
             # final_t [num_opps, num_envs, ...]
