@@ -13,6 +13,8 @@ import wandb
 # from evosax.utils import ESLog
 from pax.watchers import ESLog
 
+MAX_WANDB_CALLS = 1000
+
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -161,14 +163,17 @@ class EvoRunner:
 
         print("Training")
         print("------------------------------")
-        print(
-            f"Number of Generations: "
-            f"{max(int(num_episodes / (self.popsize * env.num_envs * self.num_opps)), 1)}"
+        num_iters = max(
+            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
+            1,
         )
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_iters}")
         print(f"Number of Meta Episodes: {num_episodes}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
+        print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
@@ -209,16 +214,7 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        for gen in range(
-            0,
-            max(
-                int(
-                    num_episodes
-                    / (self.popsize * env.num_envs * self.num_opps)
-                ),
-                1,
-            ),
-        ):
+        for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
@@ -288,31 +284,32 @@ class EvoRunner:
             state_freq = states / states.sum()
             action_probs = visits[::2] / states
 
-            print(f"Generation: {log['gen_counter']}")
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(
-                f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
-            )
-            print(f"State Visitation: {states}")
-            print(f"Cooperation Frequency: {action_probs}")
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(
-                f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                f" | Std: {log['log_top_gen_std'][gen]}"
-            )
-            print(
-                "--------------------------------------------------------------------------"
-            )
-            print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
-            print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
-            print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
-            print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
-            print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
-            print()
+            if gen % log_interval == 0:
+                print(f"Generation: {gen}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(
+                    f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                )
+                print(f"State Visitation: {states}")
+                print(f"Cooperation Frequency: {action_probs}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(
+                    f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
+                    f" | Std: {log['log_top_gen_std'][gen]}"
+                )
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
+                print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
+                print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
+                print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
+                print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
+                print()
 
             self.generations += 1
 
@@ -370,5 +367,5 @@ class EvoRunner:
                 )
                 agents.log(watchers)
                 wandb.log(wandb_log)
-            print()
+
         return agents
