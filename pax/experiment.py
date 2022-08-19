@@ -458,10 +458,6 @@ def main(args):
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
     train_num_ep = int(args.eval_every / args.num_steps)
-    if args.evo:
-        print(f"Number of generations = {total_num_ep}")
-    else:
-        print(f"Number of training episodes = {total_num_ep}")
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):

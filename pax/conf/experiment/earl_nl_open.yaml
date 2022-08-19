@@ -16,13 +16,13 @@ evo: True
 
 # Training
 top_k: 100
-popsize: 500
+popsize: 1000
 num_envs: 2
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
-total_timesteps: 1.5e8
-eval_every: 1.5e8
+total_timesteps: 2e11
+eval_every: 2e11
 
 # PPO agent parameters
 ppo:

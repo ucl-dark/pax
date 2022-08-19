@@ -160,7 +160,16 @@ class EvoRunner:
             ), (*trajectories, a2_metrics)
 
         print("Training")
-        print("-----------------------")
+        print("------------------------------")
+        print(
+            f"Number of Generations: "
+            f"{max(int(num_episodes / (self.popsize * env.num_envs * self.num_opps)), 1)}"
+        )
+        print(f"Number of Meta Episodes: {num_episodes}")
+        print(f"Population Size: {self.popsize}")
+        print(f"Number of Environments: {env.num_envs}")
+        print(f"Number of Opponent: {self.num_opps}")
+        print("------------------------------")
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
@@ -200,7 +209,16 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        for gen in range(0, int(num_episodes)):
+        for gen in range(
+            0,
+            max(
+                int(
+                    num_episodes
+                    / (self.popsize * env.num_envs * self.num_opps)
+                ),
+                1,
+            ),
+        ):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
