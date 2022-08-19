@@ -13,6 +13,8 @@ import wandb
 # from evosax.utils import ESLog
 from pax.watchers import ESLog
 
+MAX_WANDB_CALLS = 1000
+
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -209,16 +211,14 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        for gen in range(
-            0,
-            max(
-                int(
-                    num_episodes
-                    / (self.popsize * env.num_envs * self.num_opps)
-                ),
-                1,
-            ),
-        ):
+        num_iters = max(
+            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
+            1,
+        )
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Log Interval {log_interval}")
+
+        for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
