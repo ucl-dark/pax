@@ -7,16 +7,16 @@ import hydra
 import omegaconf
 import wandb
 
-from pax.env import SequentialMatrixGame
+from pax.env_inner import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
-from pax.independent_learners import IndependentLearners, EvolutionaryLearners
-from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
+from pax.learners import IndependentLearners, EvolutionaryLearners
+from pax.env_meta import InfiniteMatrixGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.evo_runner import EvoRunner
-from pax.runner import Runner
+from pax.runner_evo import EvoRunner
+from pax.runner_rl import Runner
 from pax.strategies import (
     Altruistic,
     Defect,

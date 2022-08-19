@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import pickle
 
-from .env import State
+from .env_inner import State
 import pax.hyper.ppo as HyperPPO
 from pax.naive_exact import NaiveExact
 import pax.ppo.ppo as PPO
