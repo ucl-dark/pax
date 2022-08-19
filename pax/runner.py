@@ -125,7 +125,7 @@ class Runner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
@@ -135,14 +135,14 @@ class Runner:
             )
 
             # update second agent
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
 
             final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
 
-            a2_state, a2_mem = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_mem
+            a2_state, a2_memory, a2_metrics = agent2.batch_update(
+                trajectories[1], final_t2, a2_state, a2_memory
             )
 
             return (
@@ -151,9 +151,9 @@ class Runner:
                 a1_state,
                 a1_mem,
                 a2_state,
-                a2_mem,
+                a2_memory,
                 env_state,
-            ), trajectories
+            ), (*trajectories, a2_metrics)
 
         """Run training of agents in environment"""
         print("Training")
@@ -186,13 +186,14 @@ class Runner:
                 )
 
             # run trials
-            vals, trajectories = jax.lax.scan(
+            vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
             )
 
+            traj_1, traj_2, a2_metrics = stack
             # update outer agent
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
@@ -200,8 +201,8 @@ class Runner:
             a1_state = vals[2]
             a1_mem = vals[3]
 
-            a1_state, _ = agent1.update(
-                reduce_outer_traj(trajectories[0]),
+            a1_state, _, _ = agent1.update(
+                reduce_outer_traj(stack[0]),
                 self.reduce_opp_dim(final_t1),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
@@ -213,18 +214,29 @@ class Runner:
 
             # logging
             self.train_episodes += 1
-            rewards_0 = trajectories[0].rewards.mean()
-            rewards_1 = trajectories[1].rewards.mean()
-
+            rewards_0 = stack[0].rewards.mean()
+            rewards_1 = stack[1].rewards.mean()
             if i % 5 == 0:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                visits = self.state_visitation(trajectories[0], final_t1)
+                visits = self.state_visitation(stack[0], final_t1)
                 print(f"State Frequency: {visits}")
 
             if watchers:
+                # metrics [outer_timesteps, num_opps]
+                flattened_metrics = jax.tree_util.tree_map(
+                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                )
+                agent2._logger.metrics = (
+                    agent2._logger.metrics | flattened_metrics
+                )
+
+                agent1._logger.metrics = (
+                    agent1._logger.metrics | flattened_metrics
+                )
+
                 agents.log(watchers)
                 wandb.log(
                     {

@@ -29,7 +29,7 @@ class GrimTrigger:
         return self._trigger(timestep.observation)
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -69,7 +69,7 @@ class TitForTat:
         return self._reciprocity(timestep.observation)
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return mem
@@ -112,7 +112,7 @@ class Defect:
         return jnp.ones((batch_size,))
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -164,7 +164,7 @@ class Altruistic:
         return jnp.zeros((batch_size,)), state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -241,7 +241,7 @@ class HyperAltruistic:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -277,7 +277,7 @@ class HyperDefect:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -325,7 +325,7 @@ class HyperTFT:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
