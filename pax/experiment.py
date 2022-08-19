@@ -1,18 +1,21 @@
+from datetime import datetime
 import logging
 import os
 
+from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper
 import hydra
 import omegaconf
-
 import wandb
+
 from pax.env import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
-from pax.independent_learners import IndependentLearners
+from pax.independent_learners import IndependentLearners, EvolutionaryLearners
 from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.evo_runner import EvoRunner
 from pax.runner import Runner
 from pax.strategies import (
     Altruistic,
@@ -40,7 +43,11 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    os.makedirs(args.save_dir, exist_ok=True)
+    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
+    os.makedirs(
+        save_dir,
+        exist_ok=True,
+    )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -54,7 +61,10 @@ def global_setup(args):
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),
+            settings=wandb.Settings(code_dir="."),
         )
+        wandb.run.log_code(".")
+    return save_dir
 
 
 def payoff_setup(args, logger):
@@ -114,12 +124,14 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
         )
         test_env = MetaFiniteGame(
-            args.num_envs,
+            1,
             args.payoff,
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
         )
         if logger:
+            if args.evo:
+                logger.info(f"Env Type: Meta | Generations: {args.num_steps}")
             logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
     else:
@@ -145,8 +157,78 @@ def env_setup(args, logger=None):
     return train_env, test_env
 
 
-def runner_setup(args):
-    return Runner(args)
+def runner_setup(args, agents, save_dir, logger):
+    if args.evo:
+        agent1, _ = agents.agents
+        algo = args.es.algo
+        strategies = {"CMA_ES", "OpenES", "PGPE"}
+        assert algo in strategies, f"{algo} not in evolution strategies"
+
+        def get_cma_strategy(agent):
+            """Returns the CMA strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = CMA_ES(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+                elite_ratio=args.es.elite_ratio,
+            )
+            es_params = strategy.default_params
+            return strategy, es_params, param_reshaper
+
+        def get_openes_strategy(agent):
+            """Returns the OpenES strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = OpenES(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+            )
+            # Update basic parameters of OpenES strategy
+            es_params = strategy.default_params.replace(
+                sigma_init=args.es.sigma_init,
+                sigma_decay=args.es.sigma_decay,
+                sigma_limit=args.es.sigma_limit,
+                init_min=args.es.init_min,
+                init_max=args.es.init_max,
+                clip_min=args.es.clip_min,
+                clip_max=args.es.clip_max,
+            )
+
+            # Update optimizer-specific parameters of Adam
+            es_params = es_params.replace(
+                opt_params=es_params.opt_params.replace(
+                    lrate_init=args.es.lrate_init,
+                    lrate_decay=args.es.lrate_decay,
+                    lrate_limit=args.es.lrate_limit,
+                    beta_1=args.es.beta_1,
+                    beta_2=args.es.beta_2,
+                    eps=args.es.eps,
+                )
+            )
+            return strategy, es_params, param_reshaper
+
+        def get_pgpe_strategy(agent):
+            """Returns the PGPE strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = PGPE(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+                elite_ratio=args.es.elite_ratio,
+            )
+            es_params = strategy.default_params
+            return strategy, es_params, param_reshaper
+
+        if algo == "CMA_ES":
+            strategy, es_params, param_reshaper = get_cma_strategy(agent1)
+        elif algo == "OpenES":
+            strategy, es_params, param_reshaper = get_openes_strategy(agent1)
+        elif algo == "PGPE":
+            strategy, es_params, param_reshaper = get_pgpe_strategy(agent1)
+
+        logger.info(f"Evolution Strategy: {algo}")
+
+        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+    else:
+        return Runner(args)
 
 
 def agent_setup(args, logger):
@@ -275,11 +357,11 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    if args.agent1 == "PPO_memory":
-        logger.info(f"PPO with memory: {args.ppo.with_memory}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
+    if args.evo:
+        return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
 
@@ -324,8 +406,8 @@ def watcher_setup(args, logger):
         value = value_logger_ppo(agent)
         losses.update(value)
         losses.update(policy)
-        # if args.wandb.log:
-        # wandb.log(losses)
+        if args.wandb.log:
+            wandb.log(losses)
         return
 
     strategies = {
@@ -359,7 +441,7 @@ def main(args):
     """Set up main."""
     logger = logging.getLogger()
     with Section("Global setup", logger=logger):
-        global_setup(args)
+        save_dir = global_setup(args)
 
     with Section("Env setup", logger=logger):
         train_env, test_env = env_setup(args, logger)
@@ -371,20 +453,19 @@ def main(args):
         watchers = watcher_setup(args, logger)
 
     with Section("Runner setup", logger=logger):
-        runner = runner_setup(args)
+        runner = runner_setup(args, agent_pair, save_dir, logger)
 
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
     train_num_ep = int(args.eval_every / args.num_steps)
-
-    print(f"Number of training episodes = {total_num_ep}")
-    print(f"Evaluating every {train_num_ep} episodes")
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):
         print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
         print()
+
         runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
+        # TODO: Remove fully in evaluation PR
         # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 

@@ -518,11 +518,9 @@ def make_gru_agent(
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
 
     else:
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
@@ -532,7 +530,7 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opponents)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -570,7 +568,7 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=args.num_envs * args.num_opponents,
+        batch_size=args.num_envs * args.num_opps,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,
