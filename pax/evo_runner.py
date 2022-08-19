@@ -187,8 +187,7 @@ class EvoRunner:
             jax.vmap(env.batch_step),
         )
 
-        # TODO: Why can't this be moved to EvolutionaryLearners?
-        # want to reshape params a single agent's params before vmapping
+        # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
