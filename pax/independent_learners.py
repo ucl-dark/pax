@@ -126,6 +126,17 @@ class EvolutionaryLearners:
             )
         )
 
+        # Initialize agents
+        # Evolution specific: initialize player 1
+        init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (args.popsize, args.num_opps, 1, 1),
+        )
+        agent1._state, agent1._mem = agent1.batch_init(
+            jax.random.split(agent1._state.random_key, args.popsize),
+            init_hidden,
+        )
+
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))

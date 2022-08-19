@@ -277,15 +277,15 @@ class EvoRunner:
             jax.vmap(env.batch_step),
         )
 
-        # Evolution specific: initialize player 1
-        init_hidden = jnp.tile(
-            agent1._mem.hidden,
-            (popsize, num_opps, 1, 1),
-        )
-        agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
-            init_hidden,
-        )
+        # # Evolution specific: initialize player 1
+        # init_hidden = jnp.tile(
+        #     agent1._mem.hidden,
+        #     (popsize, num_opps, 1, 1),
+        # )
+        # agent1._state, agent1._mem = agent1.batch_init(
+        #     jax.random.split(agent1._state.random_key, popsize),
+        #     init_hidden,
+        # )
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
@@ -319,12 +319,6 @@ class EvoRunner:
                 a2_keys,
                 init_hidden,
             )
-
-            # a1, a1_state, a1_mem = agent1.batch_policy(
-            #     a1_state,
-            #     t_init[0].observation,
-            #     a1_mem,
-            # )
 
             vals, trajectories = jax.lax.scan(
                 _outer_rollout,
