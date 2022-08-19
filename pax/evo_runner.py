@@ -4,7 +4,7 @@ import time
 from typing import List, NamedTuple
 
 from dm_env import TimeStep
-from evosax import FitnessShaper, ParameterReshaper, OpenES, CMA_ES, PGPE
+from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
@@ -48,23 +48,6 @@ class EvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
 
-        # TESTING CODE
-        self.num_gens = args.num_gens
-        # OpenES hyperparameters
-        self.sigma_init = args.es.sigma_init
-        self.sigma_decay = args.es.sigma_decay
-        self.sigma_limit = args.es.sigma_limit
-        self.init_min = args.es.init_min
-        self.init_max = args.es.init_max
-        self.clip_min = args.es.clip_min
-        self.clip_max = args.es.lrate_decay
-        self.lrate_init = args.es.lrate_decay
-        self.lrate_decay = args.es.lrate_decay
-        self.lrate_limit = args.es.lrate_decay
-        self.beta_1 = args.es.lrate_decay
-        self.beta_2 = args.es.lrate_decay
-        self.eps = args.es.lrate_decay
-
         def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
             # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
             # final_t [num_opps, num_envs, ...]
@@ -78,10 +61,6 @@ class EvoRunner:
             final_obs = jax.lax.expand_dims(final_t.observation, [0])
             obs = jnp.argmax(jnp.append(obs, final_obs, axis=0), axis=-1)
             return jnp.bincount(obs.flatten(), length=5)
-
-        # def _state_visitation(traj: Sample) -> List:
-        #     obs = jnp.argmax(traj.observations, axis=-1)
-        #     return jnp.bincount(obs.flatten(), length=5)
 
         self.state_visitation = jax.jit(_state_visitation)
 
@@ -172,83 +151,6 @@ class EvoRunner:
                 env_state,
             ), trajectories
 
-        # print("Training")
-        # print("-----------------------")
-
-        # agent1, agent2 = agents.agents
-        # num_opps = self.num_opps
-        # rng, _ = jax.random.split(self.random_key)
-
-        # strategy = self.strategy
-        # es_params = self.es_params
-        # param_reshaper = self.param_reshaper
-
-        # evo_state = strategy.initialize(rng, es_params)
-        # # Instantiate jittable fitness shaper (e.g. for Open ES)
-        # fit_shaper = FitnessShaper(maximize=True)
-        # # Init logging
-        # es_logging = ESLog(
-        #     param_reshaper.total_params,
-        #     self.num_gens,
-        #     top_k=self.top_k,
-        #     maximize=True,
-        # )
-        # log = es_logging.initialize()
-        # # init agents
-        # init_hidden = jnp.tile(
-        #     agent1._mem.hidden,
-        #     (self.args.popsize, self.args.num_opps, 1, 1),
-        # )
-        # agent1._state, agent1._mem = agent1.batch_init(
-        #     jax.random.split(agent1._state.random_key, self.args.popsize),
-        #     init_hidden,
-        # )
-        # env.batch_step = jax.jit(
-        #     jax.vmap(env.batch_step),
-        # )
-        # a1_state, a1_mem = agent1._state, agent1._mem
-        # a2_state, a2_mem = agent2._state, agent2._mem
-        # for gen in range(self.num_gens):
-        #     rng, _ = jax.random.split(rng)
-        #     t_init, env_state = env.runner_reset(
-        #         (self.popsize, num_opps, env.num_envs), rng
-        #     )
-        #     rng, rng_gen, _ = jax.random.split(rng, 3)
-        #     x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
-        #     a1_state = a1_state._replace(
-        #         params=param_reshaper.reshape(x),
-        #     )
-        #     a1_mem = agent1.batch_reset(a1_mem, False)
-        #     a2_keys = jax.random.split(rng, self.popsize * num_opps).reshape(
-        #         self.popsize, num_opps, -1
-        #     )
-        #     a2_state, a2_mem = agent2.batch_init(
-        #         a2_keys,
-        #         init_hidden,
-        #     )
-        #     a1, a1_state, a1_new_mem = agent1.batch_policy(
-        #         a1_state,
-        #         t_init[0].observation,
-        #         a1_mem,
-        #     )
-        #     # num trials
-        #     _, trajectories = jax.lax.scan(
-        #         _outer_rollout,
-        #         (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-        #         None,
-        #         length=env.num_trials,
-        #     )
-        #     # calculate fitness
-        #     fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
-        #     other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
-        #     # shape the fitness
-        #     fitness_re = fit_shaper.apply(x, fitness)
-        #     evo_state = strategy.tell(
-        #         x, fitness_re - fitness_re.mean(), evo_state, es_params
-        #     )
-        #     visits = self.state_visitation(trajectories[0])
-        #     prob_visits = visits / visits.sum()
-
         print("Training")
         print("-----------------------")
         # Initialize agents and RNG
@@ -278,7 +180,7 @@ class EvoRunner:
         )
 
         # TODO: Why can't this be moved to EvolutionaryLearners?
-        # Evolution specific: initialize player 1
+        # Evolution specific: Initialize batch over popsize
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
@@ -291,27 +193,22 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        # num_gens
         for gen in range(0, int(num_episodes)):
-            # rng, _ = jax.random.split(rng)
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )
-            # rng, rng_gen, _ = jax.random.split(rng, 3)
+
+            # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
+            # Player 1
             a1_state = a1_state._replace(
                 params=param_reshaper.reshape(x),
             )
-
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # init_hidden = jnp.tile(
-            #     agent2._mem.hidden, (popsize, num_opps, 1, 1)
-            # )
-
-            # Prepare player 2
+            # Player 2
             a2_state, a2_mem = agent2.batch_init(
                 jax.random.split(rng_key, popsize * num_opps).reshape(
                     self.popsize, num_opps, -1
@@ -326,22 +223,15 @@ class EvoRunner:
                 length=env.num_trials,
             )
 
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
-            )
-
-            # calculate fitness
+            # Fitness
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
+            fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
-            # shape the fitness
-            fitness_re = fit_shaper.apply(x, fitness)
+            # Tell
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
-
-            visits = self.state_visitation(trajectories[0], final_t1)
-            prob_visits = visits / visits.sum()
 
             # Logging
             log = es_logging.update(log, x, fitness)
@@ -361,6 +251,13 @@ class EvoRunner:
                         self.save_dir, f"generation_{self.generations}"
                     ),
                 )
+
+            # Calculate state visitations
+            final_t1 = vals[0]._replace(
+                step_type=2 * jnp.ones_like(vals[0].step_type)
+            )
+            visits = self.state_visitation(trajectories[0], final_t1)
+            prob_visits = visits / visits.sum()
 
             print(f"Generation: {log['gen_counter']}")
             print(
