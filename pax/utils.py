@@ -109,6 +109,10 @@ class MemoryState(NamedTuple):
     extras: Mapping[str, jnp.ndarray]
 
 
+class Logger:
+    metrics: dict
+
+
 def get_advantages(carry, transition):
     gae, next_value, gae_lambda = carry
     value, reward, discounts = transition

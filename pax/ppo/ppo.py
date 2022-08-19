@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import make_cartpole_network, make_network
-from pax.utils import MemoryState, TrainingState
+from pax.utils import MemoryState, TrainingState, Logger
 
 
 class Batch(NamedTuple):
@@ -26,10 +26,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class Logger:
-    metrics: dict
 
 
 class PPO:
