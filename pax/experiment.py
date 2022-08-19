@@ -130,6 +130,8 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
         )
         if logger:
+            if args.evo:
+                logger.info(f"Env Type: Meta | Generations: {args.num_steps}")
             logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
     else:
