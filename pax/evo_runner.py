@@ -233,8 +233,8 @@ class EvoRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # Fitness
-            fitness = stack[0].rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = stack[1].rewards.mean(axis=(0, 1, 3, 4))
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
             # Tell
