@@ -137,7 +137,7 @@ class EvoRunner:
             final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
-            a2_state, a2_mem = agent2.batch_update(
+            a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
 
@@ -149,7 +149,7 @@ class EvoRunner:
                 a2_state,
                 a2_mem,
                 env_state,
-            ), trajectories
+            ), (*trajectories, a2_metrics)
 
         print("Training")
         print("-----------------------")
@@ -180,7 +180,7 @@ class EvoRunner:
         )
 
         # TODO: Why can't this be moved to EvolutionaryLearners?
-        # Evolution specific: Initialize batch over popsize
+        # want to reshape params a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
@@ -216,16 +216,18 @@ class EvoRunner:
                 a2_mem.hidden,
             )
 
-            vals, trajectories = jax.lax.scan(
+            vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
             )
 
+            traj_1, traj_2, a2_metrics = stack
+
             # Fitness
-            fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = trajectories[1].rewards.mean(axis=(0, 1, 3, 4))
+            fitness = stack[0].rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = stack[1].rewards.mean(axis=(0, 1, 3, 4))
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
             # Tell
@@ -256,7 +258,7 @@ class EvoRunner:
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
             )
-            visits = self.state_visitation(trajectories[0], final_t1)
+            visits = self.state_visitation(stack[0], final_t1)
             prob_visits = visits / visits.sum()
 
             print(f"Generation: {log['gen_counter']}")
@@ -286,35 +288,59 @@ class EvoRunner:
 
             self.generations += 1
 
-            wandb_log = {
-                "generations": self.generations,
-                "train/fitness/player_1": float(fitness.mean()),
-                "train/fitness/player_2": float(other_fitness.mean()),
-                "train/fitness/top_overall_mean": log["log_top_mean"][gen],
-                "train/fitness/top_overall_std": log["log_top_std"][gen],
-                "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
-                "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                "train/fitness/gen_std": log["log_gen_std"][gen],
-                "train/state_visitation/CC": prob_visits[0],
-                "train/state_visitation/CD": prob_visits[1],
-                "train/state_visitation/DC": prob_visits[2],
-                "train/state_visitation/DD": prob_visits[3],
-                "train/state_visitation/START": prob_visits[4],
-                "train/time/minutes": float(
-                    (time.time() - self.start_time) / 60
-                ),
-                "train/time/seconds": float((time.time() - self.start_time)),
-            }
-
-            for idx, (overall_fitness, gen_fitness) in enumerate(
-                zip(log["top_fitness"], log["top_gen_fitness"])
-            ):
-                wandb_log[
-                    f"train/fitness/top_overall_agent_{idx+1}"
-                ] = overall_fitness
-                wandb_log[f"train/fitness/top_gen_agent_{idx+1}"] = gen_fitness
-
             if watchers:
+
+                wandb_log = {
+                    "generations": self.generations,
+                    "train/fitness/player_1": float(fitness.mean()),
+                    "train/fitness/player_2": float(other_fitness.mean()),
+                    "train/fitness/top_overall_mean": log["log_top_mean"][gen],
+                    "train/fitness/top_overall_std": log["log_top_std"][gen],
+                    "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
+                    "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
+                    "train/fitness/gen_std": log["log_gen_std"][gen],
+                    "train/state_visitation/CC": prob_visits[0],
+                    "train/state_visitation/CD": prob_visits[1],
+                    "train/state_visitation/DC": prob_visits[2],
+                    "train/state_visitation/DD": prob_visits[3],
+                    "train/state_visitation/START": prob_visits[4],
+                    "train/time/minutes": float(
+                        (time.time() - self.start_time) / 60
+                    ),
+                    "train/time/seconds": float(
+                        (time.time() - self.start_time)
+                    ),
+                }
+
+                # loop through population
+                for idx, (overall_fitness, gen_fitness) in enumerate(
+                    zip(log["top_fitness"], log["top_gen_fitness"])
+                ):
+                    wandb_log[
+                        f"train/fitness/top_overall_agent_{idx+1}"
+                    ] = overall_fitness
+                    wandb_log[
+                        f"train/fitness/top_gen_agent_{idx+1}"
+                    ] = gen_fitness
+
+                # player 2 metrics
+                # metrics [outer_timesteps, num_opps]
+
+                print(a2_metrics.keys())
+                # print(a2_metrics['sgd_steps'])
+                # print(a2_metrics.shape)
+                flattened_metrics = jax.tree_util.tree_map(
+                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                )
+                # print(flattened_metrics)
+                # print(flattened_metrics.shape)
+                agent2._logger.metrics = (
+                    agent2._logger.metrics | flattened_metrics
+                )
+
+                agent1._logger.metrics = (
+                    agent1._logger.metrics | flattened_metrics
+                )
                 agents.log(watchers)
                 wandb.log(wandb_log)
             print()

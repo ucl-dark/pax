@@ -120,9 +120,8 @@ class EvolutionaryLearners:
 
         agent2.batch_update = jax.jit(
             jax.vmap(
-                jax.vmap(agent2.update, (1, 0, 0, 0), (0, 0)),
+                jax.vmap(agent2.update, (1, 0, 0, 0)),
                 (1, 0, 0, 0),
-                (0, 0),
             )
         )
 

@@ -413,7 +413,7 @@ class NaiveLearner:
         self._logger.metrics["loss_total"] = metrics["loss_total"]
         self._logger.metrics["loss_policy"] = metrics["loss_policy"]
         self._logger.metrics["loss_value"] = metrics["loss_value"]
-        return state, new_mem._replace(hidden=mem.hidden), metrics
+        return state, new_mem._replace(hidden=mem.hidden), self._logger.metrics
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
