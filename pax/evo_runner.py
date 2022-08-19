@@ -179,61 +179,61 @@ class EvoRunner:
         num_opps = self.num_opps
         rng, _ = jax.random.split(self.random_key)
 
-        strategy = self.strategy
-        es_params = self.es_params
+        # strategy = self.strategy
+        # es_params = self.es_params
         param_reshaper = self.param_reshaper
 
         # param_reshaper = ParameterReshaper(agent1._state.params)
-        # # TODO: Move these to agent_setup()
-        # if self.args.es.algo == "OpenES":
-        #     print("Algo: OpenES")
-        #     strategy = OpenES(
-        #         num_dims=param_reshaper.total_params,
-        #         popsize=self.popsize,
-        #     )
-        #     # Uncomment for specific param choices
-        #     # Update basic parameters of PGPE strategy
-        #     es_params = strategy.default_params.replace(
-        #         sigma_init=self.sigma_init,
-        #         sigma_decay=self.sigma_decay,
-        #         sigma_limit=self.sigma_limit,
-        #         init_min=self.init_min,
-        #         init_max=self.init_max,
-        #         clip_min=self.clip_min,
-        #         clip_max=self.clip_max,
-        #     )
-        #     # # Update optimizer-specific parameters of Adam
-        #     es_params = es_params.replace(
-        #         opt_params=es_params.opt_params.replace(
-        #             lrate_init=self.lrate_init,
-        #             lrate_decay=self.lrate_decay,
-        #             lrate_limit=self.lrate_limit,
-        #             beta_1=self.beta_1,
-        #             beta_2=self.beta_2,
-        #             eps=self.eps,
-        #         )
-        #     )
-        #     es_params = strategy.default_params
-        # elif self.algo == "CMA_ES":
-        #     print("Algo: CMA_ES")
-        #     strategy = CMA_ES(
-        #         num_dims=param_reshaper.total_params,
-        #         popsize=self.popsize,
-        #         elite_ratio=0.5,
-        #     )
-        #     # Uncomment for default params
-        #     es_params = strategy.default_params
-        # elif self.algo == "PGPE":
-        #     print("Algo: PGPE")
-        #     strategy = PGPE(
-        #         num_dims=param_reshaper.total_params,
-        #         popsize=self.popsize,
-        #         opt_name="adam",
-        #     )
-        #     # Uncomment for default params
-        #     es_params = strategy.default_params
-        # else:
-        #     raise NotImplementedError
+        # TODO: Move these to agent_setup()
+        if self.args.es.algo == "OpenES":
+            print("Algo: OpenES")
+            strategy = OpenES(
+                num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
+            )
+            # Uncomment for specific param choices
+            # Update basic parameters of PGPE strategy
+            es_params = strategy.default_params.replace(
+                sigma_init=self.sigma_init,
+                sigma_decay=self.sigma_decay,
+                sigma_limit=self.sigma_limit,
+                init_min=self.init_min,
+                init_max=self.init_max,
+                clip_min=self.clip_min,
+                clip_max=self.clip_max,
+            )
+            # # Update optimizer-specific parameters of Adam
+            es_params = es_params.replace(
+                opt_params=es_params.opt_params.replace(
+                    lrate_init=self.lrate_init,
+                    lrate_decay=self.lrate_decay,
+                    lrate_limit=self.lrate_limit,
+                    beta_1=self.beta_1,
+                    beta_2=self.beta_2,
+                    eps=self.eps,
+                )
+            )
+            es_params = strategy.default_params
+        elif self.algo == "CMA_ES":
+            print("Algo: CMA_ES")
+            strategy = CMA_ES(
+                num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
+                elite_ratio=0.5,
+            )
+            # Uncomment for default params
+            es_params = strategy.default_params
+        elif self.algo == "PGPE":
+            print("Algo: PGPE")
+            strategy = PGPE(
+                num_dims=param_reshaper.total_params,
+                popsize=self.popsize,
+                opt_name="adam",
+            )
+            # Uncomment for default params
+            es_params = strategy.default_params
+        else:
+            raise NotImplementedError
         evo_state = strategy.initialize(rng, es_params)
         # Instantiate jittable fitness shaper (e.g. for Open ES)
         fit_shaper = FitnessShaper(maximize=True)
