@@ -34,6 +34,33 @@ class CategoricalValueHead(hk.Module):
         return (distrax.Categorical(logits=logits), value)
 
 
+class CategoricalValueHead_separate(hk.Module):
+    """Network head that produces a categorical distribution and value."""
+
+    def __init__(
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+    ):
+        super().__init__(name=name)
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+
+    def __call__(self, inputs: Tuple[jnp.ndarray,jnp.ndarray]):
+        action_output, value_output = inputs
+        logits = self._logit_layer(action_output)
+        value = jnp.squeeze(self._value_layer(value_output), axis=-1)
+        return (distrax.Categorical(logits=logits), value)
+
+
 class ContinuousValueHead(hk.Module):
     """Network head that produces a continuous distribution and value."""
 
@@ -61,11 +88,41 @@ class ContinuousValueHead(hk.Module):
 
 
 class CNN(hk.Module):
-    def __init__(self):
+    def __init__(self, args):
         super().__init__(name="CNN")
-        self.conv_a_0 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
-        self.conv_a_1 = hk.Conv2D(output_channels=16, kernel_shape=(3,3), stride=1, padding="SAME")
-        self.linear_a_0 = hk.Linear(16)
+        output_channels = args.ppo.output_channels
+        kernel_shape = args.ppo.kernel_shape
+        self.conv_a_0 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.conv_a_1 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.linear_a_0 = hk.Linear(output_channels)
+
+        self.flatten = hk.Flatten()
+
+
+    def __call__(self, inputs: jnp.ndarray):
+        # Actor and Critic
+        x = self.conv_a_0(inputs)
+        x = jax.nn.relu(x)
+        x = self.conv_a_1(x)
+        x = jax.nn.relu(x)
+        x = self.flatten(x)
+        x = self.linear_a_0(x)
+        x = jax.nn.relu(x)
+
+        return x
+
+class CNN_separate(hk.Module):
+    def __init__(self, args):
+        super().__init__(name="CNN")
+        output_channels = args.ppo.output_channels
+        kernel_shape = args.ppo.kernel_shape
+        self.conv_a_0 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.conv_a_1 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.linear_a_0 = hk.Linear(output_channels)
+
+        self.conv_v_0 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.conv_v_1 = hk.Conv2D(output_channels=output_channels, kernel_shape=kernel_shape, stride=1, padding="SAME")
+        self.linear_v_0 = hk.Linear(output_channels)
 
         self.flatten = hk.Flatten()
 
@@ -78,17 +135,31 @@ class CNN(hk.Module):
         x = jax.nn.relu(x)
         x = self.flatten(x)
         x = self.linear_a_0(x)
+        logits = jax.nn.relu(x)
+
+        #Critic
+        x = self.conv_v_0(inputs)
         x = jax.nn.relu(x)
+        x = self.conv_v_1(x)
+        x = jax.nn.relu(x)
+        x = self.flatten(x)
+        x = self.linear_v_0(x)
+        val = jax.nn.relu(x)
+        return (logits, val)
 
-        return x
 
-
-def make_coingame_network(num_actions: int):
+def make_coingame_network(num_actions: int, network_args):
     def forward_fn(inputs):
         layers = []
+        if network_args.ppo.separate:
+            cnn = CNN_separate(network_args)
+            cvh = CategoricalValueHead_separate(num_values=num_actions)
+        else:
+            cnn = CNN(network_args)
+            cvh = CategoricalValueHead(num_values=num_actions)
         layers.extend([
-            CNN(),
-            CategoricalValueHead(num_values=num_actions)
+            cnn,
+            cvh
         ]
         )
         policy_value_network = hk.Sequential(layers)
@@ -98,8 +169,7 @@ def make_coingame_network(num_actions: int):
     return network
 
 
-def make_GRU_coingame_network(num_actions: int):
-    hidden_size = 25
+def make_GRU_coingame_network(num_actions: int, hidden_size: int):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(

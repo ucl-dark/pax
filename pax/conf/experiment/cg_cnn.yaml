@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'PPO_memory'
+agent1: 'PPO'
+agent2: 'PPO'
 
 # Environment
 env_id: coin_game
@@ -45,6 +45,9 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: True
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: False
 
 # Logging setup
 wandb:

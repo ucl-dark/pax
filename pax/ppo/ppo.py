@@ -9,7 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_cartpole_network, make_coingame_network, make_network
+from pax.ppo.networks import make_cartpole_network, make_coingame_network, make_coingame_separate_network, make_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -477,7 +477,7 @@ def make_agent(
         network = make_cartpole_network(action_spec)
     elif args.env_id == 'coin_game' and args.ppo.with_cnn:
         print(f"Making network for {args.env_id} with CNN")
-        network = make_coingame_network(action_spec)
+        network = make_coingame_separate_network(action_spec, args)
     else:
         print(f"Making network for {args.env_id}")
         network = make_network(action_spec)
