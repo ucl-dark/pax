@@ -258,6 +258,7 @@ class EvoRunner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
+
             if log["gen_counter"] % 100 == 0:
                 if self.algo == "OpenES" or self.algo == "PGPE":
                     jnp.save(
@@ -314,6 +315,24 @@ class EvoRunner:
             self.generations += 1
 
             if watchers:
+
+                # TODO: Adding WandB saving
+                log_savepath = os.path.join(
+                    self.save_dir, f"generation_{log['gen_counter']}"
+                )
+                es_logging.save(
+                    log,
+                    log_savepath,
+                )
+                wandb.save(log_savepath)
+                wandb_path = "exp/EARL-PPO_memory-vs-TitForTat"
+                "/run-seed-0/2022-08-20_16:40:14.882208/generation_1"
+                model_path = wandb.restore(
+                    wandb_path, run_path="ucl-dark/ipd/24c0asjj"
+                )
+                print(model_path.name)
+                log = es_logging.load(model_path.name)
+                print(log["top_gen_fitness"][0])
 
                 wandb_log = {
                     "generations": self.generations,
