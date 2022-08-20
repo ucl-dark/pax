@@ -7,6 +7,8 @@ import jax.numpy as jnp
 import wandb
 from dm_env import TimeStep
 
+MAX_WANDB_CALLS = 1000
+
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -176,6 +178,9 @@ class Runner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
+        num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Log Interval {log_interval}")
         # run actual loop
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
@@ -225,7 +230,7 @@ class Runner:
             self.train_episodes += 1
             rewards_0 = stack[0].rewards.mean()
             rewards_1 = stack[1].rewards.mean()
-            if i % 5 == 0:
+            if i % log_interval == 0:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )

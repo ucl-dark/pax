@@ -7,16 +7,16 @@ import hydra
 import omegaconf
 import wandb
 
-from pax.env import SequentialMatrixGame
+from pax.env_inner import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
-from pax.independent_learners import IndependentLearners, EvolutionaryLearners
-from pax.meta_env import InfiniteMatrixGame, MetaFiniteGame
+from pax.learners import IndependentLearners, EvolutionaryLearners
+from pax.env_meta import InfiniteMatrixGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.evo_runner import EvoRunner
-from pax.runner import Runner
+from pax.runner_evo import EvoRunner
+from pax.runner_rl import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -406,8 +406,8 @@ def watcher_setup(args, logger):
         value = value_logger_ppo(agent)
         losses.update(value)
         losses.update(policy)
-        # if args.wandb.log:
-        # wandb.log(losses)
+        if args.wandb.log:
+            wandb.log(losses)
         return
 
     strategies = {
@@ -458,10 +458,6 @@ def main(args):
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
     train_num_ep = int(args.eval_every / args.num_steps)
-    if args.evo:
-        print(f"Number of generations = {total_num_ep}")
-    else:
-        print(f"Number of training episodes = {total_num_ep}")
     if not args.wandb.log:
         watchers = False
     for num_update in range(int(total_num_ep // train_num_ep)):

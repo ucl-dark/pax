@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.env import SequentialMatrixGame
+from pax.env_inner import SequentialMatrixGame
 from pax.strategies import TitForTat
 
 # payoff matrices for four games

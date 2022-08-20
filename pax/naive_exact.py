@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from dm_env import TimeStep
 
-from pax.meta_env import InfiniteMatrixGame
+from pax.env_meta import InfiniteMatrixGame
 
 
 class TrainingState(NamedTuple):
