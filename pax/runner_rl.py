@@ -81,7 +81,7 @@ class Runner:
             action_probs = hist[::2] / states
             return {
                 "train/state_frequency": states,
-                "train/action_frequency": action_probs,
+                "train/action_frequency": jnp.nan_to_num(action_probs),
             }
 
         def _cg_visitation(traj1: Sample, traj2: Sample) -> dict:
@@ -263,7 +263,9 @@ class Runner:
                     env_stats = self.ipd_stats(traj_1, final_t1)
 
                 else:
-                    env_stats = self.cg_stats(traj_1, traj_2)
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.cg_stats(traj_1, traj_2)
+                    )
 
                 print(f"Env Stats: {env_stats}")
 
