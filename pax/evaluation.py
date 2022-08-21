@@ -188,12 +188,11 @@ class EvalRunner:
         )
 
         # Load agent
-
-        model_path = wandb.restore(name=self.filename, run_path=self.run_path)
-        # TODO: Full test
-        print(f"Loading from run: {self.run_path}")
-        print(f"Filepath: {model_path.name}")
-        log = es_logging.load(model_path.name)
+        # model_path = wandb.restore(name=self.filename, run_path=self.run_path)
+        raw_artifact = wandb.run.use_artifact(self.run_path)
+        model_path = raw_artifact.get_path(self.filename)
+        model_path.download(root=self.args.save_dir)
+        log = es_logging.load(os.path.join(self.args.save_dir, self.filename))
 
         # TODO: Remove this local test
         # testing_dir = f"/Users/newtonkwan/UCL/Research/pax/pax/test_model/generation_9300"

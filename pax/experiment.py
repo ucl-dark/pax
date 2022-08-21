@@ -44,9 +44,7 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    save_dir = (
-        f"{os.getcwd()}{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
-    )
+    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
     os.makedirs(
         save_dir,
         exist_ok=True,
@@ -64,7 +62,7 @@ def global_setup(args):
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),
-            settings=wandb.Settings(code_dir=".", symlink=False),
+            settings=wandb.Settings(code_dir="."),
         )
         wandb.run.log_code(".")
     return save_dir

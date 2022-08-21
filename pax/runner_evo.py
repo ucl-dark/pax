@@ -217,11 +217,11 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        # artifact = wandb.Artifact(
-        #     self.save_dir,
-        #     type="model",
-        #     description=f"Model Artifact for {self.save_dir}",
-        # )
+        artifact = wandb.Artifact(
+            "a-good-model",
+            type="model",
+            description="Model for IPD",
+        )
 
         for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -336,22 +336,22 @@ class EvoRunner:
                         log,
                         log_savepath,
                     )
-                    print(f"Log save path: {log_savepath}")
-                    # artifact.add_file(log_savepath)
+                    artifact.add_file(log_savepath)
+                    # artifact.save()
                     # wandb.log_artifact(artifact)
                     # wandb.save(log_savepath)
-                    print("wandb.run.dir", wandb.run.dir)
-                    print(
-                        "wandb_save", os.path.join(wandb.run.dir, log_savepath)
-                    )
+                    # print("wandb.run.dir", wandb.run.dir)
+                    # print(
+                    #     "wandb_save", os.path.join(wandb.run.dir, log_savepath)
+                    # )
 
-                    # os.path.abspath(os.path.join(wandb.run.dir, f"real @{current_scale}.txt"))
-                    wandb.save(
-                        os.path.abspath(
-                            os.path.join(wandb.run.dir, log_savepath)
-                        ),
-                        base_path=os.getcwd(),
-                    )
+                    # # os.path.abspath(os.path.join(wandb.run.dir, f"real @{current_scale}.txt"))
+                    # wandb.save(
+                    #     os.path.abspath(
+                    #         os.path.join(wandb.run.dir, log_savepath)
+                    #     ),
+                    #     base_path=os.getcwd(),
+                    # )
 
                 wandb_log = {
                     "generations": self.generations,
@@ -409,7 +409,7 @@ class EvoRunner:
                 # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
-        # if watchers:
-        #     wandb.log_artifact(artifact)
+        if watchers:
+            artifact.save()
 
         return agents
