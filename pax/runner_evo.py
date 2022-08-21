@@ -346,13 +346,17 @@ class EvoRunner:
                 flattened_metrics = jax.tree_util.tree_map(
                     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                 )
-                agent2._logger.metrics = (
-                    agent2._logger.metrics | flattened_metrics
-                )
 
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics
-                )
+                agent2._logger.metrics.update(flattened_metrics)
+                agent1._logger.metrics.update(flattened_metrics)
+                # TODO: Only works with 3.9 and i can't get 3.9 on colab
+                # agent2._logger.metrics = (
+                #     agent2._logger.metrics | flattened_metrics
+                # )
+
+                # agent1._logger.metrics = (
+                #     agent1._logger.metrics | flattened_metrics
+                # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
 
