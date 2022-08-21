@@ -188,6 +188,7 @@ class EvalRunner:
         )
 
         # Load agent
+
         model_path = wandb.restore(name=self.filename, run_path=self.run_path)
         # TODO: Full test
         print(f"Loading from run: {self.run_path}")

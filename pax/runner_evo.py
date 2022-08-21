@@ -286,8 +286,10 @@ class EvoRunner:
             visits = self.state_visitation(traj_1, final_t1)
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
-            action_probs = visits[::2] / states
-
+            # Add one state visitation to any that are 0. Assumes defection.
+            action_probs = visits[::2] / jax.lax.select(
+                states > 0, states, jnp.ones_like(states)
+            )
             if gen % log_interval == 0:
                 print(f"Generation: {gen}")
                 print(
@@ -297,7 +299,7 @@ class EvoRunner:
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
                 print(f"State Visitation: {states}")
-                print(f"Cooperation Frequency: {action_probs}")
+                print(f"Cooperation Probability: {action_probs}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -320,7 +322,7 @@ class EvoRunner:
             if watchers:
 
                 # TODO: Adding WandB saving
-                if log["gen_counter"] % 100 == 0:
+                if log["gen_counter"] % 5 == 0:
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
                     )
@@ -328,6 +330,7 @@ class EvoRunner:
                         log,
                         log_savepath,
                     )
+                    print(f"Log save path: {log_savepath}")
                     wandb.save(log_savepath)
 
                 wandb_log = {
