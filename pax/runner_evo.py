@@ -359,5 +359,7 @@ class EvoRunner:
                 # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
+        if watchers:
+            wandb.log_artifact(artifact)
 
         return agents
