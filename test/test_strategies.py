@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from pax.meta_env import InfiniteMatrixGame
+from pax.env_meta import InfiniteMatrixGame
 from pax.strategies import TitForTat, GrimTrigger
 from pax.naive_exact import NaiveExact
 from dm_env import transition

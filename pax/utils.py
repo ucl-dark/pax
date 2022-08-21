@@ -1,6 +1,8 @@
 from time import time as tic
 from typing import Mapping, NamedTuple
+from functools import partial
 
+import chex
 import haiku as hk
 import jax
 import jax.numpy as jnp
@@ -105,6 +107,10 @@ class MemoryState(NamedTuple):
 
     hidden: jnp.ndarray
     extras: Mapping[str, jnp.ndarray]
+
+
+class Logger:
+    metrics: dict
 
 
 def get_advantages(carry, transition):

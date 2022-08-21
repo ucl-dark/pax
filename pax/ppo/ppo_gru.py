@@ -9,7 +9,11 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_GRU, make_GRU_cartpole_network, make_GRU_coingame_network
+from pax.ppo.networks import (
+    make_GRU,
+    make_GRU_cartpole_network,
+    make_GRU_coingame_network,
+)
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -495,19 +499,19 @@ class PPO:
 
         _, _, mem = self._policy(state, t_prime.observation, mem)
         traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, results = self._sgd_step(state, traj_batch)
+        state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging
 
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        return state, mem
+        self._logger.metrics["loss_total"] = metrics["loss_total"]
+        self._logger.metrics["loss_policy"] = metrics["loss_policy"]
+        self._logger.metrics["loss_value"] = metrics["loss_value"]
+        self._logger.metrics["loss_entropy"] = metrics["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
+        return state, mem, metrics
 
 
 # TODO: seed, and player_id not used in CartPole
@@ -517,13 +521,11 @@ def make_gru_agent(
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
-    elif args.env_id == 'coin_game' and args.ppo.with_cnn:
+    elif args.env_id == "coin_game" and args.ppo.with_cnn:
         print(f"Making network for {args.env_id} with CNN")
         network, initial_hidden_state = make_GRU_coingame_network(action_spec)
     else:
-        print(f"Making network for {args.env_id}")
         network, initial_hidden_state = make_GRU(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
@@ -533,7 +535,7 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opponents)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -571,7 +573,7 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=args.num_envs * args.num_opponents,
+        batch_size=args.num_envs * args.num_opps,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,

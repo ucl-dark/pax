@@ -320,7 +320,12 @@ MOVES = jax.device_put(
 
 class CoinGame:
     def __init__(
-        self, num_envs: int, inner_ep_length: int, num_steps: int, seed: int, cnn: Boolean
+        self,
+        num_envs: int,
+        inner_ep_length: int,
+        num_steps: int,
+        seed: int,
+        cnn: Boolean,
     ):
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
             obs = jnp.zeros((3, 3, 4))
@@ -329,8 +334,9 @@ class CoinGame:
             obs = obs.at[state.red_coin_pos[0], state.red_coin_pos[1], 2].set(
                 1.0
             )
-            obs = obs.at[state.blue_coin_pos[0], state.blue_coin_pos[1]
-            , 3].set(1.0)
+            obs = obs.at[
+                state.blue_coin_pos[0], state.blue_coin_pos[1], 3
+            ].set(1.0)
             if self.cnn:
                 return obs
             else:
@@ -522,12 +528,12 @@ class CoinGame:
         """Returns the observation spec."""
         if self.cnn:
             return specs.BoundedArray(
-                shape=(3,3,4),
+                shape=(3, 3, 4),
                 minimum=0,
                 maximum=1,
                 name="obs",
                 dtype=int,
-            )            
+            )
         else:
             return specs.BoundedArray(
                 shape=(36,),

@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-from pax.utils import MemoryState, TrainingState
+from pax.utils import MemoryState, TrainingState, Logger
 
 # states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1
@@ -21,6 +21,8 @@ class GrimTrigger:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -29,7 +31,7 @@ class GrimTrigger:
         return self._trigger(timestep.observation)
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._state
@@ -59,6 +61,8 @@ class TitForTat:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -69,7 +73,7 @@ class TitForTat:
         return self._reciprocity(timestep.observation)
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return mem
@@ -100,6 +104,8 @@ class Defect:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -112,7 +118,7 @@ class Defect:
         return jnp.ones((batch_size,))
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -137,6 +143,8 @@ class Altruistic:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -164,7 +172,7 @@ class Altruistic:
         return jnp.zeros((batch_size,)), state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
         return self._mem
@@ -215,6 +223,7 @@ class HyperAltruistic:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -241,7 +250,7 @@ class HyperAltruistic:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -251,6 +260,8 @@ class HyperDefect:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     @partial(jax.jit, static_argnums=(0,))
     def select_action(
@@ -277,7 +288,7 @@ class HyperDefect:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem
@@ -288,6 +299,8 @@ class HyperTFT:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
 
     def select_action(
         self,
@@ -321,7 +334,7 @@ class HyperTFT:
         return action, state, mem
 
     def update(self, unused0, unused1, state, mem) -> None:
-        return state, mem
+        return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
         return self._mem

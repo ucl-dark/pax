@@ -1,10 +1,10 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.meta_env import MetaFiniteGame
+from pax.env_meta import MetaFiniteGame
 from pax.strategies import TitForTat
 
-from pax.meta_env import InfiniteMatrixGame
+from pax.env_meta import InfiniteMatrixGame
 
 # payoff matrices for four games
 ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]

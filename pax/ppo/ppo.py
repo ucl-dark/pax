@@ -9,8 +9,12 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_cartpole_network, make_coingame_network, make_network
-from pax.utils import MemoryState, TrainingState, get_advantages
+from pax.ppo.networks import (
+    make_cartpole_network,
+    make_coingame_network,
+    make_network,
+)
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -26,10 +30,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-class Logger:
-    metrics: dict
 
 
 class PPO:
@@ -454,17 +454,17 @@ class PPO:
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, results = self._sgd_step(state, traj_batch)
+        state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
+        self._logger.metrics["loss_total"] = metrics["loss_total"]
+        self._logger.metrics["loss_policy"] = metrics["loss_policy"]
+        self._logger.metrics["loss_value"] = metrics["loss_value"]
+        self._logger.metrics["loss_entropy"] = metrics["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
 
-        return state, mem
+        return state, mem, metrics
 
 
 def make_agent(
@@ -473,13 +473,11 @@ def make_agent(
     """Make PPO agent"""
 
     if args.env_id == "CartPole-v1":
-        print(f"Making network for {args.env_id}")
         network = make_cartpole_network(action_spec)
-    elif args.env_id == 'coin_game' and args.ppo.with_cnn:
+    elif args.env_id == "coin_game" and args.ppo.with_cnn:
         print(f"Making network for {args.env_id} with CNN")
         network = make_coingame_network(action_spec, args)
     else:
-        print(f"Making network for {args.env_id}")
         network = make_network(action_spec)
 
     # Optimizer
