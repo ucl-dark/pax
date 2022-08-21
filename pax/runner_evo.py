@@ -339,7 +339,15 @@ class EvoRunner:
                     print(f"Log save path: {log_savepath}")
                     # artifact.add_file(log_savepath)
                     # wandb.log_artifact(artifact)
-                    wandb.save(log_savepath)
+                    # wandb.save(log_savepath)
+                    print("wandb.run.dir", wandb.run.dir)
+                    print(
+                        "wandb_save", os.path.join(wandb.run.dir, log_savepath)
+                    )
+                    wandb.save(
+                        os.path.join(wandb.run.dir, log_savepath),
+                        base_path=os.getcwd(),
+                    )
 
                 wandb_log = {
                     "generations": self.generations,

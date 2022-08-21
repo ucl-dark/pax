@@ -44,7 +44,9 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
+    save_dir = (
+        f"{os.getcwd()}{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
+    )
     os.makedirs(
         save_dir,
         exist_ok=True,
