@@ -295,7 +295,6 @@ class HyperDefect:
 
 
 class HyperTFT:
-    @partial(jax.jit, static_argnums=(0,))
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)

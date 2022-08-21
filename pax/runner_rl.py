@@ -45,7 +45,7 @@ class Runner:
         self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
-        self.num_opps = args.num_opponents
+        self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
 
         def _reshape_opp_dim(x):
@@ -232,7 +232,7 @@ class Runner:
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
-            if i % 5 == 0:
+            if i % log_interval == 0:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
