@@ -63,7 +63,7 @@ def global_setup(args):
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),
-            settings=wandb.Settings(code_dir="."),
+            settings=wandb.Settings(code_dir=".", symlink=False),
         )
         wandb.run.log_code(".")
     return save_dir
