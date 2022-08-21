@@ -55,6 +55,9 @@ class EvoRunner:
 
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
+        if self.args.eval:
+            print("Evaluation mode")
+            return agents
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""

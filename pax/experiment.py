@@ -8,6 +8,7 @@ import omegaconf
 import wandb
 
 from pax.env_inner import SequentialMatrixGame
+from pax.evaluation import EvalRunner
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.env_inner import InfiniteMatrixGame
@@ -179,6 +180,8 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if args.eval:
+        return EvalRunner(args)
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
