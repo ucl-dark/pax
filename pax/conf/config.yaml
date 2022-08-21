@@ -29,7 +29,7 @@ evo: False
 
 # Training hyperparameters
 # env_batch_size = num_envs * num_opponents
-num_envs: 1000
+num_envs: 100
 num_opps: 1
 num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps

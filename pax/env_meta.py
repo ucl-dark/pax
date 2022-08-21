@@ -309,10 +309,10 @@ class CoinGameState(NamedTuple):
 MOVES = jax.device_put(
     jnp.array(
         [
-            [0, 1],
-            [0, -1],
-            [1, 0],
-            [-1, 0],
+            [0, 1],  # right
+            [0, -1],  # left
+            [1, 0],  # up
+            [-1, 0],  # down
         ]
     )
 )
@@ -489,7 +489,6 @@ class CoinGame:
 
             return output, new_state
 
-        self._jit_step = jax.jit(jax.vmap(_step))
         self._reset = jax.vmap(_reset)
         self.key = jax.random.split(jax.random.PRNGKey(seed=seed), num_envs)
 
@@ -499,6 +498,7 @@ class CoinGame:
         self.episode_length = num_steps
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0)
 
+        self.runner_step = jax.vmap(runner_step)
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))
         self.batch_reset = jax.jit(jax.vmap(jax.vmap(_reset)))
 
@@ -517,11 +517,11 @@ class CoinGame:
         return output, state
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
-        self._state, output = self._reset(self.key)
+        output, self.state = self._reset(self.key)
         return output
 
     def step(self, actions: Tuple[int, int]) -> Tuple[TimeStep, TimeStep]:
-        output, self._state = self.runner_step(actions, self._state)
+        output, self.state = self.runner_step(actions, self.state)
         return output
 
     def observation_spec(self) -> specs.BoundedArray:
