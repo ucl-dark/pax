@@ -188,7 +188,6 @@ class EvalRunner:
         )
 
         # Load agent
-        # model_path = wandb.restore(name=self.filename, run_path=self.run_path)
         raw_artifact = wandb.run.use_artifact(self.run_path)
         model_path = raw_artifact.get_path(self.filename)
         model_path.download(root=self.args.save_dir)

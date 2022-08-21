@@ -217,11 +217,12 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        artifact = wandb.Artifact(
-            "a-good-model",
-            type="model",
-            description="Model for IPD",
-        )
+        if watchers:
+            artifact = wandb.Artifact(
+                self.args.wandb.name,
+                type="model",
+                description="Agent model for IPD",
+            )
 
         for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -328,30 +329,16 @@ class EvoRunner:
             if watchers:
 
                 # TODO: Adding WandB saving
-                if log["gen_counter"] % 1 == 0:
+                if log["gen_counter"] % 100 == 0:
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
                     )
+
                     es_logging.save(
                         log,
                         log_savepath,
                     )
                     artifact.add_file(log_savepath)
-                    # artifact.save()
-                    # wandb.log_artifact(artifact)
-                    # wandb.save(log_savepath)
-                    # print("wandb.run.dir", wandb.run.dir)
-                    # print(
-                    #     "wandb_save", os.path.join(wandb.run.dir, log_savepath)
-                    # )
-
-                    # # os.path.abspath(os.path.join(wandb.run.dir, f"real @{current_scale}.txt"))
-                    # wandb.save(
-                    #     os.path.abspath(
-                    #         os.path.join(wandb.run.dir, log_savepath)
-                    #     ),
-                    #     base_path=os.getcwd(),
-                    # )
 
                 wandb_log = {
                     "generations": self.generations,
