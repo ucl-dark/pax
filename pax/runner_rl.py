@@ -7,7 +7,7 @@ from dm_env import TimeStep
 
 import wandb
 
-MAX_WANDB_CALLS = 1000
+MAX_WANDB_CALLS = 10000
 
 
 class Sample(NamedTuple):
@@ -56,7 +56,7 @@ class Runner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
+        def _ipd_visitation(traj: Sample, final_t: TimeStep) -> dict:
             # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
             # final_t [num_opps, num_envs, ...]
             num_timesteps = (
@@ -76,11 +76,33 @@ class Runner:
                 2 * jnp.argmax(final_t.observation, axis=-1), [0]
             )
             state_actions = jnp.append(state_actions, final_obs, axis=0)
-            return jnp.bincount(state_actions.flatten(), length=10)
+            hist = jnp.bincount(state_actions.flatten(), length=10)
+            states = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+            action_probs = hist[::2] / states
+            return {
+                "train/state_frequency": states,
+                "train/action_frequency": action_probs,
+            }
+
+        def _cg_visitation(traj1: Sample, traj2: Sample) -> dict:
+            defect_1 = (traj1.rewards == -2).sum()
+            defect_2 = (traj2.rewards == -2).sum()
+
+            total_1 = (traj1.rewards == 1).sum()
+            total_2 = (traj2.rewards == 1).sum()
+
+            prob_1 = defect_2 / total_1
+            prob_2 = defect_1 / total_2
+            return {
+                "train/prob_coop/1": 1 - prob_1,
+                "train/prob_coop/2": 1 - prob_2,
+                "train/total_coins/1": total_1 / jnp.size(traj1.rewards),
+                "train/total_coins/2": total_2 / jnp.size(traj2.rewards),
+            }
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
-        # self.state_visitation = jax.jit(_state_visitation)
-        self.state_visitation = _state_visitation
+        self.ipd_stats = jax.jit(_ipd_visitation)
+        self.cg_stats = jax.jit(_cg_visitation)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
@@ -238,39 +260,39 @@ class Runner:
                 )
 
                 if self.args.env_type not in ["coin_game"]:
-                    visits = self.state_visitation(traj_1, final_t1)
-                    states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(
-                        axis=1
+                    env_stats = self.ipd_stats(traj_1, final_t1)
+
+                else:
+                    env_stats = self.cg_stats(traj_1, traj_2)
+
+                print(f"Env Stats: {env_stats}")
+
+                if watchers:
+                    # metrics [outer_timesteps, num_opps]
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
-                    print(f"State Frequency: {states}")
-                    action_probs = visits[::2] / states
-                    print(f"Action Frequency: {action_probs}")
+                    agent2._logger.metrics = (
+                        agent2._logger.metrics | flattened_metrics
+                    )
 
-            if watchers:
-                # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
-                agent2._logger.metrics = (
-                    agent2._logger.metrics | flattened_metrics
-                )
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
+                    )
 
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics
-                )
-
-                agents.log(watchers)
-                wandb.log(
-                    {
-                        "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "train/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
-                    },
-                )
+                    agents.log(watchers)
+                    wandb.log(
+                        {
+                            "episodes": self.train_episodes,
+                            "train/episode_reward/player_1": float(
+                                rewards_0.mean()
+                            ),
+                            "train/episode_reward/player_2": float(
+                                rewards_1.mean()
+                            ),
+                        }
+                        | env_stats,
+                    )
         print()
         # update agents for eval loop exit
         agents.agents[0]._state = a1_state
