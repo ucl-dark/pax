@@ -328,7 +328,7 @@ class EvoRunner:
             if watchers:
 
                 # TODO: Adding WandB saving
-                if log["gen_counter"] % 5 == 0:
+                if log["gen_counter"] % 1 == 0:
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
                     )
@@ -344,8 +344,12 @@ class EvoRunner:
                     print(
                         "wandb_save", os.path.join(wandb.run.dir, log_savepath)
                     )
+
+                    # os.path.abspath(os.path.join(wandb.run.dir, f"real @{current_scale}.txt"))
                     wandb.save(
-                        os.path.join(wandb.run.dir, log_savepath),
+                        os.path.abspath(
+                            os.path.join(wandb.run.dir, log_savepath)
+                        ),
                         base_path=os.getcwd(),
                     )
 
