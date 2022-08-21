@@ -1,11 +1,13 @@
+import os
 import time
 from typing import List, NamedTuple
 
 import jax
 import jax.numpy as jnp
-
 import wandb
 from dm_env import TimeStep
+
+from pax.utils import save
 
 MAX_WANDB_CALLS = 1000
 
@@ -181,7 +183,13 @@ class Runner:
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
-        # run actual loop
+
+        if watchers:
+            artifact = wandb.Artifact(
+                self.args.wandb.name,
+                type="model",
+                description="Agent model for IPD",
+            )
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
@@ -240,10 +248,20 @@ class Runner:
                     axis=1
                 )
                 print(f"State Frequency: {states}")
-                action_probs = visits[::2] / states
+                action_probs = visits[::2] / jax.lax.select(
+                    states > 0, states, jnp.ones_like(states)
+                )
                 print(f"Action Frequency: {action_probs}")
 
             if watchers:
+                if i % log_interval == 0:
+                    print(f"Saving at iteration {i}")
+                    log_savepath = os.path.join(
+                        self.args.save_dir, f"iteration_{i}"
+                    )
+                    save(a1_state.params, log_savepath)
+                    artifact.add_file(log_savepath)
+
                 # metrics [outer_timesteps, num_opps]
                 flattened_metrics = jax.tree_util.tree_map(
                     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
@@ -272,6 +290,8 @@ class Runner:
         # update agents for eval loop exit
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
+        if watchers:
+            artifact.save()
         return agents
 
     def evaluate_loop(self, env, agents, num_episodes, watchers):

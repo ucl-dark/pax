@@ -328,7 +328,6 @@ class EvoRunner:
 
             if watchers:
 
-                # TODO: Adding WandB saving
                 if log["gen_counter"] % 100 == 0:
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
