@@ -37,6 +37,9 @@ num_inner_steps: 25 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e9
 eval_every: 1.0e9 # timesteps 
 
+# Eval 
+eval: False
+
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every

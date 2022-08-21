@@ -8,6 +8,7 @@ import omegaconf
 import wandb
 
 from pax.env_inner import SequentialMatrixGame
+from pax.evaluation import EvalRunner
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.env_meta import InfiniteMatrixGame, MetaFiniteGame
@@ -158,6 +159,8 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if args.eval:
+        return EvalRunner(args)
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
@@ -457,16 +460,13 @@ def main(args):
 
     # num episodes
     total_num_ep = int(args.total_timesteps / args.num_steps)
-    train_num_ep = int(args.eval_every / args.num_steps)
     if not args.wandb.log:
         watchers = False
-    for num_update in range(int(total_num_ep // train_num_ep)):
-        print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
-        print()
 
-        runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    if args.eval:
+        runner.eval_loop(test_env, agent_pair, total_num_ep, watchers)
+    else:
+        runner.train_loop(train_env, agent_pair, total_num_ep, watchers)
 
 
 if __name__ == "__main__":

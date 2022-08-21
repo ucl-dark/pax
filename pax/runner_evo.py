@@ -76,6 +76,9 @@ class EvoRunner:
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
+        if self.args.eval:
+            print("Evaluation mode")
+            return agents
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -317,22 +320,15 @@ class EvoRunner:
             if watchers:
 
                 # TODO: Adding WandB saving
-                log_savepath = os.path.join(
-                    self.save_dir, f"generation_{log['gen_counter']}"
-                )
-                es_logging.save(
-                    log,
-                    log_savepath,
-                )
-                wandb.save(log_savepath)
-                wandb_path = "exp/EARL-PPO_memory-vs-TitForTat"
-                "/run-seed-0/2022-08-20_16:40:14.882208/generation_1"
-                model_path = wandb.restore(
-                    wandb_path, run_path="ucl-dark/ipd/24c0asjj"
-                )
-                print(model_path.name)
-                log = es_logging.load(model_path.name)
-                print(log["top_gen_fitness"][0])
+                if log["gen_counter"] % 100 == 0:
+                    log_savepath = os.path.join(
+                        self.save_dir, f"generation_{log['gen_counter']}"
+                    )
+                    es_logging.save(
+                        log,
+                        log_savepath,
+                    )
+                    wandb.save(log_savepath)
 
                 wandb_log = {
                     "generations": self.generations,
