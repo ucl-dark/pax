@@ -217,7 +217,11 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        artifact = wandb.Artifact("models", type="model")
+        artifact = wandb.Artifact(
+            self.save_dir,
+            type="model",
+            description=f"Model Artifact for {self.save_dir}",
+        )
 
         for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -333,9 +337,9 @@ class EvoRunner:
                         log_savepath,
                     )
                     print(f"Log save path: {log_savepath}")
-                    artifact.add_file(log_savepath)
-                    wandb.log_artifact(artifact)
-                    # wandb.save(log_savepath)
+                    # artifact.add_file(log_savepath)
+                    # wandb.log_artifact(artifact)
+                    wandb.save(log_savepath)
 
                 wandb_log = {
                     "generations": self.generations,
@@ -393,5 +397,7 @@ class EvoRunner:
                 # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
+        if watchers:
+            wandb.log_artifact(artifact)
 
         return agents
