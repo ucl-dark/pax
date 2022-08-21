@@ -217,11 +217,11 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        artifact = wandb.Artifact(
-            self.save_dir,
-            type="model",
-            description=f"Model Artifact for {self.save_dir}",
-        )
+        # artifact = wandb.Artifact(
+        #     self.save_dir,
+        #     type="model",
+        #     description=f"Model Artifact for {self.save_dir}",
+        # )
 
         for gen in range(num_iters):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -397,7 +397,7 @@ class EvoRunner:
                 # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
-        if watchers:
-            wandb.log_artifact(artifact)
+        # if watchers:
+        #     wandb.log_artifact(artifact)
 
         return agents
