@@ -194,13 +194,15 @@ def make_coingame_network(num_actions: int, network_args):
     return network
 
 
-def make_GRU_coingame_network(num_actions: int, hidden_size: int):
+def make_GRU_coingame_network(
+    num_actions: int, hidden_size: int, network_args
+):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
-        x = CNN()(inputs)
+        x = CNN(network_args)(inputs)
         gru = hk.GRU(hidden_size)
         embedding, state = gru(x, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)

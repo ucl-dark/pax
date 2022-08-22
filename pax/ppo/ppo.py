@@ -113,7 +113,6 @@ class PPO:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
-            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 

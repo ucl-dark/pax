@@ -409,8 +409,15 @@ def agent_setup(args, logger):
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
     if args.agent1 == "PPO_memory":
-        logger.info(f"PPO with memory: {args.ppo.with_memory}")
-    elif args.agent1 == "PPO" and args.ppo.with_cnn:
+        if not args.ppo.with_memory:
+            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
+    if args.agent1 == "PPO":
+        if args.ppo.with_memory:
+            raise ValueError(
+                "Can't use ppo.memory=False but set agent=PPO_memory"
+            )
+
+    if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
@@ -425,13 +432,14 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.ppo.with_memory:
-            policy = policy_logger_ppo_with_memory(agent)
-        else:
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
-            losses.update(value)
-        losses.update(policy)
+        if not args.env_type == "coin_game":
+            if args.ppo.with_memory:
+                policy = policy_logger_ppo_with_memory(agent)
+            else:
+                policy = policy_logger_ppo(agent)
+                value = value_logger_ppo(agent)
+                losses.update(value)
+            losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
         return
@@ -457,10 +465,11 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        policy = policy_logger_ppo(agent)
-        value = value_logger_ppo(agent)
-        losses.update(value)
-        losses.update(policy)
+        if not args.env_type == "coin_game":
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
+            losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
         return
