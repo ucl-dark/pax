@@ -3,23 +3,23 @@ metric:
   name: train/episode_reward/player_1
   goal: maximize
 parameters:
-  naive.learning_rate:
-    values: [1, 0.5, 0.1]
-  num_opponents:
-    values: [1, 4, 20, 50, 100, 200]
-  num_envs:
-    values: [1, 4, 20, 50]
-  num_inner_steps:
-    values: [10, 25, 50, 100, 125]
-  num_steps:
-    values: [50, 100, 200, 250, 500, 1000]
+  ppo.num_minibatches:
+    values: [1, 2, 4, 8]
+  ppo.num_epochs:
+    values: [1, 2, 4]
+  ppo.ppo_clipping_epsilon:
+    values: [0.2, 0.1, 0.5]
+  ppo.value_coeff:
+    values: [0.1, 0.5, 1, 2]
   ppo.gamma:
-    values: [0.9, 0.96, 0.99, 0.99]  
-  ppo.entropy_coeff_end:
-    values: [0.1, 0.01, 0.05, 0.001]
+    values: [0.9, 0.96, 0.99]  
+  ppo.learning_rate:
+    values: [0.05, 3e-4, 0.005, 0.001]
+  ppo.with_cnn:
+    values: [True, False]
 command:
   - python3
   - -m
   - pax.experiment
-  - +experiment=marl2_nl
+  - +experiment=cg/inner
   - ${args_no_hyphens}

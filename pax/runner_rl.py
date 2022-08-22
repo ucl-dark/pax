@@ -7,7 +7,7 @@ from dm_env import TimeStep
 
 import wandb
 
-MAX_WANDB_CALLS = 10000
+MAX_WANDB_CALLS = 1000000
 
 
 class Sample(NamedTuple):
@@ -169,11 +169,12 @@ class Runner:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
 
-            final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
+            # final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
 
-            a2_state, a2_memory, a2_metrics = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_memory
-            )
+            # a2_state, a2_memory, a2_metrics = agent2.batch_update(
+            #     trajectories[1], final_t2, a2_state, a2_memory
+            # )
+            a2_metrics = None
 
             return (
                 t1,
@@ -190,10 +191,6 @@ class Runner:
         print("-----------------------")
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
-
-        # this needs to move into independent learners too
-        # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
-        # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
@@ -230,9 +227,7 @@ class Runner:
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
             )
-            a1_state = vals[2]
-            a1_mem = vals[3]
-
+            a1_state, a1_mem = vals[2], vals[3]
             a1_state, _, _ = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(final_t1),
@@ -242,6 +237,21 @@ class Runner:
 
             # update second agent
             a2_state, a2_mem = vals[4], vals[5]
+            final_t2 = vals[1]._replace(
+                step_type=2 * jnp.ones_like(vals[1].step_type)
+            )
+            a2_state, _, a2_metrics = agent2.batch_update(
+                jax.tree_util.tree_map(
+                    lambda x: x.reshape(
+                        (env.inner_episode_length,) + x.shape[2:]
+                    ),
+                    traj_2,
+                ),
+                final_t2,
+                a2_state,
+                a2_mem,
+            )
+
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
@@ -268,15 +278,12 @@ class Runner:
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
-                    flattened_metrics = jax.tree_util.tree_map(
-                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                    )
+                    flattened_metrics = a2_metrics
+                    # flattened_metrics = jax.tree_util.tree_map(
+                    #     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    # )
                     agent2._logger.metrics = (
                         agent2._logger.metrics | flattened_metrics
-                    )
-
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics
                     )
 
                     agents.log(watchers)

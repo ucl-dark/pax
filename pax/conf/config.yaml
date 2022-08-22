@@ -59,6 +59,7 @@ ppo:
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: True
+  hidden: 25
 
 # Naive Learner parameters 
 naive:
@@ -94,4 +95,4 @@ wandb:
   project: ipd
   group: ??
   name: run-seed-${seed}
-  log: False
+  log: True
