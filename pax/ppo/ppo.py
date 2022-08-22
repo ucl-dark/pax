@@ -12,7 +12,7 @@ from pax import utils
 from pax.ppo.networks import (
     make_cartpole_network,
     make_coingame_network,
-    make_network,
+    make_ipd_network,
 )
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
@@ -478,7 +478,7 @@ def make_agent(
         print(f"Making network for {args.env_id} with CNN")
         network = make_coingame_network(action_spec, args)
     else:
-        network = make_network(action_spec)
+        network = make_ipd_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

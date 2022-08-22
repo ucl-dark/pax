@@ -37,15 +37,15 @@ ppo:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-  entropy_coeff_start: 0.1
+  entropy_coeff_start: 0.01
   entropy_coeff_horizon: 0.5e8
-  entropy_coeff_end: 0.01
+  entropy_coeff_end: 0.005
   lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
-  seperate: True
+  seperate: False
 
 # Logging setup
 wandb:

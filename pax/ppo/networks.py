@@ -211,7 +211,7 @@ def make_GRU_coingame_network(num_actions: int, hidden_size: int):
     return network, hidden_state
 
 
-def make_network(num_actions: int):
+def make_ipd_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
@@ -251,7 +251,7 @@ def make_cartpole_network(num_actions: int):
     return network
 
 
-def make_GRU(num_actions: int):
+def make_GRU_ipd_network(num_actions: int):
     hidden_size = 25
     hidden_state = jnp.zeros((1, hidden_size))
 
@@ -301,7 +301,7 @@ def test_GRU():
     key, subkey = jax.random.split(key)
     dummy_obs = jnp.zeros(shape=obs_spec)
     dummy_obs = utils.add_batch_dim(dummy_obs)
-    network, hidden = make_GRU(num_actions)
+    network, hidden = make_GRU_ipd_network(num_actions)
     print(hidden.shape)
     initial_params = network.init(subkey, dummy_obs, hidden)
     print("GRU w_i", initial_params["gru"]["w_i"].shape)

@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import (
-    make_GRU,
+    make_GRU_ipd_network,
     make_GRU_cartpole_network,
     make_GRU_coingame_network,
 )
@@ -526,7 +526,7 @@ def make_gru_agent(
         print(f"Making network for {args.env_id} with CNN")
         network, initial_hidden_state = make_GRU_coingame_network(action_spec)
     else:
-        network, initial_hidden_state = make_GRU(action_spec)
+        network, initial_hidden_state = make_GRU_ipd_network(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
 
