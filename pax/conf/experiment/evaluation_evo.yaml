@@ -24,8 +24,8 @@ num_steps: 10_000
 num_inner_steps: 100 
 total_timesteps: 1.5e8
 eval: True
-run_path: 'ucl-dark/ipd/a-good-model:v1' 
-filename: "generation_25"
+run_path: 'ucl-dark/ipd/run-seed-25-OpenES-pop-size-1000-num-opps-1:v0' 
+filename: "generation_10000"
 
 # PPO agent parameters
 ppo:

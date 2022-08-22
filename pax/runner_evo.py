@@ -294,9 +294,8 @@ class EvoRunner:
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
             # Add one state visitation to any that are 0. Assumes defection.
-            action_probs = visits[::2] / jax.lax.select(
-                states > 0, states, jnp.ones_like(states)
-            )
+            action_probs = visits[::2]
+            action_probs = jnp.nan_to_num(action_probs)
             if gen % log_interval == 0:
                 print(f"Generation: {gen}")
                 print(
