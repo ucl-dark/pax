@@ -43,7 +43,7 @@ ppo:
   lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   with_cnn: False
