@@ -7,7 +7,7 @@ from dm_env import TimeStep
 
 import wandb
 
-MAX_WANDB_CALLS = 1000000
+MAX_WANDB_CALLS = 10000
 
 
 class Sample(NamedTuple):
