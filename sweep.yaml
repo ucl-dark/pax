@@ -2,6 +2,9 @@ method: random
 metric:
   name: train/episode_reward/player_1
   goal: maximize
+  
+entity: "ucl-dark"
+project: "cg"
 parameters:
   ppo.num_minibatches:
     values: [1, 2, 4, 8]
