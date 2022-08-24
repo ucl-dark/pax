@@ -27,5 +27,5 @@ command:
   - python3
   - -m
   - pax.experiment
-  - +experiment=cg/inner
+  - +experiment=cg/sanity
   - ${args_no_hyphens}
