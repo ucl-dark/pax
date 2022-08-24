@@ -200,23 +200,51 @@ class Human:
 
 
 class Random:
-    def __init__(self, seed: int):
-        self.rng = jax.random.PRNGKey(seed)
-        raise DeprecationWarning()
+    def __init__(self, num_actions: int):
+        self.make_initial_state = make_initial_state
+        self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
 
-    def actor_step(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
-        batch_size, _ = timestep.observation.shape
-        # return jax.random.choice(self.rng, 2, [batch_size, 1]), None
-        return (
-            jax.random.choice(
-                self.rng,
-                2,
-                [
-                    batch_size,
-                ],
-            ),
-            None,
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+            # state is [batch x time_step x num_players]
+            # return [batch]
+            batch_size = obs.shape[0]
+            new_key, _ = jax.random.split(state.random_key)
+            action = jax.random.randint(new_key, (batch_size,), 0, num_actions)
+            state = state._replace(random_key=new_key)
+            return action, state, mem
+
+        self._policy = jax.jit(_policy)
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        action = jax.random.randint(
+            self._state.new_key, (batch_size,), 0, self._num_actions
         )
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
 
 
 class HyperAltruistic:

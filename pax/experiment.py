@@ -376,12 +376,33 @@ def agent_setup(args, logger):
         )
         return agent
 
+    # flake8: noqa: C901
+    def get_random_agent(seed, player_id):
+        if args.env_type == "coin_game":
+            num_actions = (
+                CoinGame(args.num_envs, args.num_steps, args.num_steps, seed)
+                .action_spec()
+                .num_values
+            )
+        else:
+            num_actions = (
+                SequentialMatrixGame(
+                    args.num_envs, args.payoff, args.num_steps
+                )
+                .action_spec()
+                .num_values
+            )
+
+        random_agent = Random(num_actions)
+        random_agent.player_id = player_id
+        return random_agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
         "Altruistic": Altruistic,
         "Human": Human,
-        "Random": Random,
+        "Random": get_random_agent,
         "Grim": GrimTrigger,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
