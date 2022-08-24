@@ -169,13 +169,11 @@ class Runner:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
 
-            # final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
+            final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
 
-            # a2_state, a2_memory, a2_metrics = agent2.batch_update(
-            #     trajectories[1], final_t2, a2_state, a2_memory
-            # )
-            a2_metrics = None
-
+            a2_state, a2_memory, a2_metrics = agent2.batch_update(
+                trajectories[1], final_t2, a2_state, a2_memory
+            )
             return (
                 t1,
                 t2,
@@ -237,21 +235,6 @@ class Runner:
 
             # update second agent
             a2_state, a2_mem = vals[4], vals[5]
-            final_t2 = vals[1]._replace(
-                step_type=2 * jnp.ones_like(vals[1].step_type)
-            )
-            a2_state, _, a2_metrics = agent2.batch_update(
-                jax.tree_util.tree_map(
-                    lambda x: x.reshape(
-                        (env.inner_episode_length,) + x.shape[2:]
-                    ),
-                    traj_2,
-                ),
-                final_t2,
-                a2_state,
-                a2_mem,
-            )
-
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
@@ -278,10 +261,9 @@ class Runner:
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
-                    flattened_metrics = a2_metrics
-                    # flattened_metrics = jax.tree_util.tree_map(
-                    #     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                    # )
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    )
                     agent2._logger.metrics = (
                         agent2._logger.metrics | flattened_metrics
                     )
