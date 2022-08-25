@@ -207,23 +207,6 @@ def make_coingame_network(num_actions: int, args):
     return network
 
 
-def make_GRU_coingame_network(num_actions: int, args):
-    hidden_state = jnp.zeros((1, args.ppo.hidden))
-
-    def forward_fn(
-        inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
-        x = CNN(args)(inputs)
-        gru = hk.GRU(args.ppo.hidden)
-        embedding, state = gru(x, state)
-        logits, values = CategoricalValueHead(num_actions)(embedding)
-
-        return (logits, values), state
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network, hidden_state
-
-
 def make_ipd_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
@@ -304,6 +287,34 @@ def make_GRU_cartpole_network(num_actions: int):
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
 
+    return network, hidden_state
+
+
+def make_GRU_coingame_network(num_actions: int, args):
+    hidden_state = jnp.zeros((1, args.ppo.hidden))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+
+        if args.ppo.with_cnn:
+            torso = CNN(args)(inputs)
+
+        else:
+            torso = hk.nets.MLP(
+                [args.ppo.hidden_size, args.ppo.hidden_size],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+            )
+        gru = hk.GRU(args.ppo.hidden)
+        embedding = torso(inputs)
+        embedding, state = gru(embedding, state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
     return network, hidden_state
 
 
