@@ -19,8 +19,8 @@ num_opps: 4000
 num_steps: 200 
 num_inner_steps: 50 
 total_timesteps: 0.5e9
-run_path: ucl-dark/ipd/EARL-PPO_memory-vs-TitForTat-run-seed-0-popsize-50:v1
-filename: "generation_25"
+run_path: ucl-dark/ipd/MARL2-PPO_memory-vs-Naive-parity-run-seed-0:v0
+filename: "iteration_620"
 
 # PPO agent parameters
 ppo:
