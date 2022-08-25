@@ -22,7 +22,8 @@ num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 2.5e7
-eval_every: 2.5e7
+save_frequency: 5
+
 
 # PPO agent parameters
 ppo:
@@ -78,5 +79,5 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}
+  name: 'EARL-${agent1}-vs-${agent2}-run-seed-${seed}-popsize-${popsize}'
   log: False

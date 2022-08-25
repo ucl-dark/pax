@@ -151,7 +151,7 @@ class Runner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         print(f"Log Interval {log_interval}")
         # run actual loop
         for i in range(num_episodes):
@@ -230,6 +230,7 @@ class Runner:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
+                    print()
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]

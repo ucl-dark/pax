@@ -11,18 +11,16 @@ env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
-# env_batch_size = num_envs * num_opponents
-num_envs: 50
-num_opps: 2
+# Evaluation
+eval: True 
+num_iters: 5
+num_envs: 1
+num_opps: 1
 num_steps: 100 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e6
-eval_every: 1.0e6 # timesteps 
-
-# Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
-# num_updates = num_episodes / eval_every
-# batch_size = num_envs * num_steps
+run_path: ucl-dark/ipd/MARL2-PPO_memory-vs-TitForTat-parity:v0
+filename: "iteration_95"
 
 # PPO agent parameters
 ppo:
@@ -43,20 +41,10 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
 
-# Naive Learner parameters 
-naive:
-  num_minibatches: 1
-  num_epochs: 1
-  gamma: 0.96
-  gae_lambda: 0.95
-  max_gradient_norm: 1.0
-  learning_rate: 0.1
-  adam_epsilon: 1e-5
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}-parity'
-  name: 'MARL2-${agent1}-vs-${agent2}-parity'
+  name: eval-MARL^2-${agent1}-vs-${agent2}-parity
   log: True

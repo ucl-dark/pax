@@ -21,11 +21,12 @@ num_envs: 1
 num_opps: 1
 num_steps: 150 # number of steps per episode
 total_timesteps: 4_000_000
-eval_every: 2_000_000 # timesteps
 eval: True
 # run_path: 'ucl-dark/ipd/testing_train:v0' 
-run_path: 'ucl-dark/ipd/run-seed-0:v0' 
-filename: "generation_25"
+# run_path: 'ucl-dark/ipd/run-seed-0:v0' 
+# filename: "generation_25"
+run_path: ucl-dark/ipd/run-seed-0:v2
+filename: "iteration_200"
 
 # PPO agent parameters
 ppo:

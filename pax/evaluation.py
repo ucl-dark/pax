@@ -4,16 +4,11 @@ import time
 from typing import List, NamedTuple
 
 from dm_env import TimeStep
-from evosax import FitnessShaper, ParameterReshaper
 import jax
 import jax.numpy as jnp
 import wandb
 
-# TODO: import when evosax library is updated
-# from evosax.utils import ESLog
-from pax.watchers import ESLog
-
-MAX_WANDB_CALLS = 1000
+from pax.utils import load
 
 
 class Sample(NamedTuple):
@@ -28,26 +23,44 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
+@jax.jit
+def reduce_outer_traj(traj: Sample) -> Sample:
+    """Used to collapse lax.scan outputs dims"""
+    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
+    # x: [timestep, batch_size, ...]
+    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
+    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+    return jax.tree_util.tree_map(
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
+        traj,
+    )
+
+
 class EvalRunner:
     """Holds the runner's state."""
 
     def __init__(self, args):
         self.algo = args.es.algo
         self.args = args
-        self.generations = 0
         self.num_opps = args.num_opps
         self.eval_steps = 0
         self.eval_episodes = 0
-        self.popsize = args.popsize
         self.random_key = jax.random.PRNGKey(args.seed)
         self.start_datetime = datetime.now()
         self.start_time = time.time()
-        self.top_k = args.top_k
         self.train_steps = 0
         self.train_episodes = 0
         self.num_iters = args.num_iters
         self.run_path = args.run_path
         self.filename = args.filename
+
+        def _reshape_opp_dim(x):
+            # x: [num_opps, num_envs ...]
+            # x: [batch_size, ...]
+            batch_size = args.num_envs * args.num_opps
+            return jax.tree_util.tree_map(
+                lambda x: x.reshape((batch_size,) + x.shape[2:]), x
+            )
 
         def _state_visitation(
             observations: jnp.ndarray,
@@ -71,7 +84,8 @@ class EvalRunner:
             state_actions = jnp.append(state_actions, final_obs, axis=0)
             return jnp.bincount(state_actions.flatten(), length=10)
 
-        self.state_visitation = jax.jit(_state_visitation)
+        self.state_visitation = _state_visitation
+        self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
 
     def eval_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -163,61 +177,24 @@ class EvalRunner:
         print("Evaluation")
         print("-----------------------")
         # Initialize agents and RNG
-        num_iters = num_gens = 20
-        num_iters = num_gens = self.num_iters
-        popsize = 1
-        num_opps = 1
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        num_iters = self.num_iters
         print(f"Number of Seeds: {num_iters}")
-        print(f"Number of Meta Episodes: {num_iters}")
-        print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
-        print(f"Log Interval: {log_interval}")
-        print("------------------------------")
+        print("-----------------------")
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
 
-        # Initialize eval for evolutionary algo
-        param_reshaper = ParameterReshaper(agent1._state.params)
-        es_logging = ESLog(
-            param_reshaper.total_params,
-            num_gens,
-            top_k=self.top_k,
-            maximize=True,
-        )
+        # Download agent from WandB
+        raw_artifact = wandb.run.use_artifact(self.run_path)
+        model_path = raw_artifact.get_path(self.filename)
+        model_path.download(root=self.args.save_dir)
 
-        # Load agent
-
-        model_path = wandb.restore(name=self.filename, run_path=self.run_path)
-        # TODO: Full test
-        print(f"Loading from run: {self.run_path}")
-        print(f"Filepath: {model_path.name}")
-        log = es_logging.load(model_path.name)
-
-        # TODO: Remove this local test
-        # testing_dir = f"/Users/newtonkwan/UCL/Research/pax/pax/test_model/generation_9300"
-        # log = es_logging.load(testing_dir)
-
-        # Evolution specific: add pop size dimension
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
-
-        # Evolution specific: Initialize batch over popsize
-        init_hidden = jnp.tile(
-            agent1._mem.hidden,
-            (popsize, num_opps, 1, 1),
-        )
-        agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
-            init_hidden,
-        )
+        params = load(os.path.join(self.args.save_dir, self.filename))
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        params = param_reshaper.reshape(log["top_gen_params"][0:1])
         a1_state = a1_state._replace(params=params)
 
         # Track mean rewards and state visitations
@@ -228,23 +205,21 @@ class EvalRunner:
         mean_cooperation_prob = jnp.zeros(shape=(num_iters, env.num_trials, 5))
 
         for opp_i in range(num_iters):
-            rng, rng_run, rng_key = jax.random.split(rng, 3)
+            rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
+                (self.num_opps, env.num_envs), rng_run
             )
 
-            # Player 1
-            a1_mem = agent1.batch_reset(a1_mem, True)
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            # Player 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                a2_mem.hidden,
-            )
-            a2_mem = agent2.batch_reset(a2_mem, True)
+            elif self.args.env_type in ["meta", "infinite"]:
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                )
 
+            # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -253,16 +228,24 @@ class EvalRunner:
             )
 
             traj_1, traj_2, a2_metrics = stack
-
-            # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-
-            # Calculate state visitations
+            # update outer agent
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
             )
+            a1_state = vals[2]
+            a1_mem = vals[3]
 
+            a1_mem = agent1.batch_reset(a1_mem, True)
+
+            # update second agent
+            a2_state, a2_mem = vals[4], vals[5]
+
+            # logging
+            self.train_episodes += 1
+            rewards_0 = stack[0].rewards.mean()
+            rewards_1 = stack[1].rewards.mean()
+
+<<<<<<<< HEAD:pax/evaluation.py
             # Logging step rewards loop
             # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs, ...]
             visits = self.state_visitation(
@@ -270,16 +253,14 @@ class EvalRunner:
             )
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
-            action_probs = visits[::2] / jax.lax.select(
-                states > 0, states, jnp.ones_like(states)
-            )
-
+            action_probs = visits[::2] / states
+            action_probs = jnp.nan_to_num(action_probs)
             print(f"Summary | Opponent: {opp_i+1}")
             print(
                 "--------------------------------------------------------------------------"
             )
             print(
-                f"EARL: {fitness.mean()} | Naive Learner: {other_fitness.mean()}"
+                f"{self.args.agent1}: {rewards_0} | {self.args.agent2}: {rewards_1}"
             )
             print(f"State Visits: {states}")
             print(f"State Frequency: {state_freq}")
@@ -287,6 +268,34 @@ class EvalRunner:
             print(
                 "--------------------------------------------------------------------------"
             )
+========
+            if opp_i % log_interval == 0:
+                # Logging step rewards loop
+                # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs, ...]
+                visits = self.state_visitation(
+                    traj_1.observations, traj_1.actions, final_t1.observation
+                )
+                states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(
+                    axis=1
+                )
+                state_freq = states / states.sum()
+                action_probs = visits[::2] / jax.lax.select(
+                    states > 0, states, jnp.ones_like(states)
+                )
+                print(f"Summary | Opponent: {opp_i+1}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(
+                    f"{self.args.agent1}: {rewards_0} | {self.args.agent2}: {rewards_1}"
+                )
+                print(f"State Visits: {states}")
+                print(f"State Frequency: {state_freq}")
+                print(f"Cooperation Probability: {action_probs}")
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+>>>>>>>> add evaluation files and combine evaluation runners:pax/evaluation_rl.py
 
             inner_steps = 0
             for out_step in range(env.num_trials):
@@ -301,9 +310,14 @@ class EvalRunner:
                     (int(visits_trial.shape[0] / 2), 2)
                 ).sum(axis=1)
                 state_trial_freq = states_trial / states_trial.sum()
+<<<<<<<< HEAD:pax/evaluation.py
+                action_trial_probs = visits_trial[::2] / states_trial
+                action_trial_probs = jnp.nan_to_num(action_trial_probs)
+========
                 action_trial_probs = visits_trial[::2] / jax.lax.select(
                     states_trial > 0, states_trial, jnp.ones_like(states_trial)
                 )
+>>>>>>>> add evaluation files and combine evaluation runners:pax/evaluation_rl.py
 
                 if watchers:
                     wandb.log(

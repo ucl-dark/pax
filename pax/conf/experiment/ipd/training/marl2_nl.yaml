@@ -58,5 +58,5 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  name: 'MARL2-${agent1}-vs-${agent2}-parity'
   log: True
