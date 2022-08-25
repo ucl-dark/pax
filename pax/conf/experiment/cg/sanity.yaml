@@ -18,8 +18,8 @@ num_envs: 1000
 num_opps: 1
 num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps
-total_timesteps: 4.0e8
-eval_every: 4.0e8 # timesteps 
+total_timesteps: 1.2e8
+eval_every: 1.2e8 # timesteps 
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
@@ -37,18 +37,26 @@ ppo:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-  entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 2.0e8
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
   entropy_coeff_end: 0.005
   lr_scheduling: True
-  learning_rate: 3e-4
+  learning_rate: 0.005
   adam_epsilon: 1e-5
   with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
-  with_cnn: True
   separate: True # only works with CNN
   hidden: 50
+
+naive:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  max_gradient_norm: 0.5
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
 
 # Logging setup
 wandb:

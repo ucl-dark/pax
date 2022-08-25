@@ -473,7 +473,7 @@ def make_agent(
 
     if args.env_id == "CartPole-v1":
         network = make_cartpole_network(action_spec)
-    elif args.env_id == "coin_game" and args.ppo.with_cnn:
+    elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id} with CNN")
         network = make_coingame_network(action_spec, args)
     else:

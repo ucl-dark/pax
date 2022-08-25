@@ -177,16 +177,29 @@ class CNN_separate(hk.Module):
         return (logits, val)
 
 
-def make_coingame_network(num_actions: int, network_args):
+def make_coingame_network(num_actions: int, args):
     def forward_fn(inputs):
         layers = []
-        if network_args.ppo.separate:
-            cnn = CNN_separate(network_args)
-            cvh = CategoricalValueHead_separate(num_values=num_actions)
+        if args.ppo.with_cnn:
+            if args.ppo.separate:
+                cnn = CNN_separate(args)
+                cvh = CategoricalValueHead_separate(num_values=num_actions)
+            else:
+                cnn = CNN(args)
+                cvh = CategoricalValueHead(num_values=num_actions)
+            layers.extend([cnn, cvh])
         else:
-            cnn = CNN(network_args)
-            cvh = CategoricalValueHead(num_values=num_actions)
-        layers.extend([cnn, cvh])
+            layers.extend(
+                [
+                    hk.nets.MLP(
+                        [64, 64],
+                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                        b_init=hk.initializers.Constant(0),
+                        activate_final=True,
+                    ),
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
