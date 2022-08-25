@@ -9,8 +9,12 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_cartpole_network, make_network
-from pax.utils import MemoryState, TrainingState, Logger
+from pax.ppo.networks import (
+    make_cartpole_network,
+    make_coingame_network,
+    make_ipd_network,
+)
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -109,7 +113,6 @@ class PPO:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
-            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
@@ -470,9 +473,11 @@ def make_agent(
 
     if args.env_id == "CartPole-v1":
         network = make_cartpole_network(action_spec)
-
+    elif args.env_id == "coin_game" and args.ppo.with_cnn:
+        print(f"Making network for {args.env_id} with CNN")
+        network = make_coingame_network(action_spec, args)
     else:
-        network = make_network(action_spec)
+        network = make_ipd_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

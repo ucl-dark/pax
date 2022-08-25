@@ -478,7 +478,7 @@ class PPO:
 def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    print(f"Making network for {args.env_id}")
+    print(f"Making network for {args.env_type}")
     network = make_network(action_spec)
 
     # Optimizer

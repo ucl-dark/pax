@@ -206,8 +206,8 @@ class NaiveLearner:
                 behavior_values=behavior_values,
             )
 
-            # # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
-            # # to [num_envs * num_steps,..]
+            # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
+            # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
             num_envs = target_values.shape[1]
             num_steps = target_values.shape[0]
@@ -328,7 +328,6 @@ class NaiveLearner:
 
         def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
-            obs_spec = 5
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
