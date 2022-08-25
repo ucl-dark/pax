@@ -10,8 +10,6 @@ import wandb
 
 from pax.utils import load
 
-MAX_WANDB_CALLS = 1000
-
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -180,22 +178,18 @@ class EvalRunner:
         print("-----------------------")
         # Initialize agents and RNG
         num_iters = self.num_iters
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Number of Seeds: {num_iters}")
-        print(f"Number of Meta Episodes: {num_iters}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
-        print(f"Log Interval: {log_interval}")
-        print("------------------------------")
+        print("-----------------------")
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
 
-        # Load agent
+        # Download agent from WandB
         raw_artifact = wandb.run.use_artifact(self.run_path)
         model_path = raw_artifact.get_path(self.filename)
         model_path.download(root=self.args.save_dir)
 
-        # LOAD
         params = load(os.path.join(self.args.save_dir, self.filename))
 
         a1_state, a1_mem = agent1._state, agent1._mem
@@ -241,12 +235,6 @@ class EvalRunner:
             a1_state = vals[2]
             a1_mem = vals[3]
 
-            a1_state, _, _ = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(final_t1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
             a1_mem = agent1.batch_reset(a1_mem, True)
 
             # update second agent
@@ -257,31 +245,28 @@ class EvalRunner:
             rewards_0 = stack[0].rewards.mean()
             rewards_1 = stack[1].rewards.mean()
 
-            if opp_i % log_interval == 0:
-                # Logging step rewards loop
-                # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs, ...]
-                visits = self.state_visitation(
-                    traj_1.observations, traj_1.actions, final_t1.observation
-                )
-                states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(
-                    axis=1
-                )
-                state_freq = states / states.sum()
-                action_probs = visits[::2].astype("float32") / states
-                action_probs = jnp.nan_to_num(action_probs).astype("int32")
-                print(f"Summary | Opponent: {opp_i+1}")
-                print(
-                    "--------------------------------------------------------------------------"
-                )
-                print(
-                    f"{self.args.agent1}: {rewards_0} | {self.args.agent2}: {rewards_1}"
-                )
-                print(f"State Visits: {states}")
-                print(f"State Frequency: {state_freq}")
-                print(f"Cooperation Probability: {action_probs}")
-                print(
-                    "--------------------------------------------------------------------------"
-                )
+            # Logging step rewards loop
+            # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs, ...]
+            visits = self.state_visitation(
+                traj_1.observations, traj_1.actions, final_t1.observation
+            )
+            states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
+            state_freq = states / states.sum()
+            action_probs = visits[::2] / states
+            action_probs = jnp.nan_to_num(action_probs)
+            print(f"Summary | Opponent: {opp_i+1}")
+            print(
+                "--------------------------------------------------------------------------"
+            )
+            print(
+                f"{self.args.agent1}: {rewards_0} | {self.args.agent2}: {rewards_1}"
+            )
+            print(f"State Visits: {states}")
+            print(f"State Frequency: {state_freq}")
+            print(f"Cooperation Probability: {action_probs}")
+            print(
+                "--------------------------------------------------------------------------"
+            )
 
             inner_steps = 0
             for out_step in range(env.num_trials):
@@ -296,12 +281,8 @@ class EvalRunner:
                     (int(visits_trial.shape[0] / 2), 2)
                 ).sum(axis=1)
                 state_trial_freq = states_trial / states_trial.sum()
-                action_trial_probs = (
-                    visits_trial[::2].astype("float32") / states_trial
-                )
-                action_trial_probs = jnp.nan_to_num(action_trial_probs).astype(
-                    "int32"
-                )
+                action_trial_probs = visits_trial[::2] / states_trial
+                action_trial_probs = jnp.nan_to_num(action_trial_probs)
 
                 if watchers:
                     wandb.log(

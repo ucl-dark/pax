@@ -181,7 +181,7 @@ class Runner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         print(f"Log Interval {log_interval}")
 
         if watchers:
@@ -248,9 +248,9 @@ class Runner:
                     axis=1
                 )
                 print(f"State Frequency: {states}")
-                action_probs = visits[::2]
+                action_probs = visits[::2] / states
                 action_probs = jnp.nan_to_num(action_probs)
-                print(f"Action Frequency: {action_probs}")
+                print(f"Cooperation Probability: {action_probs}")
 
             if watchers:
                 if i % log_interval == 0:
@@ -258,6 +258,7 @@ class Runner:
                     log_savepath = os.path.join(
                         self.args.save_dir, f"iteration_{i}"
                     )
+                    print()
                     save(a1_state.params, log_savepath)
                     artifact.add_file(log_savepath)
 

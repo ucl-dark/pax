@@ -11,18 +11,16 @@ env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
-# env_batch_size = num_envs * num_opponents
+# Evaluation 
+eval: True 
+num_iters: 5
 num_envs: 1
 num_opps: 4000
-num_steps: 200 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
-num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
+num_steps: 200 
+num_inner_steps: 50 
 total_timesteps: 0.5e9
-eval_every: 0.5e9 # timesteps 
-
-# Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
-# num_updates = num_episodes / eval_every
-# batch_size = num_envs * num_steps
+run_path: ucl-dark/ipd/EARL-PPO_memory-vs-TitForTat-run-seed-0-popsize-50:v1
+filename: "generation_25"
 
 # PPO agent parameters
 ppo:
@@ -58,5 +56,5 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'MARL^2-${agent1}-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  name: 'eval-MARL2-${agent1}-vs-${agent2}-parity'
   log: True

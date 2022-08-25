@@ -9,19 +9,17 @@ env_id: ipd
 game: ipd 
 env_type: finite
 env_discount: 0.99
-payoff: 
+payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 
-# Training hyperparameters
-num_envs: 100
+# Evaluation
+eval: True
+num_iters: 5
+num_envs: 1
 num_opps: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 2e9
-eval_every: 2e9 # timesteps
-
-# Useful information
-# num_episodes = total_timesteps / num_steps
-# num_updates = num_episodes / eval_every
-# batch_size = num_envs * num_steps
+total_timesteps: 4_000_000
+run_path: ucl-dark/ipd/PPO_memory-vs-TitForTat-parity-run-seed-0:v0
+filename: "iteration_265"
 
 # PPO agent parameters
 ppo:
@@ -47,5 +45,5 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'PPO_memory-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  name: eval-PPO_memory-vs-${agent2}-parity-run-seed-${seed}
   log: False

@@ -278,8 +278,8 @@ class EvoRunner:
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
             # changes all action probabilities that are NaNs to zeros
-            action_probs = visits[::2].astype("float32")
-            action_probs = jnp.nan_to_num(action_probs).astype("int32")
+            action_probs = visits[::2] / states
+            action_probs = jnp.nan_to_num(action_probs)
             if gen % log_interval == 0:
                 print(f"Generation: {gen}")
                 print(
@@ -311,7 +311,7 @@ class EvoRunner:
 
             if watchers:
 
-                if log["gen_counter"] % 100 == 0:
+                if log["gen_counter"] % self.args.save_frequency == 0:
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
                     )
