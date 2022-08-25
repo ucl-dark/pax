@@ -48,7 +48,7 @@ ppo:
   kernel_shape: [3, 3]
   with_cnn: True
   separate: True # only works with CNN
-  hidden: 25
+  hidden: 50
 
 # Logging setup
 wandb:

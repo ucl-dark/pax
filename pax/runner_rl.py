@@ -180,12 +180,12 @@ class Runner:
             traj_1, traj_2, a2_metrics = stack
             # update outer agent
             final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
-            # a1_state, _, _ = agent1.update(
-            #     reduce_outer_traj(traj_1),
-            #     self.reduce_opp_dim(final_t1),
-            #     a1_state,
-            #     self.reduce_opp_dim(a1_mem),
-            # )
+            a1_state, _, _ = agent1.update(
+                reduce_outer_traj(traj_1),
+                self.reduce_opp_dim(final_t1),
+                a1_state,
+                self.reduce_opp_dim(a1_mem),
+            )
 
             # update second agent
             a1_mem = agent1.batch_reset(a1_mem, False)

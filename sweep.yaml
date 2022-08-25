@@ -17,7 +17,7 @@ parameters:
   ppo.gamma:
     values: [0.9, 0.96, 0.99]  
   ppo.learning_rate:
-    values: [0.5, 0.05, 3e-4, 0.005, 0.001]
+    values: [0.1, 0.05, 3e-4, 0.001]
   ppo.entropy_coeff_start:
     values: [0.2, 0.1, 0.05]
   ppo.with_cnn:
