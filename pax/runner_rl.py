@@ -3,9 +3,9 @@ from typing import List, NamedTuple
 
 import jax
 import jax.numpy as jnp
-from dm_env import TimeStep
-
 import wandb
+
+from pax.watchers import cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 10000
 
@@ -56,53 +56,9 @@ class Runner:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        def _ipd_visitation(traj: Sample, final_t: TimeStep) -> dict:
-            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
-            # final_t [num_opps, num_envs, ...]
-            num_timesteps = (
-                traj.observations.shape[0] * traj.observations.shape[1]
-            )
-            # obs = [0, 1, 2, 3, 4], a = [0, 1]
-            # combine = [0, .... 9]
-            state_actions = (
-                2 * jnp.argmax(traj.observations, axis=-1) + traj.actions
-            )
-            state_actions = jnp.reshape(
-                state_actions,
-                (num_timesteps,) + state_actions.shape[2:],
-            )
-            # assume final step taken is cooperate
-            final_obs = jax.lax.expand_dims(
-                2 * jnp.argmax(final_t.observation, axis=-1), [0]
-            )
-            state_actions = jnp.append(state_actions, final_obs, axis=0)
-            hist = jnp.bincount(state_actions.flatten(), length=10)
-            states = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
-            action_probs = hist[::2] / states
-            return {
-                "train/state_frequency": states,
-                "train/action_frequency": jnp.nan_to_num(action_probs),
-            }
-
-        def _cg_visitation(traj1: Sample, traj2: Sample) -> dict:
-            defect_1 = (traj1.rewards == -2).sum()
-            defect_2 = (traj2.rewards == -2).sum()
-
-            total_1 = (traj1.rewards == 1).sum()
-            total_2 = (traj2.rewards == 1).sum()
-
-            prob_1 = defect_2 / total_1
-            prob_2 = defect_1 / total_2
-            return {
-                "train/prob_coop/1": 1 - prob_1,
-                "train/prob_coop/2": 1 - prob_2,
-                "train/total_coins/1": total_1 / jnp.size(traj1.rewards),
-                "train/total_coins/2": total_2 / jnp.size(traj2.rewards),
-            }
-
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
-        self.ipd_stats = jax.jit(_ipd_visitation)
-        self.cg_stats = jax.jit(_cg_visitation)
+        self.ipd_stats = jax.jit(ipd_visitation)
+        self.cg_stats = jax.jit(cg_visitation)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
@@ -240,29 +196,31 @@ class Runner:
 
             # logging
             self.train_episodes += 1
-            # sum over inner t dimmension
-            rewards_0 = traj_1.rewards.sum(axis=1).mean()
-            rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
             if i % log_interval == 0:
-                print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-                )
-
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), self.cg_stats(traj_1, traj_2)
                     )
+                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
                 elif self.args.env_type in [
-                    "MetaFiniteGame",
-                    "SequentialMatrixGame",
+                    "meta",
+                    "sequential",
                 ]:
-                    env_stats = self.ipd_stats(traj_1, final_t1)
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                    )
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
 
                 else:
                     env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
+                print(
+                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                )
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]

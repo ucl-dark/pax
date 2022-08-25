@@ -105,7 +105,7 @@ def payoff_setup(args, logger):
 def env_setup(args, logger=None):
     """Set up env variables."""
     payoff_setup(args, logger)
-    if args.env_type == "finite":
+    if args.env_type == "sequential":
         train_env = SequentialMatrixGame(
             args.num_envs,
             args.payoff,
@@ -155,7 +155,7 @@ def env_setup(args, logger=None):
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
 
-    else:
+    elif args.env_type == "infinite":
         train_env = InfiniteMatrixGame(
             args.num_envs,
             args.payoff,

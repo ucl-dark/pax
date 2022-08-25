@@ -7,7 +7,7 @@ agent2: 'TitForTat'
 # Environment
 env_id: ipd
 game: ipd 
-env_type: finite
+env_type: sequential
 env_discount: 0.99
 payoff: 
 
