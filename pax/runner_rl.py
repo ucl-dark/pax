@@ -176,21 +176,18 @@ class Runner:
                 length=env.num_trials,
             )
 
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
             traj_1, traj_2, a2_metrics = stack
             # update outer agent
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
-            )
-            a1_state, a1_mem = vals[2], vals[3]
-            a1_state, _, _ = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(final_t1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
+            final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
+            # a1_state, _, _ = agent1.update(
+            #     reduce_outer_traj(traj_1),
+            #     self.reduce_opp_dim(final_t1),
+            #     a1_state,
+            #     self.reduce_opp_dim(a1_mem),
+            # )
 
             # update second agent
-            a2_state, a2_mem = vals[4], vals[5]
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
@@ -199,7 +196,7 @@ class Runner:
             if i % log_interval == 0:
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.cg_stats(traj_1, traj_2)
+                        lambda x: x.item(), self.cg_stats(env_state)
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()

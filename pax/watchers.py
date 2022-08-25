@@ -1,4 +1,5 @@
 from functools import partial
+from typing import NamedTuple
 
 import chex
 from flax import linen as nn
@@ -409,18 +410,15 @@ def ipd_visitation(traj, final_t) -> dict:
     }
 
 
-def cg_visitation(traj1, traj2) -> dict:
-    defect_1 = (traj1.rewards == -2).sum()
-    defect_2 = (traj2.rewards == -2).sum()
+def cg_visitation(env_state: NamedTuple) -> dict:
+    total_1 = env_state.red_coop + env_state.red_defect
+    total_2 = env_state.blue_coop + env_state.blue_defect
 
-    total_1 = (traj1.rewards == 1).sum()
-    total_2 = (traj2.rewards == 1).sum()
-
-    prob_1 = defect_2 / total_1
-    prob_2 = defect_1 / total_2
+    prob_1 = env_state.red_coop / total_1
+    prob_2 = env_state.blue_coop / total_2
     return {
-        "train/prob_coop/1": 1 - prob_1,
-        "train/prob_coop/2": 1 - prob_2,
-        "train/total_coins/1": total_1 / jnp.size(traj1.rewards),
-        "train/total_coins/2": total_2 / jnp.size(traj2.rewards),
+        "train/prob_coop/1": jnp.nanmean(prob_1),
+        "train/prob_coop/2": jnp.nanmean(prob_2),
+        "train/total_coins/1": total_1.mean(),
+        "train/total_coins/2": total_2.mean(),
     }

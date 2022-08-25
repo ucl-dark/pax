@@ -2,7 +2,7 @@ from multiprocessing.spawn import old_main_modules
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.env_meta import CoinGame, CoinGameState, MetaFiniteGame
 from pax.strategies import TitForTat
 
 from pax.env_inner import InfiniteMatrixGame
@@ -200,35 +200,37 @@ def test_coingame_shapes():
     assert (old_state.key != new_state.key).all()
 
 
-def test_coingame_meta():
+def test_coingame_move():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, False)
+    env = CoinGame(bs, 8, 16, 0, True)
     action = jnp.ones(bs, dtype=int)
-    left_move = jnp.array([0, -1])
     t1, t2 = env.reset()
-    assert t1.last() == jnp.zeros(bs)
-    assert t2.last() == jnp.zeros(bs)
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[1, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[1, 2]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
 
-    for _ in range(7):
-        t1, t2 = env.step((action, action))
-
-    # we set dones so its fine this logic doesn't exist
-    assert not t1.last()
-    assert not t2.last()
-
-    # take last state before move
-    last_state = env.state
-
-    assert last_state.inner_t == 7
-    assert last_state.outer_t == 0
-
-    # internal reset should happen here for new episode
     t1, t2 = env.step((action, action))
-    new_state = env.state
-    assert new_state.inner_t == 0
-    assert new_state.outer_t == 1
+    assert t1.reward == 1
+    assert t2.reward == 1
+    assert env.state.red_coop == 1
+    assert env.state.red_defect == 0
+    assert env.state.blue_coop == 1
+    assert env.state.blue_defect == 0
 
-    old_red_pos = (last_state.red_pos + left_move) % 3
-    old_blue_pos = (last_state.blue_pos + left_move) % 3
-    assert (new_state.red_pos != old_red_pos).any()
-    assert (new_state.blue_pos != old_blue_pos).any()
+    t1, t2 = env.step((action, action))
+    assert t1.reward == 0
+    assert t2.reward == 0
+    assert env.state.red_coop == 1
+    assert env.state.red_defect == 0
+    assert env.state.blue_coop == 1
+    assert env.state.blue_defect == 0

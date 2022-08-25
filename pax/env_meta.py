@@ -143,8 +143,13 @@ class CoinGameState(NamedTuple):
     red_coin_pos: jnp.ndarray
     blue_coin_pos: jnp.ndarray
     key: jnp.ndarray
-    inner_t: jnp.ndarray
-    outer_t: jnp.ndarray
+    inner_t: int
+    outer_t: int
+    # stats
+    red_coop: int
+    red_defect: int
+    blue_coop: int
+    blue_defect: int
 
 
 # class CoinGameJAX:
@@ -205,6 +210,10 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
+                0,
+                0,
+                0,
+                0,
             )
             obs = _state_to_obs(state)
 
@@ -280,6 +289,10 @@ class CoinGame:
                 key,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
+                red_coop=state.red_coop + red_red_matches,
+                red_defect=state.red_defect + red_blue_matches,
+                blue_coop=state.blue_coop + blue_blue_matches,
+                blue_defect=state.blue_defect + blue_red_matches,
             )
 
             obs = _state_to_obs(next_state)
@@ -305,6 +318,10 @@ class CoinGame:
                 key,
                 jnp.where(done, jnp.zeros_like(inner_t), next_state.inner_t),
                 jnp.where(done, outer_t + 1, outer_t),
+                next_state.red_coop,
+                next_state.red_defect,
+                next_state.blue_coop,
+                next_state.blue_defect,
             )
 
             obs = jnp.where(done, new_ep_outputs[0].observation, obs)
@@ -342,7 +359,7 @@ class CoinGame:
         self.inner_episode_length = inner_ep_length
         self.num_trials = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
-        self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0)
+        self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
 
         self.runner_step = jax.vmap(runner_step)
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))
