@@ -267,8 +267,8 @@ class EvalRunner:
                     axis=1
                 )
                 state_freq = states / states.sum()
-                action_probs = visits[::2]
-                action_probs = jnp.nan_to_num(action_probs)
+                action_probs = visits[::2].astype("float32") / states
+                action_probs = jnp.nan_to_num(action_probs).astype("int32")
                 print(f"Summary | Opponent: {opp_i+1}")
                 print(
                     "--------------------------------------------------------------------------"
@@ -296,8 +296,12 @@ class EvalRunner:
                     (int(visits_trial.shape[0] / 2), 2)
                 ).sum(axis=1)
                 state_trial_freq = states_trial / states_trial.sum()
-                action_trial_probs = visits_trial[::2]
-                action_trial_probs = jnp.nan_to_num(action_trial_probs)
+                action_trial_probs = (
+                    visits_trial[::2].astype("float32") / states_trial
+                )
+                action_trial_probs = jnp.nan_to_num(action_trial_probs).astype(
+                    "int32"
+                )
 
                 if watchers:
                     wandb.log(

@@ -12,6 +12,7 @@ import wandb
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog
+from pax.utils import save
 
 MAX_WANDB_CALLS = 1000
 
@@ -269,23 +270,6 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
-            if log["gen_counter"] % 100 == 0:
-                if self.algo == "OpenES" or self.algo == "PGPE":
-                    jnp.save(
-                        os.path.join(
-                            self.save_dir,
-                            f"mean_param_{log['gen_counter']}.npy",
-                        ),
-                        evo_state.mean,
-                    )
-
-                es_logging.save(
-                    log,
-                    os.path.join(
-                        self.save_dir, f"generation_{log['gen_counter']}"
-                    ),
-                )
-
             # Calculate state visitations
             final_t1 = vals[0]._replace(
                 step_type=2 * jnp.ones_like(vals[0].step_type)
@@ -293,9 +277,9 @@ class EvoRunner:
             visits = self.state_visitation(traj_1, final_t1)
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
-            # Add one state visitation to any that are 0. Assumes defection.
-            action_probs = visits[::2]
-            action_probs = jnp.nan_to_num(action_probs)
+            # changes all action probabilities that are NaNs to zeros
+            action_probs = visits[::2].astype("float32")
+            action_probs = jnp.nan_to_num(action_probs).astype("int32")
             if gen % log_interval == 0:
                 print(f"Generation: {gen}")
                 print(
@@ -332,10 +316,14 @@ class EvoRunner:
                         self.save_dir, f"generation_{log['gen_counter']}"
                     )
 
-                    es_logging.save(
-                        log,
-                        log_savepath,
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0:1]
                     )
+                    # remove batch dimension
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x.reshape(x.shape[1:]), top_params
+                    )
+                    save(top_params, log_savepath)
                     artifact.add_file(log_savepath)
 
                 wandb_log = {

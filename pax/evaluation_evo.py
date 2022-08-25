@@ -4,13 +4,13 @@ import time
 from typing import List, NamedTuple
 
 from dm_env import TimeStep
-from evosax import FitnessShaper, ParameterReshaper
 import jax
 import jax.numpy as jnp
 import wandb
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
+from pax.utils import load
 from pax.watchers import ESLog
 
 MAX_WANDB_CALLS = 1000
@@ -163,8 +163,8 @@ class EvalEvoRunner:
         print("Evaluation")
         print("-----------------------")
         # Initialize agents and RNG
-        num_iters = num_gens = 20
-        num_iters = num_gens = self.num_iters
+        num_iters = 20
+        num_iters = self.num_iters
         popsize = 1
         num_opps = 1
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
@@ -183,39 +183,10 @@ class EvalEvoRunner:
         model_path = raw_artifact.get_path(self.filename)
         model_path.download(root=self.args.save_dir)
 
-        # Initialize eval for evolutionary algo
-        param_reshaper = ParameterReshaper(agent1._state.params)
-        es_logging = ESLog(
-            param_reshaper.total_params,
-            num_gens,
-            top_k=self.top_k,
-            maximize=True,
-        )
-        log = es_logging.load(os.path.join(self.args.save_dir, self.filename))
-
-        # TODO: Local test
-        # testing_dir = f"/Users/newtonkwan/UCL/Research/pax/pax/test_model/generation_9300"
-        # log = es_logging.load(testing_dir)
-
-        # Evolution specific: add pop size dimension
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
-
-        # Evolution specific: Initialize batch over popsize
-        init_hidden = jnp.tile(
-            agent1._mem.hidden,
-            (popsize, num_opps, 1, 1),
-        )
-        agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
-            init_hidden,
-        )
-
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        params = param_reshaper.reshape(log["top_gen_params"][0:1])
+        params = load(os.path.join(self.args.save_dir, self.filename))
         a1_state = a1_state._replace(params=params)
 
         # Track mean rewards and state visitations
@@ -268,7 +239,7 @@ class EvalEvoRunner:
             )
             states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
             state_freq = states / states.sum()
-            action_probs = visits[::2]
+            action_probs = visits[::2] / states
             action_probs = jnp.nan_to_num(action_probs)
 
             print(f"Summary | Opponent: {opp_i+1}")
