@@ -23,8 +23,9 @@ num_steps: 150 # number of steps per episode
 total_timesteps: 4_000_000
 eval_every: 2_000_000 # timesteps
 eval: True
-run_path: 'ucl-dark/ipd/testing_train:v0' 
-filename: "iteration_100"
+# run_path: 'ucl-dark/ipd/testing_train:v0' 
+run_path: 'ucl-dark/ipd/run-seed-0:v0' 
+filename: "generation_25"
 
 # PPO agent parameters
 ppo:
@@ -78,6 +79,6 @@ wandb:
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
-  log: False
+  log: True 
 
 
