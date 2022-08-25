@@ -1,7 +1,8 @@
+from multiprocessing.spawn import old_main_modules
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import MetaFiniteGame
+from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.strategies import TitForTat
 
 from pax.env_meta import InfiniteMatrixGame
@@ -291,3 +292,60 @@ def test_batch_infinite_game():
     t0, t1 = env.step([batch_mixed_2, batch_mixed_1])
     assert jnp.allclose(jnp.array([3, 0.99, 2]), t0.reward, atol=0.01)
     assert jnp.allclose(jnp.array([0, 1.02, 2]), t1.reward, atol=0.01)
+
+
+def test_coingame_shapes():
+    batch_size = 2
+    env = CoinGame(batch_size, 8, 16, 0, False)
+    action = jnp.ones(batch_size, dtype=int)
+
+    t1, t2 = env.reset()
+    assert (t1.reward == jnp.zeros(batch_size)).all()
+    assert (t2.reward == jnp.zeros(batch_size)).all()
+    old_state = env.state
+
+    assert t1.observation.shape == (batch_size, 36)
+    assert t2.observation.shape == (batch_size, 36)
+
+    t1, t2 = env.step((action, action))
+    assert (t1.reward == jnp.zeros(batch_size)).all()
+    assert (t2.reward == jnp.zeros(batch_size)).all()
+    new_state = env.state
+
+    assert (old_state.red_pos != new_state.red_pos).any()
+    assert (old_state.blue_pos != new_state.blue_pos).any()
+    assert (old_state.key != new_state.key).all()
+
+
+def test_coingame_meta():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, False)
+    action = jnp.ones(bs, dtype=int)
+    left_move = jnp.array([0, -1])
+    t1, t2 = env.reset()
+    assert t1.last() == jnp.zeros(bs)
+    assert t2.last() == jnp.zeros(bs)
+
+    for _ in range(7):
+        t1, t2 = env.step((action, action))
+
+    # we set dones so its fine this logic doesn't exist
+    assert not t1.last()
+    assert not t2.last()
+
+    # take last state before move
+    last_state = env.state
+
+    assert last_state.inner_t == 7
+    assert last_state.outer_t == 0
+
+    # internal reset should happen here for new episode
+    t1, t2 = env.step((action, action))
+    new_state = env.state
+    assert new_state.inner_t == 0
+    assert new_state.outer_t == 1
+
+    old_red_pos = (last_state.red_pos + left_move) % 3
+    old_blue_pos = (last_state.blue_pos + left_move) % 3
+    assert (new_state.red_pos != old_red_pos).any()
+    assert (new_state.blue_pos != old_blue_pos).any()

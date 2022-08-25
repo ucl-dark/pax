@@ -101,8 +101,8 @@ class MetaFiniteGame:
         if self._reset_next_step:
             return self.reset()
 
-        output, self._state = self.runner_step(actions, self._state)
-        if (self._state[1] == self.num_trials).all():
+        output, self.state = self.runner_step(actions, self.state)
+        if (self.state[1] == self.num_trials).all():
             self._reset_next_step = True
             output = (
                 TimeStep(
@@ -130,7 +130,7 @@ class MetaFiniteGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         """Returns the first `TimeStep` of a new episode."""
-        t, self._state = self.runner_reset(
+        t, self.state = self.runner_reset(
             (self.num_envs,), jax.random.PRNGKey(0)
         )
         self._reset_next_step = False
@@ -196,7 +196,7 @@ class InfiniteMatrixGame(Environment):
         self._num_steps = 0
         self._reset_next_step = True
 
-        self._state = (0.0, jax.random.PRNGKey(seed=seed))
+        self.state = (0.0, jax.random.PRNGKey(seed=seed))
         self.num_trials = 1
         self.inner_episode_length = episode_length
 
@@ -222,7 +222,7 @@ class InfiniteMatrixGame(Environment):
         assert action_1.shape == action_2.shape
         assert action_1.shape == (self.num_envs, 5)
 
-        outputs, self._state = self._jit_step(actions, self._state)
+        outputs, self.state = self._jit_step(actions, self.state)
         r1, r2, obs1, obs2, _ = outputs
         r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
 
@@ -288,10 +288,8 @@ class InfiniteMatrixGame(Environment):
         """Returns the first `TimeStep` of a new episode."""
         self._reset_next_step = False
         self._num_steps = 0
-        t_init, self._state = self.runner_reset(
-            (self.num_envs,), self._state[1]
-        )
-        self.key = self._state[1]
+        t_init, self.state = self.runner_reset((self.num_envs,), self.state[1])
+        self.key = self.state[1]
         return t_init
 
 
@@ -452,10 +450,14 @@ class CoinGame:
             )
 
             next_state = CoinGameState(
-                jnp.where(done, new_red_pos, next_state.red_pos),
-                jnp.where(done, new_blue_pos, next_state.blue_pos),
-                jnp.where(done, new_red_coin_pos, next_state.red_coin_pos),
-                jnp.where(done, new_blue_coin_pos, next_state.blue_coin_pos),
+                jnp.where(done, new_ep_state.red_pos, next_state.red_pos),
+                jnp.where(done, new_ep_state.blue_pos, next_state.blue_pos),
+                jnp.where(
+                    done, new_ep_state.red_coin_pos, next_state.red_coin_pos
+                ),
+                jnp.where(
+                    done, new_ep_state.blue_coin_pos, next_state.blue_coin_pos
+                ),
                 key,
                 jnp.where(done, jnp.zeros_like(inner_t), next_state.inner_t),
                 jnp.where(done, outer_t + 1, outer_t),
