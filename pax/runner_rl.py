@@ -249,13 +249,18 @@ class Runner:
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
 
-                if self.args.env_type not in ["coin_game"]:
-                    env_stats = self.ipd_stats(traj_1, final_t1)
-
-                else:
+                if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), self.cg_stats(traj_1, traj_2)
                     )
+                elif self.args.env_type in [
+                    "MetaFiniteGame",
+                    "SequentialMatrixGame",
+                ]:
+                    env_stats = self.ipd_stats(traj_1, final_t1)
+
+                else:
+                    env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
 

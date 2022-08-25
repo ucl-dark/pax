@@ -10,7 +10,8 @@ import wandb
 from pax.env_inner import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
-from pax.env_meta import CoinGame, InfiniteMatrixGame, MetaFiniteGame
+from pax.env_inner import InfiniteMatrixGame
+from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
