@@ -1,11 +1,10 @@
-from multiprocessing.spawn import old_main_modules
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.env_meta import MetaFiniteGame
 from pax.strategies import TitForTat
 
-from pax.env_inner import InfiniteMatrixGame
+from pax.env_meta import InfiniteMatrixGame
 
 # payoff matrices for four games
 ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]
@@ -177,58 +176,118 @@ def test_reset():
         assert t_1.last().all() == False
 
 
-def test_coingame_shapes():
-    batch_size = 2
-    env = CoinGame(batch_size, 8, 16, 0, False)
-    action = jnp.ones(batch_size, dtype=int)
+def test_infinite_game():
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
-    t1, t2 = env.reset()
-    assert (t1.reward == jnp.zeros(batch_size)).all()
-    assert (t2.reward == jnp.zeros(batch_size)).all()
-    old_state = env.state
+    env = InfiniteMatrixGame(1, payoff, 10, 0.99, 0)
+    alt_policy = 20 * jnp.ones((1, 5))
+    def_policy = -20 * jnp.ones((1, 5))
+    tft_policy = 20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]])
 
-    assert t1.observation.shape == (batch_size, 36)
-    assert t2.observation.shape == (batch_size, 36)
+    # first step
+    t0, t1 = env.step((alt_policy, def_policy))
 
-    t1, t2 = env.step((action, action))
-    assert (t1.reward == jnp.zeros(batch_size)).all()
-    assert (t2.reward == jnp.zeros(batch_size)).all()
-    new_state = env.state
+    # assert jnp.allclose(t0.observation, 0.5 * jnp.ones((1, 10)))
+    # assert jnp.allclose(t1.observation, 0.5 * jnp.ones((1, 10)))
 
-    assert (old_state.red_pos != new_state.red_pos).any()
-    assert (old_state.blue_pos != new_state.blue_pos).any()
-    assert (old_state.key != new_state.key).all()
+    t0, t1 = env.step([alt_policy, alt_policy])
+    assert t0.reward == t1.reward
+    assert jnp.isclose(2, t0.reward, atol=0.01)
+    assert jnp.allclose(t0.observation, jnp.ones((1, 10)), atol=0.01)
+    assert jnp.allclose(t1.observation, jnp.ones((1, 10)), atol=0.01)
+
+    t0, t1 = env.step([def_policy, def_policy])
+    assert t0.reward == t1.reward
+    assert jnp.isclose(1, t0.reward, atol=0.01)
+    assert jnp.allclose(t0.observation, jnp.zeros((1, 10)))
+    assert jnp.allclose(t1.observation, jnp.zeros((1, 10)))
+
+    t0, t1 = env.step([def_policy, alt_policy])
+    assert t0.reward != t1.reward
+    assert jnp.isclose(3, t0.reward)
+    assert jnp.isclose(0.0, t1.reward, atol=0.0001)
+    assert jnp.allclose(
+        t0.observation, jnp.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0])
+    )
+
+    t0, t1 = env.step([alt_policy, tft_policy])
+    assert jnp.isclose(2, t0.reward)
+    assert jnp.isclose(2, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 1, 1, 1, 1, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 1, 1, 1, 1, 1])
+    )
+
+    t0, t1 = env.step([tft_policy, tft_policy])
+    assert jnp.isclose(2, t0.reward)
+    assert jnp.isclose(2, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+    )
+
+    t0, t1 = env.step([tft_policy, def_policy])
+    assert jnp.isclose(0.99, t0.reward)
+    assert jnp.isclose(1.02, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([1, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 1])
+    )
+
+    t0, t1 = env.step([def_policy, tft_policy])
+    assert jnp.isclose(1.02, t0.reward)
+    assert jnp.isclose(0.99, t1.reward)
+    assert jnp.allclose(
+        t0.observation, jnp.array([0, 0, 0, 0, 0, 1, 0, 1, 0, 1])
+    )
+    assert jnp.allclose(
+        t1.observation, jnp.array([1, 0, 1, 0, 1, 0, 0, 0, 0, 0])
+    )
 
 
-def test_coingame_meta():
-    bs = 1
-    env = CoinGame(bs, 8, 16, 0, False)
-    action = jnp.ones(bs, dtype=int)
-    left_move = jnp.array([0, -1])
-    t1, t2 = env.reset()
-    assert t1.last() == jnp.zeros(bs)
-    assert t2.last() == jnp.zeros(bs)
+def test_batch_infinite_game():
+    payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+    # discount of 0.99 -> 1/(0.001) ~ 100 timestep
 
-    for _ in range(7):
-        t1, t2 = env.step((action, action))
+    env = InfiniteMatrixGame(3, payoff, 10, 0.99, 0)
+    alt_policy = 20 * jnp.ones((1, 5))
+    def_policy = -20 * jnp.ones((1, 5))
+    tft_policy = 20 * jnp.array([[1, -1, 1, -1, 1]])
 
-    # we set dones so its fine this logic doesn't exist
-    assert not t1.last()
-    assert not t2.last()
+    batched_alt = jnp.concatenate([alt_policy, alt_policy, alt_policy], axis=0)
+    batched_def = jnp.concatenate([def_policy, def_policy, def_policy], axis=0)
+    batch_mixed_1 = jnp.concatenate(
+        [alt_policy, def_policy, tft_policy], axis=0
+    )
+    batch_mixed_2 = jnp.concatenate(
+        [def_policy, tft_policy, tft_policy], axis=0
+    )
 
-    # take last state before move
-    last_state = env.state
+    # first step
+    tstep_0, tstep_1 = env.step((batched_alt, batched_alt))
 
-    assert last_state.inner_t == 7
-    assert last_state.outer_t == 0
+    t0, t1 = env.step([batched_alt, batched_alt])
+    assert jnp.allclose(t0.reward, t1.reward)
+    assert jnp.allclose(jnp.array([2, 2, 2]), t0.reward, atol=0.01)
 
-    # internal reset should happen here for new episode
-    t1, t2 = env.step((action, action))
-    new_state = env.state
-    assert new_state.inner_t == 0
-    assert new_state.outer_t == 1
+    t0, t1 = env.step([batched_alt, batched_def])
+    assert jnp.allclose(jnp.array([0, 0, 0]), t0.reward, atol=0.01)
+    assert jnp.allclose(jnp.array([3, 3, 3]), t1.reward, atol=0.01)
 
-    old_red_pos = (last_state.red_pos + left_move) % 3
-    old_blue_pos = (last_state.blue_pos + left_move) % 3
-    assert (new_state.red_pos != old_red_pos).any()
-    assert (new_state.blue_pos != old_blue_pos).any()
+    t0, t1 = env.step([batch_mixed_1, batch_mixed_2])
+    assert jnp.allclose(jnp.array([0.0, 1.02, 2]), t0.reward)
+    assert jnp.allclose(jnp.array([3, 0.99, 2]), t1.reward)
+
+    t0, t1 = env.step([batch_mixed_2, batch_mixed_1])
+    assert jnp.allclose(jnp.array([3, 0.99, 2]), t0.reward, atol=0.01)
+    assert jnp.allclose(jnp.array([0, 1.02, 2]), t1.reward, atol=0.01)

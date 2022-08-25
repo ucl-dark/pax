@@ -7,7 +7,7 @@ agent2: 'TitForTat'
 # Environment
 env_id: ipd
 game: ipd 
-env_type: sequential
+env_type: finite
 env_discount: 0.99
 payoff: 
 
@@ -15,8 +15,8 @@ payoff:
 num_envs: 100
 num_opps: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 2e7
-eval_every: 2e7 # timesteps
+total_timesteps: 2e9
+eval_every: 2e9 # timesteps
 
 # Useful information
 # num_episodes = total_timesteps / num_steps

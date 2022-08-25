@@ -10,8 +10,7 @@ import wandb
 from pax.env_inner import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
-from pax.env_inner import InfiniteMatrixGame
-from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.env_meta import InfiniteMatrixGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
@@ -105,7 +104,7 @@ def payoff_setup(args, logger):
 def env_setup(args, logger=None):
     """Set up env variables."""
     payoff_setup(args, logger)
-    if args.env_type == "sequential":
+    if args.env_type == "finite":
         train_env = SequentialMatrixGame(
             args.num_envs,
             args.payoff,
@@ -135,27 +134,7 @@ def env_setup(args, logger=None):
                 logger.info(f"Env Type: Meta | Generations: {args.num_steps}")
             logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
 
-    elif args.env_type == "coin_game":
-        train_env = CoinGame(
-            args.num_envs,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-        )
-        test_env = CoinGame(
-            args.num_envs,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-        )
-        if logger:
-            logger.info(
-                f"Env Type: CoinGame | Episode Length: {args.num_steps}"
-            )
-
-    elif args.env_type == "infinite":
+    else:
         train_env = InfiniteMatrixGame(
             args.num_envs,
             args.payoff,
@@ -257,21 +236,9 @@ def agent_setup(args, logger):
 
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
-
-        if args.env_type == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                args.ppo.with_cnn,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -279,7 +246,7 @@ def agent_setup(args, logger):
             has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
-            obs_spec=obs_spec,
+            obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
@@ -289,20 +256,9 @@ def agent_setup(args, logger):
 
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                args.ppo.with_cnn,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -311,7 +267,7 @@ def agent_setup(args, logger):
 
         ppo_agent = make_agent(
             args,
-            obs_spec=obs_spec,
+            obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
@@ -339,20 +295,12 @@ def agent_setup(args, logger):
         return hyper_agent
 
     def get_naive_pg(seed, player_id):
-        if args.env_type == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs, args.num_steps, args.num_steps, 0, args.ppo.cnn
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
+        dummy_env = SequentialMatrixGame(
+            args.num_envs, args.payoff, args.num_steps
+        )
         naive_agent = make_naive_pg(
             args,
-            obs_spec=obs_spec,
+            obs_spec=(dummy_env.observation_spec().num_values,),
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
@@ -377,39 +325,12 @@ def agent_setup(args, logger):
         )
         return agent
 
-    # flake8: noqa: C901
-    def get_random_agent(seed, player_id):
-        if args.env_type == "coin_game":
-            num_actions = (
-                CoinGame(
-                    args.num_envs,
-                    args.num_steps,
-                    args.num_steps,
-                    0,
-                    args.ppo.with_cnn,
-                )
-                .action_spec()
-                .num_values
-            )
-        else:
-            num_actions = (
-                SequentialMatrixGame(
-                    args.num_envs, args.payoff, args.num_steps
-                )
-                .action_spec()
-                .num_values
-            )
-
-        random_agent = Random(num_actions)
-        random_agent.player_id = player_id
-        return random_agent
-
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
         "Altruistic": Altruistic,
         "Human": Human,
-        "Random": get_random_agent,
+        "Random": Random,
         "Grim": GrimTrigger,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
@@ -436,17 +357,6 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    if args.agent1 == "PPO_memory":
-        if not args.ppo.with_memory:
-            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
-    if args.agent1 == "PPO":
-        if args.ppo.with_memory:
-            raise ValueError(
-                "Can't use ppo.memory=False but set agent=PPO_memory"
-            )
-
-    if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-        logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
@@ -460,14 +370,13 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if not args.env_type == "coin_game":
-            if args.ppo.with_memory:
-                policy = policy_logger_ppo_with_memory(agent)
-            else:
-                policy = policy_logger_ppo(agent)
-                value = value_logger_ppo(agent)
-                losses.update(value)
-            losses.update(policy)
+        if args.ppo.with_memory:
+            policy = policy_logger_ppo_with_memory(agent)
+        else:
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
+        losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
         return
@@ -493,11 +402,10 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_type == "coin_game":
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
-            losses.update(value)
-            losses.update(policy)
+        policy = policy_logger_ppo(agent)
+        value = value_logger_ppo(agent)
+        losses.update(value)
+        losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
         return
