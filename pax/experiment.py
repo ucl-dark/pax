@@ -144,7 +144,7 @@ def env_setup(args, logger=None):
             cnn=args.ppo.with_cnn,
         )
         test_env = CoinGame(
-            args.num_envs,
+            1,
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
             seed=args.seed,

@@ -34,7 +34,7 @@ class CategoricalValueHead(hk.Module):
         return (distrax.Categorical(logits=logits), value)
 
 
-class CategoricalValueHead_separate(hk.Module):
+class CategoricalValueHeadSeparate(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
@@ -121,7 +121,7 @@ class CNN(hk.Module):
         return x
 
 
-class CNN_separate(hk.Module):
+class CNNSeparate(hk.Module):
     def __init__(self, args):
         super().__init__(name="CNN")
         output_channels = args.ppo.output_channels
@@ -182,8 +182,8 @@ def make_coingame_network(num_actions: int, args):
         layers = []
         if args.ppo.with_cnn:
             if args.ppo.separate:
-                cnn = CNN_separate(args)
-                cvh = CategoricalValueHead_separate(num_values=num_actions)
+                cnn = CNNSeparate(args)
+                cvh = CategoricalValueHeadSeparate(num_values=num_actions)
             else:
                 cnn = CNN(args)
                 cvh = CategoricalValueHead(num_values=num_actions)
