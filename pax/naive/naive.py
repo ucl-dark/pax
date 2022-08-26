@@ -9,7 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.naive.network import make_network
+from pax.naive.network import make_network, make_coingame_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -51,10 +51,11 @@ class NaiveLearner:
         num_epochs: int = 4,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
+        entropy_coeff: float = 0.0,
     ):
         @jax.jit
         def policy(
-            state: TrainingState, observation: TimeStep, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -64,7 +65,7 @@ class NaiveLearner:
             mem.extras["log_probs"] = dist.log_prob(actions)
             mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
-            return (actions, state, mem)
+            return actions, state, mem
 
         @jax.jit
         def prepare_batch(
@@ -99,7 +100,6 @@ class NaiveLearner:
             traj_batch = traj_batch._replace(
                 dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
             )
-
             return traj_batch
 
         @jax.jit
@@ -109,7 +109,6 @@ class NaiveLearner:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
-            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
@@ -159,12 +158,17 @@ class NaiveLearner:
 
             # CRITIC
             value_loss = jnp.mean((target_values - values) ** 2)
-            total_loss = policy_loss + value_loss
+
+            # Entropy
+            entropy_loss = -jnp.mean(distribution.entropy())
+            entropy_cost = entropy_coeff * entropy_loss
+            total_loss = policy_loss + value_loss + entropy_cost
 
             return total_loss, {
                 "loss_total": total_loss,
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
+                "loss_entropy": entropy_cost,
             }
 
         @jax.jit
@@ -190,13 +194,11 @@ class NaiveLearner:
                 sample.dones,
             )
 
-            # vmap
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
             behavior_values = behavior_values[:-1, :]
-
             trajectories = Batch(
                 observations=observations,
                 actions=actions,
@@ -334,26 +336,24 @@ class NaiveLearner:
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
+                random_key=key,
                 params=initial_params,
                 opt_state=initial_opt_state,
-                random_key=key,
                 timesteps=0,
             ), MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=jnp.zeros((num_envs, 1)),
             )
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(random_key, None)
-        self.make_initial_state = make_initial_state
         self._prepare_batch = jax.jit(prepare_batch)
 
-        # Initialize sgd
-        self._sgd_step = sgd_step
+        self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -362,10 +362,10 @@ class NaiveLearner:
         self._logger.metrics = {
             "total_steps": 0,
             "sgd_steps": 0,
-            "loss_entropy": 0,
             "loss_total": 0,
             "loss_policy": 0,
             "loss_value": 0,
+            "loss_entropy": 0,
         }
 
         # Initialize functions
@@ -395,29 +395,30 @@ class NaiveLearner:
         )
         return memory
 
-    def update(
-        self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-        mem,
-    ):
+    def update(self, traj_batch, t_prime, state, mem):
+        """Update the agent -> only called at the end of a trajectory"""
+
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
-        state, new_mem, metrics = self._sgd_step(state, traj_batch)
+        state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
         self._logger.metrics["loss_total"] = metrics["loss_total"]
         self._logger.metrics["loss_policy"] = metrics["loss_policy"]
         self._logger.metrics["loss_value"] = metrics["loss_value"]
-        return state, new_mem._replace(hidden=mem.hidden), metrics
+        return state, mem, metrics
 
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
-    network = make_network(action_spec)
+
+    if args.env_id == "coin_game":
+        print(f"Making network for {args.env_id} with CNN")
+        network = make_coingame_network(action_spec, args)
+    else:
+        network = make_network(action_spec)
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(args.naive.max_gradient_norm),
@@ -439,6 +440,7 @@ def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
         num_epochs=args.naive.num_epochs,
         gamma=args.naive.gamma,
         gae_lambda=args.naive.gae_lambda,
+        entropy_coeff=args.naive.entropy_coeff,
     )
     agent.player_id = player_id
     return agent

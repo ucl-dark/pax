@@ -66,6 +66,7 @@ class PPO:
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
             return actions, state, mem
 
@@ -87,11 +88,9 @@ class PPO:
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
-
             _value = jax.lax.expand_dims(_value, [0])
             _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.expand_dims(_done, [0])
-
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
@@ -126,7 +125,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                utils.get_advantages,
+                get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
@@ -136,7 +135,6 @@ class PPO:
             )
 
             advantages = jnp.flip(advantages, axis=0)
-
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -240,7 +238,6 @@ class PPO:
                 sample.dones,
             )
 
-            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
@@ -439,7 +436,6 @@ class PPO:
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
