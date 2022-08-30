@@ -21,8 +21,12 @@ num_envs: 2
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
-total_timesteps: 2e11
+total_timesteps: 2e11 # num_gens = num_episodes/(popsize*num_envs*.num_opps)
 save_frequency: 100
+
+# useful 
+# num_episodes = total_timesteps / num_steps
+# num_gens = num_episodes/(popsize*num_envs*num_opps)
 
 # PPO agent parameters
 ppo:

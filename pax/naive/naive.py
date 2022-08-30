@@ -9,8 +9,13 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.naive.network import make_network
-from pax.utils import MemoryState, TrainingState, get_advantages
+from pax.naive.network import make_network, make_network_with_hidden
+from pax.utils import (
+    MemoryState,
+    TrainingState,
+    get_advantages,
+    show_network_info,
+)
 
 
 class Batch(NamedTuple):
@@ -418,7 +423,12 @@ class NaiveLearner:
 
 def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make Naive Learner Policy Gradient agent"""
-    network = make_network(action_spec)
+    if args.naive.tabular:
+        network = make_network(action_spec)
+        print("Creating a Naive Learner in the Tabular setting")
+    else:
+        network = make_network_with_hidden(action_spec)
+        print("Creating a Naive Learner parameterized by a Neural Network")
 
     optimizer = optax.chain(
         optax.clip_by_global_norm(args.naive.max_gradient_norm),

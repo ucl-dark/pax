@@ -134,3 +134,14 @@ def load(filename: str):
     with open(filename, "rb") as handle:
         es_logger = pickle.load(handle)
     return es_logger
+
+
+def show_network_info(network):
+    """prints out the names and shapes of a network stored as a pytree"""
+    layer_info = []
+    for layer_name in list(network.keys()):
+        for param_name in network[layer_name].keys():
+            layer_info.extend(
+                (layer_name, param_name, network[layer_name][param_name].shape)
+            )
+    return layer_info

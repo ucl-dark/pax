@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 import distrax
 import haiku as hk
@@ -38,6 +38,29 @@ def make_network(num_actions: int):
         layers = []
         layers.extend(
             [
+                CategoricalValueHead(num_values=num_actions),
+            ]
+        )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
+def make_network_with_hidden(num_actions: int):
+    """Creates a hk network with a hidden layer using the baseline hyperparameters from OpenAI"""
+    hidden_size = 32
+
+    def forward_fn(inputs):
+        layers = []
+        layers.extend(
+            [
+                hk.nets.MLP(
+                    [hidden_size],
+                    with_bias=False,
+                    activate_final=True,
+                ),
                 CategoricalValueHead(num_values=num_actions),
             ]
         )
