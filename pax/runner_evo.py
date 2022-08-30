@@ -147,6 +147,11 @@ class EvoRunner:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
+            # Ablation: Reset p1 memory after each trial.
+            a1_mem = agent1.batch_reset(a1_mem, False)
+            # Verify that it works
+            # jax.debug.print("🤯 {a1_mem} 🤯", a1_mem=a1_mem)
+
             # do second agent update
             final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
