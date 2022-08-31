@@ -11,7 +11,7 @@ import wandb
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, ipd_visitation
+from pax.watchers import ESLog, cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -50,6 +50,7 @@ class EvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
+        self.cg_stats = jax.jit(cg_visitation)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
@@ -178,6 +179,9 @@ class EvoRunner:
             jax.vmap(env.batch_step),
         )
 
+        if self.args.env_type == "coin_game":
+            env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
+
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
@@ -222,6 +226,7 @@ class EvoRunner:
             )
 
             traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
@@ -252,17 +257,29 @@ class EvoRunner:
                     ),
                 )
 
-            # Calculate state visitations
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
-            )
-
             if gen % log_interval == 0:
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
-                )
+                if self.args.env_type == "coin_game":
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.cg_stats(env_state)
+                    )
+                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
-                print(env_stats)
+                elif self.args.env_type in [
+                    "meta",
+                    "sequential",
+                ]:
+                    final_t1 = t1._replace(
+                        step_type=2 * jnp.ones_like(t1.step_type)
+                    )
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                    )
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
+                else:
+                    env_stats = {}
+
                 print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
@@ -270,8 +287,10 @@ class EvoRunner:
                 print(
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
-                print(f"Env Visitation: {list(env_stats.values())[5:]}")
-                print(f"Cooperation Frequency: {list(env_stats.values())[:5]}")
+                print(
+                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                )
+                print(f"Env Stats: {env_stats}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
