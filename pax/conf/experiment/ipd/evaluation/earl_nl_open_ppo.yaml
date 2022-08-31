@@ -1,8 +1,9 @@
 # @package _global_
+# This evaluates EARL against PPO
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'Naive'
+agent2: 'PPO'
 
 # Environment
 env_id: ipd
@@ -19,18 +20,27 @@ num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 1.5e8
-run_path: ucl-dark/ipd/EARL-PPO_memory-vs-TitForTat-run-seed-0-popsize-50:v1
-filename: "generation_25"
+filename: "generation_5000"
+run_path: ucl-dark/ipd/run-seed-25-OpenES-opponent-PPO-pop-size-1000-num-opps-1:v0
 
-# Naive Learner parameters 
-naive:
-  num_minibatches: 1
-  num_epochs: 1
+# PPO agent parameters
+ppo:
+  num_minibatches: 4
+  num_epochs: 2 
   gamma: 0.96
   gae_lambda: 0.95
-  max_gradient_norm: 1.0
-  learning_rate: 1.0
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2_000_000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
   adam_epsilon: 1e-5
+  with_memory: True
 
 # Evolution
 es: 
