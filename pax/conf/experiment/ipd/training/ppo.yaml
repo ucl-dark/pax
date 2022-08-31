@@ -24,9 +24,28 @@ eval_every: 4_000_000 # timesteps
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
+# ppo:
+#   num_minibatches: 10
+#   num_epochs: 4
+#   gamma: 0.96
+#   gae_lambda: 0.95
+#   ppo_clipping_epsilon: 0.2
+#   value_coeff: 0.5
+#   clip_value: True
+#   max_gradient_norm: 0.5
+#   anneal_entropy: True
+#   entropy_coeff_start: 0.2
+#   entropy_coeff_horizon: 500_000
+#   # ^this should 1/2 of the total timesteps
+#   entropy_coeff_end: 0.01
+#   lr_scheduling: True
+#   learning_rate: 2.5e-2
+#   adam_epsilon: 1e-5
+#   with_memory: False
+
 ppo:
-  num_minibatches: 10
-  num_epochs: 4
+  num_minibatches: 4
+  num_epochs: 2 
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -34,12 +53,11 @@ ppo:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-  entropy_coeff_start: 0.2
-  entropy_coeff_horizon: 500_000
-  # ^this should 1/2 of the total timesteps
-  entropy_coeff_end: 0.01
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2_000_000
+  entropy_coeff_end: 0.001
   lr_scheduling: True
-  learning_rate: 2.5e-2
+  learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
@@ -50,4 +68,4 @@ wandb:
   project: ipd
   group: 'PPO-vs-${agent2}-${game}-parity'
   name: PPO-vs-${agent2}-${game}-parity-run-seed-${seed}
-  log: True
+  log: False
