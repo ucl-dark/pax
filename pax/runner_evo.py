@@ -226,7 +226,7 @@ class EvoRunner:
             )
 
         for gen in range(num_iters):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, rng_run, rng_gen, rng_key, rng_lamb = jax.random.split(rng, 5)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )

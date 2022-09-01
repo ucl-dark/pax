@@ -17,6 +17,7 @@ from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner_evo import EvoRunner
+from pax.runner_meta_self_play import EvoMetaSelfPlayRunner
 from pax.runner_rl import Runner
 from pax.strategies import (
     Altruistic,
@@ -229,8 +230,18 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+        if args.meta_self_play:
+            logger.info("Using EvoMetaSelfPlayerRunner")
+            return EvoMetaSelfPlayRunner(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
+        else:
+            logger.info("Using EvoRunner")
+            return EvoRunner(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
     else:
+        logger.info("Using Runner")
         return Runner(args)
 
 
