@@ -327,7 +327,9 @@ class EvoRunner:
                         (time.time() - self.start_time)
                     ),
                 }
-                wandb_log = wandb_log | env_stats
+                # revert to work with Python 3.7
+                # wandb_log = wandb_log | env_stats
+                wandb_log.update(env_stats)
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
                     zip(log["top_fitness"], log["top_gen_fitness"])
