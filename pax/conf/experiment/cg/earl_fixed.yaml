@@ -19,8 +19,8 @@ top_k: 5
 popsize: 50
 num_envs: 1000
 num_opps: 1
-num_steps: 160 
-num_inner_steps: 16 
+num_steps: 160 # number of trials
+num_inner_steps: 16 # number of steps in a single coin game
 total_timesteps: 1.2e9
 eval_every: 1.2e9
 
