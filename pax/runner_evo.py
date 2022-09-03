@@ -262,6 +262,8 @@ class EvoRunner:
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), self.cg_stats(env_state)
                     )
+                    print(traj_1.rewards.shape)
+                    # (outer_steps, inner_steps, popsize, num_opps, num_envs )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
