@@ -177,6 +177,7 @@ class Runner:
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
             traj_1, traj_2, a2_metrics = stack
             # update outer agent
             final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
@@ -198,6 +199,7 @@ class Runner:
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), self.cg_stats(env_state)
                     )
+
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
