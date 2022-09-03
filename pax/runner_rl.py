@@ -239,18 +239,17 @@ class Runner:
                     # )
 
                     agents.log(watchers)
-                    wandb.log(
-                        {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_0.mean()
-                            ),
-                            "train/episode_reward/player_2": float(
-                                rewards_1.mean()
-                            ),
-                        }.update(env_stats)
-                        # | env_stats,
-                    )
+                    wandb_log = {
+                        "episodes": self.train_episodes,
+                        "train/episode_reward/player_1": float(
+                            rewards_0.mean()
+                        ),
+                        "train/episode_reward/player_2": float(
+                            rewards_1.mean()
+                        ),
+                    }
+                    wandb_log.update(env_stats)
+                    wandb.log(wandb_log)
         print()
         # update agents for eval loop exit
         agents.agents[0]._state = a1_state
