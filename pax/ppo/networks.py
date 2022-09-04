@@ -4,8 +4,12 @@ import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+import jmp
 
 from pax import utils
+
+half = jnp.float16  # On TPU this should be jnp.bfloat16.
+full = jnp.float32
 
 
 class CategoricalValueHead(hk.Module):
