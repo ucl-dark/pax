@@ -46,6 +46,7 @@ ppo:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden: 50
+  num_layers: 0
   with_cnn: False
 
 # Naive Learner parameters 

@@ -48,6 +48,7 @@ ppo:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 50
+  num_layers: 0
 
 naive:
   num_minibatches: 8

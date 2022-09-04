@@ -291,7 +291,7 @@ def make_GRU_cartpole_network(num_actions: int):
 
 
 def make_GRU_coingame_network(num_actions: int, args):
-    hidden_state = jnp.zeros((1, args.ppo.hidden))
+    hidden_state = jnp.zeros((1, args.ppo.hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
@@ -300,14 +300,38 @@ def make_GRU_coingame_network(num_actions: int, args):
         if args.ppo.with_cnn:
             torso = CNN(args)(inputs)
 
-        else:
+        elif args.ppo.num_layers == 0:
+            print("Making network with 0 non linear layers")
+            torso = hk.nets.MLP(
+                [],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+            )
+            # gru = hk.GRU(args.ppo.hidden_size)
+            # embedding, state = gru(inputs, state)
+            # logits, values = CategoricalValueHead(num_actions)(embedding)
+            # return (logits, values), state
+
+        elif args.ppo.num_layers == 1:
+            print("Making network with 1 non linear layers")
+            torso = hk.nets.MLP(
+                [args.ppo.hidden_size],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+            )
+
+        elif args.ppo.num_layers == 2:
+            print("Making network with 2 non linear layers")
             torso = hk.nets.MLP(
                 [args.ppo.hidden_size, args.ppo.hidden_size],
                 w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
             )
-        gru = hk.GRU(args.ppo.hidden)
+
+        gru = hk.GRU(args.ppo.hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)

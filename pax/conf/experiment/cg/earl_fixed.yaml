@@ -45,8 +45,8 @@ ppo:
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
-  hidden: 50
-  hidden_size: 25
+  hidden_size: 16
+  num_layers: 2
 
 # Naive Learner parameters 
 naive:
