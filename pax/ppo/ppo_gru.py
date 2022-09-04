@@ -2,6 +2,7 @@
 
 from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
+import numpy as np
 import haiku as hk
 import jax
 import jax.numpy as jnp
@@ -368,7 +369,7 @@ class PPO:
 
             # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec, dtype=jnp.float16)
+            dummy_obs = jnp.zeros(shape=obs_spec, dtype=np.dtype("float16"))
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(
                 subkey, dummy_obs, initial_hidden_state
@@ -385,11 +386,13 @@ class PPO:
                         num_envs,
                         initial_hidden_state.shape[-1],
                     ),
-                    dtype=jnp.float16,
+                    dtype=np.dtype("float16"),
                 ),  # initial_hidden_state,
                 extras={
-                    "values": jnp.zeros(num_envs, dtype=jnp.float16),
-                    "log_probs": jnp.zeros(num_envs, dtype=jnp.float16),
+                    "values": jnp.zeros(num_envs, dtype=np.dtype("float16")),
+                    "log_probs": jnp.zeros(
+                        num_envs, dtype=np.dtype("float16")
+                    ),
                 },
             )
 
