@@ -395,7 +395,9 @@ class PPO:
 
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
+        self._state, self._mem = make_initial_state(
+            random_key, jnp.zeros(1, dtype=jnp.float16)
+        )
         self._prepare_batch = jax.jit(prepare_batch)
         has_sgd_jit = True
         if has_sgd_jit:
