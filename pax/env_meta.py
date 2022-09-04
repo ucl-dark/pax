@@ -175,7 +175,7 @@ class CoinGame:
         cnn: Boolean,
     ):
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
-            obs = jnp.zeros((3, 3, 4), dtype=jnp.int8)
+            obs = jnp.zeros((3, 3, 4), dtype=bool)
             obs = obs.at[state.red_pos[0], state.red_pos[1], 0].set(1)
             obs = obs.at[state.blue_pos[0], state.blue_pos[1], 1].set(1)
             obs = obs.at[state.red_coin_pos[0], state.red_coin_pos[1], 2].set(
