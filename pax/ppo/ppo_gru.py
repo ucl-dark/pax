@@ -381,11 +381,15 @@ class PPO:
                 timesteps=0,
             ), MemoryState(
                 hidden=jnp.zeros(
-                    (num_envs, initial_hidden_state.shape[-1])
+                    (
+                        num_envs,
+                        initial_hidden_state.shape[-1],
+                    ),
+                    dtype=jnp.float16,
                 ),  # initial_hidden_state,
                 extras={
-                    "values": jnp.zeros(num_envs),
-                    "log_probs": jnp.zeros(num_envs),
+                    "values": jnp.zeros(num_envs, dtype=jnp.float16),
+                    "log_probs": jnp.zeros(num_envs, dtype=jnp.float16),
                 },
             )
 
