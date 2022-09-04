@@ -176,14 +176,14 @@ class CoinGame:
     ):
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
             obs = jnp.zeros((3, 3, 4))
-            obs = obs.at[state.red_pos[0], state.red_pos[1], 0].set(1.0)
-            obs = obs.at[state.blue_pos[0], state.blue_pos[1], 1].set(1.0)
+            obs = obs.at[state.red_pos[0], state.red_pos[1], 0].set(1)
+            obs = obs.at[state.blue_pos[0], state.blue_pos[1], 1].set(1)
             obs = obs.at[state.red_coin_pos[0], state.red_coin_pos[1], 2].set(
-                1.0
+                1
             )
             obs = obs.at[
                 state.blue_coin_pos[0], state.blue_coin_pos[1], 3
-            ].set(1.0)
+            ].set(1)
             if self.cnn:
                 return obs
             else:
