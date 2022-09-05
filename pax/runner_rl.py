@@ -152,9 +152,7 @@ class Runner:
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
         # run actual loop
-        for i in range(
-            0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
-        ):
+        for i in range(num_episodes):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng_run
@@ -163,7 +161,7 @@ class Runner:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif self.args.env_type in ["meta", "infinite"]:
+            elif self.args.env_type in ["meta", "infinite"] or self.args.coin_type == 'coin_meta':
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden

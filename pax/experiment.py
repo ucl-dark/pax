@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 import os
 
-from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper
+from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
 import omegaconf
 import wandb
@@ -182,8 +182,18 @@ def runner_setup(args, agents, save_dir, logger):
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
-        strategies = {"CMA_ES", "OpenES", "PGPE"}
+        strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
+
+        def get_ga_strategy(agent):
+            """Returns the SimpleGA strategy, es params, and param_reshaper"""
+            param_reshaper = ParameterReshaper(agent._state.params)
+            strategy = SimpleGA(
+                num_dims=param_reshaper.total_params,
+                popsize=args.popsize,
+            )
+            es_params = strategy.default_params
+            return strategy, es_params, param_reshaper
 
         def get_cma_strategy(agent):
             """Returns the CMA strategy, es params, and param_reshaper"""
@@ -244,6 +254,8 @@ def runner_setup(args, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_openes_strategy(agent1)
         elif algo == "PGPE":
             strategy, es_params, param_reshaper = get_pgpe_strategy(agent1)
+        elif algo == "SimpleGA":
+            strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
 
@@ -552,15 +564,16 @@ def main(args):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
     # num episodes
-    total_num_ep = int(args.total_timesteps / args.num_steps)
-    train_num_ep = int(args.eval_every / args.num_steps)
+    # total_num_ep = int(args.total_timesteps / args.num_steps)
+    # train_num_ep = int(args.eval_every / args.num_steps)
+    num_generations = args.num_generations
     if not args.wandb.log:
         watchers = False
-    for num_update in range(int(total_num_ep // train_num_ep)):
-        print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
-        print()
+    # for num_update in range(int(total_num_ep // train_num_ep)):
+    #     print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
+    #     print()
 
-        runner.train_loop(train_env, agent_pair, train_num_ep, watchers)
+    runner.train_loop(train_env, agent_pair, num_generations, watchers)
         # TODO: Remove fully in evaluation PR
         # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 

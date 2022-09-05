@@ -291,7 +291,7 @@ def make_GRU_cartpole_network(num_actions: int):
 
 
 def make_GRU_coingame_network(num_actions: int, args):
-    hidden_state = jnp.zeros((1, args.ppo.hidden))
+    hidden_state = jnp.zeros((1, args.ppo.hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
@@ -307,7 +307,7 @@ def make_GRU_coingame_network(num_actions: int, args):
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
             )
-        gru = hk.GRU(args.ppo.hidden)
+        gru = hk.GRU(args.ppo.hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)

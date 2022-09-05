@@ -8,6 +8,7 @@ from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
+from pax.utils import save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -52,7 +53,7 @@ class EvoRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-    def train_loop(self, env, agents, num_episodes, watchers):
+    def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
         def _inner_rollout(carry, unused):
@@ -141,13 +142,13 @@ class EvoRunner:
 
         print("Training")
         print("------------------------------")
-        num_iters = max(
-            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
-            1,
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-        print(f"Number of Generations: {num_iters}")
-        print(f"Number of Meta Episodes: {num_episodes}")
+        # num_iters = max(
+        #     int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
+        #     1,
+        # )
+        log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_generations}")
+        print(f"Number of Meta Episodes: {num_generations}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
@@ -158,7 +159,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
-        num_gens = num_episodes
+        num_gens = num_generations
         strategy = self.strategy
         es_params = self.es_params
         param_reshaper = self.param_reshaper
@@ -195,7 +196,7 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        for gen in range(num_iters):
+        for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
@@ -241,21 +242,17 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
             if log["gen_counter"] % 100 == 0:
-                if self.algo == "OpenES" or self.algo == "PGPE":
-                    jnp.save(
-                        os.path.join(
-                            self.save_dir,
-                            f"mean_param_{log['gen_counter']}.npy",
-                        ),
-                        evo_state.mean,
-                    )
-
-                es_logging.save(
-                    log,
-                    os.path.join(
+                    log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
-                    ),
-                )
+                    )
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0:1]
+                    )
+                    # remove batch dimension
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x.reshape(x.shape[1:]), top_params
+                    )
+                    save(top_params, log_savepath)
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
@@ -326,6 +323,9 @@ class EvoRunner:
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
+                    "train/episode_reward/player_1": float(rewards_0.mean()),
+                    "train/episode_reward/player_2": float(rewards_1.mean()),
+
                 }
                 wandb_log = wandb_log | env_stats
                 # loop through population
