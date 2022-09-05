@@ -28,7 +28,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoRunner:
+class EvoRunnerPMAP:
     """Holds the runner's state."""
 
     def __init__(self, args, strategy, es_params, param_reshaper, save_dir):
@@ -139,6 +139,58 @@ class EvoRunner:
                 env_state,
             ), (*trajectories, a2_metrics)
 
+        def rollout(
+            batched_rng: jnp.ndarray, env, a1_state, a1_mem, a2_state, a2_mem
+        ) -> jnp.ndarray:
+            """
+            PMAPs the population and sends it to multiple devices
+
+            Input
+            rng_key: jnp.ndarray, random key
+            a1_state: TrainingState, Named Tuple: holds the training state of the agent
+            a1_mem: MemoryState, Named Tuple: holds the memory state of the agent
+
+            Output
+            fitness: jnp.ndarray, (popsize, ), fitness of every agent from each device
+            """
+
+            rng_key, rng_run = jax.random.split(batched_rng)
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
+            # Player 2
+            key = jax.random.split(rng_key, popsize * num_opps).reshape(
+                self.popsize, num_opps, -1
+            )
+            a2_state, a2_mem = agent2.batch_init(
+                key,
+                a2_mem.hidden,
+            )
+
+            vals, stack = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+
+            traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+
+            return (
+                fitness,
+                other_fitness,
+                traj_1,
+                traj_2,
+                a2_metrics,
+                t1,
+                t2,
+                env_state,
+            )
+
         print("Training")
         print("------------------------------")
         num_iters = max(
@@ -156,6 +208,7 @@ class EvoRunner:
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
+        num_devices = self.args.num_devices
 
         # Initialize evolution
         num_gens = num_episodes
@@ -173,6 +226,7 @@ class EvoRunner:
             maximize=True,
         )
         log = es_logging.initialize()
+        pmapped_rollout = jax.pmap(rollout)
 
         # Evolution specific: add pop size dimension
         env.batch_step = jax.jit(
@@ -198,10 +252,7 @@ class EvoRunner:
         a2_state, a2_mem = agent2._state, agent2._mem
 
         for gen in range(num_iters):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
-            )
+            rng, rng_gen, rng_key = jax.random.split(rng, 4)
 
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
@@ -212,30 +263,27 @@ class EvoRunner:
             )
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # Player 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                a2_mem.hidden,
+            ####################### PMAP ########################
+            batched_rng = jnp.tile(rng_key, (num_devices, 1, 1))
+
+            (
+                fitness,
+                other_fitness,
+                traj_1,
+                traj_2,
+                a2_metrics,
+                t1,
+                t2,
+                env_state,
+            ) = pmapped_rollout(
+                batched_rng,
+                env,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
             )
-
-            vals, stack = jax.pmap(
-                jax.lax.scan(
-                    _outer_rollout,
-                    (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-                    None,
-                    length=env.num_trials,
-                ),
-                1,
-            )
-
-            traj_1, traj_2, a2_metrics = stack
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-
-            # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            ####################### PMAP ########################
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
             # Tell

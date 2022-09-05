@@ -45,6 +45,8 @@ class IndependentLearners:
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         # init agents
+
+        # (num_opps, num_envs, obs_space)?
         init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
         agent1._state, agent1._mem = agent1.batch_init(
             agent1._state.random_key, init_hidden

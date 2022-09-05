@@ -12,7 +12,6 @@ from pax.hyper.ppo import make_hyper
 from pax.learners import (
     IndependentLearners,
     EvolutionaryLearners,
-    EvolutionaryPmapLearners,
 )
 from pax.env_inner import InfiniteMatrixGame
 from pax.env_meta import CoinGame, MetaFiniteGame
@@ -20,6 +19,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.runner_evo_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.strategies import (
@@ -251,7 +251,14 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+        if args.pmap:
+            return EvoRunnerPMAP(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
+        else:
+            return EvoRunner(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
     else:
         return Runner(args)
 
@@ -459,10 +466,7 @@ def agent_setup(args, logger):
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     if args.evo:
-        if args.pmap:
-            return EvolutionaryPmapLearners([agent_0, agent_1], args)
-        else:
-            return EvolutionaryLearners([agent_0, agent_1], args)
+        return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
 
