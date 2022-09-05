@@ -146,12 +146,22 @@ class EvoRunnerPMAP:
             PMAPs the population and sends it to multiple devices
 
             Input
-            rng_key: jnp.ndarray, random key
-            a1_state: TrainingState, Named Tuple: holds the training state of the agent
-            a1_mem: MemoryState, Named Tuple: holds the memory state of the agent
+            batched_rng: jnp.ndarray, tiled random key
+            env: CoinGame: Coin Game environment
+            a1_state: TrainingState, Named Tuple: holds the training state of agent 1
+            a1_mem: MemoryState, Named Tuple: holds the memory state of agent 1
+            a1_state: TrainingState, Named Tuple: holds the training state of agent 2
+            a1_mem: MemoryState, Named Tuple: holds the memory state of agent 2
 
             Output
             fitness: jnp.ndarray, (popsize, ), fitness of every agent from each device
+            other_fitness: ...
+            traj_1: ...
+            traj_2: ...
+            a2_metrics: ...
+            t1: ...
+            t2: ...
+            env_state: ...
             """
 
             rng_key, rng_run = jax.random.split(batched_rng)
