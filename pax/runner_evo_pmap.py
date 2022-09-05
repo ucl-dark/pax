@@ -220,11 +220,14 @@ class EvoRunner:
                 a2_mem.hidden,
             )
 
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-                None,
-                length=env.num_trials,
+            vals, stack = jax.pmap(
+                jax.lax.scan(
+                    _outer_rollout,
+                    (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                    None,
+                    length=env.num_trials,
+                ),
+                1,
             )
 
             traj_1, traj_2, a2_metrics = stack
@@ -264,6 +267,7 @@ class EvoRunner:
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), self.cg_stats(env_state)
                     )
+                    # print(traj_1.rewards.shape)
                     # (outer_steps, inner_steps, popsize, num_opps, num_envs )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()

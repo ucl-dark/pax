@@ -9,7 +9,11 @@ import wandb
 
 from pax.env_inner import SequentialMatrixGame
 from pax.hyper.ppo import make_hyper
-from pax.learners import IndependentLearners, EvolutionaryLearners
+from pax.learners import (
+    IndependentLearners,
+    EvolutionaryLearners,
+    EvolutionaryPmapLearners,
+)
 from pax.env_inner import InfiniteMatrixGame
 from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
@@ -455,7 +459,10 @@ def agent_setup(args, logger):
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
     if args.evo:
-        return EvolutionaryLearners([agent_0, agent_1], args)
+        if args.pmap:
+            return EvolutionaryPmapLearners([agent_0, agent_1], args)
+        else:
+            return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
 
