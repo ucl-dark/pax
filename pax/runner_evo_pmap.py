@@ -263,7 +263,7 @@ class EvoRunnerPMAP:
         a2_state, a2_mem = agent2._state, agent2._mem
 
         for gen in range(num_iters):
-            rng, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, rng_gen, rng_key = jax.random.split(rng, 3)
 
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
