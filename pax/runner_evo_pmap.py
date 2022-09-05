@@ -218,7 +218,8 @@ class EvoRunnerPMAP:
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
-        num_devices = self.args.num_devices
+        # num_devices = self.args.num_devices
+        num_devices = jax.local_device_count()
 
         # Initialize evolution
         num_gens = num_episodes
