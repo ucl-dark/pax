@@ -18,6 +18,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.runner_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.strategies import (
@@ -210,7 +211,9 @@ def runner_setup(args, agents, save_dir, logger):
 
         def get_openes_strategy(agent):
             """Returns the OpenES strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, num_devices=args.num_devices
+            )
             strategy = OpenES(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
@@ -261,7 +264,14 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+        if args.pmap:
+            return EvoRunnerPMAP(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
+        else:
+            return EvoRunner(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
     else:
         return Runner(args)
 
