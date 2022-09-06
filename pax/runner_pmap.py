@@ -374,52 +374,63 @@ class EvoRunnerPMAP:
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
+                if watchers:
+                    wandb_log = {
+                        "generations": self.generations,
+                        "train/fitness/player_1": float(fitness.mean()),
+                        "train/fitness/player_2": float(other_fitness.mean()),
+                        "train/fitness/top_overall_mean": log["log_top_mean"][
+                            gen
+                        ],
+                        "train/fitness/top_overall_std": log["log_top_std"][
+                            gen
+                        ],
+                        "train/fitness/top_gen_mean": log["log_top_gen_mean"][
+                            gen
+                        ],
+                        "train/fitness/top_gen_std": log["log_top_gen_std"][
+                            gen
+                        ],
+                        "train/fitness/gen_std": log["log_gen_std"][gen],
+                        "train/time/minutes": float(
+                            (time.time() - self.start_time) / 60
+                        ),
+                        "train/time/seconds": float(
+                            (time.time() - self.start_time)
+                        ),
+                        "train/episode_reward/player_1": float(
+                            rewards_0.mean()
+                        ),
+                        "train/episode_reward/player_2": float(
+                            rewards_1.mean()
+                        ),
+                    }
+                    wandb_log = wandb_log | env_stats
+                    # loop through population
+                    for idx, (overall_fitness, gen_fitness) in enumerate(
+                        zip(log["top_fitness"], log["top_gen_fitness"])
+                    ):
+                        wandb_log[
+                            f"train/fitness/top_overall_agent_{idx+1}"
+                        ] = overall_fitness
+                        wandb_log[
+                            f"train/fitness/top_gen_agent_{idx+1}"
+                        ] = gen_fitness
+
+                    # player 2 metrics
+                    # metrics [outer_timesteps, num_opps]
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    )
+                    agent2._logger.metrics = (
+                        agent2._logger.metrics | flattened_metrics
+                    )
+
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
+                    )
+                    agents.log(watchers)
+                    wandb.log(wandb_log)
             self.generations += 1
-
-            if watchers:
-                wandb_log = {
-                    "generations": self.generations,
-                    "train/fitness/player_1": float(fitness.mean()),
-                    "train/fitness/player_2": float(other_fitness.mean()),
-                    "train/fitness/top_overall_mean": log["log_top_mean"][gen],
-                    "train/fitness/top_overall_std": log["log_top_std"][gen],
-                    "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
-                    "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                    "train/fitness/gen_std": log["log_gen_std"][gen],
-                    "train/time/minutes": float(
-                        (time.time() - self.start_time) / 60
-                    ),
-                    "train/time/seconds": float(
-                        (time.time() - self.start_time)
-                    ),
-                    "train/episode_reward/player_1": float(rewards_0.mean()),
-                    "train/episode_reward/player_2": float(rewards_1.mean()),
-                }
-                wandb_log = wandb_log | env_stats
-                # loop through population
-                for idx, (overall_fitness, gen_fitness) in enumerate(
-                    zip(log["top_fitness"], log["top_gen_fitness"])
-                ):
-                    wandb_log[
-                        f"train/fitness/top_overall_agent_{idx+1}"
-                    ] = overall_fitness
-                    wandb_log[
-                        f"train/fitness/top_gen_agent_{idx+1}"
-                    ] = gen_fitness
-
-                # player 2 metrics
-                # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
-                agent2._logger.metrics = (
-                    agent2._logger.metrics | flattened_metrics
-                )
-
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics
-                )
-                agents.log(watchers)
-                wandb.log(wandb_log)
 
         return agents
