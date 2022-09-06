@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 import os
 
-# os.environ['XLA_FLAGS'] = '--xla_force_host_platform_device_count=8'
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
@@ -212,11 +212,11 @@ def runner_setup(args, agents, save_dir, logger):
         def get_openes_strategy(agent):
             """Returns the OpenES strategy, es params, and param_reshaper"""
             param_reshaper = ParameterReshaper(
-                agent._state.params, num_devices=args.num_devices
+                agent._state.params, n_devices=args.num_devices
             )
             strategy = OpenES(
                 num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
+                popsize=args.popsize * args.num_devices,
             )
             # Update basic parameters of OpenES strategy
             es_params = strategy.default_params.replace(
@@ -581,9 +581,6 @@ def main(args):
     num_generations = args.num_generations
     if not args.wandb.log:
         watchers = False
-    # for num_update in range(int(total_num_ep // train_num_ep)):
-    #     print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
-    #     print()
 
     runner.train_loop(train_env, agent_pair, num_generations, watchers)
     # TODO: Remove fully in evaluation PR
