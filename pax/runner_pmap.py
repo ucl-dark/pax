@@ -304,6 +304,7 @@ class EvoRunnerPMAP:
             ) = pmap_rollout(a1_params, rng_devices)
             fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
+            env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
             evo_state = strategy.tell(
@@ -328,11 +329,6 @@ class EvoRunnerPMAP:
                     rewards_0 = rewards_0.mean()
                     rewards_1 = rewards_1.mean()
 
-                    print(f"akbir debug: {env_stats}")
-
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.mean(), env_stats
-                    )
                 elif self.args.env_type in [
                     "meta",
                     "sequential",
