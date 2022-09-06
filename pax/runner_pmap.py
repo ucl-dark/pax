@@ -343,9 +343,12 @@ class EvoRunnerPMAP:
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
-                    rewards_0 = rewards_0.sum(axis=1).mean()
-                    rewards_1 = rewards_1.sum(axis=1).mean()
+                    rewards_0 = rewards_0.mean()
+                    rewards_1 = rewards_1.mean()
 
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.mean(), env_stats
+                    )
                 elif self.args.env_type in [
                     "meta",
                     "sequential",
