@@ -304,6 +304,10 @@ class EvoRunnerPMAP:
                 x
             )  # this will reshape x into (num_devices, popsize, ....)
             # split x into chunks based on number devices
+            if self.num_devices == 1:
+                a1_params = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), a1_params
+                )
             (
                 fitness,
                 other_fitness,
