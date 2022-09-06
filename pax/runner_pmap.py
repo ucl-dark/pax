@@ -280,12 +280,19 @@ class EvoRunnerPMAP:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+
+            env_stats = jax.tree_util.tree_map(
+                lambda x: x.item(), self.cg_stats(env_state)
+            )
+
+            rewards_0 = traj_1.rewards.sum(axis=1).mean()
+            rewards_1 = traj_2.rewards.sum(axis=1).mean()
             return (
                 fitness,
                 other_fitness,
-                env_state,
-                traj_1,
-                traj_2,
+                env_stats,
+                rewards_0,
+                rewards_1,
                 a2_metrics,
             )
 
@@ -311,18 +318,14 @@ class EvoRunnerPMAP:
             (
                 fitness,
                 other_fitness,
-                env_state,
-                traj_1,
-                traj_2,
+                env_stats,
+                rewards_0,
+                rewards_1,
                 a2_metrics,
             ) = pmap_rollout(a1_params, rng_devices)
             fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
-            env_state = self.pmap_reshape(env_state)
-            traj_1, traj_2 = self.pmap_traj_reshape(
-                traj_1
-            ), self.pmap_traj_reshape(traj_2)
             # Tell
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
@@ -343,11 +346,8 @@ class EvoRunnerPMAP:
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.cg_stats(env_state)
-                    )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                    rewards_0 = rewards_0.sum(axis=1).mean()
+                    rewards_1 = rewards_1.sum(axis=1).mean()
 
                 elif self.args.env_type in [
                     "meta",
@@ -362,7 +362,7 @@ class EvoRunnerPMAP:
                     # )
                     # rewards_0 = traj_1.rewards.mean()
                     # rewards_1 = traj_2.rewards.mean()
-                    env_state = {}
+                    env_stats = {}
                 else:
                     env_stats = {}
 
