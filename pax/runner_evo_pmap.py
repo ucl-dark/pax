@@ -140,14 +140,13 @@ class EvoRunnerPMAP:
             ), (*trajectories, a2_metrics)
 
         def rollout(
-            batched_rng: jnp.ndarray, env, a1_state, a1_mem, a2_state, a2_mem
+            batched_rng: jnp.ndarray, a1_state, a1_mem, a2_state, a2_mem
         ) -> jnp.ndarray:
-            """
+            """ params = (a1_state, a1_mem, a2_state, a2_mem)
             PMAPs the population and sends it to multiple devices
 
             Input
             batched_rng: jnp.ndarray, tiled random key
-            env: CoinGame: Coin Game environment
             a1_state: TrainingState, Named Tuple: holds the training state of agent 1
             a1_mem: MemoryState, Named Tuple: holds the memory state of agent 1
             a1_state: TrainingState, Named Tuple: holds the training state of agent 2
@@ -163,8 +162,8 @@ class EvoRunnerPMAP:
             t2: ...
             env_state: ...
             """
-
-            rng_key, rng_run = jax.random.split(batched_rng)
+            
+            rng_key, rng_run = jax.random.split(batched_rng) # ARE THEY SUPPOSED TO SHARE KEY?
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )
@@ -237,7 +236,7 @@ class EvoRunnerPMAP:
             maximize=True,
         )
         log = es_logging.initialize()
-        pmapped_rollout = jax.pmap(rollout)
+        pmapped_rollout = jax.pmap(rollout) # <- question mark??
 
         # Evolution specific: add pop size dimension
         env.batch_step = jax.jit(
@@ -275,8 +274,13 @@ class EvoRunnerPMAP:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             ####################### PMAP ########################
-            batched_rng = jnp.tile(rng_key, (num_devices, 1, 1))
-
+            batched_rng = jnp.tile(rng_key, (num_devices, 1))
+            
+            # print(env.shape, 'env shape')
+            # print(a1_state.shape, 'a1 shape')
+            # print(a1_mem.shape, 'a1 mem shape')
+            # print(a2_state.shape, 'a2 state shape')
+            # print(a2_mem.shape, 'a2 mem shape')
             (
                 fitness,
                 other_fitness,
@@ -288,7 +292,6 @@ class EvoRunnerPMAP:
                 env_state,
             ) = pmapped_rollout(
                 batched_rng,
-                env,
                 a1_state,
                 a1_mem,
                 a2_state,
