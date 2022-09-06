@@ -78,5 +78,5 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 - `ipd/naive` - Agent1 is a naive Reinforcement Learner, playing a single sequential matrix game.
 - `ipd/PPO` - Agent1 is a PPO agent, playing a single sequential matrix game.
 - `ipd/naive` - Agent1 is a PPO agent with memory, playing a single sequential matrix game.
-
+- `cg/sanity` - Agent1 is a Learner (PPO, PPO_mem, Naive), using a MLP for encode the observations playing against a Random agent. We expect rewards of around (9.5, -9.5)
 
