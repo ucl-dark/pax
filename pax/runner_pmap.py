@@ -280,10 +280,7 @@ class EvoRunnerPMAP:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-
-            env_stats = jax.tree_util.tree_map(
-                lambda x: x.item(), self.cg_stats(env_state)
-            )
+            env_stats = self.cg_stats(env_state)
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
