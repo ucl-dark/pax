@@ -65,24 +65,7 @@ class EvoRunnerPMAP:
                 cg_state,
             )
 
-        def pmap_traj_reshape(traj):
-            def fun(x):
-                # (num_devices, num_trials, num_inner_steps, popsize, ... )
-                # swapaxes
-                # (num_devices, popsize, num_inner_steps, num_trials, ... )
-                # reshape
-                # (num_devices* popsize, num_inner_steps, num_trials ... )
-                # swapaxes
-                # (num_devices* popsize, num_trials, num_inner_steps ... )
-                x = jnp.swapaxes(x, 1, 3)
-                x = x.reshape((self.popsize * self.num_devices,) + x.shape[2:])
-                x = jnp.swapaxes(x, 1, 2)
-                return x
-
-            return jax.tree_util.tree_map(fun, traj)
-
         self.pmap_reshape = pmap_reshape
-        self.pmap_traj_reshape = pmap_traj_reshape
 
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
@@ -235,6 +218,7 @@ class EvoRunnerPMAP:
         )
 
         agent1._state = agent1._state._replace(params=vmap_state.params)
+        # a2_state, a2_mem = agent2._state, agent2._mem
 
         def evo_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
@@ -254,19 +238,17 @@ class EvoRunnerPMAP:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # init agent 2
-            a2_state, a2_mem = agent2._state, agent2._mem
             a2_state, a2_mem = agent2.batch_init(
                 jax.random.split(rng_key, popsize * num_opps).reshape(
                     self.popsize, num_opps, -1
                 ),
-                a2_mem.hidden,
+                agent2._mem.hidden,
             )
 
             # run the training loop!
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )
-
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -345,6 +327,8 @@ class EvoRunnerPMAP:
                 if self.args.env_type == "coin_game":
                     rewards_0 = rewards_0.mean()
                     rewards_1 = rewards_1.mean()
+
+                    print(f"akbir debug: {env_stats}")
 
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.mean(), env_stats
