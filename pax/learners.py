@@ -176,6 +176,12 @@ class EvolutionaryPmapLearners:
         # batch MemoryState not TrainingState
 
         # Done: Pmap
+        agent1.batch_init_params = jax.vmap(
+            jax.vmap(
+            agent1.make_initial_params,
+            (None, 0),
+            )
+        )
         agent1.batch_init = jax.vmap(
             jax.vmap(
                 agent1.make_initial_state,
@@ -230,16 +236,18 @@ class EvolutionaryPmapLearners:
 
             # key = (2, 1, 2)
             # (popsize, num_opps, num_keys)
-            key = jax.random.split(
-                agent2._state.random_key, args.popsize * args.num_opps
-            ).reshape(args.popsize, args.num_opps, -1)
-            # key = jax.random.split(agent2._state.random_key, args.num_opps)
+            # key = jax.random.split(
+            #     agent2._state.random_key, args.popsize * args.num_opps
+            # ).reshape(args.popsize, args.num_opps, -1)
+            key = jax.random.split(agent2._state.random_key, args.num_opps)
             # key = utils.add_batch_dim(key)
             # print(key.shape)
+            # key, subkey = jax.random_split(key)
+            # init_params = agent2.batch_init_params(subkey, init_hidden)
 
             agent2._state, agent2._mem = agent2.batch_init(
                 key,
-                init_hidden,
+                init_hidden
             )
 
     def select_action(self, timesteps: List[TimeStep]) -> List[jnp.ndarray]:

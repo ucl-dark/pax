@@ -140,11 +140,13 @@ class EvoRunnerPMAP:
             ), (*trajectories, a2_metrics)
 
         def rollout(
-            batched_rng: jnp.ndarray, a1_state, a1_mem, a2_state, a2_mem
+            batched_rng: jnp.ndarray, a1_params, init_hidden, a2_state, a2_mem
         ) -> jnp.ndarray:
             """ params = (a1_state, a1_mem, a2_state, a2_mem)
             PMAPs the population and sends it to multiple devices
-
+                a1_opt_state,
+                a1_random_key,
+                a1_timesteps,
             Input
             batched_rng: jnp.ndarray, tiled random key
             a1_state: TrainingState, Named Tuple: holds the training state of agent 1
@@ -162,8 +164,17 @@ class EvoRunnerPMAP:
             t2: ...
             env_state: ...
             """
-            
+
             rng_key, rng_run = jax.random.split(batched_rng) # ARE THEY SUPPOSED TO SHARE KEY?
+            rng_key, rng_a1 = jax.random.split(rng_key)
+            import pdb; pdb.set_trace()
+
+            a1_state, a1_mem = agent1.batch_init(
+            jax.random.split(rng_a1, popsize),
+            a1_params
+            )
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
             )
@@ -175,7 +186,7 @@ class EvoRunnerPMAP:
                 key,
                 a2_mem.hidden,
             )
-
+            
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -236,7 +247,7 @@ class EvoRunnerPMAP:
             maximize=True,
         )
         log = es_logging.initialize()
-        pmapped_rollout = jax.pmap(rollout) # <- question mark??
+        pmapped_rollout = jax.pmap(rollout, in_axes=(0, 0, None, None, None), out_axes=(0, 0, 0, 0, 0, None)) # <- question mark??
 
         # Evolution specific: add pop size dimension
         env.batch_step = jax.jit(
@@ -249,16 +260,16 @@ class EvoRunnerPMAP:
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
-            (popsize, num_opps, 1, 1),
+            (popsize*self.args.num_devices, num_opps, 1, 1),
         )
         # key = (2, 2)
         # init_hidden = (2, 1, 1000, 16)
-        agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
+        a1_params = agent1.batch_init_params(
+            jax.random.split(agent1._state.random_key, popsize*self.args.num_devices),
             init_hidden,
         )
 
-        a1_state, a1_mem = agent1._state, agent1._mem
+        # a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
         for gen in range(num_iters):
@@ -268,10 +279,11 @@ class EvoRunnerPMAP:
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
 
             # Player 1
-            a1_state = a1_state._replace(
-                params=param_reshaper.reshape(x),
-            )
-            a1_mem = agent1.batch_reset(a1_mem, False)
+            # a1_state = a1_state._replace(
+            #     params=param_reshaper.reshape(x),
+            # )
+            a1_params = param_reshaper.reshape(x)
+            
 
             ####################### PMAP ########################
             batched_rng = jnp.tile(rng_key, (num_devices, 1))
@@ -281,6 +293,7 @@ class EvoRunnerPMAP:
             # print(a1_mem.shape, 'a1 mem shape')
             # print(a2_state.shape, 'a2 state shape')
             # print(a2_mem.shape, 'a2 mem shape')
+
             (
                 fitness,
                 other_fitness,
@@ -292,8 +305,10 @@ class EvoRunnerPMAP:
                 env_state,
             ) = pmapped_rollout(
                 batched_rng,
-                a1_state,
-                a1_mem,
+                a1_params,
+                init_hidden,
+                # a1_state,
+                # a1_mem,
                 a2_state,
                 a2_mem,
             )

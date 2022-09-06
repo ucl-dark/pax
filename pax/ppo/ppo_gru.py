@@ -363,17 +363,17 @@ class PPO:
             return new_state, new_memory, metrics
 
         def make_initial_state(
-            key: Any, initial_hidden_state: jnp.ndarray
+            key: Any, initial_params: jnp.ndarray
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
 
             # We pass through initial_hidden_state so its easy to batch memory
-            key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec)
-            dummy_obs = utils.add_batch_dim(dummy_obs)
-            initial_params = network.init(
-                subkey, dummy_obs, initial_hidden_state
-            )
+            # key, subkey = jax.random.split(key)
+            # dummy_obs = jnp.zeros(shape=obs_spec)
+            # dummy_obs = utils.add_batch_dim(dummy_obs)
+            # initial_params = network.init(
+            #     subkey, dummy_obs, initial_hidden_state
+            # )
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
                 random_key=key,
@@ -384,7 +384,7 @@ class PPO:
                 hidden=jnp.zeros(
                     (
                         num_envs,
-                        initial_hidden_state.shape[-1],
+                        16,
                     ),
                 ),  # initial_hidden_state,
                 extras={
@@ -396,6 +396,14 @@ class PPO:
                     ),
                 },
             )
+
+        def make_initial_params(key: Any, initial_hidden_state: jnp.ndarray) -> jnp.ndarray:
+            dummy_obs = jnp.zeros(shape=obs_spec)
+            dummy_obs = utils.add_batch_dim(dummy_obs)
+            initial_params = network.init(
+                key, dummy_obs, initial_hidden_state
+            )
+            return initial_params            
 
         @jax.jit
         def prepare_batch(
@@ -435,11 +443,14 @@ class PPO:
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
+        random_key, subkey = jax.random.split(random_key)
+        initial_params = make_initial_params(subkey, initial_hidden_state)
         self._state, self._mem = make_initial_state(
-            random_key, initial_hidden_state
+            random_key, initial_params
         )
 
         self.make_initial_state = make_initial_state
+        self.make_initial_params = make_initial_params
 
         self.prepare_batch = prepare_batch
         if has_sgd_jit:

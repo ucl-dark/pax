@@ -12,6 +12,7 @@ from pax.hyper.ppo import make_hyper
 from pax.learners import (
     IndependentLearners,
     EvolutionaryLearners,
+    EvolutionaryPmapLearners
 )
 from pax.env_inner import InfiniteMatrixGame
 from pax.env_meta import CoinGame, MetaFiniteGame
@@ -205,7 +206,7 @@ def runner_setup(args, agents, save_dir, logger):
             param_reshaper = ParameterReshaper(agent._state.params)
             strategy = OpenES(
                 num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
+                popsize=args.popsize*args.num_devices,
             )
             # Update basic parameters of OpenES strategy
             es_params = strategy.default_params.replace(
@@ -465,6 +466,8 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
+    if args.pmap:
+        return EvolutionaryPmapLearners([agent_0, agent_1], args)
     if args.evo:
         return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
