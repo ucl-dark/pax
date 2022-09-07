@@ -27,6 +27,7 @@ from pax.strategies import (
     HyperDefect,
     HyperTFT,
     Random,
+    Stay,
     TitForTat,
 )
 from pax.utils import Section
@@ -420,12 +421,40 @@ def agent_setup(args, logger):
         random_agent.player_id = player_id
         return random_agent
 
+    # flake8: noqa: C901
+    def get_stay_agent(seed, player_id):
+        if args.env_type == "coin_game":
+            num_actions = (
+                CoinGame(
+                    args.num_envs,
+                    args.num_steps,
+                    args.num_steps,
+                    0,
+                    args.ppo.with_cnn,
+                )
+                .action_spec()
+                .num_values
+            )
+        else:
+            num_actions = (
+                SequentialMatrixGame(
+                    args.num_envs, args.payoff, args.num_steps
+                )
+                .action_spec()
+                .num_values
+            )
+
+        agent = Stay(num_actions)
+        agent.player_id = player_id
+        return agent
+
     strategies = {
         "TitForTat": TitForTat,
         "Defect": Defect,
         "Altruistic": Altruistic,
         "Human": Human,
         "Random": get_random_agent,
+        "Stay": get_stay_agent,
         "Grim": GrimTrigger,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
@@ -524,6 +553,7 @@ def watcher_setup(args, logger):
         "Altruistic": dumb_log,
         "Human": dumb_log,
         "Random": dumb_log,
+        "Stay": dumb_log,
         "Grim": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
@@ -574,8 +604,8 @@ def main(args):
     #     print()
 
     runner.train_loop(train_env, agent_pair, num_generations, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    # TODO: Remove fully in evaluation PR
+    # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":

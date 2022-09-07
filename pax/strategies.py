@@ -247,6 +247,50 @@ class Random:
         return self._state, self._mem
 
 
+class Stay:
+    def __init__(self, num_actions: int):
+        self.make_initial_state = make_initial_state
+        self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+            # state is [batch x time_step x num_players]
+            # return [batch]
+            batch_size = obs.shape[0]
+            action = 5 * jnp.ones((batch_size,), dtype=int)
+            return action, state, mem
+
+        self._policy = jax.jit(_policy)
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        action = 5 * jnp.ones((batch_size,), dtype=int)
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
+
 class HyperAltruistic:
     def __init__(self, *args):
         self.make_initial_state = make_initial_state
