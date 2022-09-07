@@ -234,3 +234,45 @@ def test_coingame_move():
     assert env.state.red_defect == 0
     assert env.state.blue_coop == 1
     assert env.state.blue_defect == 0
+
+
+def test_coingame_egocentric():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[1, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[1, 2]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+
+    t1, t2 = env.step((action, action))
+    assert t1.reward == 1
+    assert t2.reward == 1
+
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+    # remove batch
+    assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+    assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+    assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+    assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+    t1, t2 = env.step((action, action))
+    assert t1.reward == 0
+    assert t2.reward == 0
+
+    # remove batch
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+    assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+    assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+    assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+    assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
