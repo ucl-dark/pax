@@ -255,24 +255,11 @@ def test_coingame_egocentric():
         blue_defect=jnp.zeros(1),
     )
 
-    t1, t2 = env.step((action, action))
-    assert t1.reward == 1
-    assert t2.reward == 1
-
-    obs1, obs2 = t1.observation[0], t2.observation[0]
-    # remove batch
-    assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
-    assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
-    assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
-    assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
-
-    t1, t2 = env.step((action, action))
-    assert t1.reward == 0
-    assert t2.reward == 0
-
-    # remove batch
-    obs1, obs2 = t1.observation[0], t2.observation[0]
-    assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
-    assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
-    assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
-    assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+    for _ in range(16):
+        t1, t2 = env.step((action, action))
+        obs1, obs2 = t1.observation[0], t2.observation[0]
+        # remove batch
+        assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+        assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+        assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+        assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
