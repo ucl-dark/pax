@@ -332,7 +332,7 @@ class CoinGame:
             )
 
             obs1 = jnp.where(done, new_ep_outputs[0].observation, obs1)
-            obs2 = jnp.where(done, new_ep_outputs[0].observation, obs2)
+            obs2 = jnp.where(done, new_ep_outputs[1].observation, obs2)
 
             blue_reward = jnp.where(done, 0, blue_reward)
             red_reward = jnp.where(done, 0, red_reward)
