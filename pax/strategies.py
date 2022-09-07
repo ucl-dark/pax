@@ -1,4 +1,5 @@
 from functools import partial
+from time import time
 from typing import Mapping, NamedTuple, Tuple
 
 import jax.numpy as jnp
@@ -15,6 +16,114 @@ def make_initial_state(key, hidden):
     return TrainingState(None, None, jax.random.PRNGKey(0), None), MemoryState(
         jnp.ones(1), {"log_probs": None, "values": None}
     )
+
+
+class GreedyCoinChaser:
+    def __init__(self, num_actions: int):
+        self.make_initial_state = make_initial_state
+        self._state, self._mem = make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
+
+        def _greedy_step(obs):
+            """do this for a single obs and then vmap"""
+            # reshape so that obs is no longer flattened
+            obs = obs.reshape(3, 3, 4)
+
+            # [3, 3]
+            # [3, 3]
+            agent_pos = obs[..., 0]
+            agent_coin_pos = obs[..., 2]
+            other_coin_pos = obs[..., 3]
+
+            # find path to both sets of coins
+            print(f"agent coin pos {agent_coin_pos}")
+            agent_loc = jnp.array(
+                [jnp.argmax(agent_pos[0]), jnp.argmax(agent_pos[1])]
+            )
+            agent_path = (
+                jnp.array(
+                    [
+                        jnp.argmax(agent_coin_pos[0]),
+                        jnp.argmax(agent_coin_pos[1]),
+                    ]
+                )
+                - agent_loc
+            )
+            other_path = (
+                jnp.array(
+                    [
+                        jnp.argmax(other_coin_pos[0]),
+                        jnp.argmax(other_coin_pos[1]),
+                    ]
+                )
+                - agent_loc
+            )
+
+            agent_path_length = jnp.sum(jnp.abs(agent_path))
+            other_path_length = jnp.sum(jnp.abs(other_path))
+
+            path = jnp.where(
+                agent_path_length < other_path_length, agent_path, other_path
+            )
+
+            stay = (jnp.array([0, 0]) == path).all()
+            right = (jnp.array([0, 1]) == path).all()
+            left = (jnp.array([0, -1]) == path).all()
+            up = (jnp.array([1, 0]) == path).all()
+            down = (jnp.array([0, 1]) == path).all()
+
+            ur = (jnp.array([1, 1]) == path).all()
+            ul = (jnp.array([1, -1]) == path).all()
+            dr = (jnp.array([-1, 1]) == path).all()
+            dl = (jnp.array([-1, -1]) == path).all()
+
+            action = 0  # default right
+            action = jax.lax.select(stay, 4, action)
+            action = jax.lax.select(right, 0, action)
+            action = jax.lax.select(left, 1, action)
+            action = jax.lax.select(up, 2, action)
+            action = jax.lax.select(down, 3, action)
+
+            # ul -> l ur -> u,  dl -> d, dr -> r,
+            action = jax.lax.select(ur, 2, action)
+            action = jax.lax.select(ul, 1, action)
+            action = jax.lax.select(dr, 0, action)
+            action = jax.lax.select(dl, 3, action)
+            return action
+
+        greedy_step = jax.vmap(_greedy_step)
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+
+            return greedy_step(obs), state, mem
+
+        self._policy = _policy
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        action, self._state, self._mem = self._policy(
+            self._state, timestep.observation, self._mem
+        )
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
 
 
 class GrimTrigger:
