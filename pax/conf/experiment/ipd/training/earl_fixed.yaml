@@ -16,13 +16,14 @@ evo: True
 
 # Training
 top_k: 5
+num_generations: 5000
 popsize: 50
 num_envs: 2
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 2.5e7
-save_frequency: 5
+save_interval: 5
 
 
 # PPO agent parameters

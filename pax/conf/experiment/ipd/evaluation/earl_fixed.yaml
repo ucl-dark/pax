@@ -19,13 +19,13 @@ num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 1.5e8
-run_path: ucl-dark/ipd/EARL-PPO_memory-vs-TitForTat-run-seed-0-popsize-50:v1
-filename: "generation_25"
+run_path: ucl-dark/ipd/2yanu4nn
+model_path: exp/EARL-PPO_memory-vs-TitForTat/EARL-PPO_memory-vs-TitForTat-run-seed-0-popsize-2/2022-09-08_16.08.25.737041/generation_10
 
 # Logging 
 wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: 'eval-EARL-${agent1}-vs-${agent2}-run-seed-${seed}-popsize-${popsize}'
+  name: 'eval-EARL-${agent1}-vs-${agent2}-run-seed-${seed}'
   log: False

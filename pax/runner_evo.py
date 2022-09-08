@@ -245,17 +245,21 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
-            if log["gen_counter"] % 100 == 0:
-                log_savepath = os.path.join(
-                    self.save_dir, f"generation_{log['gen_counter']}"
-                )
+            # Saving
+            if self.args.save and gen % self.args.save_interval == 0:
+                log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+
                 # remove batch dimension
                 top_params = jax.tree_util.tree_map(
                     lambda x: x.reshape(x.shape[1:]), top_params
                 )
                 save(top_params, log_savepath)
-                wandb.save
+                if watchers:
+                    print(f"Saving generation {gen} locally and to WandB")
+                    wandb.save(log_savepath)
+                else:
+                    print(f"Saving iteration {gen} locally")
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
