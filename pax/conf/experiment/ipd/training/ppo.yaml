@@ -1,12 +1,9 @@
 # @package _global_
 
-<<<<<<< HEAD
-=======
 # Save
 save: True 
 save_interval: 10
 
->>>>>>> 4d9239b4b1e038b23fb1b1898cbac90ac09ebab8
 # Agents  
 agent1: 'PPO'
 agent2: 'TitForTat'
@@ -14,11 +11,7 @@ agent2: 'TitForTat'
 # Environment
 env_id: ipd
 game: ipd 
-<<<<<<< HEAD
 env_type: sequential
-=======
-env_type: finite
->>>>>>> 4d9239b4b1e038b23fb1b1898cbac90ac09ebab8
 env_discount: 0.99
 payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 
@@ -27,11 +20,7 @@ num_envs: 100
 num_opps: 1
 num_steps: 150 # number of steps per episode
 total_timesteps: 4_000_000
-<<<<<<< HEAD
 eval_every: 4_000_000 # timesteps
-=======
-eval_every: 2_000_000 # timesteps
->>>>>>> 4d9239b4b1e038b23fb1b1898cbac90ac09ebab8
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
@@ -39,7 +28,6 @@ eval_every: 2_000_000 # timesteps
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
-<<<<<<< HEAD
 # ppo:
 #   num_minibatches: 10
 #   num_epochs: 4
@@ -60,13 +48,8 @@ eval_every: 2_000_000 # timesteps
 #   with_memory: False
 
 ppo:
-  num_minibatches: 4
-  num_epochs: 2 
-=======
-ppo:
   num_minibatches: 10
   num_epochs: 4
->>>>>>> 4d9239b4b1e038b23fb1b1898cbac90ac09ebab8
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -74,24 +57,14 @@ ppo:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: True
-<<<<<<< HEAD
   entropy_coeff_start: 0.02
   entropy_coeff_horizon: 2_000_000
   entropy_coeff_end: 0.001
   lr_scheduling: True
-  learning_rate: 3e-4
-  adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
-=======
-  entropy_coeff_start: 0.2
-  entropy_coeff_horizon: 500_000
-  # ^this should 1/2 of the total timesteps
-  entropy_coeff_end: 0.01
-  lr_scheduling: True
   learning_rate: 2.5e-2
   adam_epsilon: 1e-5
-  with_memory: False
 
 # ppo:
 #   num_minibatches: 4
@@ -110,7 +83,6 @@ ppo:
 #   learning_rate: 3e-4
 #   adam_epsilon: 1e-5
 #   with_memory: False
->>>>>>> 4d9239b4b1e038b23fb1b1898cbac90ac09ebab8
 
 # Logging setup
 wandb:
