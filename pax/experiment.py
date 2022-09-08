@@ -183,11 +183,11 @@ def env_setup(args, logger=None):
 
 def runner_setup(args, agents, save_dir, logger):
     if args.eval:
-        print("eval loop")
         if args.env_id == "ipd":
-            print("Eval IPD")
+            logger.info("Runner: Evaluating with IPD")
             return EvalRunnerIPD(args)
         elif args.env_id == "coin_game":
+            logger.info("Runner: Evaluating with CG")
             return EvalRunnerCG(args)
 
     if args.evo:

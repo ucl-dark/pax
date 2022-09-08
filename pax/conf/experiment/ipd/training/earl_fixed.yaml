@@ -21,6 +21,7 @@ num_envs: 2
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
+num_generations: 1000
 total_timesteps: 2.5e7
 eval_every: 2.5e7
 
