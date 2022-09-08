@@ -241,7 +241,7 @@ def test_coingame_stay():
     env = CoinGame(bs, 8, 16, 0, True)
     t1, t2 = env.reset()
 
-    stay = 5 * jnp.ones(bs, dtype=int)
+    stay = 4 * jnp.ones(bs, dtype=int)
     _state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),
         blue_pos=jnp.array([[1, 0]]),
