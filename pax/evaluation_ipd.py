@@ -38,7 +38,7 @@ class EvalRunnerIPD:
         self.start_time = time.time()
         self.train_steps = 0
         self.train_episodes = 0
-        self.num_iters = args.num_iters
+        self.num_seeds = args.num_seeds
         self.run_path = args.run_path
         self.model_path = args.model_path
         self.ipd_stats = jax.jit(ipd_visitation)
@@ -167,8 +167,8 @@ class EvalRunnerIPD:
         print("Evaluation")
         print("-----------------------")
         # Initialize agents and RNG
-        num_iters = self.num_iters
-        print(f"Number of Seeds: {num_iters}")
+        num_seeds = self.num_seeds
+        print(f"Number of Seeds: {num_seeds}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
         print("-----------------------")
@@ -190,15 +190,15 @@ class EvalRunnerIPD:
 
         # Track mean rewards and state visitations
         if self.args.env_type == "ipd":
-            mean_rewards_p1 = jnp.zeros(shape=(num_iters, env.num_trials))
-            mean_rewards_p2 = jnp.zeros(shape=(num_iters, env.num_trials))
-            mean_visits = jnp.zeros(shape=(num_iters, env.num_trials, 5))
-            mean_state_freq = jnp.zeros(shape=(num_iters, env.num_trials, 5))
+            mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+            mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+            mean_visits = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
+            mean_state_freq = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
             mean_cooperation_prob = jnp.zeros(
-                shape=(num_iters, env.num_trials, 5)
+                shape=(num_seeds, env.num_trials, 5)
             )
 
-        for opp_i in range(num_iters):
+        for opp_i in range(num_seeds):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng_run

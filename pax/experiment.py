@@ -583,7 +583,7 @@ def main(args):
         watchers = False
 
     if args.eval:
-        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
+        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
     else:
         runner.train_loop(train_env, agent_pair, num_iters, watchers)
 

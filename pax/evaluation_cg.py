@@ -38,7 +38,7 @@ class EvalRunnerCG:
         self.start_time = time.time()
         self.train_steps = 0
         self.train_episodes = 0
-        self.num_iters = args.num_iters
+        self.num_seeds = args.num_seeds
         self.run_path = args.run_path
         self.model_path = args.model_path
         self.ipd_stats = jax.jit(ipd_visitation)
@@ -155,7 +155,7 @@ class EvalRunnerCG:
 
         a1_state = a1_state._replace(params=params)
 
-        for i in range(num_iters):
+        for i in range(self.num_seeds):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng_run
@@ -222,7 +222,7 @@ class EvalRunnerCG:
 
             if watchers:
                 wandb_log = {
-                    "iterations": self.num_iters,
+                    "num_seeds": self.num_seeds,
                     "train/time/minutes": float(
                         (time.time() - self.start_time) / 60
                     ),
