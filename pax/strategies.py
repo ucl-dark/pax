@@ -19,12 +19,11 @@ def make_initial_state(key, hidden):
 
 
 class GreedyCoinChaser:
-    def __init__(self, num_actions: int):
+    def __init__(self, *args):
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
-        self._num_actions = num_actions
 
         def _greedy_step(obs):
             """do this for a single obs and then vmap"""
@@ -38,7 +37,6 @@ class GreedyCoinChaser:
             other_coin_pos = obs[..., 3]
 
             # find path to both sets of coins
-            print(f"agent coin pos {agent_coin_pos}")
             agent_loc = jnp.array(
                 [jnp.argmax(agent_pos[0]), jnp.argmax(agent_pos[1])]
             )

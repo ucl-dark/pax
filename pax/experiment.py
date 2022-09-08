@@ -21,6 +21,7 @@ from pax.runner_rl import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
+    GreedyCoinChaser,
     GrimTrigger,
     Human,
     HyperAltruistic,
@@ -427,6 +428,7 @@ def agent_setup(args, logger):
         "Human": Human,
         "Random": get_random_agent,
         "Grim": GrimTrigger,
+        "Greedy": GreedyCoinChaser,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
@@ -525,6 +527,7 @@ def watcher_setup(args, logger):
         "Human": dumb_log,
         "Random": dumb_log,
         "Grim": dumb_log,
+        "Greedy": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "Naive": naive_pg_log,
@@ -574,8 +577,8 @@ def main(args):
     #     print()
 
     runner.train_loop(train_env, agent_pair, num_generations, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    # TODO: Remove fully in evaluation PR
+    # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":
