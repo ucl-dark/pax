@@ -40,7 +40,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 class Runner:
     """Holds the runner's state."""
 
-    def __init__(self, args):
+    def __init__(self, args, save_dir):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -49,6 +49,7 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.save_dir = save_dir
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -174,22 +175,13 @@ class Runner:
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
 
-        # this needs to move into independent learners too
-        # init_hidden = jnp.tile(agent1._mem.hidden, (self.num_opps, 1, 1))
-        # a1_state, a1_mem = agent1.batch_init(rng, init_hidden)
-
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         print(f"Log Interval {log_interval}")
+        print(f"Save directory: {self.save_dir}")
 
-        if watchers:
-            artifact = wandb.Artifact(
-                self.args.wandb.name,
-                type="model",
-                description="Agent model for IPD",
-            )
         for i in range(
             0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         ):
@@ -238,7 +230,18 @@ class Runner:
             self.train_episodes += 1
             rewards_0 = stack[0].rewards.mean()
             rewards_1 = stack[1].rewards.mean()
+
+            if self.args.save and i % self.args.save_interval == 0:
+                log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
+                save(a1_state.params, log_savepath)
+                if watchers:
+                    print(f"Saving iteration {i} locally and to WandB")
+                    wandb.save(log_savepath)
+                else:
+                    print(f"Saving iteration {i} locally")
+
             if i % log_interval == 0:
+                print(f"Iteration {i}")
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
@@ -252,107 +255,33 @@ class Runner:
                 action_probs = jnp.nan_to_num(action_probs)
                 print(f"Cooperation Probability: {action_probs}")
 
-            if watchers:
-                if i % log_interval == 0:
-                    print(f"Saving at iteration {i}")
-                    log_savepath = os.path.join(
-                        self.args.save_dir, f"iteration_{i}"
+                if watchers:
+                    # metrics [outer_timesteps, num_opps]
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
-                    print()
-                    save(a1_state.params, log_savepath)
-                    artifact.add_file(log_savepath)
+                    agent2._logger.metrics = (
+                        agent2._logger.metrics | flattened_metrics
+                    )
 
-                # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
-                agent2._logger.metrics = (
-                    agent2._logger.metrics | flattened_metrics
-                )
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
+                    )
 
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics
-                )
+                    agents.log(watchers)
+                    wandb.log(
+                        {
+                            "episodes": self.train_episodes,
+                            "train/episode_reward/player_1": float(
+                                rewards_0.mean()
+                            ),
+                            "train/episode_reward/player_2": float(
+                                rewards_1.mean()
+                            ),
+                        },
+                    )
+                print()
 
-                agents.log(watchers)
-                wandb.log(
-                    {
-                        "episodes": self.train_episodes,
-                        "train/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "train/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
-                    },
-                )
-        print()
-        # update agents for eval loop exit
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
-        if watchers:
-            artifact.save()
-        return agents
-
-    def evaluate_loop(self, env, agents, num_episodes, watchers):
-        """Run evaluation of agents against environment"""
-        print("Evaluating")
-        print("-----------------------")
-        agents.eval(True)
-        agent1, agent2 = agents.agents
-        agent1._mem = agent1.reset_memory(agent1._mem, True)
-        agent2._mem = agent2.reset_memory(agent2._mem, True)
-
-        for _ in range(num_episodes // env.num_envs):
-            rewards_0, rewards_1 = [], []
-            timesteps = env.reset()
-            for _ in range(env.episode_length):
-                actions = agents.select_action(timesteps)
-                timesteps = env.step(actions)
-                r_0, r_1 = timesteps[0].reward, timesteps[1].reward
-                rewards_0.append(timesteps[0].reward)
-                rewards_1.append(timesteps[1].reward)
-
-                # update evaluation steps
-                self.eval_steps += 1
-
-                if watchers:
-                    agents.log(watchers)
-                    env_info = {
-                        "eval/evaluation_steps": self.eval_steps,
-                        "eval/step_reward/player_1": float(
-                            jnp.array(r_0).mean()
-                        ),
-                        "eval/step_reward/player_2": float(
-                            jnp.array(r_1).mean()
-                        ),
-                    }
-                    wandb.log(env_info)
-
-            # end of episode stats
-            self.eval_episodes += 1
-            rewards_0 = jnp.array(rewards_0)
-            rewards_1 = jnp.array(rewards_1)
-
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-            )
-            if watchers:
-                wandb.log(
-                    {
-                        "train/episodes": self.train_episodes,
-                        "eval/episodes": self.eval_episodes,
-                        "eval/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "eval/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
-                        "eval/joint_reward": float(
-                            rewards_0.mean() + rewards_1.mean() * 0.5
-                        ),
-                    }
-                )
-        agents.eval(False)
-        print()
         return agents
