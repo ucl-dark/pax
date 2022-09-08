@@ -44,6 +44,9 @@ eval_every: 1.0e8 # timesteps
 # Eval 
 eval: False
 
+# Eval 
+eval: False
+
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every

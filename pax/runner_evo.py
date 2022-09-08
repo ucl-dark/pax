@@ -349,14 +349,18 @@ class EvoRunner:
 
                 agent2._logger.metrics.update(flattened_metrics)
                 agent1._logger.metrics.update(flattened_metrics)
-                # TODO: Only works with 3.9 and i can't get 3.9 on colab
-                # agent2._logger.metrics = (
-                #     agent2._logger.metrics | flattened_metrics
-                # )
 
-                # agent1._logger.metrics = (
-                #     agent1._logger.metrics | flattened_metrics
-                # )
+                agent2._logger.metrics.update(flattened_metrics)
+                agent1._logger.metrics.update(flattened_metrics)
+                # TODO: Only works with 3.9 and i can't get 3.9 on colab
+                # # TODO: Only works with 3.9 and i can't get 3.9 on colab
+                # agent2._logger.metrics = (
+                # #     agent2._logger.metrics | flattened_metrics
+                # # )
+
+                # # agent1._logger.metrics = (
+                # #     agent1._logger.metrics | flattened_metrics
+                # # )
                 agents.log(watchers)
                 wandb.log(wandb_log)
         # if watchers:

@@ -5,6 +5,7 @@ from typing import List, NamedTuple
 import jax
 import jax.numpy as jnp
 import wandb
+from dm_env import TimeStep
 
 from pax.utils import save
 from pax.watchers import cg_visitation, ipd_visitation
@@ -40,7 +41,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 class Runner:
     """Holds the runner's state."""
 
-    def __init__(self, args):
+    def __init__(self, args, save_dir):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -49,6 +50,7 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.save_dir = save_dir
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -153,8 +155,11 @@ class Runner:
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         print(f"Log Interval {log_interval}")
-        # run actual loop
-        for i in range(num_episodes):
+        print(f"Save directory: {self.save_dir}")
+
+        for i in range(
+            0, max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
+        ):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng_run
@@ -205,6 +210,18 @@ class Runner:
 
             # logging
             self.train_episodes += 1
+            rewards_0 = stack[0].rewards.mean()
+            rewards_1 = stack[1].rewards.mean()
+
+            if self.args.save and i % self.args.save_interval == 0:
+                log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
+                save(a1_state.params, log_savepath)
+                if watchers:
+                    print(f"Saving iteration {i} locally and to WandB")
+                    wandb.save(log_savepath)
+                else:
+                    print(f"Saving iteration {i} locally")
+
             if i % log_interval == 0:
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
@@ -230,7 +247,7 @@ class Runner:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
-                    print()
+                print()
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
@@ -239,6 +256,10 @@ class Runner:
                     )
                     agent2._logger.metrics = (
                         agent2._logger.metrics | flattened_metrics
+                    )
+
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
                     )
 
                     agents.log(watchers)
@@ -251,11 +272,10 @@ class Runner:
                             "train/episode_reward/player_2": float(
                                 rewards_1.mean()
                             ),
-                        }
-                        | env_stats,
+                        },
                     )
-        print()
-        # update agents for eval loop exit
+                print()
+
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
         return agents
