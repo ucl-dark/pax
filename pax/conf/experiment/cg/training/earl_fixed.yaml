@@ -6,7 +6,7 @@ agent2: 'TitForTat'
 
 # Environment
 env_id: coin_game
-game: ipd 
+game: coin_game 
 env_type: coin_game
 coin_type: coin_meta
 env_discount: 0.96
@@ -14,6 +14,7 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
 evo: True 
+eval: False 
 
 # Training
 top_k: 1
@@ -23,6 +24,7 @@ num_opps: 1
 num_steps: 9600
 num_inner_steps: 16 
 num_generations: 5000
+save_interval: 10
 
 # num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters

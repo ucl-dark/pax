@@ -270,8 +270,10 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
+        logger.info("Runner: EvoRunner")
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
+        logger.info("Runner: Runner")
         return Runner(args, save_dir)
 
 
@@ -574,7 +576,6 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
-    # num episodes
     if args.evo:
         num_iters = args.num_generations  # number of generations
     else:
