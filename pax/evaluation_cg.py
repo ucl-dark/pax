@@ -44,7 +44,7 @@ class EvalRunnerCG:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-    def eval_loop(self, env, agents, num_iters, watchers):
+    def eval_loop(self, env, agents, num_seeds, watchers):
         """Run evaluation of agents in environment"""
 
         def _inner_rollout(carry, unused):
@@ -133,8 +133,7 @@ class EvalRunnerCG:
 
         print("Evaluation")
         print("------------------------------")
-        num_iters = self.num_iters
-        print(f"Number of Seeds: {num_iters}")
+        print(f"Number of Seeds: {self.num_seeds}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
         print("-----------------------")
