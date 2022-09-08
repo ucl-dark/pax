@@ -7,17 +7,18 @@ import hydra
 import omegaconf
 import wandb
 
+
+from pax.env_inner import InfiniteMatrixGame
 from pax.env_inner import SequentialMatrixGame
+from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.evaluation_ipd import EvalRunnerIPD
+from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
-from pax.env_inner import InfiniteMatrixGame
-from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.evaluation_ipd import EvalRunnerIPD
-from pax.evaluation_cg import EvalRunnerCG
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.strategies import (
@@ -184,10 +185,10 @@ def env_setup(args, logger=None):
 def runner_setup(args, agents, save_dir, logger):
     if args.eval:
         if args.env_id == "ipd":
-            logger.info("Runner: Evaluating with IPD")
+            logger.info("Evaluating with EvalRunnerIPD")
             return EvalRunnerIPD(args)
         elif args.env_id == "coin_game":
-            logger.info("Runner: Evaluating with CG")
+            logger.info("Evaluating with EvalRunnerCG")
             return EvalRunnerCG(args)
 
     if args.evo:
@@ -270,19 +271,19 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        logger.info("Runner: EvoRunner")
+        logger.info("Training with EvoRunner")
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
-        logger.info("Runner: Runner")
+        logger.info("Training with Runner")
         return Runner(args, save_dir)
 
 
+# flake8: noqa: C901
 def agent_setup(args, logger):
     """Set up agent variables."""
 
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
-
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
@@ -406,7 +407,6 @@ def agent_setup(args, logger):
         )
         return agent
 
-    # flake8: noqa: C901
     def get_random_agent(seed, player_id):
         if args.env_type == "coin_game":
             num_actions = (
@@ -454,7 +454,6 @@ def agent_setup(args, logger):
     assert args.agent1 in strategies
     assert args.agent2 in strategies
 
-    # TODO: Is there a better way to start agents with different seeds?
     num_agents = 2
     seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
     # Create Player IDs by normalizing seeds to 1, 2 respectively
