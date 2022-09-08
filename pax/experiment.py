@@ -9,6 +9,7 @@ import wandb
 
 from pax.env_inner import SequentialMatrixGame
 from pax.evaluation_ipd import EvalRunnerIPD
+from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.env_inner import InfiniteMatrixGame
@@ -182,7 +183,10 @@ def env_setup(args, logger=None):
 
 def runner_setup(args, agents, save_dir, logger):
     if args.eval:
-        return EvalRunnerIPD(args)
+        if args.env_type == "ipd":
+            return EvalRunnerIPD(args)
+        elif args.env_type == "coin_game":
+            return EvalRunnerCG(args)
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
