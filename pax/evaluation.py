@@ -171,12 +171,12 @@ class EvalRunner:
         )
 
         # Load agent
-        eval_dir = "Users/newtonkwan/UCL/Research"
-        # eval_dir = (
-        #     "/Users/newtonkwan/UCL/Research/pax/exp/EARL-PPO_memory-vs-Naive/"
-        # )
-        # "run-seed-0-OpenES-pop-size-10"
-        # "-num-opps-1/2022-08-19_01:35:55.912020/generation_0"
+        # TODO: Temporary directory before figuring out saving.
+        eval_dir = (
+            "/Users/newtonkwan/UCL/Research/pax/exp/EARL-PPO_memory-vs-Naive/"
+        )
+        "run-seed-0-OpenES-pop-size-10"
+        "-num-opps-1/2022-08-19_01:35:55.912020/generation_0"
         log = es_logging.load(os.path.join(eval_dir, self.args.model_path))
 
         # TODO: Why can't this be moved to EvolutionaryLearners?

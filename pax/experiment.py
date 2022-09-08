@@ -564,18 +564,20 @@ def main(args):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
     # num episodes
-    # total_num_ep = int(args.total_timesteps / args.num_steps)
-    # train_num_ep = int(args.eval_every / args.num_steps)
-    num_generations = args.num_generations
+    if args.evo:
+        num_iters = args.num_generations  # number of generations
+    else:
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+
     if not args.wandb.log:
         watchers = False
-    # for num_update in range(int(total_num_ep // train_num_ep)):
-    #     print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
-    #     print()
 
-    runner.train_loop(train_env, agent_pair, num_generations, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    if args.eval:
+        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
+    else:
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":

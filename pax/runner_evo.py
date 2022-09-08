@@ -241,18 +241,18 @@ class EvoRunner:
 
             # Logging
             log = es_logging.update(log, x, fitness)
+
             if log["gen_counter"] % 100 == 0:
-                    log_savepath = os.path.join(
-                        self.save_dir, f"generation_{log['gen_counter']}"
-                    )
-                    top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0:1]
-                    )
-                    # remove batch dimension
-                    top_params = jax.tree_util.tree_map(
-                        lambda x: x.reshape(x.shape[1:]), top_params
-                    )
-                    save(top_params, log_savepath)
+                log_savepath = os.path.join(
+                    self.save_dir, f"generation_{log['gen_counter']}"
+                )
+                top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+                # remove batch dimension
+                top_params = jax.tree_util.tree_map(
+                    lambda x: x.reshape(x.shape[1:]), top_params
+                )
+                save(top_params, log_savepath)
+                wandb.save
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
@@ -325,7 +325,6 @@ class EvoRunner:
                     ),
                     "train/episode_reward/player_1": float(rewards_0.mean()),
                     "train/episode_reward/player_2": float(rewards_1.mean()),
-
                 }
                 wandb_log = wandb_log | env_stats
                 # loop through population

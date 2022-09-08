@@ -12,6 +12,9 @@ hydra:
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 debug: False
+save: True 
+save_interval: 10
+eval: False
 
 # Agents  
 agent1: 'PPO'
@@ -21,6 +24,7 @@ agent2: 'PPO'
 env_id: ipd
 game: ipd 
 env_type: coin_game
+coin_type: None
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
