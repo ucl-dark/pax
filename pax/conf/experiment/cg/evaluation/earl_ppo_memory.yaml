@@ -48,16 +48,6 @@ ppo:
   separate: True # only works with CNN
   hidden_size: 16
 
-# Naive Learner parameters 
-naive:
-  num_minibatches: 8
-  num_epochs: 2
-  gamma: 0.96
-  gae_lambda: 0.95
-  max_gradient_norm: 0.5
-  learning_rate: 0.005
-  adam_epsilon: 1e-5
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
