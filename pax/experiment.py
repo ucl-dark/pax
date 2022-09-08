@@ -332,6 +332,37 @@ def agent_setup(args, logger):
 
         return ppo_agent
 
+    def get_PPO_table_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                args.ppo.with_cnn,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError("PPO Table agent only works on Coin Game.")
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+            tabular=True
+        )
+
+        return ppo_agent
+
     def get_hyper_agent(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
@@ -436,6 +467,7 @@ def agent_setup(args, logger):
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
+        "Table": get_PPO_table_agent,
     }
 
     assert args.agent1 in strategies
@@ -533,6 +565,7 @@ def watcher_setup(args, logger):
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
+        "Table":ppo_log,
     }
 
     assert args.agent1 in strategies

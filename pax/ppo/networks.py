@@ -86,6 +86,31 @@ class ContinuousValueHead(hk.Module):
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (distrax.MultivariateNormalDiag(loc=logits), value)
 
+class Tabular(hk.Module):
+    def __init__(self, num_values: int):
+        super().__init__(name="Tabular")
+        self.chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
+        self.table_actor = jnp.zeros((9**4, num_values), dtype=jnp.int32)
+        self.table_critic = jnp.zeros((9**4, ), dtype=jnp.int32)
+        
+        def _input_to_index(inputs: jnp.ndarray):
+            idx = inputs.nonzero(size=4)[0]
+            idx = jnp.mod(idx, 9)
+            import pdb; pdb.set_trace()
+            idx = self.chunks * idx
+            idx = jnp.sum(idx)
+            return idx
+        
+        self.input_to_index = _input_to_index
+        
+    def __call__(self, inputs: jnp.ndarray):
+        index = self.input_to_index(inputs)
+        logits = self.table_actor[index]
+        value = self.table_critic[index]
+
+        return distrax.MultivariateNormalDiag(loc=logits), value
+
+
 
 class CNN(hk.Module):
     def __init__(self, args):
@@ -316,6 +341,22 @@ def make_GRU_coingame_network(num_actions: int, args):
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network, hidden_state
+
+def make_tabular_coingame_network(num_actions: int, args):
+    """Creates a hk network using the baseline hyperparameters from OpenAI"""
+
+    def forward_fn(inputs):
+        layers = []
+        layers.extend(
+            [
+                Tabular(num_values=num_actions),
+            ]
+        )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network    
 
 
 def test_GRU():
