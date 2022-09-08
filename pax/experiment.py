@@ -16,6 +16,8 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.evaluation_ipd import EvalRunnerIPD
+from pax.evaluation_cg import EvalRunnerCG
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.strategies import (
@@ -44,11 +46,12 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
-    os.makedirs(
-        save_dir,
-        exist_ok=True,
-    )
+    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
+    if not args.eval:
+        os.makedirs(
+            save_dir,
+            exist_ok=True,
+        )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -179,6 +182,14 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if args.eval:
+        print("eval loop")
+        if args.env_id == "ipd":
+            print("Eval IPD")
+            return EvalRunnerIPD(args)
+        elif args.env_id == "coin_game":
+            return EvalRunnerCG(args)
+
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
@@ -261,7 +272,7 @@ def runner_setup(args, agents, save_dir, logger):
 
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
-        return Runner(args)
+        return Runner(args, save_dir)
 
 
 def agent_setup(args, logger):
@@ -564,18 +575,20 @@ def main(args):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
     # num episodes
-    # total_num_ep = int(args.total_timesteps / args.num_steps)
-    # train_num_ep = int(args.eval_every / args.num_steps)
-    num_generations = args.num_generations
+    if args.evo:
+        num_iters = args.num_generations  # number of generations
+    else:
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+
     if not args.wandb.log:
         watchers = False
-    # for num_update in range(int(total_num_ep // train_num_ep)):
-    #     print(f"Update: {num_update+1}/{int(total_num_ep // train_num_ep)}")
-    #     print()
 
-    runner.train_loop(train_env, agent_pair, num_generations, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    if args.eval:
+        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+    else:
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
