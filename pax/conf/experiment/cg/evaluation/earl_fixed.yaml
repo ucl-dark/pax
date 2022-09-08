@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'PPO_memory'
+agent2: 'Random'
 
 # Environment
 env_id: coin_game
@@ -24,39 +24,6 @@ num_steps: 9600
 num_inner_steps: 16 
 run_path: ucl-dark/cg/3mpgbfm2
 model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
-
-# PPO agent parameters
-ppo:
-  num_minibatches: 8
-  num_epochs: 2 
-  gamma: 0.96
-  gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
-  max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.005
-  lr_scheduling: True
-  learning_rate: 0.005
-  adam_epsilon: 1e-5
-  with_memory: True
-  output_channels: 16
-  kernel_shape: [3, 3]
-  separate: True # only works with CNN
-  hidden_size: 16
-
-# Naive Learner parameters 
-naive:
-  num_minibatches: 8
-  num_epochs: 2
-  gamma: 0.96
-  gae_lambda: 0.95
-  max_gradient_norm: 0.5
-  learning_rate: 0.005
-  adam_epsilon: 1e-5
 
 # Logging setup
 wandb:
