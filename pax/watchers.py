@@ -1,4 +1,5 @@
 from functools import partial
+from typing import NamedTuple
 
 import chex
 from flax import linen as nn
@@ -374,3 +375,50 @@ class ESLog(object):
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         return fig, ax
+
+
+def ipd_visitation(traj, final_t) -> dict:
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+    # final_t [num_opps, num_envs, ...]
+    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+    # obs = [0, 1, 2, 3, 4], a = [0, 1]
+    # combine = [0, .... 9]
+    state_actions = 2 * jnp.argmax(traj.observations, axis=-1) + traj.actions
+    state_actions = jnp.reshape(
+        state_actions,
+        (num_timesteps,) + state_actions.shape[2:],
+    )
+    # assume final step taken is cooperate
+    final_obs = jax.lax.expand_dims(
+        2 * jnp.argmax(final_t.observation, axis=-1), [0]
+    )
+    state_actions = jnp.append(state_actions, final_obs, axis=0)
+    hist = jnp.bincount(state_actions.flatten(), length=10)
+    state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+    action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+    return {
+        "train/state_visitation/CC": state_freq[0],
+        "train/state_visitation/CD": state_freq[1],
+        "train/state_visitation/DC": state_freq[2],
+        "train/state_visitation/DD": state_freq[3],
+        "train/state_visitation/START": state_freq[4],
+        "train/cooperation_probability/CC": action_probs[0],
+        "train/cooperation_probability/CD": action_probs[1],
+        "train/cooperation_probability/DC": action_probs[2],
+        "train/cooperation_probability/DD": action_probs[3],
+        "train/cooperation_probability/START": action_probs[4],
+    }
+
+
+def cg_visitation(env_state: NamedTuple) -> dict:
+    total_1 = env_state.red_coop + env_state.red_defect
+    total_2 = env_state.blue_coop + env_state.blue_defect
+
+    prob_1 = env_state.red_coop / total_1
+    prob_2 = env_state.blue_coop / total_2
+    return {
+        "train/prob_coop/1": jnp.nanmean(prob_1),
+        "train/prob_coop/2": jnp.nanmean(prob_2),
+        "train/total_coins/1": total_1.mean(),
+        "train/total_coins/2": total_2.mean(),
+    }

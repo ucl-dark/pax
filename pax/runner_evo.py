@@ -8,10 +8,11 @@ from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
+from pax.utils import save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog
+from pax.watchers import ESLog, cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -49,32 +50,10 @@ class EvoRunner:
         self.top_k = args.top_k
         self.train_steps = 0
         self.train_episodes = 0
+        self.ipd_stats = jax.jit(ipd_visitation)
+        self.cg_stats = jax.jit(cg_visitation)
 
-        def _state_visitation(traj: Sample, final_t: TimeStep) -> List:
-            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
-            # final_t [num_opps, num_envs, ...]
-            num_timesteps = (
-                traj.observations.shape[0] * traj.observations.shape[1]
-            )
-            # obs = [0, 1, 2, 3, 4], a = [0, 1]
-            # combine = [0, .... 9]
-            state_actions = (
-                2 * jnp.argmax(traj.observations, axis=-1) + traj.actions
-            )
-            state_actions = jnp.reshape(
-                state_actions,
-                (num_timesteps,) + state_actions.shape[2:],
-            )
-            # assume final step taken is cooperate
-            final_obs = jax.lax.expand_dims(
-                2 * jnp.argmax(final_t.observation, axis=-1), [0]
-            )
-            state_actions = jnp.append(state_actions, final_obs, axis=0)
-            return jnp.bincount(state_actions.flatten(), length=10)
-
-        self.state_visitation = jax.jit(_state_visitation)
-
-    def train_loop(self, env, agents, num_episodes, watchers):
+    def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
         def _inner_rollout(carry, unused):
@@ -163,13 +142,13 @@ class EvoRunner:
 
         print("Training")
         print("------------------------------")
-        num_iters = max(
-            int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
-            1,
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-        print(f"Number of Generations: {num_iters}")
-        print(f"Number of Meta Episodes: {num_episodes}")
+        # num_iters = max(
+        #     int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
+        #     1,
+        # )
+        log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_generations}")
+        print(f"Number of Meta Episodes: {num_generations}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
@@ -180,7 +159,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
-        num_gens = num_episodes
+        num_gens = num_generations
         strategy = self.strategy
         es_params = self.es_params
         param_reshaper = self.param_reshaper
@@ -201,6 +180,9 @@ class EvoRunner:
             jax.vmap(env.batch_step),
         )
 
+        if self.args.env_type == "coin_game":
+            env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
+
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
@@ -214,7 +196,7 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        for gen in range(num_iters):
+        for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             t_init, env_state = env.runner_reset(
                 (popsize, num_opps, env.num_envs), rng_run
@@ -245,6 +227,7 @@ class EvoRunner:
             )
 
             traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
@@ -259,32 +242,41 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
             if log["gen_counter"] % 100 == 0:
-                if self.algo == "OpenES" or self.algo == "PGPE":
-                    jnp.save(
-                        os.path.join(
-                            self.save_dir,
-                            f"mean_param_{log['gen_counter']}.npy",
-                        ),
-                        evo_state.mean,
-                    )
-
-                es_logging.save(
-                    log,
-                    os.path.join(
+                    log_savepath = os.path.join(
                         self.save_dir, f"generation_{log['gen_counter']}"
-                    ),
-                )
-
-            # Calculate state visitations
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
-            )
-            visits = self.state_visitation(traj_1, final_t1)
-            states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
-            state_freq = states / states.sum()
-            action_probs = visits[::2] / states
+                    )
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0:1]
+                    )
+                    # remove batch dimension
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x.reshape(x.shape[1:]), top_params
+                    )
+                    save(top_params, log_savepath)
 
             if gen % log_interval == 0:
+                if self.args.env_type == "coin_game":
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.cg_stats(env_state)
+                    )
+                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
+                elif self.args.env_type in [
+                    "meta",
+                    "sequential",
+                ]:
+                    final_t1 = t1._replace(
+                        step_type=2 * jnp.ones_like(t1.step_type)
+                    )
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                    )
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
+                else:
+                    env_stats = {}
+
                 print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
@@ -292,8 +284,10 @@ class EvoRunner:
                 print(
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
-                print(f"State Visitation: {states}")
-                print(f"Cooperation Frequency: {action_probs}")
+                print(
+                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                )
+                print(f"Env Stats: {env_stats}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -314,7 +308,6 @@ class EvoRunner:
             self.generations += 1
 
             if watchers:
-
                 wandb_log = {
                     "generations": self.generations,
                     "train/fitness/player_1": float(fitness.mean()),
@@ -324,24 +317,17 @@ class EvoRunner:
                     "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
                     "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
                     "train/fitness/gen_std": log["log_gen_std"][gen],
-                    "train/state_visitation/CC": state_freq[0],
-                    "train/state_visitation/CD": state_freq[1],
-                    "train/state_visitation/DC": state_freq[2],
-                    "train/state_visitation/DD": state_freq[3],
-                    "train/state_visitation/START": state_freq[4],
-                    "train/cooperation_probability/CC": action_probs[0],
-                    "train/cooperation_probability/CD": action_probs[1],
-                    "train/cooperation_probability/DC": action_probs[2],
-                    "train/cooperation_probability/DD": action_probs[3],
-                    "train/cooperation_probability/START": action_probs[4],
                     "train/time/minutes": float(
                         (time.time() - self.start_time) / 60
                     ),
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                }
+                    "train/episode_reward/player_1": float(rewards_0.mean()),
+                    "train/episode_reward/player_2": float(rewards_1.mean()),
 
+                }
+                wandb_log = wandb_log | env_stats
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
                     zip(log["top_fitness"], log["top_gen_fitness"])

@@ -9,7 +9,11 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_GRU, make_GRU_cartpole_network
+from pax.ppo.networks import (
+    make_GRU_ipd_network,
+    make_GRU_cartpole_network,
+    make_GRU_coingame_network,
+)
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -77,7 +81,6 @@ class PPO:
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
             mem = mem._replace(hidden=hidden_state, extras=mem.extras)
-
             state = state._replace(random_key=key)
             return (
                 actions,
@@ -519,9 +522,16 @@ def make_gru_agent(
     # Network
     if args.env_id == "CartPole-v1":
         network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
-
+    elif args.env_id == "coin_game":
+        if args.ppo.with_cnn:
+            print(f"Making network for {args.env_id} with CNN")
+        else:
+            print(f"Making network for {args.env_id} without CNN")
+        network, initial_hidden_state = make_GRU_coingame_network(
+            action_spec, args
+        )
     else:
-        network, initial_hidden_state = make_GRU(action_spec)
+        network, initial_hidden_state = make_GRU_ipd_network(action_spec)
 
     gru_dim = initial_hidden_state.shape[1]
 

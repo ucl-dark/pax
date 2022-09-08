@@ -9,8 +9,12 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import make_cartpole_network, make_network
-from pax.utils import MemoryState, TrainingState, Logger
+from pax.ppo.networks import (
+    make_cartpole_network,
+    make_coingame_network,
+    make_ipd_network,
+)
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -62,6 +66,7 @@ class PPO:
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
             return actions, state, mem
 
@@ -83,11 +88,9 @@ class PPO:
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
-
             _value = jax.lax.expand_dims(_value, [0])
             _reward = jax.lax.expand_dims(t_prime.reward, [0])
             _done = jax.lax.expand_dims(_done, [0])
-
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
@@ -109,7 +112,6 @@ class PPO:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
-            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
@@ -123,7 +125,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                utils.get_advantages,
+                get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
@@ -133,7 +135,6 @@ class PPO:
             )
 
             advantages = jnp.flip(advantages, axis=0)
-
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -237,7 +238,6 @@ class PPO:
                 sample.dones,
             )
 
-            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
@@ -436,7 +436,6 @@ class PPO:
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
@@ -470,9 +469,11 @@ def make_agent(
 
     if args.env_id == "CartPole-v1":
         network = make_cartpole_network(action_spec)
-
+    elif args.env_id == "coin_game":
+        print(f"Making network for {args.env_id} with CNN")
+        network = make_coingame_network(action_spec, args)
     else:
-        network = make_network(action_spec)
+        network = make_ipd_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
