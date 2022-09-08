@@ -30,7 +30,6 @@ num_seeds: 10
 run_path: ucl-dark/cg/22slaxzq
 model_path: exp/coin_game-EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-08_20.28.07.107743/generation_10
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 ppo:
   num_minibatches: 8
