@@ -90,8 +90,8 @@ class Tabular(hk.Module):
     def __init__(self, num_values: int):
         super().__init__(name="Tabular")
         self.chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
-        self.table_actor = jnp.zeros((9**4, num_values), dtype=jnp.int32)
-        self.table_critic = jnp.zeros((9**4, ), dtype=jnp.int32)
+        self.table_actor = jnp.zeros((9**4, num_values))
+        self.table_critic = jnp.zeros((9**4, ))
         
         def _input_to_index(inputs: jnp.ndarray):
             idx = inputs.nonzero(size=4)[0]
