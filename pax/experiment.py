@@ -479,7 +479,8 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    if args.evo:
+    if args.evo and not args.eval:
+        logger.info("Using EvolutionaryLearners")
         return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
@@ -576,15 +577,17 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
-    if args.evo:
-        num_iters = args.num_generations  # number of generations
-    else:
-        num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-
     if not args.wandb.log:
         watchers = False
+
+    # If training, get the number of iterations to run
+    if not args.eval:
+        if args.evo:
+            num_iters = args.num_generations  # number of generations
+        else:
+            num_iters = int(
+                args.total_timesteps / args.num_steps
+            )  # number of episodes
 
     if args.eval:
         runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)

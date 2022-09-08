@@ -2,11 +2,11 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent2: 'Random'
 
 # Environment
 env_id: coin_game
-game: coin_game 
+game: ipd 
 env_type: coin_game
 coin_type: coin_meta
 env_discount: 0.96
@@ -18,13 +18,12 @@ eval: False
 
 # Training
 top_k: 1
-popsize: 128 #512
-num_envs: 50
+popsize: 64 #128 
+num_envs: 1 #50
 num_opps: 1
 num_steps: 9600
 num_inner_steps: 16 
 num_generations: 5000
-save_interval: 10
 
 # num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
@@ -82,6 +81,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: 'EARL-${agent1}-vs-${agent2}'
+  group: '${env_id}-EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
