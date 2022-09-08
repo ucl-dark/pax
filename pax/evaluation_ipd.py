@@ -52,6 +52,7 @@ class EvalRunnerIPD:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
+        # TODO: Remove this in favor of the one in watchers (which will be made more robust)
         def _state_visitation(
             observations: jnp.ndarray,
             actions: jnp.ndarray,

@@ -580,18 +580,18 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
+    # If evaluating, pass in the number of seeds you want to evaluate over
+    if args.eval:
+        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+
     # If training, get the number of iterations to run
-    if not args.eval:
+    else:
         if args.evo:
             num_iters = args.num_generations  # number of generations
         else:
             num_iters = int(
                 args.total_timesteps / args.num_steps
             )  # number of episodes
-
-    if args.eval:
-        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
-    else:
         runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
