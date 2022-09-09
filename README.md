@@ -129,4 +129,8 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 | `ipd/earl_nl_open`| `PPO_memory`| `Naive`| `Meta` | `Agent2: Naive -> ZD-Extortion` |
 | `ipd/earl_nl_pgpe`| `PPO_memory`| `Naive`| `Meta` | `Agent2: Naive -> TBD` |
 
-
+## Loading and Saving 
+1. All models trained using PAX by default are saved to the `exp` folder. 
+2a. If you have the model saved locally, specify `model_path = exp/...`. By default, Player 1 will be loaded with the parameters.  
+2b. If you do not have the weights saved locally, specify the wandb run `run_path={wandb-group}{wandb-project}{}` and `model_path = exp/...` player 1 will be loaded with the parameters. 
+3. In order to run evaluation, specify `eval: True` and evaluation for `num_seeds` iterations. 
