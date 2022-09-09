@@ -208,9 +208,7 @@ class EvalRunnerCG:
             print(
                 "--------------------------------------------------------------------------"
             )
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-            )
+            print(f"Mean Episode Reward: {float(rewards_0), float(rewards_1)}")
             print(f"Env Stats: {env_stats}")
             print(
                 "--------------------------------------------------------------------------"
@@ -219,17 +217,36 @@ class EvalRunnerCG:
                 "--------------------------------------------------------------------------"
             )
 
+            # trial rewards
+            for out_step in range(env.num_trials):
+                rewards_trial_mean_p1 = (
+                    traj_1.rewards[out_step].sum(axis=0).mean()
+                )
+                rewards_trial_mean_p2 = (
+                    traj_2.rewards[out_step].sum(axis=0).mean()
+                )
+                print(
+                    f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                )
+                if watchers:
+                    eval_trial_log = {
+                        "eval/trial": out_step + 1,
+                        f"eval/reward_trial_p1_opp_{i}": rewards_trial_mean_p1,
+                        f"eval/reward_trial_p2_opp_{i}": rewards_trial_mean_p2,
+                    }
+                    wandb.log(eval_trial_log)
+                # TODO: Add step rewards?
+
             if watchers:
                 wandb_log = {
-                    "num_seeds": self.num_seeds,
-                    "train/time/minutes": float(
+                    "eval/time/minutes": float(
                         (time.time() - self.start_time) / 60
                     ),
-                    "train/time/seconds": float(
+                    "eval/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                    "train/episode_reward/player_1": float(rewards_0.mean()),
-                    "train/episode_reward/player_2": float(rewards_1.mean()),
+                    "eval/episode_reward/player_1": rewards_0,
+                    "eval/episode_reward/player_2": rewards_1,
                 }
                 wandb_log = wandb_log | env_stats
 
@@ -248,5 +265,6 @@ class EvalRunnerCG:
                 )
                 agents.log(watchers)
                 wandb.log(wandb_log)
+            print()
 
         return agents

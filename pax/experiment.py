@@ -623,5 +623,6 @@ def main(args):
             )  # number of episodes
         runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
+
 if __name__ == "__main__":
     main()
