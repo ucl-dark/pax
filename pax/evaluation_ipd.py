@@ -268,6 +268,8 @@ class EvalRunnerIPD:
                 )
 
                 if watchers:
+                    # TODO: Replace this with trial_env_stats when you move the number of iterations outside
+                    # of the eval loop into experiments.py
                     wandb.log(
                         {
                             "eval/trial": out_step + 1,
@@ -345,6 +347,8 @@ class EvalRunnerIPD:
                 mean_rewards_p2 = mean_rewards_p2.at[opp_i, out_step].set(
                     rewards_trial_mean_p2
                 )
+                # TODO: Remove when you move the number of iterations outside
+                # of the eval loop into experiments.py
                 mean_visits = mean_visits.at[opp_i, out_step, :].set(
                     jnp.array(
                         [
