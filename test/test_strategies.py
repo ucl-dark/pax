@@ -211,10 +211,9 @@ def test_coin_chaser():
 
     agent = GreedyCoinChaser(4)
     a1 = agent._greedy_step(t1.observation[0])
-    # take a left
-    assert a1 == 1
+    # take a right
+    assert a1 == 0
 
-    print("akbir")
     # take a right
     a2 = agent._greedy_step(t2.observation[0])
     assert a2 == 0

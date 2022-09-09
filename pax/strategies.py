@@ -32,11 +32,18 @@ class GreedyCoinChaser:
 
             # [3, 3]
             # [3, 3]
+            agent_pos = obs[..., 0]
             agent_coin_pos = obs[..., 2]
             other_coin_pos = obs[..., 3]
 
             # find path to both sets of coins
-            agent_loc = jnp.array([1, 1])
+            x, y = jnp.divmod(jnp.argmax(agent_pos), 3)
+            agent_loc = jnp.array(
+                [
+                    x,
+                    y,
+                ]
+            )
             # assumes square grid
             x, y = jnp.divmod(jnp.argmax(agent_coin_pos), 3)
             agent_path = (

@@ -188,19 +188,29 @@ class CoinGame:
             # new_redcoin = (0, 0) + (-1, -1) = (-1, -1) mod3
             # new_redcoin = (2, 2)
 
-            agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
-            ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
+            # agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
+            # ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
 
-            rel_other_player = (state.blue_pos + ego_offset) % 3
-            rel_red_coin = (state.red_coin_pos + ego_offset) % 3
-            rel_blue_coin = (state.blue_coin_pos + ego_offset) % 3
+            # rel_other_player = (state.blue_pos + ego_offset) % 3
+            # rel_red_coin = (state.red_coin_pos + ego_offset) % 3
+            # rel_blue_coin = (state.blue_coin_pos + ego_offset) % 3
 
-            # create observation
+            # # create observation
+            # obs = jnp.zeros((3, 3, 4), dtype=jnp.int8)
+            # obs = obs.at[1, 1, 0].set(1)
+            # obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
+            # obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
+            # obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
+
             obs = jnp.zeros((3, 3, 4), dtype=jnp.int8)
-            obs = obs.at[1, 1, 0].set(1)
-            obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
-            obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
-            obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
+            obs = obs.at[state.red_pos[0], state.red_pos[1], 0].set(1)
+            obs = obs.at[state.blue_pos[0], state.blue_pos[1], 1].set(1)
+            obs = obs.at[state.red_coin_pos[0], state.red_coin_pos[1], 2].set(
+                1
+            )
+            obs = obs.at[
+                state.blue_coin_pos[0], state.blue_coin_pos[1], 3
+            ].set(1)
             return obs
 
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
@@ -259,8 +269,12 @@ class CoinGame:
             actions: Tuple[int, int], state: CoinGameState
         ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, CoinGameState]:
             action_0, action_1 = actions
-            new_red_pos = (state.red_pos + MOVES[action_0]) % 3
-            new_blue_pos = (state.blue_pos + MOVES[action_1]) % 3
+
+            new_red_pos = state.red_pos + MOVES[action_0]
+            new_blue_pos = state.blue_pos + MOVES[action_1]
+
+            new_red_pos = jnp.clip(new_red_pos, a_min=0, a_max=3)
+            new_blue_pos = jnp.clip(new_blue_pos, a_min=0, a_max=3)
 
             red_reward = 0
             blue_reward = 0
