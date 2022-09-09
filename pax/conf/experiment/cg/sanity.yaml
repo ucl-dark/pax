@@ -1,12 +1,12 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
-game: ipd 
+game: coin_game 
 env_type: coin_game
 coin_type: coin_sequential
 env_discount: 0.96
@@ -46,7 +46,7 @@ ppo:
   lr_scheduling: True
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
