@@ -423,8 +423,8 @@ def cg_visitation(env_state: NamedTuple) -> dict:
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
     return {
-        "train/prob_coop/1": jnp.nanmean(prob_1),
-        "train/prob_coop/2": jnp.nanmean(prob_2),
-        "train/total_coins/1": total_1.mean(),
-        "train/total_coins/2": total_2.mean(),
+        "prob_coop/1": jnp.nanmean(prob_1),
+        "prob_coop/2": jnp.nanmean(prob_2),
+        "total_coins/1": total_1.mean(),
+        "total_coins/2": total_2.mean(),
     }
