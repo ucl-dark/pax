@@ -234,3 +234,30 @@ def test_coingame_move():
     assert env.state.red_defect == 0
     assert env.state.blue_coop == 1
     assert env.state.blue_defect == 0
+
+
+def test_coingame_stay():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    t1, t2 = env.reset()
+
+    stay = 4 * jnp.ones(bs, dtype=int)
+    _state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[1, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[1, 2]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+    env.state = _state
+
+    t1, t2 = env.step((stay, stay))
+    assert (env.state.red_pos == _state.red_pos).all()
+    assert (env.state.blue_pos == _state.blue_pos).all()
+    assert env.state.inner_t != _state.inner_t
