@@ -179,7 +179,7 @@ def test_reset():
 
 def test_coingame_shapes():
     batch_size = 2
-    env = CoinGame(batch_size, 8, 16, 0, False)
+    env = CoinGame(batch_size, 8, 16, 5, False)
     action = jnp.ones(batch_size, dtype=int)
 
     t1, t2 = env.reset()
@@ -191,8 +191,6 @@ def test_coingame_shapes():
     assert t2.observation.shape == (batch_size, 36)
 
     t1, t2 = env.step((action, action))
-    assert (t1.reward == jnp.zeros(batch_size)).all()
-    assert (t2.reward == jnp.zeros(batch_size)).all()
     new_state = env.state
 
     assert (old_state.red_pos != new_state.red_pos).any()
@@ -209,7 +207,7 @@ def test_coingame_move():
         red_pos=jnp.array([[0, 0]]),
         blue_pos=jnp.array([[1, 0]]),
         red_coin_pos=jnp.array([[0, 2]]),
-        blue_coin_pos=jnp.array([[1, 2]]),
+        blue_coin_pos=jnp.array([[1, 1]]),
         key=env.state.key,
         inner_t=env.state.inner_t,
         outer_t=env.state.outer_t,
@@ -219,19 +217,25 @@ def test_coingame_move():
         blue_defect=jnp.zeros(1),
     )
 
-    t1, t2 = env.step((action, action))
-    assert t1.reward == 1
+    # a1 take a left, a2 take a right
+    t1, t2 = env.step((action, 0 * action))
+    assert t1.reward == 0
+    # hit a wall
+    assert (env.state.red_pos == jnp.array([0, 0])).all()
+
+    # get a coin
     assert t2.reward == 1
-    assert env.state.red_coop == 1
+    assert env.state.red_coop == 0
     assert env.state.red_defect == 0
     assert env.state.blue_coop == 1
     assert env.state.blue_defect == 0
 
     t1, t2 = env.step((action, action))
-    assert t1.reward == 0
-    assert t2.reward == 0
-    assert env.state.red_coop == 1
-    assert env.state.red_defect == 0
+    # seed means blue coin spawns on a1 location
+    assert t1.reward == 1
+    assert t2.reward == -2
+    assert env.state.red_coop == 0
+    assert env.state.red_defect == 1
     assert env.state.blue_coop == 1
     assert env.state.blue_defect == 0
 
@@ -257,7 +261,7 @@ def test_coingame_egocentric_colors():
         blue_defect=jnp.zeros(1),
     )
 
-    for _ in range(7):
+    for _ in range(16):
         t1, t2 = env.step((action, action))
         obs1, obs2 = t1.observation[0], t2.observation[0]
         # remove batch
@@ -265,66 +269,6 @@ def test_coingame_egocentric_colors():
         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
-
-    # here we reset the environment so expect these to break
-    t1, t2 = env.step((action, action))
-    obs1, obs2 = t1.observation[0], t2.observation[0]
-    assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
-    assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
-    assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
-    assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
-
-
-def test_coingame_egocentric_pos():
-    bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
-    action = jnp.ones(bs, dtype=int)
-    t1, t2 = env.reset()
-
-    env.state = CoinGameState(
-        red_pos=jnp.array([[1, 2]]),
-        blue_pos=jnp.array([[2, 2]]),
-        red_coin_pos=jnp.array([[2, 2]]),
-        blue_coin_pos=jnp.array([[0, 0]]),
-        key=env.state.key,
-        inner_t=env.state.inner_t,
-        outer_t=env.state.outer_t,
-        red_coop=jnp.zeros(1),
-        red_defect=jnp.zeros(1),
-        blue_coop=jnp.zeros(1),
-        blue_defect=jnp.zeros(1),
-    )
-    # it would be nice to have a stay action here lol
-    t1, t2 = env.step((action, action))
-
-    # takes left so red_pos = [1, 1], blue_pos = [2, 1]
-
-    obs1, obs2 = t1.observation[0], t2.observation[0]
-
-    expected_obs1 = jnp.array(
-        [
-            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent
-            [[0, 0, 0], [0, 0, 0], [0, 1, 0]],  # other agent
-            [[0, 0, 0], [0, 0, 0], [0, 0, 1]],  # agent coin
-            [[1, 0, 0], [0, 0, 0], [0, 0, 0]],  # other coin
-        ],
-        dtype=jnp.int8,
-    )
-    # channel last
-    expected_obs1 = jnp.transpose(expected_obs1, (1, 2, 0))
-    assert (expected_obs1 == obs1).all()
-
-    expected_obs2 = jnp.array(
-        [
-            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent
-            [[0, 1, 0], [0, 0, 0], [0, 0, 0]],  # other agent
-            [[0, 0, 0], [0, 0, 0], [1, 0, 0]],  # agent coin
-            [[0, 0, 0], [0, 0, 1], [0, 0, 0]],  # other coin
-        ],
-        dtype=jnp.int8,
-    )
-    expected_obs2 = jnp.transpose(expected_obs2, (1, 2, 0))
-    assert (expected_obs2 == obs2).all()
 
 
 def test_coingame_stay():
