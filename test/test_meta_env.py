@@ -236,6 +236,35 @@ def test_coingame_move():
     assert env.state.blue_defect == 0
 
 
+def test_coingame_egocentric():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[1, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[1, 2]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+
+    for _ in range(16):
+        t1, t2 = env.step((action, action))
+        obs1, obs2 = t1.observation[0], t2.observation[0]
+        # remove batch
+        assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+        assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+        assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+        assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+
 def test_coingame_stay():
     bs = 1
     env = CoinGame(bs, 8, 16, 0, True)
