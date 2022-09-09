@@ -238,31 +238,16 @@ class EvalRunnerCG:
                 # TODO: Add step rewards?
 
             if watchers:
-                wandb_log = {}
-                if self.args.eval:
-                    eval_log = {
-                        "eval/time/minutes": float(
-                            (time.time() - self.start_time) / 60
-                        ),
-                        "eval/time/seconds": float(
-                            (time.time() - self.start_time)
-                        ),
-                        "eval/episode_reward/player_1": rewards_0,
-                        "eval/episode_reward/player_2": rewards_1,
-                    }
-                    wandb_log = wandb_log | eval_log
-                else:
-                    train_log = {
-                        "train/time/minutes": float(
-                            (time.time() - self.start_time) / 60
-                        ),
-                        "train/time/seconds": float(
-                            (time.time() - self.start_time)
-                        ),
-                        "train/episode_reward/player_1": float(rewards_0),
-                        "train/episode_reward/player_2": float(rewards_1),
-                    }
-                    wandb_log = wandb_log | train_log
+                wandb_log = {
+                    "eval/time/minutes": float(
+                        (time.time() - self.start_time) / 60
+                    ),
+                    "eval/time/seconds": float(
+                        (time.time() - self.start_time)
+                    ),
+                    "eval/episode_reward/player_1": rewards_0,
+                    "eval/episode_reward/player_2": rewards_1,
+                }
                 wandb_log = wandb_log | env_stats
 
                 # player 2 metrics
