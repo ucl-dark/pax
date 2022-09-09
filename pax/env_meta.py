@@ -159,6 +159,7 @@ MOVES = jnp.array(
         [0, -1],  # left
         [1, 0],  # up
         [-1, 0],  # down
+        [0, 0],  # stay
     ]
 )
 
@@ -440,4 +441,4 @@ class CoinGame:
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(num_values=4, name="actions")
+        return specs.DiscreteArray(num_values=5, name="actions")

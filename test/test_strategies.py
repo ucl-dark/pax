@@ -189,9 +189,9 @@ def test_coin_chaser():
     t1, t2 = env.reset()
     env.state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),
-        blue_pos=jnp.array([[1, 0]]),
+        blue_pos=jnp.array([[2, 0]]),
         red_coin_pos=jnp.array([[0, 2]]),
-        blue_coin_pos=jnp.array([[1, 2]]),
+        blue_coin_pos=jnp.array([[2, 1]]),
         key=env.state.key,
         inner_t=env.state.inner_t,
         outer_t=env.state.outer_t,
@@ -201,6 +201,20 @@ def test_coin_chaser():
         blue_defect=jnp.zeros(1),
     )
 
-    agent1 = GreedyCoinChaser(4)
-    a1 = agent1.select_action(t1)
-    assert a1 == 4
+    #  r 0 rc
+    #  0 0 0
+    #  b bc 0
+    # update locations (agent 1: [0, 0] agent 2: [2, 1])
+    t1, t2 = env.step(
+        (4 * jnp.ones(bs, dtype=jnp.int8), 4 * jnp.ones(bs, dtype=jnp.int8))
+    )
+
+    agent = GreedyCoinChaser(4)
+    a1 = agent._greedy_step(t1.observation[0])
+    # take a left
+    assert a1 == 1
+
+    print("akbir")
+    # take a right
+    a2 = agent._greedy_step(t2.observation[0])
+    assert a2 == 0
