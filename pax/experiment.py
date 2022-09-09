@@ -617,7 +617,28 @@ def main(args):
         runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 
     # If training, get the number of iterations to run
+
     else:
+        # Lets do some warm ups
+        print("WarmUps")
+        import copy
+
+        agent1_fresh = copy.deepcopy(agent_pair.agents[0]._state)
+
+        dummy_pair = IndependentLearners([Random(5), Random(5)], args)
+        agent_pair.agents[1], dummy_pair.agents[1] = (
+            dummy_pair.agents[1],
+            agent_pair.agents[1],
+        )
+        runner.train_loop(train_env, agent_pair, 1000, watchers)
+
+        print("WarmUps Complete")
+        agent_pair.agents[0]._state = agent_pair.agents[0]._state._replace(
+            opt_state=agent1_fresh.opt_state,
+            random_key=agent1_fresh.random_key,
+        )
+        agent_pair.agents[1] = dummy_pair.agents[1]
+
         if args.evo:
             num_iters = args.num_generations  # number of generations
         else:

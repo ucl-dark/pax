@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
+agent1: 'PPO_memory'
 agent2: 'Greedy'
 
 # Environment
@@ -17,7 +17,7 @@ evo: False
 eval: False 
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 250
+num_envs: 500
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
@@ -41,21 +41,21 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_horizon: 1.2e8
   entropy_coeff_end: 0.005
   lr_scheduling: True
-  learning_rate: 0.01 #0.05
+  learning_rate: 3e-4
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
-  hidden: 16 #50
+  hidden_size: 16 #50
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: 'sanity-${agent1}-vs-${agent2}-parity'
+  group: 'greedy-warm-start-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
