@@ -416,7 +416,7 @@ def ipd_visitation(
     }
 
 
-def cg_visitation(env_state: NamedTuple) -> dict:
+def cg_visitation(env_state: NamedTuple, num_trials: int) -> dict:
     total_1 = env_state.red_coop + env_state.red_defect
     total_2 = env_state.blue_coop + env_state.blue_defect
 
@@ -427,4 +427,6 @@ def cg_visitation(env_state: NamedTuple) -> dict:
         "prob_coop/2": jnp.nanmean(prob_2),
         "total_coins/1": total_1.mean(),
         "total_coins/2": total_2.mean(),
+        "coins_per_episode/1": total_1.mean() / num_trials,
+        "coins_per_episode/2": total_2.mean() / num_trials,
     }
