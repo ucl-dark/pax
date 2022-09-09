@@ -332,7 +332,7 @@ def agent_setup(args, logger):
 
         return ppo_agent
 
-    def get_PPO_table_agent(seed, player_id):
+    def get_PPO_tabular_agent(seed, player_id):
         # dummy environment to get observation and action spec
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
@@ -344,7 +344,7 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError("PPO Table agent only works on Coin Game.")
+            raise NotImplementedError("PPO Tabular agent only works on Coin Game.")
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -467,7 +467,7 @@ def agent_setup(args, logger):
         "HyperAltruistic": HyperAltruistic,
         "HyperDefect": HyperDefect,
         "HyperTFT": HyperTFT,
-        "Table": get_PPO_table_agent,
+        "Tabular": get_PPO_tabular_agent,
     }
 
     assert args.agent1 in strategies
@@ -565,7 +565,7 @@ def watcher_setup(args, logger):
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
-        "Table":ppo_log,
+        "Tabular":ppo_log,
     }
 
     assert args.agent1 in strategies

@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'Tabular'
 
 # Environment
 env_id: coin_game
@@ -45,11 +45,11 @@ ppo:
   lr_scheduling: True
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
-  hidden: 16 #50
+  hidden_size: 16 #50
 
 naive:
   num_minibatches: 8

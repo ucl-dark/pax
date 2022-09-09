@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'PPO_memory'
+agent2: 'Tabular'
 
 # Environment
 env_id: coin_game
@@ -17,7 +17,7 @@ evo: True
 
 # Training
 top_k: 1
-popsize: 128 #512
+popsize: 64 #512
 num_envs: 50
 num_opps: 1
 num_steps: 9600
@@ -82,4 +82,4 @@ wandb:
   project: cg
   group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

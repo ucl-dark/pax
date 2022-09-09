@@ -88,27 +88,38 @@ class ContinuousValueHead(hk.Module):
 
 class Tabular(hk.Module):
     def __init__(self, num_values: int):
-        super().__init__(name="Tabular")
+        super().__init__(name='Tabular')
         self.chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
-        self.table_actor = jnp.zeros((9**4, num_values))
-        self.table_critic = jnp.zeros((9**4, ))
-        
-        def _input_to_index(inputs: jnp.ndarray):
+
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+
+        def _input_to_onehot(inputs: jnp.ndarray):
+            inputs = jnp.zeros_like(inputs)
             idx = inputs.nonzero(size=4)[0]
             idx = jnp.mod(idx, 9)
-            import pdb; pdb.set_trace()
             idx = self.chunks * idx
             idx = jnp.sum(idx)
-            return idx
+            inputs = inputs.at[idx].set(1)
+            return inputs
         
-        self.input_to_index = _input_to_index
+        
+        self.input_to_onehot = _input_to_onehot
         
     def __call__(self, inputs: jnp.ndarray):
-        index = self.input_to_index(inputs)
-        logits = self.table_actor[index]
-        value = self.table_critic[index]
+        inputs = self.input_to_onehot(inputs)
+        logits = self._logit_layer(inputs)
+        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
 
-        return distrax.MultivariateNormalDiag(loc=logits), value
+        return (distrax.Categorical(logits=logits), value)
 
 
 
