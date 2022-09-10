@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'PPO_memory_pretrained'
 agent2: 'PPO_memory'
 
 # Environment
@@ -17,11 +17,12 @@ evo: False
 eval: False 
 
 # Training
-num_envs: 200
+num_envs: 20000
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
 num_generations: 10000
+total_timesteps: 6.4e6
 save_interval: 100 
 
 # Evaluation 
@@ -39,12 +40,12 @@ ppo:
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
+  anneal_entropy: False
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 0.6e8
   entropy_coeff_end: 0.005
-  lr_scheduling: True
-  learning_rate: 0.01 #0.05
+  lr_scheduling: False
+  learning_rate: 0.005 #0.05
   adam_epsilon: 1e-5
   with_memory: True
   output_channels: 16

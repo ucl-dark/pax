@@ -21,6 +21,7 @@ from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
+from pax.runner_rl_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -275,8 +276,12 @@ def runner_setup(args, agents, save_dir, logger):
         logger.info("Training with EvoRunner")
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
-        logger.info("Training with Runner")
-        return Runner(args, save_dir)
+        if args.agent1 == 'PPO_memory_pretrained' or args.agent1 == 'PPO_pretrained':
+            logger.info("Training with Runner")
+            return RunnerPretrained(args, save_dir)
+        else:            
+            logger.info("Training with Runner")
+            return Runner(args, save_dir)
 
 
 # flake8: noqa: C901
@@ -470,7 +475,9 @@ def agent_setup(args, logger):
         "Stay": get_stay_agent,
         "Grim": GrimTrigger,
         "PPO": get_PPO_agent,
+        "PPO_pretrained": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
+        "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
@@ -570,6 +577,8 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
+        "PPO_pretrained": ppo_log,
+        "PPO_memory_pretrained": ppo_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
