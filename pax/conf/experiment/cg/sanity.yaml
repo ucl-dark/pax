@@ -22,7 +22,7 @@ num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
 num_generations: 10000
-total_timesteps: 6.4e6
+total_timesteps: 6.4e5
 save_interval: 100 
 
 # Evaluation 
