@@ -430,7 +430,7 @@ def agent_setup(args, logger):
                 .num_values
             )
 
-        random_agent = Random(num_actions)
+        random_agent = Random(num_actions, args.num_envs)
         random_agent.player_id = player_id
         return random_agent
 
