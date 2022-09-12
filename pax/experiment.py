@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import partial
 import logging
 import os
 
@@ -462,22 +463,22 @@ def agent_setup(args, logger):
         return agent
 
     strategies = {
-        "TitForTat": TitForTat,
-        "Defect": Defect,
-        "Altruistic": Altruistic,
+        "TitForTat": partial(TitForTat, args.num_envs),
+        "Defect": partial(Defect, args.nums_envs),
+        "Altruistic": partial(Altruistic, args.num_envs),
         "Human": Human,
         "Random": get_random_agent,
         "Stay": get_stay_agent,
-        "Grim": GrimTrigger,
+        "Grim": partial(GrimTrigger, args.num_envs),
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
-        "HyperAltruistic": HyperAltruistic,
-        "HyperDefect": HyperDefect,
-        "HyperTFT": HyperTFT,
+        "HyperAltruistic": partial(HyperAltruistic, args.num_envs),
+        "HyperDefect": partial(HyperDefect, args.num_envs),
+        "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
     assert args.agent1 in strategies
