@@ -127,3 +127,9 @@ def save(log: chex.ArrayTree, filename: str):
     """Save different parts of logger in .pkl file."""
     with open(filename, "wb") as handle:
         pickle.dump(log, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def load(filename: str):
+    """Reload the pickle logger and return dictionary."""
+    with open(filename, "rb") as handle:
+        es_logger = pickle.load(handle)
+    return es_logger

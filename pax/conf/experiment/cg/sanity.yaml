@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
+agent1: 'PPO_memory_pretrained'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
@@ -19,14 +19,17 @@ num_envs: 25
 num_opps: 1
 num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps
-# total_timesteps: 1.2e8
+total_timesteps: 1.2e6
 # eval_every: 1.2e8 # timesteps 
-num_generations: 10000
+# num_generations: 10000
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
 # num_updates = num_episodes / eval_every
 # train_batch_size = num_envs * num_opponents * num_steps
+
+run_path: ucl-dark/cg/1fz9wvpy
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-12_15:11:33.672908/generation_0
 
 # PPO agent parameters
 ppo:
@@ -38,18 +41,18 @@ ppo:
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
+  anneal_entropy: False
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 0.6e8
   entropy_coeff_end: 0.005
-  lr_scheduling: True
+  lr_scheduling: False
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
-  hidden: 16 #50
+  hidden_size: 16 #50
 
 naive:
   num_minibatches: 8

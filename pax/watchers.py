@@ -410,15 +410,17 @@ def ipd_visitation(traj, final_t) -> dict:
     }
 
 
-def cg_visitation(env_state: NamedTuple) -> dict:
+def cg_visitation(env_state: NamedTuple, num_trials: int) -> dict:
     total_1 = env_state.red_coop + env_state.red_defect
     total_2 = env_state.blue_coop + env_state.blue_defect
 
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
     return {
-        "train/prob_coop/1": jnp.nanmean(prob_1),
-        "train/prob_coop/2": jnp.nanmean(prob_2),
-        "train/total_coins/1": total_1.mean(),
-        "train/total_coins/2": total_2.mean(),
+        "prob_coop/1": jnp.nanmean(prob_1),
+        "prob_coop/2": jnp.nanmean(prob_2),
+        "total_coins/1": total_1.mean(),
+        "total_coins/2": total_2.mean(),
+        "coins_per_episode/1": total_1.mean() / num_trials,
+        "coins_per_episode/2": total_2.mean() / num_trials,
     }
