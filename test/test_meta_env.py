@@ -96,7 +96,7 @@ def test_tit_for_tat_match() -> None:
     env = MetaFiniteGame(num_envs, payoff, 5, 10)
     t_0, t_1 = env.reset()
 
-    tit_for_tat = TitForTat()
+    tit_for_tat = TitForTat(num_envs)
 
     action_0 = tit_for_tat.select_action(t_0)
     action_1 = tit_for_tat.select_action(t_1)
@@ -114,7 +114,7 @@ def test_longer_game() -> None:
     env = MetaFiniteGame(num_envs, payoff, num_inner_steps, num_steps)
     t_0, t_1 = env.reset()
 
-    agent = TitForTat()
+    agent = TitForTat(num_envs)
     action = agent.select_action(t_0)
 
     r1 = []
