@@ -311,25 +311,31 @@ class CoinGame:
             # if inner episode is done, return start state for next game
             new_ep_outputs, new_ep_state = _reset(state.key)
             new_ep_state = new_ep_state._replace(
-                outer_t=new_ep_state.outer_t + 1
+                outer_t=next_state.outer_t + 1
             )
 
             next_state = CoinGameState(
-                jnp.where(done, new_ep_state.red_pos, next_state.red_pos),
-                jnp.where(done, new_ep_state.blue_pos, next_state.blue_pos),
-                jnp.where(
+                red_pos=jnp.where(
+                    done, new_ep_state.red_pos, next_state.red_pos
+                ),
+                blue_pos=jnp.where(
+                    done, new_ep_state.blue_pos, next_state.blue_pos
+                ),
+                red_coin_pos=jnp.where(
                     done, new_ep_state.red_coin_pos, next_state.red_coin_pos
                 ),
-                jnp.where(
+                blue_coin_pos=jnp.where(
                     done, new_ep_state.blue_coin_pos, next_state.blue_coin_pos
                 ),
-                key,
-                jnp.where(done, jnp.zeros_like(inner_t), next_state.inner_t),
-                jnp.where(done, outer_t + 1, outer_t),
-                next_state.red_coop,
-                next_state.red_defect,
-                next_state.blue_coop,
-                next_state.blue_defect,
+                key=key,
+                inner_t=jnp.where(
+                    done, jnp.zeros_like(inner_t), next_state.inner_t
+                ),
+                outer_t=jnp.where(done, outer_t + 1, outer_t),
+                red_coop=next_state.red_coop,
+                red_defect=next_state.red_defect,
+                blue_coop=next_state.blue_coop,
+                blue_defect=next_state.blue_defect,
             )
 
             obs1 = jnp.where(done, new_ep_outputs[0].observation, obs1)

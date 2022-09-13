@@ -17,10 +17,10 @@ evo: False
 eval: False 
 
 # Training
-num_envs: 200
+num_envs: 10000
 num_opps: 1
-num_steps: 16 
-num_inner_steps: 16 
+num_steps: 64 
+num_inner_steps: 64 
 total_timesteps: 1.2e8
 num_generations: 10000
 save_interval: 100 
@@ -43,7 +43,7 @@ ppo:
   anneal_entropy: True
   entropy_coeff_start: 0.2
   entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.005
+  entropy_coeff_end: 0.01
   lr_scheduling: True
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
@@ -57,6 +57,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: '$Sanity-${agent1}-vs-${agent2}-parity'
+  group: 'Sanity-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
