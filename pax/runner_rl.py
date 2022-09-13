@@ -207,6 +207,7 @@ class Runner:
             # logging
             self.train_episodes += 1
             if i % log_interval == 0:
+                print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(),

@@ -276,10 +276,13 @@ def runner_setup(args, agents, save_dir, logger):
         logger.info("Training with EvoRunner")
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
     else:
-        if args.agent1 == 'PPO_memory_pretrained' or args.agent1 == 'PPO_pretrained':
-            logger.info("Training with Runner")
+        if (
+            args.agent1 == "PPO_memory_pretrained"
+            or args.agent1 == "PPO_pretrained"
+        ):
+            logger.info("Training with RunnerPretrained")
             return RunnerPretrained(args, save_dir)
-        else:            
+        else:
             logger.info("Training with Runner")
             return Runner(args, save_dir)
 
@@ -630,6 +633,7 @@ def main(args):
             num_iters = int(
                 args.total_timesteps / args.num_steps
             )  # number of episodes
+            print(f"Number of episodes: {num_iters}")
         runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
