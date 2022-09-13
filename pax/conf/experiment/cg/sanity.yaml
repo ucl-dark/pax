@@ -17,11 +17,11 @@ evo: False
 eval: False 
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 200
+num_envs: 1
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
-num_generations: 10000
+total_timesteps: 1e5
 save_interval: 100 
 
 # Evaluation 
