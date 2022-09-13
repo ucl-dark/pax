@@ -495,6 +495,39 @@ def agent_setup(args, logger):
         agent.player_id = player_id
         return agent
 
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=True,
+            tabular=True,
+        )
+
+        return ppo_agent
+
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
@@ -506,6 +539,7 @@ def agent_setup(args, logger):
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
+        "Tabular": get_PPO_tabular_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
