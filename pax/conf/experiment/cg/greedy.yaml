@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'Greedy'
+agent2: 'GoodGreedy'
 
 # Environment
 env_id: coin_game
