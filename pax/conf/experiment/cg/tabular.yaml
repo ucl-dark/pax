@@ -6,7 +6,6 @@ agent2: 'Random'
 
 # Environment
 env_id: coin_game
-game: ipd 
 env_type: coin_game
 coin_type: coin_sequential
 env_discount: 0.96
