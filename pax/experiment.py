@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import partial
 import logging
 import os
 
@@ -9,11 +10,14 @@ import hydra
 import omegaconf
 import wandb
 
+
+from pax.env_inner import InfiniteMatrixGame
 from pax.env_inner import SequentialMatrixGame
+from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.evaluation_ipd import EvalRunnerIPD
+from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
-from pax.env_inner import InfiniteMatrixGame
-from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
@@ -25,12 +29,15 @@ from pax.runner_rl_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
+    EvilGreedy,
+    GoodGreedy,
     GrimTrigger,
     Human,
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
     Random,
+    Stay,
     TitForTat,
 )
 from pax.utils import Section, load
@@ -48,11 +55,12 @@ from pax.watchers import (
 
 def global_setup(args):
     """Set up global variables."""
-    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_')}"
-    os.makedirs(
-        save_dir,
-        exist_ok=True,
-    )
+    save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
+    if not args.eval:
+        os.makedirs(
+            save_dir,
+            exist_ok=True,
+        )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -183,6 +191,14 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if args.eval:
+        if args.env_id == "ipd":
+            logger.info("Evaluating with EvalRunnerIPD")
+            return EvalRunnerIPD(args)
+        elif args.env_id == "coin_game":
+            logger.info("Evaluating with EvalRunnerCG")
+            return EvalRunnerCG(args)
+
     if args.evo:
         agent1, _ = agents.agents
         algo = args.es.algo
@@ -274,20 +290,23 @@ def runner_setup(args, agents, save_dir, logger):
                 args, strategy, es_params, param_reshaper, save_dir
             )
     else:
-        if args.agent1 == 'PPO_memory_pretrained' or args.agent1 == 'PPO_pretrained':
+        if (
+            args.agent1 == "PPO_memory_pretrained"
+            or args.agent1 == "PPO_pretrained"
+        ):
             logger.info("Training with Runner")
             return RunnerPretrained(args, save_dir)
-        else:            
+        else:
             logger.info("Training with Runner")
             return Runner(args, save_dir)
 
 
+# flake8: noqa: C901
 def agent_setup(args, logger):
     """Set up agent variables."""
 
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
-
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
@@ -346,6 +365,39 @@ def agent_setup(args, logger):
             seed=seed,
             player_id=player_id,
             has_sgd_jit=has_sgd_jit,
+        )
+
+        return ppo_agent
+
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+            tabular=True,
         )
 
         return ppo_agent
@@ -411,7 +463,6 @@ def agent_setup(args, logger):
         )
         return agent
 
-    # flake8: noqa: C901
     def get_random_agent(seed, player_id):
         if args.env_type == "coin_game":
             num_actions = (
@@ -434,34 +485,98 @@ def agent_setup(args, logger):
                 .num_values
             )
 
-        random_agent = Random(num_actions)
+        random_agent = Random(num_actions, args.num_envs)
         random_agent.player_id = player_id
         return random_agent
 
+    # flake8: noqa: C901
+    def get_stay_agent(seed, player_id):
+        if args.env_type == "coin_game":
+            num_actions = (
+                CoinGame(
+                    args.num_envs,
+                    args.num_steps,
+                    args.num_steps,
+                    0,
+                    args.ppo.with_cnn,
+                )
+                .action_spec()
+                .num_values
+            )
+        else:
+            num_actions = (
+                SequentialMatrixGame(
+                    args.num_envs, args.payoff, args.num_steps
+                )
+                .action_spec()
+                .num_values
+            )
+
+        agent = Stay(num_actions)
+        agent.player_id = player_id
+        return agent
+
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=True,
+            tabular=True,
+        )
+
+        return ppo_agent
+
     strategies = {
-        "TitForTat": TitForTat,
-        "Defect": Defect,
-        "Altruistic": Altruistic,
+        "TitForTat": partial(TitForTat, args.num_envs),
+        "Defect": partial(Defect, args.num_envs),
+        "Altruistic": partial(Altruistic, args.num_envs),
         "Human": Human,
         "Random": get_random_agent,
-        "Grim": GrimTrigger,
+        "Stay": get_stay_agent,
+        "Grim": partial(GrimTrigger, args.num_envs),
+        "GoodGreedy": partial(GoodGreedy, args.num_envs),
+        "EvilGreedy": partial(EvilGreedy, args.num_envs),
         "PPO": get_PPO_agent,
+        "PPO_pretrained": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "PPO_pretrained": get_PPO_agent,
         "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
+        "Tabular": get_PPO_tabular_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
-        "HyperAltruistic": HyperAltruistic,
-        "HyperDefect": HyperDefect,
-        "HyperTFT": HyperTFT,
+        "HyperAltruistic": partial(HyperAltruistic, args.num_envs),
+        "HyperDefect": partial(HyperDefect, args.num_envs),
+        "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
     assert args.agent1 in strategies
     assert args.agent2 in strategies
 
-    # TODO: Is there a better way to start agents with different seeds?
     num_agents = 2
     seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
     # Create Player IDs by normalizing seeds to 1, 2 respectively
@@ -486,7 +601,8 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    if args.evo:
+    if args.evo and not args.eval:
+        logger.info("Using EvolutionaryLearners")
         return EvolutionaryLearners([agent_0, agent_1], args)
     return IndependentLearners([agent_0, agent_1], args)
 
@@ -544,9 +660,14 @@ def watcher_setup(args, logger):
         "Altruistic": dumb_log,
         "Human": dumb_log,
         "Random": dumb_log,
+        "Stay": dumb_log,
         "Grim": dumb_log,
+        "GoodGreedy": dumb_log,
+        "EvilGreedy": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
+        "PPO_pretrained": ppo_log,
+        "PPO_memory_pretrained": ppo_log,
         "PPO_pretrained": ppo_log,
         "PPO_memory_pretrained": ppo_log,
         "Naive": naive_pg_log,
@@ -555,6 +676,7 @@ def watcher_setup(args, logger):
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
+        "Tabular": ppo_log,
     }
 
     assert args.agent1 in strategies
@@ -585,16 +707,23 @@ def main(args):
     with Section("Runner setup", logger=logger):
         runner = runner_setup(args, agent_pair, save_dir, logger)
 
-    # num episodes
-    # total_num_ep = int(args.total_timesteps / args.num_steps)
-    # train_num_ep = int(args.eval_every / args.num_steps)
-    num_generations = args.num_generations
     if not args.wandb.log:
         watchers = False
 
-    runner.train_loop(train_env, agent_pair, num_generations, watchers)
-    # TODO: Remove fully in evaluation PR
-    # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    # If evaluating, pass in the number of seeds you want to evaluate over
+    if args.eval:
+        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+
+    # If training, get the number of iterations to run
+    else:
+        if args.evo:
+            num_iters = args.num_generations  # number of generations
+        else:
+            num_iters = int(
+                args.total_timesteps / args.num_steps
+            )  # number of episodes
+            print(f"Number of episodes: {num_iters}")
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":

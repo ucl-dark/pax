@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Mapping, NamedTuple, Tuple
+from typing import Callable, Mapping, NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
@@ -11,16 +11,237 @@ from pax.utils import MemoryState, TrainingState, Logger
 # actions are cooperate = 0 or defect = 1
 
 
-def make_initial_state(key, hidden):
-    return TrainingState(None, None, jax.random.PRNGKey(0), None), MemoryState(
-        jnp.ones(1), {"log_probs": None, "values": None}
-    )
+def initial_state_fun(num_envs: int) -> Callable:
+    def fun(key, hidden):
+        return (
+            TrainingState(None, None, jax.random.PRNGKey(0), None),
+            MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+            ),
+        )
+
+    return fun
+
+
+def reset_mem_fun(num_envs: int) -> Callable:
+    def fun(memory, eval=False):
+        memory = memory._replace(
+            extras={
+                "values": jnp.zeros(1 if eval else num_envs),
+                "log_probs": jnp.zeros(1 if eval else num_envs),
+            },
+        )
+        return memory
+
+    return fun
+
+
+class EvilGreedy:
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self.reset_memory = reset_mem_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+
+        def _greedy_step(obs):
+            """do this for a single obs and then vmap"""
+            # reshape so that obs is no longer flattened
+            obs = obs.reshape(3, 3, 4)
+
+            # [3, 3]
+            # [3, 3]
+            agent_coin_pos = obs[..., 2]
+            other_coin_pos = obs[..., 3]
+
+            # find path to both sets of coins
+            agent_loc = jnp.array([1, 1])
+            # assumes square grid
+            x, y = jnp.divmod(jnp.argmax(agent_coin_pos), 3)
+            agent_path = (
+                jnp.array(
+                    [
+                        x,
+                        y,
+                    ]
+                )
+                - agent_loc
+            )
+            x, y = jnp.divmod(jnp.argmax(other_coin_pos), 3)
+            other_path = jnp.array([x, y]) - agent_loc
+
+            agent_path_length = jnp.sum(jnp.abs(agent_path))
+            other_path_length = jnp.sum(jnp.abs(other_path))
+            path = jnp.where(
+                agent_path_length < other_path_length, agent_path, other_path
+            )
+
+            stay = (jnp.array([0, 0]) == path).all()
+            right = (jnp.array([0, 1]) == path).all()
+            left = (jnp.array([0, -1]) == path).all()
+            up = (jnp.array([1, 0]) == path).all()
+            down = (jnp.array([-1, 0]) == path).all()
+
+            ur = (jnp.array([1, 1]) == path).all()
+            ul = (jnp.array([1, -1]) == path).all()
+            dr = (jnp.array([-1, 1]) == path).all()
+            dl = (jnp.array([-1, -1]) == path).all()
+
+            action = 0  # default right
+            action = jax.lax.select(stay, 4, action)
+            action = jax.lax.select(right, 0, action)
+            action = jax.lax.select(left, 1, action)
+            action = jax.lax.select(up, 2, action)
+            action = jax.lax.select(down, 3, action)
+
+            # ul -> l ur -> u,  dl -> d, dr -> r,
+            action = jax.lax.select(ur, 2, action)
+            action = jax.lax.select(ul, 1, action)
+            action = jax.lax.select(dr, 0, action)
+            action = jax.lax.select(dl, 3, action)
+            return action
+
+        self._greedy_step = _greedy_step
+        greedy_step = jax.vmap(_greedy_step)
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+
+            return greedy_step(obs), state, mem
+
+        self._policy = _policy
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        action, self._state, self._mem = self._policy(
+            self._state, timestep.observation, self._mem
+        )
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
+
+class GoodGreedy:
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self.reset_memory = reset_mem_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+
+        def _greedy_step(obs):
+            """do this for a single obs and then vmap"""
+            # reshape so that obs is no longer flattened
+            obs = obs.reshape(3, 3, 4)
+
+            # [3, 3]
+            # [3, 3]
+            agent_coin_pos = obs[..., 2]
+            other_coin_pos = obs[..., 3]
+
+            # find path to both sets of coins
+            agent_loc = jnp.array([1, 1])
+            # assumes square grid
+            x, y = jnp.divmod(jnp.argmax(agent_coin_pos), 3)
+            agent_path = (
+                jnp.array(
+                    [
+                        x,
+                        y,
+                    ]
+                )
+                - agent_loc
+            )
+            x, y = jnp.divmod(jnp.argmax(other_coin_pos), 3)
+            other_path = jnp.array([x, y]) - agent_loc
+
+            agent_path_length = jnp.sum(jnp.abs(agent_path))
+            other_path_length = jnp.sum(jnp.abs(other_path))
+            path = jnp.where(
+                agent_path_length <= other_path_length, agent_path, other_path
+            )
+
+            stay = (jnp.array([0, 0]) == path).all()
+            right = (jnp.array([0, 1]) == path).all()
+            left = (jnp.array([0, -1]) == path).all()
+            up = (jnp.array([1, 0]) == path).all()
+            down = (jnp.array([-1, 0]) == path).all()
+
+            ur = (jnp.array([1, 1]) == path).all()
+            ul = (jnp.array([1, -1]) == path).all()
+            dr = (jnp.array([-1, 1]) == path).all()
+            dl = (jnp.array([-1, -1]) == path).all()
+
+            action = 0  # default right
+            action = jax.lax.select(stay, 4, action)
+            action = jax.lax.select(right, 0, action)
+            action = jax.lax.select(left, 1, action)
+            action = jax.lax.select(up, 2, action)
+            action = jax.lax.select(down, 3, action)
+
+            # ul -> l ur -> u,  dl -> d, dr -> r,
+            action = jax.lax.select(ur, 2, action)
+            action = jax.lax.select(ul, 1, action)
+            action = jax.lax.select(dr, 0, action)
+            action = jax.lax.select(dl, 3, action)
+            return action
+
+        self._greedy_step = _greedy_step
+        greedy_step = jax.vmap(_greedy_step)
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+
+            return greedy_step(obs), state, mem
+
+        self._policy = _policy
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        action, self._state, self._mem = self._policy(
+            self._state, timestep.observation, self._mem
+        )
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
 
 
 class GrimTrigger:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger
         self._logger.metrics = {}
 
@@ -58,9 +279,9 @@ class GrimTrigger:
 
 
 class TitForTat:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -101,9 +322,9 @@ class TitForTat:
 
 
 class Defect:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -140,9 +361,9 @@ class Defect:
 
 
 class Altruistic:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -200,9 +421,10 @@ class Human:
 
 
 class Random:
-    def __init__(self, num_actions: int):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_actions: int, num_envs: int):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self.reset_memory = reset_mem_fun(num_envs)
         self._logger = Logger()
         self._logger.metrics = {}
         self._num_actions = num_actions
@@ -247,10 +469,54 @@ class Random:
         return self._state, self._mem
 
 
+class Stay:
+    def __init__(self, num_actions: int):
+        self.make_initial_state = initial_state_fun
+        self._state, self._mem = self.make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+            # state is [batch x time_step x num_players]
+            # return [batch]
+            batch_size = obs.shape[0]
+            action = 4 * jnp.ones((batch_size,), dtype=int)
+            return action, state, mem
+
+        self._policy = jax.jit(_policy)
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        action = 5 * jnp.ones((batch_size,), dtype=int)
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
+
 class HyperAltruistic:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
 
     @partial(jax.jit, static_argnums=(0,))
@@ -285,9 +551,9 @@ class HyperAltruistic:
 
 
 class HyperDefect:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -323,9 +589,9 @@ class HyperDefect:
 
 
 class HyperTFT:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 

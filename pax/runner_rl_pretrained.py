@@ -49,6 +49,7 @@ class RunnerPretrained:
         self.args = args
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.run_path = args.run_path
         self.save_dir = save_dir
         self.model_path = args.model_path
 
@@ -153,8 +154,11 @@ class RunnerPretrained:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
+        if watchers:
+            wandb.restore(
+                name=self.model_path, run_path=self.run_path, root=os.getcwd()
+            )
         pretrained_params = load(self.model_path)
-        import pdb; pdb.set_trace()
         a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
@@ -214,6 +218,7 @@ class RunnerPretrained:
             # logging
             self.train_episodes += 1
             if i % log_interval == 0:
+                print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(),

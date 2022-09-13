@@ -1,7 +1,8 @@
 # @package _global_
+seed: 1323 
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'PPO_memory_pretrained'
 agent2: 'PPO_memory'
 
 # Environment
@@ -12,7 +13,9 @@ coin_type: coin_sequential
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
-# Training hyperparameters
+# Runner 
+evo: False 
+eval: False 
 
 # Training
 num_envs: 200 # Training requires 10000 
@@ -25,8 +28,13 @@ save_interval: 100
 
 # Evaluation 
 num_seeds: 10 
-run_path: ucl-dark/cg/3sp0y2cy
-model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
+# PPO RNN pretrained against GREEDY 
+# run_path: ucl-dark/cg/2f559x4o
+# model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
+
+# PPO RNN pretrained against PPO RNN 
+run_path: ucl-dark/cg/1w6exaa2
+model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_21.15.38.140717/iteration_300
 
 # PPO agent parameters
 ppo:
@@ -55,6 +63,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: 'sanity-${agent1}-vs-${agent2}-parity'
+  group: '${env_id}-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

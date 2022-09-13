@@ -159,6 +159,7 @@ MOVES = jnp.array(
         [0, -1],  # left
         [1, 0],  # up
         [-1, 0],  # down
+        [0, 0],  # stay
     ]
 )
 
@@ -172,20 +173,52 @@ class CoinGame:
         seed: int,
         cnn: Boolean,
     ):
-        def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
+        def _relative_position(state: CoinGameState) -> jnp.ndarray:
+            """Assume canonical agent is red player"""
+            # (x) redplayer at (2, 2)
+            # (y) redcoin at   (0 ,0)
+            #
+            #  o o x        o o y
+            #  o o o   ->   o x o
+            #  y o o        o o o
+            #
+            # redplayer goes to (1, 1)
+            # redcoing goes to  (2, 2)
+            # offset = (-1, -1)
+            # new_redcoin = (0, 0) + (-1, -1) = (-1, -1) mod3
+            # new_redcoin = (2, 2)
+
+            agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
+            ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
+
+            rel_other_player = (state.blue_pos + ego_offset) % 3
+            rel_red_coin = (state.red_coin_pos + ego_offset) % 3
+            rel_blue_coin = (state.blue_coin_pos + ego_offset) % 3
+
+            # create observation
             obs = jnp.zeros((3, 3, 4), dtype=jnp.int8)
-            obs = obs.at[state.red_pos[0], state.red_pos[1], 0].set(1)
-            obs = obs.at[state.blue_pos[0], state.blue_pos[1], 1].set(1)
-            obs = obs.at[state.red_coin_pos[0], state.red_coin_pos[1], 2].set(
-                1
+            obs = obs.at[1, 1, 0].set(1)
+            obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
+            obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
+            obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
+            return obs
+
+        def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
+            obs1 = _relative_position(state)
+
+            # flip red and blue coins for second agent
+            obs2 = _relative_position(
+                state._replace(
+                    red_pos=state.blue_pos,
+                    blue_pos=state.red_pos,
+                    red_coin_pos=state.blue_coin_pos,
+                    blue_coin_pos=state.red_coin_pos,
+                )
             )
-            obs = obs.at[
-                state.blue_coin_pos[0], state.blue_coin_pos[1], 3
-            ].set(1)
-            if self.cnn:
-                return obs
-            else:
-                return obs.flatten()
+
+            if not self.cnn:
+                return obs1.flatten(), obs2.flatten()
+            return obs1, obs2
 
         def _reset(
             key: jnp.ndarray,
@@ -213,11 +246,11 @@ class CoinGame:
                 0,
                 0,
             )
-            obs = _state_to_obs(state)
+            obs1, obs2 = _state_to_obs(state)
 
             output = (
-                TimeStep(step_type, rewards, discount, obs),
-                TimeStep(step_type, rewards, discount, obs),
+                TimeStep(step_type, rewards, discount, obs1),
+                TimeStep(step_type, rewards, discount, obs2),
             )
 
             return output, state
@@ -293,7 +326,7 @@ class CoinGame:
                 blue_defect=state.blue_defect + blue_red_matches,
             )
 
-            obs = _state_to_obs(next_state)
+            obs1, obs2 = _state_to_obs(next_state)
             inner_t = next_state.inner_t
             outer_t = next_state.outer_t
             done = inner_t % inner_ep_length == 0
@@ -322,10 +355,12 @@ class CoinGame:
                 next_state.blue_defect,
             )
 
-            obs = jnp.where(done, new_ep_outputs[0].observation, obs)
+            obs1 = jnp.where(done, new_ep_outputs[0].observation, obs1)
+            obs2 = jnp.where(done, new_ep_outputs[1].observation, obs2)
+
             blue_reward = jnp.where(done, 0, blue_reward)
             red_reward = jnp.where(done, 0, red_reward)
-            return obs, red_reward, blue_reward, next_state
+            return (obs1, obs2), red_reward, blue_reward, next_state
 
         def runner_step(
             actions: Tuple[int, int],
@@ -338,13 +373,13 @@ class CoinGame:
                     step_type=jnp.ones_like(red_reward, dtype=int),
                     reward=red_reward,
                     discount=jnp.zeros_like(red_reward, dtype=int),
-                    observation=obs,
+                    observation=obs[0],
                 ),
                 TimeStep(
                     step_type=jnp.ones_like(blue_reward, dtype=int),
                     reward=blue_reward,
                     discount=jnp.zeros_like(blue_reward, dtype=int),
-                    observation=obs,
+                    observation=obs[1],
                 ),
             ]
 
@@ -406,4 +441,4 @@ class CoinGame:
 
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
-        return specs.DiscreteArray(num_values=4, name="actions")
+        return specs.DiscreteArray(num_values=5, name="actions")

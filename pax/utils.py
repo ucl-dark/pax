@@ -1,7 +1,7 @@
 from time import time as tic
 from typing import Mapping, NamedTuple
 from functools import partial
-import pickle 
+import pickle
 
 import chex
 import haiku as hk
@@ -127,6 +127,7 @@ def save(log: chex.ArrayTree, filename: str):
     """Save different parts of logger in .pkl file."""
     with open(filename, "wb") as handle:
         pickle.dump(log, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
 
 def load(filename: str):
     """Reload the pickle logger and return dictionary."""
