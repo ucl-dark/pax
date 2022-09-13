@@ -18,7 +18,7 @@ evo: False
 eval: False 
 
 # Training
-num_envs: 1000 # Training requires 10000 
+num_envs: 200 # Training requires 10000 
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
@@ -28,8 +28,13 @@ save_interval: 100
 
 # Evaluation 
 num_seeds: 10 
-run_path: ucl-dark/cg/3sp0y2cy
-model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
+# PPO RNN pretrained against GREEDY 
+# run_path: ucl-dark/cg/2f559x4o
+# model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
+
+# PPO RNN pretrained against PPO RNN 
+run_path: ucl-dark/cg/1w6exaa2
+model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_21.15.38.140717/iteration_300
 
 # PPO agent parameters
 ppo:
