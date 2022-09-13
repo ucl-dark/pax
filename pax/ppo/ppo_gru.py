@@ -50,7 +50,6 @@ class PPO:
         random_key: jnp.ndarray,
         gru_dim: int,
         obs_spec: Tuple,
-        batch_size: int = 2000,
         num_envs: int = 4,
         num_steps: int = 500,
         num_minibatches: int = 16,
@@ -88,6 +87,42 @@ class PPO:
                 mem,
             )
 
+        @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
+            )
+
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+            return traj_batch
+
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
@@ -200,74 +235,8 @@ class PPO:
                 "loss_entropy": entropy_loss,
                 "entropy_cost": entropy_cost,
             }
-            # }, new_rnn_unroll_state
-
-        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
         @jax.jit
-        def model_update_minibatch(
-            carry: Tuple[hk.Params, optax.OptState, int],
-            minibatch: Batch,
-        ) -> Tuple[
-            Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
-        ]:
-            """Performs model update for a single minibatch."""
-            params, opt_state, timesteps = carry
-            # Normalize advantages at the minibatch level before using them.
-            advantages = (
-                minibatch.advantages - jnp.mean(minibatch.advantages, axis=0)
-            ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
-            gradients, metrics = self.grad_fn(
-                params,
-                timesteps,
-                minibatch.observations,
-                minibatch.actions,
-                minibatch.behavior_log_probs,
-                minibatch.target_values,
-                advantages,
-                minibatch.behavior_values,
-                minibatch.hiddens,
-            )
-
-            # Apply updates
-            updates, opt_state = optimizer.update(gradients, opt_state)
-            params = optax.apply_updates(params, updates)
-
-            metrics["norm_grad"] = optax.global_norm(gradients)
-            metrics["norm_updates"] = optax.global_norm(updates)
-            return (params, opt_state, timesteps), metrics
-
-        @jax.jit
-        def model_update_epoch(
-            carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
-            unused_t: Tuple[()],
-        ) -> Tuple[
-            Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
-            Dict[str, jnp.ndarray],
-        ]:
-            """Performs model updates based on one epoch of data."""
-            key, params, opt_state, timesteps, batch = carry
-            key, subkey = jax.random.split(key)
-            permutation = jax.random.permutation(subkey, batch_size)
-            shuffled_batch = jax.tree_map(
-                lambda x: jnp.take(x, permutation, axis=0), batch
-            )
-            shuffled_batch = batch
-            minibatches = jax.tree_map(
-                lambda x: jnp.reshape(
-                    x, [num_minibatches, -1] + list(x.shape[1:])
-                ),
-                shuffled_batch,
-            )
-
-            (params, opt_state, timesteps), metrics = jax.lax.scan(
-                model_update_minibatch,
-                (params, opt_state, timesteps),
-                minibatches,
-                length=num_minibatches,
-            )
-            return (key, params, opt_state, timesteps, batch), metrics
-
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -291,7 +260,6 @@ class PPO:
                 sample.hiddens,
             )
 
-            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
@@ -323,6 +291,74 @@ class PPO:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
 
+            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
+
+            @jax.jit
+            def model_update_minibatch(
+                carry: Tuple[hk.Params, optax.OptState, int],
+                minibatch: Batch,
+            ) -> Tuple[
+                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
+            ]:
+                """Performs model update for a single minibatch."""
+                params, opt_state, timesteps = carry
+                # Normalize advantages at the minibatch level before using them.
+                advantages = (
+                    minibatch.advantages
+                    - jnp.mean(minibatch.advantages, axis=0)
+                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+                gradients, metrics = grad_fn(
+                    params,
+                    timesteps,
+                    minibatch.observations,
+                    minibatch.actions,
+                    minibatch.behavior_log_probs,
+                    minibatch.target_values,
+                    advantages,
+                    minibatch.behavior_values,
+                    minibatch.hiddens,
+                )
+
+                # Apply updates
+                updates, opt_state = optimizer.update(gradients, opt_state)
+                params = optax.apply_updates(params, updates)
+
+                metrics["norm_grad"] = optax.global_norm(gradients)
+                metrics["norm_updates"] = optax.global_norm(updates)
+                return (params, opt_state, timesteps), metrics
+
+            @jax.jit
+            def model_update_epoch(
+                carry: Tuple[
+                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
+                ],
+                unused_t: Tuple[()],
+            ) -> Tuple[
+                Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+                Dict[str, jnp.ndarray],
+            ]:
+                """Performs model updates based on one epoch of data."""
+                key, params, opt_state, timesteps, batch = carry
+                key, subkey = jax.random.split(key)
+                permutation = jax.random.permutation(subkey, batch_size)
+                shuffled_batch = jax.tree_map(
+                    lambda x: jnp.take(x, permutation, axis=0), batch
+                )
+                minibatches = jax.tree_map(
+                    lambda x: jnp.reshape(
+                        x, [num_minibatches, -1] + list(x.shape[1:])
+                    ),
+                    shuffled_batch,
+                )
+
+                (params, opt_state, timesteps), metrics = jax.lax.scan(
+                    model_update_minibatch,
+                    (params, opt_state, timesteps),
+                    minibatches,
+                    length=num_minibatches,
+                )
+                return (key, params, opt_state, timesteps, batch), metrics
+
             params = state.params
             opt_state = state.opt_state
             timesteps = state.timesteps
@@ -343,7 +379,6 @@ class PPO:
             )
             metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
 
-            # Reset the memory
             new_state = TrainingState(
                 params=params,
                 opt_state=opt_state,
@@ -389,55 +424,14 @@ class PPO:
                 },
             )
 
-        @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            _value = jax.lax.select(
-                t_prime.last(),
-                jnp.zeros_like(action_extras["values"]),
-                action_extras["values"],
-            )
-
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
-
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-
-            return traj_batch
-
         # Initialise training state (parameters, optimiser state, extras).
+        self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(
             random_key, initial_hidden_state
         )
 
-        self.make_initial_state = make_initial_state
-
         self.prepare_batch = prepare_batch
-        if has_sgd_jit:
-            self._sgd_step = jax.jit(sgd_step)
-        else:
-            self._sgd_step = sgd_step
+        self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -461,7 +455,6 @@ class PPO:
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
         self._num_steps = num_steps  # number of steps per environment
-        self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
@@ -477,7 +470,6 @@ class PPO:
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
