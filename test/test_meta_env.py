@@ -236,16 +236,18 @@ def test_coingame_move():
     assert env.state.blue_defect == 0
 
 
-def test_coingame_egocentric():
+def test_coingame_egocentric_colors():
     bs = 1
     env = CoinGame(bs, 8, 16, 0, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
+
+    # importantly place agents on top of each other so that we can just check flips
     env.state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),
-        blue_pos=jnp.array([[1, 0]]),
+        blue_pos=jnp.array([[0, 0]]),
         red_coin_pos=jnp.array([[0, 2]]),
-        blue_coin_pos=jnp.array([[1, 2]]),
+        blue_coin_pos=jnp.array([[0, 2]]),
         key=env.state.key,
         inner_t=env.state.inner_t,
         outer_t=env.state.outer_t,
@@ -255,7 +257,7 @@ def test_coingame_egocentric():
         blue_defect=jnp.zeros(1),
     )
 
-    for _ in range(16):
+    for _ in range(7):
         t1, t2 = env.step((action, action))
         obs1, obs2 = t1.observation[0], t2.observation[0]
         # remove batch
@@ -263,6 +265,66 @@ def test_coingame_egocentric():
         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+    # here we reset the environment so expect these to break
+    t1, t2 = env.step((action, action))
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+    assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
+    assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
+    assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
+    assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
+
+
+def test_coingame_egocentric_pos():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+
+    env.state = CoinGameState(
+        red_pos=jnp.array([[1, 2]]),
+        blue_pos=jnp.array([[2, 2]]),
+        red_coin_pos=jnp.array([[2, 2]]),
+        blue_coin_pos=jnp.array([[0, 0]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+    # it would be nice to have a stay action here lol
+    t1, t2 = env.step((action, action))
+
+    # takes left so red_pos = [1, 1], blue_pos = [2, 1]
+
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+
+    expected_obs1 = jnp.array(
+        [
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent
+            [[0, 0, 0], [0, 0, 0], [0, 1, 0]],  # other agent
+            [[0, 0, 0], [0, 0, 0], [0, 0, 1]],  # agent coin
+            [[1, 0, 0], [0, 0, 0], [0, 0, 0]],  # other coin
+        ],
+        dtype=jnp.int8,
+    )
+    # channel last
+    expected_obs1 = jnp.transpose(expected_obs1, (1, 2, 0))
+    assert (expected_obs1 == obs1).all()
+
+    expected_obs2 = jnp.array(
+        [
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent
+            [[0, 1, 0], [0, 0, 0], [0, 0, 0]],  # other agent
+            [[0, 0, 0], [0, 0, 0], [1, 0, 0]],  # agent coin
+            [[0, 0, 0], [0, 0, 1], [0, 0, 0]],  # other coin
+        ],
+        dtype=jnp.int8,
+    )
+    expected_obs2 = jnp.transpose(expected_obs2, (1, 2, 0))
+    assert (expected_obs2 == obs2).all()
 
 
 def test_coingame_stay():
@@ -290,3 +352,32 @@ def test_coingame_stay():
     assert (env.state.red_pos == _state.red_pos).all()
     assert (env.state.blue_pos == _state.blue_pos).all()
     assert env.state.inner_t != _state.inner_t
+
+
+def test_coingame_egocentric():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[0, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[0, 2]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+
+    for _ in range(7):
+        t1, t2 = env.step((action, action))
+        obs1, obs2 = t1.observation[0], t2.observation[0]
+        # remove batch
+        assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+        assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+        assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+        assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
