@@ -43,6 +43,7 @@ def reset_mem_fun(num_envs: int) -> Callable:
 class GreedyCoinChaser:
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
+        self.reset_memory = reset_mem_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
