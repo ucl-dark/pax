@@ -23,7 +23,7 @@ num_steps: 16
 num_inner_steps: 16 
 num_generations: 10000
 total_timesteps: 1.6e5
-save_interval: 100 
+save_interval: 100  
 
 # Evaluation 
 num_seeds: 10 
