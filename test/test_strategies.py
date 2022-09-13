@@ -7,7 +7,7 @@ from dm_env import transition
 
 
 def test_titfortat():
-    agent = TitForTat()
+    agent = TitForTat(num_envs=1)
     batch_number = 3
 
     # all obs are only of final state e.g batch x dim.
@@ -45,7 +45,7 @@ def test_titfortat():
 
 
 def test_grim():
-    agent = GrimTrigger()
+    agent = GrimTrigger(num_envs=1)
     batch_number = 3
 
     # all obs are only of final state e.g batch x dim.
