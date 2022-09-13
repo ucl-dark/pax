@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'Tabular'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
