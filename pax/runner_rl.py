@@ -31,6 +31,15 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     # x: [timestep, batch_size, ...]
     num_envs = traj.observations.shape[2] * traj.observations.shape[3]
     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+
+    print(traj.observations.shape)
+    print(traj.actions.shape)
+    print(traj.rewards.shape)
+    print(traj.behavior_log_probs.shape)
+    print(traj.behavior_values.shape)
+    print(traj.dones.shape)
+    print(traj.hiddens.shape)
+
     return jax.tree_util.tree_map(
         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
         traj,
@@ -209,7 +218,8 @@ class Runner:
             if i % log_interval == 0:
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.cg_stats(env_state)
+                        lambda x: x.item(),
+                        self.cg_stats(env_state, env.num_trials),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -219,7 +229,12 @@ class Runner:
                     "sequential",
                 ]:
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                        lambda x: x.item(),
+                        self.ipd_stats(
+                            traj_1.observations,
+                            traj_1.actions,
+                            final_t1.observation,
+                        ),
                     )
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()

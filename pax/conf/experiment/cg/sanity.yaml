@@ -6,7 +6,7 @@ agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
-game: ipd 
+game: coin_game 
 env_type: coin_game
 coin_type: coin_sequential
 env_discount: 0.96
@@ -26,8 +26,8 @@ save_interval: 100
 
 # Evaluation 
 num_seeds: 10 
-run_path: ucl-dark/cg/12auc9um
-model_path: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-09-08_20.04.17.155963/iteration_500
+run_path: ucl-dark/cg/1fz9wvpy
+model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-09_14.33.19.812435/iteration_29800
 
 # PPO agent parameters
 ppo:

@@ -52,30 +52,6 @@ class EvalRunnerIPD:
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), x
             )
 
-        # TODO: Remove this in favor of the one in watchers (which will be made more robust)
-        def _state_visitation(
-            observations: jnp.ndarray,
-            actions: jnp.ndarray,
-            final_obs: jnp.ndarray,
-        ) -> List:
-            # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
-            # final_t [num_opps, num_envs, ...]
-            num_timesteps = observations.shape[0] * observations.shape[1]
-            # obs = [0, 1, 2, 3, 4], a = [0, 1]
-            # combine = [0, .... 9]
-            state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
-            state_actions = jnp.reshape(
-                state_actions,
-                (num_timesteps,) + state_actions.shape[2:],
-            )
-            # assume final step taken is cooperate
-            final_obs = jax.lax.expand_dims(
-                2 * jnp.argmax(final_obs, axis=-1), [0]
-            )
-            state_actions = jnp.append(state_actions, final_obs, axis=0)
-            return jnp.bincount(state_actions.flatten(), length=10)
-
-        self.state_visitation = _state_visitation
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
 
     def eval_loop(self, env, agents, num_episodes, watchers):
@@ -241,7 +217,8 @@ class EvalRunnerIPD:
             # logging
             if self.args.env_type == "coin_game":
                 env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(), self.cg_stats(env_state)
+                    lambda x: x.item(),
+                    self.cg_stats(env_state, env.num_trials),
                 )
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -258,22 +235,17 @@ class EvalRunnerIPD:
                     step_type=2 * jnp.ones_like(t1.step_type)
                 )
                 env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                    lambda x: x.item(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
                 )
                 rewards_0 = traj_1.rewards.mean()
                 rewards_1 = traj_2.rewards.mean()
             else:
                 env_stats = {}
-
-            # Logging step rewards loop
-            # Shape: [outer_loop, inner_loop, popsize, num_opps, num_envs, ...]
-            visits = self.state_visitation(
-                traj_1.observations, traj_1.actions, final_t1.observation
-            )
-            states = visits.reshape((int(visits.shape[0] / 2), 2)).sum(axis=1)
-            state_freq = states / states.sum()
-            action_probs = visits[::2] / states
-            action_probs = jnp.nan_to_num(action_probs)
             print(f"Summary | Opponent: {opp_i+1}")
             print(
                 "--------------------------------------------------------------------------"
@@ -282,9 +254,6 @@ class EvalRunnerIPD:
                 f"{self.args.agent1}: {rewards_0} | {self.args.agent2}: {rewards_1}"
             )
             print(f"Env Stats: {env_stats}")
-            print(f"State Visits: {states}")
-            print(f"State Frequency: {state_freq}")
-            print(f"Cooperation Probability: {action_probs}")
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -293,73 +262,69 @@ class EvalRunnerIPD:
             for out_step in range(env.num_trials):
                 rewards_trial_mean_p1 = traj_1.rewards[out_step].mean()
                 rewards_trial_mean_p2 = traj_2.rewards[out_step].mean()
-                visits_trial = self.state_visitation(
+                trial_env_stats = self.ipd_stats(
                     traj_1.observations[out_step],
                     traj_1.actions[out_step],
                     final_t1.observation[out_step],
                 )
-                states_trial = visits_trial.reshape(
-                    (int(visits_trial.shape[0] / 2), 2)
-                ).sum(axis=1)
-                state_trial_freq = states_trial / states_trial.sum()
-                action_trial_probs = visits_trial[::2] / states_trial
-                action_trial_probs = jnp.nan_to_num(action_trial_probs)
 
                 if watchers:
+                    # TODO: Replace this with trial_env_stats when you move the number of iterations outside
+                    # of the eval loop into experiments.py
                     wandb.log(
                         {
                             "eval/trial": out_step + 1,
                             f"eval/reward_trial/player_1_opp_{opp_i+1}": rewards_trial_mean_p1,
                             f"eval/reward_trial/player_2_opp_{opp_i+1}": rewards_trial_mean_p2,
-                            f"eval/state_visitation_trial/CC_opp_{opp_i+1}": states_trial[
-                                0
+                            f"eval/state_visitation_trial/CC_opp_{opp_i+1}": trial_env_stats[
+                                "state_visitation/CC"
                             ],
-                            f"eval/state_visitation_trial/CD_opp_{opp_i+1}": states_trial[
-                                1
+                            f"eval/state_visitation_trial/CD_opp_{opp_i+1}": trial_env_stats[
+                                "state_visitation/CD"
                             ],
-                            f"eval/state_visitation_trial/DC_opp_{opp_i+1}": states_trial[
-                                2
+                            f"eval/state_visitation_trial/DC_opp_{opp_i+1}": trial_env_stats[
+                                "state_visitation/DC"
                             ],
-                            f"eval/state_visitation_trial/DD_opp_{opp_i+1}": states_trial[
-                                3
+                            f"eval/state_visitation_trial/DD_opp_{opp_i+1}": trial_env_stats[
+                                "state_visitation/DD"
                             ],
-                            f"eval/state_visitation_trial/START_opp{opp_i+1}": states_trial[
-                                4
+                            f"eval/state_visitation_trial/START_opp{opp_i+1}": trial_env_stats[
+                                "state_visitation/START"
                             ],
-                            f"eval/state_visitation_trial/CC_freq_opp_{opp_i+1}": state_trial_freq[
-                                0
+                            f"eval/state_visitation_trial/CC_freq_opp_{opp_i+1}": trial_env_stats[
+                                "state_probability/CC"
                             ],
-                            f"eval/state_visitation_trial/CD_freq_opp_{opp_i+1}": state_trial_freq[
-                                1
+                            f"eval/state_visitation_trial/CD_freq_opp_{opp_i+1}": trial_env_stats[
+                                "state_probability/CD"
                             ],
-                            f"eval/state_visitation_trial/DC_freq_opp_{opp_i+1}": state_trial_freq[
-                                2
+                            f"eval/state_visitation_trial/DC_freq_opp_{opp_i+1}": trial_env_stats[
+                                "state_probability/DC"
                             ],
-                            f"eval/state_visitation_trial/DD_freq_opp_{opp_i+1}": state_trial_freq[
-                                3
+                            f"eval/state_visitation_trial/DD_freq_opp_{opp_i+1}": trial_env_stats[
+                                "state_probability/DD"
                             ],
-                            f"eval/state_visitation_trial/START_freq_opp_{opp_i+1}": state_trial_freq[
-                                4
-                            ],
-                            "eval/cooperation_probability_trial/"
-                            f"CC_coop_prob_opp_{opp_i+1}": action_trial_probs[
-                                0
+                            f"eval/state_visitation_trial/START_freq_opp_{opp_i+1}": trial_env_stats[
+                                "state_probability/START"
                             ],
                             "eval/cooperation_probability_trial/"
-                            f"CD_coop_prob_opp_{opp_i+1}": action_trial_probs[
-                                1
+                            f"CC_coop_prob_opp_{opp_i+1}": trial_env_stats[
+                                "cooperation_probability/CC"
                             ],
                             "eval/cooperation_probability_trial/"
-                            f"DC_coop_prob_opp_{opp_i+1}": action_trial_probs[
-                                2
+                            f"CD_coop_prob_opp_{opp_i+1}": trial_env_stats[
+                                "cooperation_probability/CD"
                             ],
                             "eval/cooperation_probability_trial/"
-                            f"DD_coop_prob_opp_{opp_i+1}": action_trial_probs[
-                                3
+                            f"DC_coop_prob_opp_{opp_i+1}": trial_env_stats[
+                                "cooperation_probability/DC"
                             ],
                             "eval/cooperation_probability_trial/"
-                            f"START_coop_prob_opp_{opp_i+1}": action_trial_probs[
-                                4
+                            f"DD_coop_prob_opp_{opp_i+1}": trial_env_stats[
+                                "cooperation_probability/DD"
+                            ],
+                            "eval/cooperation_probability_trial/"
+                            f"START_coop_prob_opp_{opp_i+1}": trial_env_stats[
+                                "cooperation_probability/START"
                             ],
                         }
                     )
@@ -383,15 +348,43 @@ class EvalRunnerIPD:
                 mean_rewards_p2 = mean_rewards_p2.at[opp_i, out_step].set(
                     rewards_trial_mean_p2
                 )
+                # TODO: Remove when you move the number of iterations outside
+                # of the eval loop into experiments.py
                 mean_visits = mean_visits.at[opp_i, out_step, :].set(
-                    states_trial
+                    jnp.array(
+                        [
+                            trial_env_stats["state_visitation/CC"],
+                            trial_env_stats["state_visitation/CD"],
+                            trial_env_stats["state_visitation/DC"],
+                            trial_env_stats["state_visitation/DD"],
+                            trial_env_stats["state_visitation/START"],
+                        ]
+                    )
                 )  # jnp.zeros(shape=(num_iters, env.num_trials, 5))
                 mean_state_freq = mean_state_freq.at[opp_i, out_step, :].set(
-                    state_trial_freq
+                    jnp.array(
+                        [
+                            trial_env_stats["state_probability/CC"],
+                            trial_env_stats["state_probability/CD"],
+                            trial_env_stats["state_probability/DC"],
+                            trial_env_stats["state_probability/DD"],
+                            trial_env_stats["state_probability/START"],
+                        ]
+                    )
                 )
                 mean_cooperation_prob = mean_cooperation_prob.at[
                     opp_i, out_step, :
-                ].set(action_trial_probs)
+                ].set(
+                    jnp.array(
+                        [
+                            trial_env_stats["cooperation_probability/CC"],
+                            trial_env_stats["cooperation_probability/CD"],
+                            trial_env_stats["cooperation_probability/DC"],
+                            trial_env_stats["cooperation_probability/DD"],
+                            trial_env_stats["cooperation_probability/START"],
+                        ]
+                    )
+                )
 
             if watchers:
                 # metrics [outer_timesteps, num_opps]
