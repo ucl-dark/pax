@@ -48,7 +48,6 @@ ppo:
   lr_scheduling: True
   learning_rate: 0.005
   adam_epsilon: 1e-5
-  with_memory: True
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN

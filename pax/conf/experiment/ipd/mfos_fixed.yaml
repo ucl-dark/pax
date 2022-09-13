@@ -40,7 +40,6 @@ ppo:
   lr_scheduling: True
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
-  with_memory: False
 
 # Logging setup
 wandb:

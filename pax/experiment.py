@@ -464,7 +464,7 @@ def agent_setup(args, logger):
 
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
-        "Defect": partial(Defect, args.nums_envs),
+        "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Human": Human,
         "Random": get_random_agent,
@@ -493,16 +493,6 @@ def agent_setup(args, logger):
     ]
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
-
-    if args.agent1 == "PPO_memory":
-        if not args.ppo.with_memory:
-            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
-    if args.agent1 == "PPO":
-        if args.ppo.with_memory:
-            raise ValueError(
-                "Can't use ppo.memory=False but set agent=PPO_memory"
-            )
-
     if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
@@ -520,12 +510,18 @@ def watcher_setup(args, logger):
     def ppo_log(agent):
         losses = losses_ppo(agent)
         if not args.env_type == "coin_game":
-            if args.ppo.with_memory:
-                policy = policy_logger_ppo_with_memory(agent)
-            else:
-                policy = policy_logger_ppo(agent)
-                value = value_logger_ppo(agent)
-                losses.update(value)
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
+            losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
+    def ppo_memory_log(agent):
+        losses = losses_ppo(agent)
+        if not args.env_type == "coin_game":
+            policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -570,7 +566,7 @@ def watcher_setup(args, logger):
         "Stay": dumb_log,
         "Grim": dumb_log,
         "PPO": ppo_log,
-        "PPO_memory": ppo_log,
+        "PPO_memory": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,

@@ -11,7 +11,7 @@ num_envs: 4
 num_steps: 500 
 eval_every: 100000
 
-agent1: PPO
+agent1: PPO_memory
 agent2: TitForTat
 
 # Agent parameters 
@@ -31,7 +31,6 @@ ppo:
   lr_scheduling: False
   learning_rate: 2.5e-4
   adam_epsilon: 1e-5
-  with_memory: True
 
 # WandB parameters
 wandb:

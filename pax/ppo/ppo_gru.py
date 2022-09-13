@@ -532,15 +532,15 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
-    transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
-    )
-
     if args.ppo.lr_scheduling:
+        batch_size = int(args.num_envs * args.num_steps * args.num_opps)
+        transition_steps = (
+            args.total_timesteps
+            / batch_size
+            * args.ppo.num_epochs
+            * args.ppo.num_minibatches
+        )
+
         scheduler = optax.linear_schedule(
             init_value=args.ppo.learning_rate,
             end_value=0,
@@ -570,7 +570,6 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=args.num_envs * args.num_opps,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,

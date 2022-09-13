@@ -40,7 +40,6 @@ ppo:
   lr_scheduling: False
   learning_rate: 4e-3
   adam_epsilon: 1e-5
-  with_memory: False
 
 # Naive Learner parameters
 naive:

@@ -44,7 +44,6 @@ ppo:
   lr_scheduling: True
   learning_rate: 2.5e-2
   adam_epsilon: 1e-5
-  with_memory: False
   with_cnn: False
 
 # Logging setup
