@@ -87,6 +87,38 @@ class ContinuousValueHead(hk.Module):
         return (distrax.MultivariateNormalDiag(loc=logits), value)
 
 
+class Tabular(hk.Module):
+    def __init__(self, num_values: int):
+        super().__init__(name="Tabular")
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+
+        def _input_to_onehot(input: jnp.ndarray):
+            chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
+            idx = input.nonzero(size=4)[0]
+            idx = jnp.mod(idx, 9)
+            idx = chunks * idx
+            idx = jnp.sum(idx)
+            return jax.nn.one_hot(idx, num_classes=6561)
+
+        self.input_to_onehot = jax.vmap(_input_to_onehot)
+
+    def __call__(self, inputs: jnp.ndarray):
+        inputs = self.input_to_onehot(inputs)
+        logits = self._logit_layer(inputs)
+        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
+
+        return (distrax.Categorical(logits=logits), value)
+
+
 class CNN(hk.Module):
     def __init__(self, args):
         super().__init__(name="CNN")
@@ -177,10 +209,16 @@ class CNNSeparate(hk.Module):
         return (logits, val)
 
 
-def make_coingame_network(num_actions: int, args):
+def make_coingame_network(num_actions: int, tabular: bool, args):
     def forward_fn(inputs):
         layers = []
-        if args.ppo.with_cnn:
+        if tabular:
+            layers.extend(
+                [
+                    Tabular(num_values=num_actions),
+                ]
+            )
+        elif args.ppo.with_cnn:
             if args.ppo.separate:
                 cnn = CNNSeparate(args)
                 cvh = CategoricalValueHeadSeparate(num_values=num_actions)
