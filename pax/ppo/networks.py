@@ -209,10 +209,16 @@ class CNNSeparate(hk.Module):
         return (logits, val)
 
 
-def make_coingame_network(num_actions: int, args):
+def make_coingame_network(num_actions: int, tabular: bool, args):
     def forward_fn(inputs):
         layers = []
-        if args.ppo.with_cnn:
+        if tabular:
+            layers.extend(
+                [
+                    Tabular(num_values=num_actions),
+                ]
+            )
+        elif args.ppo.with_cnn:
             if args.ppo.separate:
                 cnn = CNNSeparate(args)
                 cvh = CategoricalValueHeadSeparate(num_values=num_actions)
@@ -348,23 +354,6 @@ def make_GRU_coingame_network(num_actions: int, args):
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network, hidden_state
-
-
-def make_tabular_coingame_network(num_actions: int, args):
-    """Creates a hk network using the baseline hyperparameters from OpenAI"""
-
-    def forward_fn(inputs):
-        layers = []
-        layers.extend(
-            [
-                Tabular(num_values=num_actions),
-            ]
-        )
-        policy_value_network = hk.Sequential(layers)
-        return policy_value_network(inputs)
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network
 
 
 def test_GRU():

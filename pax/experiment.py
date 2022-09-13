@@ -340,11 +340,13 @@ def agent_setup(args, logger):
                 args.num_steps,
                 args.num_steps,
                 0,
-                args.ppo.with_cnn,
+                False,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError("PPO Tabular agent only works on Coin Game.")
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -358,7 +360,7 @@ def agent_setup(args, logger):
             seed=seed,
             player_id=player_id,
             has_sgd_jit=has_sgd_jit,
-            tabular=True
+            tabular=True,
         )
 
         return ppo_agent
@@ -565,7 +567,7 @@ def watcher_setup(args, logger):
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
-        "Tabular":ppo_log,
+        "Tabular": ppo_log,
     }
 
     assert args.agent1 in strategies
@@ -607,8 +609,8 @@ def main(args):
     #     print()
 
     runner.train_loop(train_env, agent_pair, num_generations, watchers)
-        # TODO: Remove fully in evaluation PR
-        # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
+    # TODO: Remove fully in evaluation PR
+    # runner.evaluate_loop(test_env, agent_pair, 1, watchers)
 
 
 if __name__ == "__main__":
