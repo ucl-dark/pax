@@ -1,5 +1,6 @@
 from functools import partial
-from typing import Mapping, NamedTuple, Tuple
+from pickletools import int4
+from typing import Callable, Mapping, NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
@@ -11,16 +12,39 @@ from pax.utils import MemoryState, TrainingState, Logger
 # actions are cooperate = 0 or defect = 1
 
 
-def make_initial_state(key, hidden):
-    return TrainingState(None, None, jax.random.PRNGKey(0), None), MemoryState(
-        jnp.ones(1), {"log_probs": None, "values": None}
-    )
+def initial_state_fun(num_envs: int) -> Callable:
+    def fun(key, hidden):
+        return (
+            TrainingState(None, None, jax.random.PRNGKey(0), None),
+            MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+            ),
+        )
+
+    return fun
+
+
+def reset_mem_fun(num_envs: int) -> Callable:
+    def fun(memory, eval=False):
+        memory = memory._replace(
+            extras={
+                "values": jnp.zeros(1 if eval else num_envs),
+                "log_probs": jnp.zeros(1 if eval else num_envs),
+            },
+        )
+        return memory
+
+    return fun
 
 
 class GrimTrigger:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger
         self._logger.metrics = {}
 
@@ -58,9 +82,9 @@ class GrimTrigger:
 
 
 class TitForTat:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -101,9 +125,9 @@ class TitForTat:
 
 
 class Defect:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -140,9 +164,9 @@ class Defect:
 
 
 class Altruistic:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -200,9 +224,10 @@ class Human:
 
 
 class Random:
-    def __init__(self, num_actions: int):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_actions: int, num_envs: int):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self.reset_memory = reset_mem_fun(num_envs)
         self._logger = Logger()
         self._logger.metrics = {}
         self._num_actions = num_actions
@@ -247,10 +272,54 @@ class Random:
         return self._state, self._mem
 
 
+class Stay:
+    def __init__(self, num_actions: int, num_envs: int):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+            # state is [batch x time_step x num_players]
+            # return [batch]
+            batch_size = obs.shape[0]
+            action = 4 * jnp.ones((batch_size,), dtype=int)
+            return action, state, mem
+
+        self._policy = jax.jit(_policy)
+
+    def select_action(
+        self,
+        timestep: TimeStep,
+    ) -> jnp.ndarray:
+        # state is [batch x state_space]
+        # return [batch]
+        (
+            batch_size,
+            _,
+        ) = timestep.observation.shape
+        action = 5 * jnp.ones((batch_size,), dtype=int)
+        return action
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
+
 class HyperAltruistic:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
 
     @partial(jax.jit, static_argnums=(0,))
@@ -285,9 +354,9 @@ class HyperAltruistic:
 
 
 class HyperDefect:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 
@@ -323,9 +392,9 @@ class HyperDefect:
 
 
 class HyperTFT:
-    def __init__(self, *args):
-        self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(None, None)
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
 

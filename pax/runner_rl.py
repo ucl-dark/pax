@@ -1,3 +1,4 @@
+import os
 import time
 from typing import List, NamedTuple
 
@@ -6,6 +7,7 @@ import jax.numpy as jnp
 import wandb
 
 from pax.watchers import cg_visitation, ipd_visitation
+from pax.utils import save
 
 MAX_WANDB_CALLS = 10000
 
@@ -29,6 +31,15 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     # x: [timestep, batch_size, ...]
     num_envs = traj.observations.shape[2] * traj.observations.shape[3]
     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+
+    print(traj.observations.shape)
+    print(traj.actions.shape)
+    print(traj.rewards.shape)
+    print(traj.behavior_log_probs.shape)
+    print(traj.behavior_values.shape)
+    print(traj.dones.shape)
+    print(traj.hiddens.shape)
+
     return jax.tree_util.tree_map(
         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
         traj,
@@ -38,7 +49,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 class Runner:
     """Holds the runner's state."""
 
-    def __init__(self, args):
+    def __init__(self, args, save_dir):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -47,6 +58,7 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.save_dir = save_dir
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -161,7 +173,10 @@ class Runner:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif self.args.env_type in ["meta", "infinite"] or self.args.coin_type == 'coin_meta':
+            elif (
+                self.args.env_type in ["meta", "infinite"]
+                or self.args.coin_type == "coin_meta"
+            ):
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
@@ -189,12 +204,22 @@ class Runner:
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
+            if self.args.save and i % self.args.save_interval == 0:
+                log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
+                save(a1_state.params, log_savepath)
+                if watchers:
+                    print(f"Saving iteration {i} locally and to WandB")
+                    wandb.save(log_savepath)
+                else:
+                    print(f"Saving iteration {i} locally")
+
             # logging
             self.train_episodes += 1
             if i % log_interval == 0:
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.cg_stats(env_state)
+                        lambda x: x.item(),
+                        self.cg_stats(env_state, env.num_trials),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -204,7 +229,12 @@ class Runner:
                     "sequential",
                 ]:
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                        lambda x: x.item(),
+                        self.ipd_stats(
+                            traj_1.observations,
+                            traj_1.actions,
+                            final_t1.observation,
+                        ),
                     )
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()
@@ -216,6 +246,7 @@ class Runner:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
+                print()
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
@@ -239,71 +270,8 @@ class Runner:
                         }
                         | env_stats,
                     )
-        print()
+
         # update agents for eval loop exit
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
-        return agents
-
-    def evaluate_loop(self, env, agents, num_episodes, watchers):
-        """Run evaluation of agents against environment"""
-        print("Evaluating")
-        print("-----------------------")
-        agents.eval(True)
-        agent1, agent2 = agents.agents
-        agent1._mem = agent1.reset_memory(agent1._mem, True)
-        agent2._mem = agent2.reset_memory(agent2._mem, True)
-
-        for _ in range(num_episodes // env.num_envs):
-            rewards_0, rewards_1 = [], []
-            timesteps = env.reset()
-            for _ in range(env.episode_length):
-                actions = agents.select_action(timesteps)
-                timesteps = env.step(actions)
-                r_0, r_1 = timesteps[0].reward, timesteps[1].reward
-                rewards_0.append(timesteps[0].reward)
-                rewards_1.append(timesteps[1].reward)
-
-                # update evaluation steps
-                self.eval_steps += 1
-
-                if watchers:
-                    agents.log(watchers)
-                    env_info = {
-                        "eval/evaluation_steps": self.eval_steps,
-                        "eval/step_reward/player_1": float(
-                            jnp.array(r_0).mean()
-                        ),
-                        "eval/step_reward/player_2": float(
-                            jnp.array(r_1).mean()
-                        ),
-                    }
-                    wandb.log(env_info)
-
-            # end of episode stats
-            self.eval_episodes += 1
-            rewards_0 = jnp.array(rewards_0)
-            rewards_1 = jnp.array(rewards_1)
-
-            print(
-                f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
-            )
-            if watchers:
-                wandb.log(
-                    {
-                        "train/episodes": self.train_episodes,
-                        "eval/episodes": self.eval_episodes,
-                        "eval/episode_reward/player_1": float(
-                            rewards_0.mean()
-                        ),
-                        "eval/episode_reward/player_2": float(
-                            rewards_1.mean()
-                        ),
-                        "eval/joint_reward": float(
-                            (rewards_0.mean() + rewards_1.mean()) * 0.5
-                        ),
-                    }
-                )
-        agents.eval(False)
-        print()
         return agents

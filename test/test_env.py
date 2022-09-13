@@ -91,7 +91,7 @@ def test_tit_for_tat_match() -> None:
     env = SequentialMatrixGame(num_envs, payoff, 5)
     t_0, t_1 = env.reset()
 
-    tit_for_tat = TitForTat()
+    tit_for_tat = TitForTat(num_envs)
 
     action_0 = tit_for_tat.select_action(t_0)
     action_1 = tit_for_tat.select_action(t_1)
