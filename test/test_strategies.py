@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 from pax.env_inner import InfiniteMatrixGame
 from pax.env_meta import CoinGame, CoinGameState
-from pax.strategies import GreedyCoinChaser, TitForTat, GrimTrigger
+from pax.strategies import EvilGreedy, TitForTat, GrimTrigger
 from pax.naive_exact import NaiveExact
 from dm_env import transition
 
@@ -209,7 +209,7 @@ def test_coin_chaser():
         (4 * jnp.ones(bs, dtype=jnp.int8), 4 * jnp.ones(bs, dtype=jnp.int8))
     )
 
-    agent = GreedyCoinChaser(4)
+    agent = EvilGreedy(4)
     a1 = agent._greedy_step(t1.observation[0])
     # take a left
     assert a1 == 1
