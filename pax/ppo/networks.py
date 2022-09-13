@@ -86,11 +86,10 @@ class ContinuousValueHead(hk.Module):
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         return (distrax.MultivariateNormalDiag(loc=logits), value)
 
+
 class Tabular(hk.Module):
     def __init__(self, num_values: int):
-        super().__init__(name='Tabular')
-        self.chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
-
+        super().__init__(name="Tabular")
         self._logit_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Constant(0.5),
@@ -102,25 +101,22 @@ class Tabular(hk.Module):
             with_bias=False,
         )
 
-        def _input_to_onehot(inputs: jnp.ndarray):
-            inputs = jnp.zeros_like(inputs)
-            idx = inputs.nonzero(size=4)[0]
+        def _input_to_onehot(input: jnp.ndarray):
+            chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
+            idx = input.nonzero(size=4)[0]
             idx = jnp.mod(idx, 9)
-            idx = self.chunks * idx
+            idx = chunks * idx
             idx = jnp.sum(idx)
-            inputs = inputs.at[idx].set(1)
-            return inputs
-        
-        
-        self.input_to_onehot = _input_to_onehot
-        
+            return jax.nn.one_hot(idx, num_classes=6561)
+
+        self.input_to_onehot = jax.vmap(_input_to_onehot)
+
     def __call__(self, inputs: jnp.ndarray):
         inputs = self.input_to_onehot(inputs)
         logits = self._logit_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
 
         return (distrax.Categorical(logits=logits), value)
-
 
 
 class CNN(hk.Module):
@@ -353,6 +349,7 @@ def make_GRU_coingame_network(num_actions: int, args):
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network, hidden_state
 
+
 def make_tabular_coingame_network(num_actions: int, args):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
@@ -367,7 +364,7 @@ def make_tabular_coingame_network(num_actions: int, args):
         return policy_value_network(inputs)
 
     network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network    
+    return network
 
 
 def test_GRU():

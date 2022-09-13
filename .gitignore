@@ -104,3 +104,4 @@ axelrod/models
 
 # Hydra
 .hydra
+exp/
