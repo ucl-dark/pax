@@ -51,9 +51,6 @@ ppo:
   separate: True # only works with CNN
   hidden_size: 16 #50
 
-es: 
-  algo: OpenES
-
 # Logging setup
 wandb:
   entity: "ucl-dark"

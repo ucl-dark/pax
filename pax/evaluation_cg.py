@@ -28,7 +28,6 @@ class EvalRunnerCG:
     """Holds the runner's state."""
 
     def __init__(self, args):
-        self.algo = args.es.algo
         self.args = args
         self.num_opps = args.num_opps
         self.eval_steps = 0
