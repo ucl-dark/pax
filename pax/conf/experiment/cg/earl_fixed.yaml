@@ -77,4 +77,4 @@ wandb:
   project: cg
   group: '${env_id}-EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

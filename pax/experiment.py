@@ -25,6 +25,8 @@ from pax.runner_rl import Runner
 from pax.strategies import (
     Altruistic,
     Defect,
+    EvilGreedy,
+    GoodGreedy,
     GrimTrigger,
     Human,
     HyperAltruistic,
@@ -348,6 +350,39 @@ def agent_setup(args, logger):
 
         return ppo_agent
 
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+            tabular=True,
+        )
+
+        return ppo_agent
+
     def get_hyper_agent(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
@@ -462,6 +497,39 @@ def agent_setup(args, logger):
         agent.player_id = player_id
         return agent
 
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=True,
+            tabular=True,
+        )
+
+        return ppo_agent
+
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
@@ -470,9 +538,12 @@ def agent_setup(args, logger):
         "Random": get_random_agent,
         "Stay": get_stay_agent,
         "Grim": partial(GrimTrigger, args.num_envs),
+        "GoodGreedy": partial(GoodGreedy, args.num_envs),
+        "EvilGreedy": partial(EvilGreedy, args.num_envs),
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
+        "Tabular": get_PPO_tabular_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -565,6 +636,8 @@ def watcher_setup(args, logger):
         "Random": dumb_log,
         "Stay": dumb_log,
         "Grim": dumb_log,
+        "GoodGreedy": dumb_log,
+        "EvilGreedy": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
         "Naive": naive_pg_log,
@@ -573,6 +646,7 @@ def watcher_setup(args, logger):
         "HyperAltruistic": dumb_log,
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
+        "Tabular": ppo_log,
     }
 
     assert args.agent1 in strategies

@@ -55,6 +55,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         has_sgd_jit: bool = False,
+        tabular: bool = False,
     ):
         @jax.jit
         def policy(
@@ -376,7 +377,14 @@ class PPO:
         def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec)
+            if not tabular:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+                dummy_obs = dummy_obs.at[0].set(1)
+                dummy_obs = dummy_obs.at[9].set(1)
+                dummy_obs = dummy_obs.at[18].set(1)
+                dummy_obs = dummy_obs.at[27].set(1)
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
@@ -459,15 +467,20 @@ class PPO:
 
 
 def make_agent(
-    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+    args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    player_id: int,
+    has_sgd_jit: bool,
+    tabular=False,
 ):
     """Make PPO agent"""
-
     if args.env_id == "CartPole-v1":
         network = make_cartpole_network(action_spec)
     elif args.env_id == "coin_game":
-        print(f"Making network for {args.env_id} with CNN")
-        network = make_coingame_network(action_spec, args)
+        print(f"Making network for {args.env_id}")
+        network = make_coingame_network(action_spec, tabular, args)
     else:
         network = make_ipd_network(action_spec)
 
@@ -522,6 +535,7 @@ def make_agent(
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         has_sgd_jit=has_sgd_jit,
+        tabular=tabular,
     )
     agent.player_id = player_id
     return agent

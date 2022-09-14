@@ -1,7 +1,8 @@
 import jax
 import jax.numpy as jnp
 from pax.env_inner import InfiniteMatrixGame
-from pax.strategies import TitForTat, GrimTrigger
+from pax.env_meta import CoinGame, CoinGameState
+from pax.strategies import EvilGreedy, TitForTat, GrimTrigger
 from pax.naive_exact import NaiveExact
 from dm_env import transition
 
@@ -180,3 +181,40 @@ def test_naive_tft_as_second_player():
     assert jnp.allclose(
         env.step([tft_action, action])[1].reward, 2.0, atol=0.01
     )
+
+
+def test_coin_chaser():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True)
+    t1, t2 = env.reset()
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[2, 0]]),
+        red_coin_pos=jnp.array([[0, 2]]),
+        blue_coin_pos=jnp.array([[2, 1]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+    )
+
+    #  r 0 rc
+    #  0 0 0
+    #  b bc 0
+    # update locations (agent 1: [0, 0] agent 2: [2, 1])
+    t1, t2 = env.step(
+        (4 * jnp.ones(bs, dtype=jnp.int8), 4 * jnp.ones(bs, dtype=jnp.int8))
+    )
+
+    agent = EvilGreedy(4)
+    a1 = agent._greedy_step(t1.observation[0])
+    # take a left
+    assert a1 == 1
+
+    print("akbir")
+    # take a right
+    a2 = agent._greedy_step(t2.observation[0])
+    assert a2 == 0
