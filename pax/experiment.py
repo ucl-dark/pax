@@ -464,7 +464,7 @@ def agent_setup(args, logger):
 
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
-        "Defect": partial(Defect, args.nums_envs),
+        "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Human": Human,
         "Random": get_random_agent,
