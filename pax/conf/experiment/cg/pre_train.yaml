@@ -33,8 +33,8 @@ num_seeds: 10
 # model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
 
 # PPO RNN pretrained against PPO RNN 
-run_path: ucl-dark/cg/1w6exaa2
-model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_21.15.38.140717/iteration_300
+run_path: ucl-dark/cg/2vqt63b9
+model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
 
 # PPO agent parameters
 ppo:
