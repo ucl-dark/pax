@@ -39,7 +39,7 @@ ppo:
   entropy_coeff_start: 0.02
   entropy_coeff_horizon: 2000000
   entropy_coeff_end: 0.001
-  lr_scheduling: True
+  lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
   with_memory: True
