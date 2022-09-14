@@ -28,8 +28,11 @@ num_generations: 5000
 
 # Evaluation
 num_seeds: 10
-run_path: ucl-dark/cg/22slaxzq
-model_path: exp/coin_game-EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-08_20.28.07.107743/generation_10
+run_path: ucl-dark/cg/20o5qob2
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
+# Depcrecated to without stay action
+# run_path: ucl-dark/cg/22slaxzq
+# model_path: exp/coin_game-EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-08_20.28.07.107743/generation_10
 
 # PPO agent parameters
 ppo:

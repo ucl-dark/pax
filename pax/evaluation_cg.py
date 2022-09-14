@@ -137,6 +137,16 @@ class EvalRunnerCG:
         print(f"Number of Environments: {env.num_envs}")
         print(f"Number of Opponent: {self.num_opps}")
         print("-----------------------")
+
+        # Track mean rewards and state visitations
+
+        mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        # mean_visits = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
+        # mean_state_freq = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
+        # mean_cooperation_prob = jnp.zeros(
+        #     shape=(num_seeds, env.num_trials, 5)
+        # )
         # Initialize agents and RNG
         agent1, agent2 = agents.agents
         rng, _ = jax.random.split(self.random_key)
@@ -226,9 +236,10 @@ class EvalRunnerCG:
                 rewards_trial_mean_p2 = (
                     traj_2.rewards[out_step].sum(axis=0).mean()
                 )
-                print(
-                    f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
-                )
+                if out_step % 100 == 0:
+                    print(
+                        f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                    )
                 if watchers:
                     eval_trial_log = {
                         "eval/trial": out_step + 1,
@@ -237,6 +248,12 @@ class EvalRunnerCG:
                     }
                     wandb.log(eval_trial_log)
                 # TODO: Add step rewards?
+                mean_rewards_p1 = mean_rewards_p1.at[i, out_step].set(
+                    rewards_trial_mean_p1
+                )  # jnp.zeros(shape=(num_iters, env.num_trials))
+                mean_rewards_p2 = mean_rewards_p2.at[i, out_step].set(
+                    rewards_trial_mean_p2
+                )
 
             if watchers:
                 wandb_log = {
@@ -246,8 +263,8 @@ class EvalRunnerCG:
                     "eval/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                    "eval/episode_reward/player_1": rewards_0,
-                    "eval/episode_reward/player_2": rewards_1,
+                    # "eval/episode_reward/player_1": rewards_0,
+                    # "eval/episode_reward/player_2": rewards_1,
                 }
                 wandb_log = wandb_log | env_stats
 
@@ -267,5 +284,16 @@ class EvalRunnerCG:
                 agents.log(watchers)
                 wandb.log(wandb_log)
             print()
+
+        for out_step in range(env.num_trials):
+            print("Logging the mean trial rewards")
+            if watchers:
+                wandb.log(
+                    {
+                        "eval/trial": out_step + 1,
+                        "eval/reward/p1": mean_rewards_p1[:, out_step].mean(),
+                        "eval/reward/p2": mean_rewards_p2[:, out_step].mean(),
+                    }
+                )
 
         return agents
