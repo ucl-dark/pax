@@ -283,8 +283,10 @@ class EvalRunnerCG:
                         "eval/trial": out_step + 1,
                         f"eval/reward_trial_p1_opp_{i}": rewards_trial_mean_p1,
                         f"eval/reward_trial_p2_opp_{i}": rewards_trial_mean_p2,
-                        f"eval/reward_trial_p1_prob_{i}": rewards_trial_mean_p1,
-                        f"eval/reward_trial_p2_prob_{i}": rewards_trial_mean_p2,
+                        f"eval/reward_trial_p1_prob_{i}": coop_prob_p1,
+                        f"eval/reward_trial_p2_prob_{i}": coop_prob_p2,
+                        f"eval/coin_per_ep_p1_{i}": coin_per_ep_p1,
+                        f"eval/coin_per_ep_p2_{i}": coin_per_ep_p2,
                     }
                     wandb.log(eval_trial_log)
                 # TODO: Add step rewards?
