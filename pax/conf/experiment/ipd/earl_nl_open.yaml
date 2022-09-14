@@ -33,7 +33,7 @@ ppo:
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
-  clip_value: False 
+  clip_value: True 
   max_gradient_norm: 0.5
   anneal_entropy: False
   entropy_coeff_start: 0.02
