@@ -222,18 +222,18 @@ def test_coingame_move():
     t1, t2 = env.step((action, action))
     assert t1.reward == 1
     assert t2.reward == 1
-    assert env.state.red_coop == 1
-    assert env.state.red_defect == 0
-    assert env.state.blue_coop == 1
-    assert env.state.blue_defect == 0
+    assert (env.state.red_coop == jnp.array([1, 0])).all()
+    assert (env.state.red_defect == jnp.array([0, 0])).all()
+    assert (env.state.blue_coop == jnp.array([1, 0])).all()
+    assert (env.state.blue_defect == jnp.array([0, 0])).all()
 
     t1, t2 = env.step((action, action))
     assert t1.reward == 0
     assert t2.reward == 0
-    assert env.state.red_coop == 1
-    assert env.state.red_defect == 0
-    assert env.state.blue_coop == 1
-    assert env.state.blue_defect == 0
+    assert (env.state.red_coop == jnp.array([1, 0])).all()
+    assert (env.state.red_defect == jnp.array([0, 0])).all()
+    assert (env.state.blue_coop == jnp.array([1, 0])).all()
+    assert (env.state.blue_defect == jnp.array([0, 0])).all()
 
 
 def test_coingame_egocentric():
