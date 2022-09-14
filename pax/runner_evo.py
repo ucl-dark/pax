@@ -273,7 +273,12 @@ class EvoRunner:
                         step_type=2 * jnp.ones_like(t1.step_type)
                     )
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
+                        lambda x: x.item(),
+                        self.ipd_stats(
+                            traj_1.observations,
+                            traj_1.actions,
+                            final_t1.observation,
+                        ),
                     )
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()
