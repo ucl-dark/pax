@@ -193,9 +193,13 @@ class EvalRunnerCG:
             traj_1, traj_2, a2_metrics = stack
 
             if self.args.env_type == "coin_game":
-                env_stats = (self.cg_stats(env_state),)
+                env_stats = self.cg_stats(env_state)
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                # print(env_stats)
+                # print(type(env_stats))
+                # print(env_stats["prob_coop/1"])
+
                 mean_coop_prob_p1 = mean_coop_prob_p1.at[i, :].set(
                     env_stats["prob_coop/1"]
                 )
@@ -246,9 +250,20 @@ class EvalRunnerCG:
                 rewards_trial_mean_p2 = (
                     traj_2.rewards[out_step].sum(axis=0).mean()
                 )
-                print(
-                    f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
-                )
+                if out_step % 100 == 0:
+                    print(
+                        f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                    )
+                    coop_prob_p1 = mean_coop_prob_p1[i, out_step]
+                    coop_prob_p2 = mean_coop_prob_p2[i, out_step]
+                    print(
+                        f"Probability of Cooperation {out_step} P1:{coop_prob_p1}, P2:{coop_prob_p2}"
+                    )
+                    coin_per_ep_p1 = mean_coins_per_episode_p1[i, out_step]
+                    coin_per_ep_p2 = mean_coins_per_episode_p2[i, out_step]
+                    print(
+                        f"Coins per Episode {out_step} P1:{coin_per_ep_p1}, P2:{coin_per_ep_p2}"
+                    )
 
                 if watchers:
                     eval_trial_log = {
@@ -298,6 +313,18 @@ class EvalRunnerCG:
                         "eval/trial": out_step + 1,
                         "eval/reward/p1": mean_rewards_p1[:, out_step].mean(),
                         "eval/reward/p2": mean_rewards_p2[:, out_step].mean(),
+                        "eval/prob_cooperation/p1": mean_coop_prob_p1[
+                            :, out_step
+                        ].mean(),
+                        "eval/prob_cooperation/p2": mean_coop_prob_p2[
+                            :, out_step
+                        ].mean(),
+                        "eval/coins_per_episode/p1": mean_coins_per_episode_p1[
+                            :, out_step
+                        ].mean(),
+                        "eval/coins_per_episode/p2": mean_coins_per_episode_p2[
+                            :, out_step
+                        ].mean(),
                     }
                 )
 

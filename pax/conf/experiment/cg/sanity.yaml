@@ -45,10 +45,14 @@ ppo:
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
   with_memory: True
+  with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16 #50
+
+es: 
+  algo: OpenES
 
 # Logging setup
 wandb:
