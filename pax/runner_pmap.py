@@ -262,7 +262,7 @@ class EvoRunnerPMAP:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            env_stats = self.cg_stats(env_state)
+            env_stats = self.cg_stats(env_state, env.num_trials)
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -317,10 +317,16 @@ class EvoRunnerPMAP:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape(log["top_gen_params"][0:2])
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x[0].reshape(x[0].shape[1:]), top_params
-                )
+                if self.args.num_devices > 1:
+                    top_params = param_reshaper.reshape(log["top_gen_params"][0:self.args.num_devices])
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x[0].reshape(x[0].shape[1:]), top_params
+                    )
+                else:
+                    top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x.reshape(x.shape[1:]), top_params
+                    )                    
                 save(top_params, log_savepath)
                 if watchers:
                     print(f"Saving generation {gen} locally and to WandB")
