@@ -154,6 +154,16 @@ class EvalRunnerCG:
 
         a1_state = a1_state._replace(params=params)
 
+        mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coop_prob_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coop_prob_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coins_per_episode_p1 = jnp.zeros(
+            shape=(num_seeds, env.num_trials)
+        )
+        mean_coins_per_episode_p2 = jnp.zeros(
+            shape=(num_seeds, env.num_trials)
+        )
         for i in range(self.num_seeds):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
@@ -183,12 +193,21 @@ class EvalRunnerCG:
             traj_1, traj_2, a2_metrics = stack
 
             if self.args.env_type == "coin_game":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(),
-                    self.cg_stats(env_state, env.num_trials),
-                )
+                env_stats = (self.cg_stats(env_state),)
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                mean_coop_prob_p1 = mean_coop_prob_p1.at[i, :].set(
+                    env_stats["prob_coop/1"]
+                )
+                mean_coop_prob_p2 = mean_coop_prob_p2.at[i, :].set(
+                    env_stats["prob_coop/2"]
+                )
+                mean_coins_per_episode_p1 = mean_coins_per_episode_p1.at[
+                    i, :
+                ].set(env_stats["coins_per_episode/1"])
+                mean_coins_per_episode_p2 = mean_coins_per_episode_p2.at[
+                    i, :
+                ].set(env_stats["coins_per_episode/2"])
 
             elif self.args.env_type in [
                 "meta",
@@ -197,6 +216,7 @@ class EvalRunnerCG:
                 final_t1 = t1._replace(
                     step_type=2 * jnp.ones_like(t1.step_type)
                 )
+
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
                 )
@@ -229,6 +249,7 @@ class EvalRunnerCG:
                 print(
                     f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
                 )
+
                 if watchers:
                     eval_trial_log = {
                         "eval/trial": out_step + 1,
@@ -269,5 +290,15 @@ class EvalRunnerCG:
                 agents.log(watchers)
                 wandb.log(wandb_log)
             print()
+
+        for out_step in range(env.num_trials):
+            if watchers:
+                wandb.log(
+                    {
+                        "eval/trial": out_step + 1,
+                        "eval/reward/p1": mean_rewards_p1[:, out_step].mean(),
+                        "eval/reward/p2": mean_rewards_p2[:, out_step].mean(),
+                    }
+                )
 
         return agents
