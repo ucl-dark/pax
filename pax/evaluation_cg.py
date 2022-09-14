@@ -196,9 +196,8 @@ class EvalRunnerCG:
                 env_stats = self.cg_stats(env_state)
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
-                # print(env_stats)
-                # print(type(env_stats))
-                # print(env_stats["prob_coop/1"])
+
+                mean_rewards_p1 = mean_rewards_p1
 
                 mean_coop_prob_p1 = mean_coop_prob_p1.at[i, :].set(
                     env_stats["prob_coop/1"]
@@ -233,8 +232,15 @@ class EvalRunnerCG:
             print(
                 "--------------------------------------------------------------------------"
             )
-            print(f"Mean Episode Reward: {float(rewards_0), float(rewards_1)}")
-            print(f"Env Stats: {env_stats}")
+            print(f"Episode Reward: {float(rewards_0), float(rewards_1)}")
+            print(
+                f"Cooperation Probability: {mean_coop_prob_p1[i].mean()}, {mean_coop_prob_p2[i].mean()}"
+            )
+            mean_coin_per_ep_p1 = mean_coins_per_episode_p1[i].mean()
+            mean_coin_per_ep_p2 = mean_coins_per_episode_p2[i].mean()
+            print(
+                f"Coins per Episode: {mean_coin_per_ep_p1}, {mean_coin_per_ep_p2}"
+            )
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -250,20 +256,28 @@ class EvalRunnerCG:
                 rewards_trial_mean_p2 = (
                     traj_2.rewards[out_step].sum(axis=0).mean()
                 )
+                mean_rewards_p1 = mean_rewards_p1.at[i, out_step].set(
+                    rewards_trial_mean_p1
+                )
+                mean_rewards_p2 = mean_rewards_p2.at[i, out_step].set(
+                    rewards_trial_mean_p2
+                )
                 if out_step % 100 == 0:
+                    print(f"Trial {out_step}")
                     print(
-                        f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                        f"Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
                     )
                     coop_prob_p1 = mean_coop_prob_p1[i, out_step]
                     coop_prob_p2 = mean_coop_prob_p2[i, out_step]
                     print(
-                        f"Probability of Cooperation {out_step} P1:{coop_prob_p1}, P2:{coop_prob_p2}"
+                        f"Probability of Cooperation | P1:{coop_prob_p1}, P2:{coop_prob_p2}"
                     )
                     coin_per_ep_p1 = mean_coins_per_episode_p1[i, out_step]
                     coin_per_ep_p2 = mean_coins_per_episode_p2[i, out_step]
                     print(
-                        f"Coins per Episode {out_step} P1:{coin_per_ep_p1}, P2:{coin_per_ep_p2}"
+                        f"Coins per Episode | P1:{coin_per_ep_p1}, P2:{coin_per_ep_p2}"
                     )
+                    print()
 
                 if watchers:
                     eval_trial_log = {
