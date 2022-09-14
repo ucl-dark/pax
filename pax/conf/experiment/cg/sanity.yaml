@@ -14,8 +14,8 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Training hyperparameters
 
-# Training
-num_envs: 200
+# env_batch_size = num_envs * num_opponents
+num_envs: 250
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
