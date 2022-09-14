@@ -334,8 +334,7 @@ class EvoRunner:
                     "train/episode_reward/player_1": float(rewards_0.mean()),
                     "train/episode_reward/player_2": float(rewards_1.mean()),
                 }
-                wandb_log.update(env_stats)
-                # wandb_log = wandb_log | env_stats
+                wandb_log = wandb_log | env_stats
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
                     zip(log["top_fitness"], log["top_gen_fitness"])
@@ -352,15 +351,13 @@ class EvoRunner:
                 flattened_metrics = jax.tree_util.tree_map(
                     lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                 )
-                agent2._logger.metrics.update(flattened_metrics)
-                # agent2._logger.metrics = (
-                #     agent2._logger.metrics | flattened_metrics
-                # )
+                agent2._logger.metrics = (
+                    agent2._logger.metrics | flattened_metrics
+                )
 
-                agent1._logger.metrics.update(flattened_metrics)
-                # agent1._logger.metrics = (
-                #     agent1._logger.metrics | flattened_metrics
-                # )
+                agent1._logger.metrics = (
+                    agent1._logger.metrics | flattened_metrics
+                )
                 agents.log(watchers)
                 wandb.log(wandb_log)
 
