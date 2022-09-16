@@ -146,10 +146,10 @@ class CoinGameState(NamedTuple):
     inner_t: int
     outer_t: int
     # stats
-    red_coop: int
-    red_defect: int
-    blue_coop: int
-    blue_defect: int
+    red_coop: jnp.ndarray
+    red_defect: jnp.ndarray
+    blue_coop: jnp.ndarray
+    blue_defect: jnp.ndarray
 
 
 # class CoinGameJAX:
@@ -173,6 +173,9 @@ class CoinGame:
         seed: int,
         cnn: Boolean,
     ):
+
+        num_trials = int(num_steps / inner_ep_length)
+
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
             # (x) redplayer at (2, 2)
@@ -241,10 +244,10 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
-                0,
-                0,
-                0,
-                0,
+                jnp.zeros(num_trials),
+                jnp.zeros(num_trials),
+                jnp.zeros(num_trials),
+                jnp.zeros(num_trials),
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -312,6 +315,19 @@ class CoinGame:
                 state.blue_coin_pos,
             )
 
+            next_red_coop = state.red_coop + jnp.zeros(num_trials).at[
+                state.outer_t
+            ].set(red_red_matches)
+            next_red_defect = state.red_defect + jnp.zeros(num_trials).at[
+                state.outer_t
+            ].set(red_blue_matches)
+            next_blue_coop = state.blue_coop + jnp.zeros(num_trials).at[
+                state.outer_t
+            ].set(blue_blue_matches)
+            next_blue_defect = state.blue_defect + jnp.zeros(num_trials).at[
+                state.outer_t
+            ].set(blue_red_matches)
+
             next_state = CoinGameState(
                 new_red_pos,
                 new_blue_pos,
@@ -320,10 +336,10 @@ class CoinGame:
                 key,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
-                red_coop=state.red_coop + red_red_matches,
-                red_defect=state.red_defect + red_blue_matches,
-                blue_coop=state.blue_coop + blue_blue_matches,
-                blue_defect=state.blue_defect + blue_red_matches,
+                red_coop=next_red_coop,
+                red_defect=next_red_defect,
+                blue_coop=next_blue_coop,
+                blue_defect=next_blue_defect,
             )
 
             obs1, obs2 = _state_to_obs(next_state)
@@ -390,7 +406,7 @@ class CoinGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = int(num_steps / inner_ep_length)
+        self.num_trials = num_trials
         self.episode_length = num_steps
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
 

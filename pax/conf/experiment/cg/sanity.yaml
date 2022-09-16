@@ -14,14 +14,13 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Training hyperparameters
 
-# Training
-num_envs: 100 # Training requires 10000 
+# env_batch_size = num_envs * num_opponents
+num_envs: 250
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
-num_generations: 10000
-total_timesteps: 1.6e5
-save_interval: 100  
+total_timesteps: 1e5
+save_interval: 100 
 
 # Evaluation 
 num_seeds: 10 
@@ -46,6 +45,7 @@ ppo:
   learning_rate: 0.005 #0.05
   adam_epsilon: 1e-5
   with_memory: True
+  with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN

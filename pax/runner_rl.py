@@ -210,8 +210,8 @@ class Runner:
                 print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.cg_stats(env_state, env.num_trials),
+                        lambda x: x.mean().item(),
+                        self.cg_stats(env_state),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
