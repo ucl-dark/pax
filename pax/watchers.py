@@ -416,17 +416,22 @@ def ipd_visitation(
     }
 
 
-def cg_visitation(env_state: NamedTuple, num_trials: int) -> dict:
+def cg_visitation(env_state: NamedTuple) -> dict:
+    # env state : [num_opps x num_envs, num_trials]
+    env_state = jax.tree_util.tree_map(
+        lambda x: x.reshape(-1, x.shape[-1]), env_state
+    )
     total_1 = env_state.red_coop + env_state.red_defect
     total_2 = env_state.blue_coop + env_state.blue_defect
 
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
+
     return {
-        "prob_coop/1": jnp.nanmean(prob_1),
-        "prob_coop/2": jnp.nanmean(prob_2),
-        "total_coins/1": total_1.mean(),
-        "total_coins/2": total_2.mean(),
-        "coins_per_episode/1": total_1.mean() / num_trials,
-        "coins_per_episode/2": total_2.mean() / num_trials,
+        "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_trials]
+        "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_trials]
+        "total_coins/1": total_1.sum(),  # int
+        "total_coins/2": total_2.sum(),  # int
+        "coins_per_episode/1": total_1.mean(axis=0),  # [num_trials]
+        "coins_per_episode/2": total_2.mean(axis=0),  # [num_trials]
     }
