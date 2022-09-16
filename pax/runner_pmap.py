@@ -1,15 +1,13 @@
-from datetime import datetime
 import os
 
-# Added to test multiple devices
 import time
-from typing import List, NamedTuple
+from datetime import datetime
+from typing import NamedTuple
 
-from dm_env import TimeStep
-from evosax import FitnessShaper
-import hydra
 import jax
 import jax.numpy as jnp
+from evosax import FitnessShaper
+
 import wandb
 from pax.utils import save
 
@@ -154,6 +152,54 @@ class EvoRunnerPMAP:
                 env_state,
             ), (*trajectories, a2_metrics)
 
+        def _evo_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
+            """Runner for one fitness step"""
+            rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
+            # this will be serialized so pulls out initial state
+            a1_state, a1_mem = agent1._state, agent1._mem
+            a1_state = a1_state._replace(
+                params=params,
+            )
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
+            # init agent 2
+            a2_state, a2_mem = agent2.batch_init(
+                jax.random.split(rng_key, popsize * num_opps).reshape(
+                    self.popsize, num_opps, -1
+                ),
+                agent2._mem.hidden,
+            )
+
+            # run the training loop!
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
+            vals, stack = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+
+            traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            # Fitness
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            env_stats = self.cg_stats(env_state)
+
+            rewards_0 = traj_1.rewards.sum(axis=1).mean()
+            rewards_1 = traj_2.rewards.sum(axis=1).mean()
+            return (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a2_metrics,
+            )
+
         print("Training")
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
@@ -186,7 +232,7 @@ class EvoRunnerPMAP:
         )
         log = es_logging.initialize()
 
-        # Evolution specific: add pop size dimension
+        # Pmap specific: add num_devices dimension
         env.batch_step = jax.jit(
             jax.vmap(env.batch_step),
         )
@@ -206,7 +252,7 @@ class EvoRunnerPMAP:
             pmap_init_hidden,
         )
 
-        # these are not batched by device number.
+        # hiddens are used only on device (so not batched)
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
@@ -220,76 +266,21 @@ class EvoRunnerPMAP:
         agent1._state = agent1._state._replace(params=vmap_state.params)
         # a2_state, a2_mem = agent2._state, agent2._mem
 
-        def evo_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
-            # this is serialized so pulls out initial state
-            a1_state, a1_mem = agent1._state, agent1._mem
-
-            # TODO: owe timon a drink if this is needed.
-            # agent1._state, agent1._mem = agent1.batch_init(
-            # jax.random.split(agent1._state.random_key, popsize),
-            # init_hidden,
-            # )
-
-            # but who cares! i'm gonna replace this
-            a1_state = a1_state._replace(
-                params=params,
-            )
-            a1_mem = agent1.batch_reset(a1_mem, False)
-
-            # init agent 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                agent2._mem.hidden,
-            )
-
-            # run the training loop!
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
-            )
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-                None,
-                length=env.num_trials,
-            )
-
-            traj_1, traj_2, a2_metrics = stack
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-
-            # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            env_stats = self.cg_stats(env_state, env.num_trials)
-
-            rewards_0 = traj_1.rewards.sum(axis=1).mean()
-            rewards_1 = traj_2.rewards.sum(axis=1).mean()
-            return (
-                fitness,
-                other_fitness,
-                env_stats,
-                rewards_0,
-                rewards_1,
-                a2_metrics,
-            )
-
-        pmap_rollout = jax.pmap(evo_rollout)
+        evo_rollout = jax.pmap(_evo_rollout)
 
         for gen in range(num_gens):
+            # run generation step
             rng_evo, rng_devices = jax.random.split(rng, 2)
             rng_devices = jnp.tile(rng_devices, num_devices).reshape(
                 num_devices, -1
             )
-            # Ask
+            # Ask for params
             x, evo_state = strategy.ask(
                 rng_evo, evo_state, es_params
             )  # this means that x isn't of shape (total_popsize, params)
             a1_params = param_reshaper.reshape(
                 x
-            )  # this will reshape x into (num_devices, popsize, ....)
-            # split x into chunks based on number devices
+            )  # reshape x into (num_devices, popsize, ....)
             if self.num_devices == 1:
                 a1_params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), a1_params
@@ -301,7 +292,7 @@ class EvoRunnerPMAP:
                 rewards_0,
                 rewards_1,
                 a2_metrics,
-            ) = pmap_rollout(a1_params, rng_devices)
+            ) = evo_rollout(a1_params, rng_devices)
             fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
@@ -318,31 +309,25 @@ class EvoRunnerPMAP:
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
-                    top_params = param_reshaper.reshape(log["top_gen_params"][0:self.args.num_devices])
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0 : self.args.num_devices]
+                    )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x[0].reshape(x[0].shape[1:]), top_params
                     )
                 else:
-                    top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0:1]
+                    )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x.reshape(x.shape[1:]), top_params
-                    )                    
+                    )
                 save(top_params, log_savepath)
                 if watchers:
                     print(f"Saving generation {gen} locally and to WandB")
                     wandb.save(log_savepath)
                 else:
                     print(f"Saving iteration {gen} locally")
-            # if log["gen_counter"] % 100 == 0:
-            #     log_savepath = os.path.join(
-            #         self.save_dir, f"generation_{log['gen_counter']}"
-            #     )
-            #     top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
-            #     # remove batch dimension
-            #     top_params = jax.tree_util.tree_map(
-            #         lambda x: x.reshape(x.shape[1:]), top_params
-            #     )
-            #     save(top_params, log_savepath)
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
@@ -353,15 +338,6 @@ class EvoRunnerPMAP:
                     "meta",
                     "sequential",
                 ]:
-                    # TODO: return this
-                    # final_t1 = t1._replace(
-                    #     step_type=2 * jnp.ones_like(t1.step_type)
-                    # )
-                    # env_stats = jax.tree_util.tree_map(
-                    #     lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
-                    # )
-                    # rewards_0 = traj_1.rewards.mean()
-                    # rewards_1 = traj_2.rewards.mean()
                     env_stats = {}
                 else:
                     env_stats = {}

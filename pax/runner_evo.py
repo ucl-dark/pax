@@ -142,10 +142,6 @@ class EvoRunner:
 
         print("Training")
         print("------------------------------")
-        # num_iters = max(
-        #     int(num_episodes / (self.popsize * env.num_envs * self.num_opps)),
-        #     1,
-        # )
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
         print(f"Number of Generations: {num_generations}")
         print(f"Number of Meta Episodes: {num_generations}")
@@ -313,8 +309,6 @@ class EvoRunner:
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
-            self.generations += 1
-
             if watchers:
                 wandb_log = {
                     "generations": self.generations,
@@ -360,5 +354,6 @@ class EvoRunner:
                 )
                 agents.log(watchers)
                 wandb.log(wandb_log)
+        self.generations += 1
 
         return agents
