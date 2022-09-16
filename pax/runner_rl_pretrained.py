@@ -7,7 +7,7 @@ import jax.numpy as jnp
 import wandb
 
 from pax.watchers import cg_visitation, ipd_visitation
-from pax.utils import save
+from pax.utils import save, load
 
 MAX_WANDB_CALLS = 10000
 
@@ -37,7 +37,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class Runner:
+class RunnerPretrained:
     """Holds the runner's state."""
 
     def __init__(self, args, save_dir):
@@ -49,7 +49,9 @@ class Runner:
         self.args = args
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
+        self.run_path = args.run_path
         self.save_dir = save_dir
+        self.model_path = args.model_path
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -151,6 +153,14 @@ class Runner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
+
+        if watchers:
+            wandb.restore(
+                name=self.model_path, run_path=self.run_path, root=os.getcwd()
+            )
+        pretrained_params = load(self.model_path)
+        a1_state = a1_state._replace(params=pretrained_params)
+
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
@@ -190,6 +200,7 @@ class Runner:
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
+            a1_state = a1_state._replace(params=pretrained_params)
 
             # update second agent
             a1_mem = agent1.batch_reset(a1_mem, False)
@@ -210,8 +221,8 @@ class Runner:
                 print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.mean().item(),
-                        self.cg_stats(env_state),
+                        lambda x: x.item(),
+                        self.cg_stats(env_state, env.num_trials),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()

@@ -175,6 +175,7 @@ class CoinGame:
     ):
 
         num_trials = int(num_steps / inner_ep_length)
+
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
             # (x) redplayer at (2, 2)
@@ -405,7 +406,7 @@ class CoinGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = int(num_steps / inner_ep_length)
+        self.num_trials = num_trials
         self.episode_length = num_steps
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
 
