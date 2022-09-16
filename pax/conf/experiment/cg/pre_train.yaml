@@ -18,12 +18,12 @@ evo: False
 eval: False 
 
 # Training
-num_envs: 200 # Training requires 10000 
+num_envs: 100 # Training requires 10000 
 num_opps: 1
 num_steps: 16 
 num_inner_steps: 16 
 num_generations: 10000
-total_timesteps: 1.6e5
+total_timesteps: 1.6e5 
 save_interval: 100  
 
 # Evaluation 
@@ -34,7 +34,7 @@ num_seeds: 10
 
 # PPO RNN pretrained against PPO RNN 
 run_path: ucl-dark/cg/2vqt63b9
-model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
+model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
 
 # PPO agent parameters
 ppo:

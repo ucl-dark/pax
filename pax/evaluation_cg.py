@@ -28,7 +28,6 @@ class EvalRunnerCG:
     """Holds the runner's state."""
 
     def __init__(self, args):
-        self.algo = args.es.algo
         self.args = args
         self.num_opps = args.num_opps
         self.eval_steps = 0
@@ -154,6 +153,16 @@ class EvalRunnerCG:
 
         a1_state = a1_state._replace(params=params)
 
+        mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coop_prob_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coop_prob_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_coins_per_episode_p1 = jnp.zeros(
+            shape=(num_seeds, env.num_trials)
+        )
+        mean_coins_per_episode_p2 = jnp.zeros(
+            shape=(num_seeds, env.num_trials)
+        )
         for i in range(self.num_seeds):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
@@ -183,12 +192,24 @@ class EvalRunnerCG:
             traj_1, traj_2, a2_metrics = stack
 
             if self.args.env_type == "coin_game":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(),
-                    self.cg_stats(env_state, env.num_trials),
-                )
+                env_stats = self.cg_stats(env_state)
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
+                mean_rewards_p1 = mean_rewards_p1
+
+                mean_coop_prob_p1 = mean_coop_prob_p1.at[i, :].set(
+                    env_stats["prob_coop/1"]
+                )
+                mean_coop_prob_p2 = mean_coop_prob_p2.at[i, :].set(
+                    env_stats["prob_coop/2"]
+                )
+                mean_coins_per_episode_p1 = mean_coins_per_episode_p1.at[
+                    i, :
+                ].set(env_stats["coins_per_episode/1"])
+                mean_coins_per_episode_p2 = mean_coins_per_episode_p2.at[
+                    i, :
+                ].set(env_stats["coins_per_episode/2"])
 
             elif self.args.env_type in [
                 "meta",
@@ -197,6 +218,7 @@ class EvalRunnerCG:
                 final_t1 = t1._replace(
                     step_type=2 * jnp.ones_like(t1.step_type)
                 )
+
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.item(), self.ipd_stats(traj_1, final_t1)
                 )
@@ -209,8 +231,15 @@ class EvalRunnerCG:
             print(
                 "--------------------------------------------------------------------------"
             )
-            print(f"Mean Episode Reward: {float(rewards_0), float(rewards_1)}")
-            print(f"Env Stats: {env_stats}")
+            print(f"Episode Reward: {float(rewards_0), float(rewards_1)}")
+            print(
+                f"Cooperation Probability: {mean_coop_prob_p1[i].mean()}, {mean_coop_prob_p2[i].mean()}"
+            )
+            mean_coin_per_ep_p1 = mean_coins_per_episode_p1[i].mean()
+            mean_coin_per_ep_p2 = mean_coins_per_episode_p2[i].mean()
+            print(
+                f"Coins per Episode: {mean_coin_per_ep_p1}, {mean_coin_per_ep_p2}"
+            )
             print(
                 "--------------------------------------------------------------------------"
             )
@@ -226,14 +255,38 @@ class EvalRunnerCG:
                 rewards_trial_mean_p2 = (
                     traj_2.rewards[out_step].sum(axis=0).mean()
                 )
-                print(
-                    f"Trial {out_step} Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                mean_rewards_p1 = mean_rewards_p1.at[i, out_step].set(
+                    rewards_trial_mean_p1
                 )
+                mean_rewards_p2 = mean_rewards_p2.at[i, out_step].set(
+                    rewards_trial_mean_p2
+                )
+                if out_step % 100 == 0:
+                    print(f"Trial {out_step}")
+                    print(
+                        f"Reward | P1:{rewards_trial_mean_p1}, P2:{rewards_trial_mean_p2}"
+                    )
+                    coop_prob_p1 = mean_coop_prob_p1[i, out_step]
+                    coop_prob_p2 = mean_coop_prob_p2[i, out_step]
+                    print(
+                        f"Probability of Cooperation | P1:{coop_prob_p1}, P2:{coop_prob_p2}"
+                    )
+                    coin_per_ep_p1 = mean_coins_per_episode_p1[i, out_step]
+                    coin_per_ep_p2 = mean_coins_per_episode_p2[i, out_step]
+                    print(
+                        f"Coins per Episode | P1:{coin_per_ep_p1}, P2:{coin_per_ep_p2}"
+                    )
+                    print()
+
                 if watchers:
                     eval_trial_log = {
                         "eval/trial": out_step + 1,
                         f"eval/reward_trial_p1_opp_{i}": rewards_trial_mean_p1,
                         f"eval/reward_trial_p2_opp_{i}": rewards_trial_mean_p2,
+                        f"eval/reward_trial_p1_prob_{i}": coop_prob_p1,
+                        f"eval/reward_trial_p2_prob_{i}": coop_prob_p2,
+                        f"eval/coin_per_ep_p1_{i}": coin_per_ep_p1,
+                        f"eval/coin_per_ep_p2_{i}": coin_per_ep_p2,
                     }
                     wandb.log(eval_trial_log)
                 # TODO: Add step rewards?
@@ -267,5 +320,27 @@ class EvalRunnerCG:
                 agents.log(watchers)
                 wandb.log(wandb_log)
             print()
+
+        for out_step in range(env.num_trials):
+            if watchers:
+                wandb.log(
+                    {
+                        "eval/trial": out_step + 1,
+                        "eval/reward/p1": mean_rewards_p1[:, out_step].mean(),
+                        "eval/reward/p2": mean_rewards_p2[:, out_step].mean(),
+                        "eval/prob_cooperation/p1": mean_coop_prob_p1[
+                            :, out_step
+                        ].mean(),
+                        "eval/prob_cooperation/p2": mean_coop_prob_p2[
+                            :, out_step
+                        ].mean(),
+                        "eval/coins_per_episode/p1": mean_coins_per_episode_p1[
+                            :, out_step
+                        ].mean(),
+                        "eval/coins_per_episode/p2": mean_coins_per_episode_p2[
+                            :, out_step
+                        ].mean(),
+                    }
+                )
 
         return agents

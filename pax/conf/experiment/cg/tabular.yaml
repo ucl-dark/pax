@@ -44,6 +44,7 @@ ppo:
   learning_rate: 0.01 #0.05
   adam_epsilon: 1e-5
   with_memory: True
+  with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
@@ -64,4 +65,4 @@ wandb:
   project: cg
   group: 'sanity-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
-  log: True
+  log: False
