@@ -33,8 +33,21 @@ num_seeds: 10
 # model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
 
 # PPO RNN pretrained against PPO RNN 
-run_path: ucl-dark/cg/2vqt63b9
-model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
+# run_path: ucl-dark/cg/2vqt63b9
+# model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
+
+# PPO agent pretrained against PPO with hidden layer size: 64
+# run_path: ucl-dark/cg/2zhb6btn
+# model_path:  exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-09-17_16.08.38.953368/iteration_1500
+
+# PPO RNN pretrained against PPO RNN with hidden layer size: 64
+# run_path: ucl-dark/cg/2nhb3l59
+# model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.30.39.856007/iteration_800
+
+# PPO RNN pretrained against PPO RNN with hidden layer size: 128
+run_path: ucl-dark/cg/a0ox9ah5
+model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.34.19.830221/iteration_500
+
 
 # PPO agent parameters
 ppo:
@@ -57,6 +70,7 @@ ppo:
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
+  with_cnn: False
   hidden_size: 16 #50
 
 # Logging setup
