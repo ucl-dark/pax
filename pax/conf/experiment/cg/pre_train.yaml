@@ -32,9 +32,9 @@ num_seeds: 10
 # run_path: ucl-dark/cg/2f559x4o
 # model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
 
-# PPO RNN pretrained against PPO RNN 
-# run_path: ucl-dark/cg/2vqt63b9
-# model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
+# PPO RNN pretrained against PPO RNN with hideen layer size: 16
+run_path: ucl-dark/cg/2vqt63b9
+model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
 
 # PPO agent pretrained against PPO with hidden layer size: 64
 # run_path: ucl-dark/cg/2zhb6btn
@@ -45,8 +45,8 @@ num_seeds: 10
 # model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.30.39.856007/iteration_800
 
 # PPO RNN pretrained against PPO RNN with hidden layer size: 128
-run_path: ucl-dark/cg/a0ox9ah5
-model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.34.19.830221/iteration_500
+# run_path: ucl-dark/cg/a0ox9ah5
+# model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.34.19.830221/iteration_500
 
 
 # PPO agent parameters
