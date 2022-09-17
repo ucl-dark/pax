@@ -3,7 +3,9 @@ from functools import partial
 import logging
 import os
 
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+from pax.runner_mfos import RunnerMFOS
+
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
@@ -22,6 +24,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
@@ -296,6 +299,10 @@ def runner_setup(args, agents, save_dir, logger):
         ):
             logger.info("Training with Runner")
             return RunnerPretrained(args, save_dir)
+
+        elif args.agent1 == "MFOS":
+            logger.info("Training with Runner")
+            return RunnerMFOS(args, save_dir)
         else:
             logger.info("Training with Runner")
             return Runner(args, save_dir)
@@ -400,6 +407,37 @@ def agent_setup(args, logger):
             tabular=True,
         )
 
+        return ppo_agent
+
+    def get_mfos_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        if args.env_type == "meta":
+            has_sgd_jit = False
+        else:
+            has_sgd_jit = True
+
+        ppo_agent = make_mfos_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            has_sgd_jit=has_sgd_jit,
+        )
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
@@ -565,6 +603,7 @@ def agent_setup(args, logger):
         "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
+        "MFOS": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -663,6 +702,7 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
+        "MFOS": ppo_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "PPO_pretrained": ppo_log,
