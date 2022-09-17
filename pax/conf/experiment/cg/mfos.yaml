@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'MFOS'
-agent2: 'PPO'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
@@ -21,7 +21,7 @@ num_envs: 250
 num_opps: 1
 num_steps: 9600 
 num_inner_steps: 16 
-total_timesteps: 1.6e5
+total_timesteps: 1.6e6
 save_interval: 100 
 
 # Evaluation 
