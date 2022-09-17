@@ -85,7 +85,6 @@ def test_GRU():
     dummy_obs = utils.add_batch_dim(dummy_obs)
     dummy_meta = jnp.zeros(shape=hidden_size)
     dummy_meta = utils.add_batch_dim(dummy_meta)
-
     dummy_input = (dummy_obs, dummy_meta)
 
     network, hidden = make_mfos_network(num_actions, hidden_size)
