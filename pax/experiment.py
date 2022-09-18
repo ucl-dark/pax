@@ -3,9 +3,7 @@ from functools import partial
 import logging
 import os
 
-from pax.runner_mfos import RunnerMFOS
-
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
