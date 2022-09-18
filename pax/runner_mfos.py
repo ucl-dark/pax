@@ -273,7 +273,9 @@ class RunnerMFOS:
                             rewards_1.mean()
                         ),
                     }
+
                     wandb_log.update(env_stats)
+                    wandb.log(wandb_log)
                     # wandb.log(
                     #     {
                     #         "episodes": self.train_episodes,
