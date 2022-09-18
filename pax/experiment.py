@@ -3,6 +3,8 @@ from functools import partial
 import logging
 import os
 
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
 import omegaconf
@@ -20,6 +22,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.runner_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.runner_rl_pretrained import RunnerPretrained
@@ -37,7 +40,7 @@ from pax.strategies import (
     Stay,
     TitForTat,
 )
-from pax.utils import Section
+from pax.utils import Section, load
 from pax.watchers import (
     logger_hyper,
     logger_naive,
@@ -225,10 +228,12 @@ def runner_setup(args, agents, save_dir, logger):
 
         def get_openes_strategy(agent):
             """Returns the OpenES strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, n_devices=args.num_devices
+            )
             strategy = OpenES(
                 num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
+                popsize=args.popsize * args.num_devices,
             )
             # Update basic parameters of OpenES strategy
             es_params = strategy.default_params.replace(
@@ -276,14 +281,20 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        logger.info("Training with EvoRunner")
-        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+        if args.pmap:
+            return EvoRunnerPMAP(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
+        else:
+            return EvoRunner(
+                args, strategy, es_params, param_reshaper, save_dir
+            )
     else:
         if (
             args.agent1 == "PPO_memory_pretrained"
             or args.agent1 == "PPO_pretrained"
         ):
-            logger.info("Training with RunnerPretrained")
+            logger.info("Training with Runner")
             return RunnerPretrained(args, save_dir)
         else:
             logger.info("Training with Runner")

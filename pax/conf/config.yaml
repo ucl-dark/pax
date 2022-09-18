@@ -11,9 +11,9 @@ hydra:
 # Global variables 
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
-debug: False
 save: True
 save_interval: 100
+debug: False
 
 # Agents  
 agent1: 'PPO'
@@ -34,6 +34,7 @@ eval: False
 # Training hyperparameters
 # env_batch_size = num_envs * num_opponents
 num_envs: 100
+num_generations: 100
 num_opps: 1
 num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps
