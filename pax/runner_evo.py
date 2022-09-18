@@ -71,6 +71,8 @@ class EvoRunner:
                 t2.observation,
                 a2_mem,
             )
+            print(a1.shape, a2.shape)
+            print(env_state)
 
             (tprime_1, tprime_2), env_state = env.batch_step(
                 (a1, a2),
@@ -172,9 +174,14 @@ class EvoRunner:
         log = es_logging.initialize()
 
         # Evolution specific: add pop size dimension
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
+        if self.args.env_type == "infinite" and self.args.env_id == "ipd":
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step, (0, None), (0, None))
+            )
+        else:
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step),
+            )
 
         if self.args.env_type == "coin_game":
             env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
@@ -279,6 +286,8 @@ class EvoRunner:
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()
                 else:
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Generation: {gen}")
