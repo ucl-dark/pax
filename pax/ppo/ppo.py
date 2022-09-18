@@ -405,11 +405,7 @@ class PPO:
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self._prepare_batch = jax.jit(prepare_batch)
-        has_sgd_jit = True
-        if has_sgd_jit:
-            self._sgd_step = jax.jit(sgd_step)
-        else:
-            self._sgd_step = sgd_step
+        self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
         self._logger = Logger()
