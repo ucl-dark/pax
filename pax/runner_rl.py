@@ -162,6 +162,7 @@ class Runner:
             )
 
             if self.args.agent2 == "NaiveEx":
+                # NaiveExact requires first timestep to know policy
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
             elif (
