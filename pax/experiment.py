@@ -458,7 +458,7 @@ def agent_setup(args, logger):
             action_dim=dummy_env.action_spec().shape[1],
             env=dummy_env,
             lr=args.naive.lr,
-            seed=seed,
+            num_envs=args.num_envs,
             player_id=player_id,
         )
         return agent

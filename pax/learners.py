@@ -105,8 +105,10 @@ class EvolutionaryLearners:
             )
         )
 
-        agent2.batch_init = jax.vmap(
-            jax.vmap(agent2.make_initial_state, (0, None), 0), (0, None), 0
+        agent2.batch_init = jax.jit(
+            jax.vmap(
+                jax.vmap(agent2.make_initial_state, (0, None), 0), (0, None), 0
+            )
         )
 
         agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy, 0, 0)))

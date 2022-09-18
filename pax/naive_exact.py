@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from dm_env import TimeStep
 
 from pax.env_inner import InfiniteMatrixGame
+from pax.utils import MemoryState
 
 
 class TrainingState(NamedTuple):
@@ -13,11 +14,6 @@ class TrainingState(NamedTuple):
     timesteps: int
     num_episodes: int
     loss: float
-
-
-class MemoryState(NamedTuple):
-    extras: Mapping[str, jnp.ndarray]
-    hidden: None
 
 
 class Logger:
@@ -32,7 +28,7 @@ class NaiveExact:
         action_dim: int,
         env: InfiniteMatrixGame,
         lr: float,
-        seed: int,
+        num_envs: int,
         player_id: int,
     ):
 
@@ -115,18 +111,36 @@ class NaiveExact:
             loss=0,
         )
 
-        self._mem = MemoryState({"log_probs": None, "values": None}, 0)
+        self._mem = (
+            MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+            ),
+        )
 
     def make_initial_state(self, t: TimeStep):
-        return TrainingState(
-            t.observation[:, :5],
-            timesteps=0,
-            num_episodes=0,
-            loss=0,
-        ), MemoryState(extras={"log_probs": None, "values": None}, hidden=None)
+        num_envs = t.reward.shape[-1]
+        return (
+            TrainingState(
+                t.observation[:, :5],
+                timesteps=0,
+                num_episodes=0,
+                loss=0,
+            ),
+            MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
+                extras={
+                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(num_envs),
+                },
+            ),
+        )
 
-    def reset_memory(self, *args):
-        return self._state
+    def reset_memory(self, mem, *args):
+        return mem
 
     def select_action(
         self,
@@ -143,4 +157,4 @@ class NaiveExact:
         return action
 
     def update(self, traj_batch, t_prime, state, mem) -> TrainingState:
-        return state, mem
+        return state, mem, {}

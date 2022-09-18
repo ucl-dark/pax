@@ -11,7 +11,8 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.hyper.networks import make_network
-from pax.utils import MemoryState, TrainingState, get_advantages
+
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -27,21 +28,6 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
-
-
-# class TrainingState(NamedTuple):
-#     """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
-
-#     params: hk.Params
-#     opt_state: optax.GradientTransformation
-#     random_key: jnp.ndarray
-#     timesteps: int
-#     extras: Mapping[str, jnp.ndarray]
-#     hidden: None
-
-
-class Logger:
-    metrics: dict
 
 
 class PPO:
@@ -125,7 +111,6 @@ class PPO:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
             # Only need up to the rollout length
-            # num_steps x num_envs x
             rewards = rewards[:-1]
             dones = dones[:-1]
 
@@ -139,7 +124,7 @@ class PPO:
             )
 
             _, advantages = jax.lax.scan(
-                utils.get_advantages,
+                get_advantages,
                 (
                     jnp.zeros_like(values[-1]),
                     values[-1],
@@ -149,7 +134,6 @@ class PPO:
             )
 
             advantages = jnp.flip(advantages, axis=0)
-
             target_values = values[:-1] + advantages  # Q-value estimates
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
@@ -253,7 +237,6 @@ class PPO:
                 sample.dones,
             )
 
-            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
@@ -287,6 +270,7 @@ class PPO:
             # Compute gradients.
             grad_fn = jax.grad(loss, has_aux=True)
 
+            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -319,6 +303,7 @@ class PPO:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
+            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch
@@ -457,21 +442,20 @@ class PPO:
         return memory
 
     def update(self, traj_batch, t_prime, state, mem):
-
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, t_prime.observation, mem)
 
         traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, results = self._sgd_step(state, traj_batch)
+        state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
-        self._logger.metrics["loss_total"] = results["loss_total"]
-        self._logger.metrics["loss_policy"] = results["loss_policy"]
-        self._logger.metrics["loss_value"] = results["loss_value"]
-        self._logger.metrics["loss_entropy"] = results["loss_entropy"]
-        self._logger.metrics["entropy_cost"] = results["entropy_cost"]
-        return state, mem, results
+        self._logger.metrics["loss_total"] = metrics["loss_total"]
+        self._logger.metrics["loss_policy"] = metrics["loss_policy"]
+        self._logger.metrics["loss_value"] = metrics["loss_value"]
+        self._logger.metrics["loss_entropy"] = metrics["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
+        return state, mem, metrics
 
 
 # TODO: seed, and player_id not used in CartPole
@@ -513,7 +497,7 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
-    return PPO(
+    agent = PPO(
         network=network,
         optimizer=optimizer,
         random_key=random_key,
@@ -532,6 +516,8 @@ def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
     )
+    agent.player_id = player_id
+    return agent
 
 
 if __name__ == "__main__":
