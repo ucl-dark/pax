@@ -61,7 +61,7 @@ naive:
   gamma: 0.96
   gae_lambda: 0.95
   max_gradient_norm: 1.0
-  learning_rate: 1.0
+  lr: 1.0
   adam_epsilon: 1e-5
 
 # ES parameters 

@@ -71,8 +71,6 @@ class EvoRunner:
                 t2.observation,
                 a2_mem,
             )
-            print(a1.shape, a2.shape)
-            print(env_state)
 
             (tprime_1, tprime_2), env_state = env.batch_step(
                 (a1, a2),
@@ -215,12 +213,17 @@ class EvoRunner:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # Player 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                a2_mem.hidden,
-            )
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
+
+            elif (
+                self.args.env_type in ["meta", "infinite"]
+                or self.args.coin_type == "coin_meta"
+            ):
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                )
 
             vals, stack = jax.lax.scan(
                 _outer_rollout,
