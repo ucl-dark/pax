@@ -232,6 +232,8 @@ class Runner:
                     rewards_1 = traj_2.rewards.mean()
 
                 else:
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
