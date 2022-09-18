@@ -230,7 +230,7 @@ def make_coingame_network(num_actions: int, tabular: bool, args):
             layers.extend(
                 [
                     hk.nets.MLP(
-                        [64],
+                        [args.ppo.hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
