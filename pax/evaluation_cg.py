@@ -386,15 +386,17 @@ class EvalRunnerCG:
         print("Number of bins:", num_bins)
         print("Bin size:", bin_size)
         print("Num trials", env.num_trials)
-        print("Bins", len(bins))
 
         for i in range(0, env.num_trials, bin_size):  # 0, 600, 60
+
+            # flake8: noqa: C901
             bin_i_params = jax.tree_map(
-                lambda x, i: jnp.mean(x[i : i + bin_size], axis=0), grads, i
+                lambda x: jnp.mean(x[i : i + bin_size], axis=0), grads
             )
             bin_i_params, _ = jax.flatten_util.ravel_pytree(bin_i_params)
             bins.append(bin_i_params)
 
+        print("Bins", len(bins))
         for i in range(10):
             grad_i = bins[i]
             for j in range(10):
