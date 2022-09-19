@@ -17,13 +17,17 @@ from pax.env_meta import CoinGame, MetaFiniteGame
 from pax.evaluation_ipd import EvalRunnerIPD
 from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
-from pax.learners import IndependentLearners, EvolutionaryLearners
+from pax.learners import (
+    EvolutionarySPLearners,
+    IndependentLearners,
+    EvolutionaryLearners,
+)
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
-from pax.runner_pmap import EvoRunnerPMAP
+from pax.runner_sp import EvoRunnerPMAPSP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.runner_mfos import RunnerMFOS
@@ -202,7 +206,7 @@ def runner_setup(args, agents, save_dir, logger):
             return EvalRunnerCG(args)
 
     if args.evo:
-        agent1, _ = agents.agents
+        agent1, agent2 = agents.agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
@@ -283,8 +287,27 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
+        if args.sp:
+            if algo == "CMA_ES":
+                _, _, param_reshaper2 = get_cma_strategy(agent2)
+            elif algo == "OpenES":
+                _, _, param_reshaper2 = get_openes_strategy(agent2)
+            elif algo == "PGPE":
+                _, _, param_reshaper2 = get_pgpe_strategy(agent2)
+            elif algo == "SimpleGA":
+                _, _, param_reshaper2 = get_ga_strategy(agent2)
+
+            return EvoRunnerPMAPSP(
+                args,
+                strategy,
+                es_params,
+                param_reshaper,
+                param_reshaper2,
+                save_dir,
+            )
+
         if args.pmap:
-            return EvoRunnerPMAP(
+            return EvoRunnerPMAPSP(
                 args, strategy, es_params, param_reshaper, save_dir
             )
         else:
@@ -420,9 +443,10 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError(
-                "PPO Tabular agent only works on Coin Game."
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
             )
+            obs_spec = (dummy_env.observation_spec().num_values,)
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -638,9 +662,13 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    if args.evo and not args.eval:
+    if args.evo and not args.eval and not args.sp:
         logger.info("Using EvolutionaryLearners")
         return EvolutionaryLearners([agent_0, agent_1], args)
+    if args.evo and not args.eval and args.sp:
+        logger.info("Using EvolutionaryLearners")
+        return EvolutionarySPLearners([agent_0, agent_1], args)
+
     return IndependentLearners([agent_0, agent_1], args)
 
 
