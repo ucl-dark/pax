@@ -8,8 +8,9 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.utils import load
+from pax.utils import load, get_advantages
 from pax.watchers import cg_visitation, ipd_visitation
+from pax.ppo.ppo_gru import Batch
 
 
 class Sample(NamedTuple):
@@ -22,6 +23,8 @@ class Sample(NamedTuple):
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
     hiddens: jnp.ndarray
+    memory: jnp.ndarray
+    state: jnp.ndarray
 
 
 class EvalRunnerCG:
@@ -75,6 +78,8 @@ class EvalRunnerCG:
                 new_a1_mem.extras["values"],
                 tprime_1.last(),
                 a1_mem.hidden,
+                a1_mem,
+                a1_state
             )
             traj2 = Sample(
                 t2.observation,
@@ -84,6 +89,8 @@ class EvalRunnerCG:
                 new_a2_mem.extras["values"],
                 tprime_2.last(),
                 a2_mem.hidden,
+                a2_mem,
+                a2_state
             )
             return (
                 tprime_1,
@@ -128,7 +135,7 @@ class EvalRunnerCG:
                 a2_state,
                 a2_mem,
                 env_state,
-            ), (*trajectories, a2_metrics)
+            ), (*trajectories, a2_metrics, final_t2)
 
         print("Evaluation")
         print("------------------------------")
@@ -181,6 +188,8 @@ class EvalRunnerCG:
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
             # run trials
+            # len: 16
+            # a1: -> / a2: <- / a3: -> ... end of episode: grad:-><-
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -189,7 +198,7 @@ class EvalRunnerCG:
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-            traj_1, traj_2, a2_metrics = stack
+            traj_1, traj_2, a2_metrics, final_t2 = stack
 
             if self.args.env_type == "coin_game":
                 env_stats = self.cg_stats(env_state)
@@ -373,7 +382,86 @@ class EvalRunnerCG:
         #             print(f"Shape: {grads[layer][key].shape}")
         #         print()
         #     return
+        # num_envs = traj_2.observations.shape[2] * traj_2.observations.shape[3]
+        # traj_2 = jax.tree_util.tree_map(
+        #     lambda x: x.reshape(x.shape[:2] + (num_envs,) + x.shape[4:]),
+        #     traj_2,
+        # )
 
+        eps_idx = 1
+        chunk_size = 2
+        final_a2_state = jax.tree_map(lambda x: x[eps_idx][-1], traj_2.state)# traj_2.state[eps_idx]
+        a2_mem = jax.tree_map(lambda x: x[eps_idx][-1], traj_2.memory) # traj_2.memory[eps_idx]
+        timestep = jax.tree_map(lambda x: x[eps_idx], final_t2) #final_t2[eps_idx]
+        traj_2 = jax.tree_map(lambda x: x[eps_idx], traj_2)
+        # import pdb; pdb.set_trace()
+
+        _, _, mem = agent2.batch_policy(final_a2_state, timestep.observation, a2_mem)
+        prepared_traj_batch = agent2.prepare_batch(traj_2, timestep, mem.extras)
+
+        rewards = prepared_traj_batch.rewards
+        behavior_values = prepared_traj_batch.behavior_values
+        dones = prepared_traj_batch.dones
+        advantages, target_values = agent2.gae_advantages(
+        rewards=rewards, values=behavior_values, dones=dones
+        )
+
+        intra_bins = []
+        behavior_values = behavior_values[:-1, :]
+        for t in range(0, 16, chunk_size):
+            trajectories = Batch(
+                observations=prepared_traj_batch.observations[t:t+chunk_size],
+                actions=prepared_traj_batch.actions[t:t+chunk_size],
+                advantages=advantages[t:t+chunk_size],
+                behavior_log_probs=prepared_traj_batch.behavior_log_probs[t:t+chunk_size],
+                target_values=target_values[t:t+chunk_size],
+                behavior_values=behavior_values[t:t+chunk_size],
+                hiddens=prepared_traj_batch.hiddens[t:t+chunk_size],
+            )
+            # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
+            # to [num_envs * num_steps,..]
+            assert len(target_values.shape) > 1
+            num_envs = target_values.shape[1]
+            num_steps = target_values[t:t+chunk_size].shape[0]
+            batch_size = num_envs * num_steps
+
+            batch = jax.tree_map(
+                lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
+            )
+            params = jax.tree_map(lambda x: x[eps_idx][t], traj_2.state).params# traj_2.state[eps_idx]
+
+            advantages_ = (
+                batch.advantages - jnp.mean(batch.advantages, axis=0)
+            ) / (jnp.std(batch.advantages, axis=0) + 1e-8)
+            gradients, metrics = agent2.grad_fn(
+                params,
+                0,
+                batch.observations[:,0,:],
+                batch.actions,
+                batch.behavior_log_probs,
+                batch.target_values,
+                advantages_,
+                batch.behavior_values,
+                batch.hiddens,
+            )
+            gradients, _ =jax.flatten_util.ravel_pytree(gradients)
+            intra_bins.append(gradients)
+        import pdb; pdb.set_trace()
+        print("Bins", len(intra_bins))
+        grid = jnp.zeros(shape=(8, 8))
+        for i in range(8):
+            grad_i = intra_bins[i]
+            for j in range(8):
+                grad_j = intra_bins[j]
+                cos_sim = jnp.dot(grad_i, grad_j) / (
+                    jnp.sqrt(jnp.dot(grad_i, grad_i) * jnp.dot(grad_j, grad_j))
+                )
+                grid = grid.at[i, j].set(cos_sim)
+        print('Intraepisodal', repr(grid))            
+        #   state, mem, metrics = self._sgd_step(state, prepared_traj_batch)
+        # 1. s1, a1, s2, a2, ..., s100, a100 <- inner episode
+        # 2. Calculate advantages (calling update (which calls prepare batch and sgd (which calls gae)))
+        # 3. get_grad(loss, [s1, a1, s2, a2, ..., s10, a10])
         # Super janky viz #
         num_bins = 10
         bin_size = int(env.num_trials / num_bins)  # 600 / 10

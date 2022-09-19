@@ -433,7 +433,7 @@ class PPO:
         )
 
         self.make_initial_state = make_initial_state
-
+        self.gae_advantages = gae_advantages
         self.prepare_batch = prepare_batch
         if has_sgd_jit:
             self._sgd_step = jax.jit(sgd_step)
@@ -499,8 +499,8 @@ class PPO:
         """Update the agent -> only called at the end of a trajectory"""
 
         _, _, mem = self._policy(state, t_prime.observation, mem)
-        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
-        state, mem, metrics = self._sgd_step(state, traj_batch)
+        prepared_traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        state, mem, metrics = self._sgd_step(state, prepared_traj_batch)
 
         # update logging
 
