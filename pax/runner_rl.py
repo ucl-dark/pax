@@ -68,6 +68,7 @@ class Runner:
             """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
 
+            print(a1_state, a1_mem)
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
@@ -160,6 +161,9 @@ class Runner:
             t_init, env_state = env.runner_reset(
                 (self.num_opps, env.num_envs), rng_run
             )
+
+            if self.args.agent1 == "NaiveEx":
+                a1_state, a1_mem = agent1.batch_init(t_init[0])
 
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
