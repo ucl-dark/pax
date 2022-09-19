@@ -299,9 +299,14 @@ class PPO:
                 )
 
                 # Apply updates
+                metrics["gradients"] = gradients
+                # jax.debug.print(gradients['categorical_value_head/~/linear']['w']) # policy #
+                # jax.debug.print(gradients['categorical_value_head/~/linear_1']['w']) # value
+                # mlp/~/linear_0 # hidden layer
                 updates, opt_state = optimizer.update(gradients, opt_state)
                 params = optax.apply_updates(params, updates)
 
+                # metrics["gradients"] = gradients
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics

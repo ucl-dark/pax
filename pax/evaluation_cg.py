@@ -302,6 +302,9 @@ class EvalRunnerCG:
                     "eval/episode_reward/player_1": rewards_0,
                     "eval/episode_reward/player_2": rewards_1,
                 }
+                # wandb_log.update(env_stats)
+                print(env_stats)
+                # print(wandb_log)
                 wandb_log = wandb_log | env_stats
 
                 # player 2 metrics
@@ -318,10 +321,15 @@ class EvalRunnerCG:
                     agent1._logger.metrics | flattened_metrics
                 )
                 agents.log(watchers)
-                wandb.log(wandb_log)
+                # wandb.log(wandb_log)
             print()
 
+        for key in a2_metrics["gradients"].keys():
+            print(key)
+            print(a2_metrics["gradients"][key])
+
         for out_step in range(env.num_trials):
+
             if watchers:
                 wandb.log(
                     {
