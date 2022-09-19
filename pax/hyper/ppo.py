@@ -10,7 +10,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
-from pax.hyper.networks import make_network
+from pax.hyper.networks import make_GRU_hypernetwork, make_network
 
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
@@ -459,11 +459,16 @@ class PPO:
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_hyper(
+    args, obs_spec, action_spec, memory: bool, seed: int, player_id: int
+):
     """Make PPO agent"""
 
     print(f"Making network for {args.env_type}")
-    network = make_network(action_spec)
+    if not memory:
+        network = make_network(action_spec)
+    else:
+        network = make_GRU_hypernetwork(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

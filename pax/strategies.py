@@ -14,7 +14,7 @@ from pax.utils import MemoryState, TrainingState, Logger
 def initial_state_fun(num_envs: int) -> Callable:
     def fun(key, hidden):
         return (
-            TrainingState(None, None, jax.random.PRNGKey(0), None),
+            TrainingState(0, 0, jax.random.PRNGKey(0), 0),
             MemoryState(
                 hidden=jnp.zeros((num_envs, 1)),
                 extras={

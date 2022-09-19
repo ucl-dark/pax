@@ -65,6 +65,7 @@ class EvoRunnerPMAP:
 
         self.pmap_reshape = pmap_reshape
 
+    # flake8: noqa: C901
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
@@ -155,6 +156,11 @@ class EvoRunnerPMAP:
         def _evo_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
             """Runner for one fitness step"""
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
+
+            # init the env
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
             # this will be serialized so pulls out initial state
             a1_state, a1_mem = agent1._state, agent1._mem
             a1_state = a1_state._replace(
@@ -163,17 +169,21 @@ class EvoRunnerPMAP:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # init agent 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                agent2._mem.hidden,
-            )
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            # run the training loop!
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
-            )
+            elif (
+                self.args.env_type in ["meta", "infinite"]
+                or self.args.coin_type == "coin_meta"
+            ):
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng_key, popsize * num_opps).reshape(
+                        self.popsize, num_opps, -1
+                    ),
+                    agent2._mem.hidden,
+                )
+
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
@@ -187,10 +197,36 @@ class EvoRunnerPMAP:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            env_stats = jax.tree_util.tree_map(
-                lambda x: x.mean().item(),
-                self.cg_stats(env_state),
-            )
+
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean().item(),
+                    self.cg_stats(env_state),
+                )
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
+            else:
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
+                env_stats = {}
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -235,10 +271,15 @@ class EvoRunnerPMAP:
         )
         log = es_logging.initialize()
 
-        # Pmap specific: add num_devices dimension
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
+        # Evolution specific: add pop size dimension
+        if self.args.env_type == "infinite" and self.args.env_id == "ipd":
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step, (0, None), (0, None))
+            )
+        else:
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step),
+            )
 
         if self.args.env_type == "coin_game":
             env.batch_reset = jax.jit(jax.vmap(env.batch_reset))

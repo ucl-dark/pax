@@ -27,13 +27,11 @@ class ContinuousValueHead(hk.Module):
         )
 
         self._hidden_critic = hk.Linear(256)
-
         self._critic_layer = hk.Linear(
             1,
             w_init=hk.initializers.Orthogonal(1.0),  # baseline
             with_bias=False,
         )
-
         self.num_outputs = num_values
 
     def __call__(self, inputs: jnp.ndarray):

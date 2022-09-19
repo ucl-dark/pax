@@ -59,13 +59,11 @@ class EvoRunner:
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
-
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
                 a1_mem,
             )
-
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
                 t2.observation,
@@ -210,6 +208,7 @@ class EvoRunner:
             a1_state = a1_state._replace(
                 params=param_reshaper.reshape(x),
             )
+
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # Player 2
@@ -221,8 +220,12 @@ class EvoRunner:
                 or self.args.coin_type == "coin_meta"
             ):
                 # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                agent2.batch_init = jax.jit(
+                    jax.vmap(
+                        jax.vmap(agent2.make_initial_state, (0, None), 0),
+                        (0, None),
+                        0,
+                    )
                 )
 
             vals, stack = jax.lax.scan(
