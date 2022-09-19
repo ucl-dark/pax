@@ -300,13 +300,21 @@ class PPO:
 
                 # Apply updates
                 metrics["gradients"] = gradients
+                print(
+                    metrics["gradients"]["categorical_value_head/~/linear"][
+                        "w"
+                    ].shape
+                )
                 # jax.debug.print(gradients['categorical_value_head/~/linear']['w']) # policy #
                 # jax.debug.print(gradients['categorical_value_head/~/linear_1']['w']) # value
                 # mlp/~/linear_0 # hidden layer
+
                 updates, opt_state = optimizer.update(gradients, opt_state)
                 params = optax.apply_updates(params, updates)
 
                 # metrics["gradients"] = gradients
+                metrics["updates"] = updates
+                metrics["opt_state"] = opt_state
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
@@ -357,7 +365,7 @@ class PPO:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            # metrics = jax.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )

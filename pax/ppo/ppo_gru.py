@@ -338,7 +338,7 @@ class PPO:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            # metrics = jax.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )

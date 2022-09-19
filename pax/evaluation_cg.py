@@ -303,7 +303,7 @@ class EvalRunnerCG:
                     "eval/episode_reward/player_2": rewards_1,
                 }
                 # wandb_log.update(env_stats)
-                print(env_stats)
+                # print(env_stats)
                 # print(wandb_log)
                 wandb_log = wandb_log | env_stats
 
@@ -324,12 +324,89 @@ class EvalRunnerCG:
                 # wandb.log(wandb_log)
             print()
 
-        for key in a2_metrics["gradients"].keys():
-            print(key)
-            print(a2_metrics["gradients"][key])
+        # python -m pax.experiment +experiment/cg=earl_ppo_memory ++eval=True ++num_seeds=1
+        # ++num_envs=1 ++num_steps=24 ++num_inner_steps=8 ++ppo.num_minibatches=2
+        # Shape:
+        # (num_episodes, num_opponents, num_epochs, num_minibatches, hidden_size, output_size)
+
+        # Keys:
+        # ['categorical_value_head/~/linear',
+        # 'categorical_value_head/~/linear_1',
+        # 'gru', 'mlp/~/linear_0',
+        # 'mlp/~/linear_1']
+
+        # # take mean over axis=[1,2,3] -> (num_episodes, hidden size, output size)
+        # Layer name: categorical_value_head/~/linear
+        # Key name: w
+        # #                         mean          ravel
+        # Shape: (3, 1, 2, 4, 16, 5) -> (3, 16, 5)  ->  (3 * 16 * 5, )
+
+        # Layer name: categorical_value_head/~/linear_1
+        # Key name: w
+        # Shape: (3, 1, 2, 4, 16, 1) -> (3, 16, 1)
+
+        # Layer name: gru
+        # Key name: b
+        # Shape: (3, 1, 2, 4, 48) -> (3, 48)
+        # Key name: w_h
+        # Shape: (3, 1, 2, 4, 16, 48) -> (3, 16, 48)
+        # Key name: w_i
+        # Shape: (3, 1, 2, 4, 16, 48) -> (3, 16, 48)
+
+        # Layer name: mlp/~/linear_0
+        # Key name: b
+        # Shape: (3, 1, 2, 4, 16) -> (3, 16)
+        # Key name: w
+        # Shape: (3, 1, 2, 4, 36, 16) -> (3, 36, 16)
+
+        # Layer name: mlp/~/linear_1
+        # Key name: b
+        # Shape: (3, 1, 2, 4, 16) -> (3, 16)
+        # Key name: w
+        # Shape: (3, 1, 2, 4, 16, 16) -> (3, 16, 16)
+
+        # def pytree_layer_shapes(dict):
+        #     for layer in grads.keys():
+        #         print(f"Layer name: {layer}")
+        #         for key in grads[layer].keys():
+        #             print(f"Key name: {key}")
+        #             print(f"Shape: {grads[layer][key].shape}")
+        #         print()
+        #     return
+
+        # Super janky viz #
+        num_bins = 10
+        bin_size = int(env.num_trials / num_bins)  # 600 / 10
+        bins = []
+        grid = jnp.zeros(shape=(10, 10))
+        grads = jax.tree_map(
+            lambda x: jnp.mean(x, axis=[1, 2, 3]), a2_metrics["gradients"]
+        )  # mean over minibatches and epochs
+
+        print("Number of bins:", num_bins)
+        print("Bin size:", bin_size)
+        print("Num trials", env.num_trials)
+        print("Bins", len(bins))
+
+        for i in range(0, env.num_trials, bin_size):  # 0, 600, 60
+            bin_i_params = jax.tree_map(
+                lambda x, i: jnp.mean(x[i : i + bin_size], axis=0), grads, i
+            )
+            bin_i_params, _ = jax.flatten_util.ravel_pytree(bin_i_params)
+            bins.append(bin_i_params)
+
+        for i in range(10):
+            grad_i = bins[i]
+            for j in range(10):
+                grad_j = bins[j]
+                cos_sim = jnp.dot(grad_i, grad_j) / (
+                    jnp.sqrt(jnp.dot(grad_i, grad_i) * jnp.dot(grad_j, grad_j))
+                )
+                grid = grid.at[i, j].set(cos_sim)
+        print(repr(grid))
+        # super janky viz #
 
         for out_step in range(env.num_trials):
-
             if watchers:
                 wandb.log(
                     {
