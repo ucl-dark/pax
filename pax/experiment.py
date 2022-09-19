@@ -421,25 +421,6 @@ def agent_setup(args, logger):
         )
         return hyper_agent
 
-    def get_hyper_memory_agent(seed, player_id):
-        dummy_env = InfiniteMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-            args.env_discount,
-            args.seed,
-        )
-
-        hyper_agent = make_hyper(
-            args,
-            obs_spec=(dummy_env.observation_spec().num_values,),
-            action_spec=dummy_env.action_spec().shape[1],
-            memory=True,
-            seed=seed,
-            player_id=player_id,
-        )
-        return hyper_agent
-
     def get_naive_pg(seed, player_id):
         if args.env_type == "coin_game":
             dummy_env = CoinGame(
@@ -587,7 +568,6 @@ def agent_setup(args, logger):
         "Tabular": get_PPO_tabular_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
-        "Hyper_memory": get_hyper_memory_agent,
         "NaiveEx": get_naive_learner,
         "HyperAltruistic": partial(HyperAltruistic, args.num_envs),
         "HyperDefect": partial(HyperDefect, args.num_envs),

@@ -465,10 +465,7 @@ def make_hyper(
     """Make PPO agent"""
 
     print(f"Making network for {args.env_type}")
-    if not memory:
-        network = make_network(action_spec)
-    else:
-        network = make_GRU_hypernetwork(action_spec)
+    network = make_network(action_spec)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
