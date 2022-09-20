@@ -27,7 +27,8 @@ from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
-from pax.runner_sp import EvoRunnerPMAPSP
+from pax.runner_metaevo import MetaEvoRunner
+from pax.runner_sp_evo import MetaSPEvoRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.runner_mfos import RunnerMFOS
@@ -297,7 +298,17 @@ def runner_setup(args, agents, save_dir, logger):
             elif algo == "SimpleGA":
                 _, _, param_reshaper2 = get_ga_strategy(agent2)
 
-            return EvoRunnerPMAPSP(
+            if args.agent1 == args.agent2:
+                return MetaSPEvoRunner(
+                    args,
+                    strategy,
+                    es_params,
+                    param_reshaper,
+                    param_reshaper2,
+                    save_dir,
+                )
+
+            return MetaEvoRunner(
                 args,
                 strategy,
                 es_params,
@@ -307,9 +318,10 @@ def runner_setup(args, agents, save_dir, logger):
             )
 
         if args.pmap:
-            return EvoRunnerPMAPSP(
-                args, strategy, es_params, param_reshaper, save_dir
-            )
+            pass
+            # return EvoRunnerPMAPSP(
+            #     args, strategy, es_params, param_reshaper, save_dir
+            # )
         else:
             return EvoRunner(
                 args, strategy, es_params, param_reshaper, save_dir

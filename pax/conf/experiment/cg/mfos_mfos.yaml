@@ -17,6 +17,7 @@ evo: True
 eval: False 
 pmap: True
 sp: True
+lambda_anneal: 0.0015
 
 # Training
 top_k: 1
@@ -79,6 +80,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: '${env_id}-EARL-${agent1}-vs-${agent2}'
+  group: '${env_id}-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
