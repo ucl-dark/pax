@@ -420,9 +420,10 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError(
-                "PPO Tabular agent only works on Coin Game."
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
             )
+            obs_spec = (dummy_env.observation_spec().num_values,)
 
         if args.env_type == "meta":
             has_sgd_jit = False
@@ -650,12 +651,9 @@ def watcher_setup(args, logger):
     def ppo_log(agent):
         losses = losses_ppo(agent)
         if not args.env_type == "coin_game":
-            if args.ppo.with_memory:
-                policy = policy_logger_ppo_with_memory(agent)
-            else:
-                policy = policy_logger_ppo(agent)
-                value = value_logger_ppo(agent)
-                losses.update(value)
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
             losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -701,7 +699,7 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
-        "MFOS": ppo_log,
+        "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_log,
         "PPO_pretrained": ppo_log,

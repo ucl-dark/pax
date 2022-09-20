@@ -550,12 +550,10 @@ def make_gru_agent(
 ):
     """Make PPO agent"""
     # Network
-
-    if args.env_id == "coin_game":
-        network, initial_hidden_state = make_mfos_network(
-            action_spec,
-            args.ppo.hidden_size,
-        )
+    network, initial_hidden_state = make_mfos_network(
+        action_spec,
+        args.ppo.hidden_size,
+    )
 
     gru_dim = initial_hidden_state.shape[1]
 
