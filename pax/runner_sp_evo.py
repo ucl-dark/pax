@@ -174,7 +174,16 @@ class MetaSPEvoRunner:
                     a1_mem.hidden,
                     a1_mem.th,
                 )
-
+            else:
+                traj1 = Sample(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    tprime_1.last(),
+                    a1_mem.hidden,
+                )
             traj3 = Sample(
                 t3.observation,
                 a3,
@@ -714,7 +723,7 @@ class MetaSPEvoRunner:
                 combined_other_fitness, popsize * num_devices
             )
             other_fitness_re = fit_shaper.apply(
-                x, combined_other_fitness
+                y, combined_other_fitness
             )  # Maximize fitness
 
             # Tell
