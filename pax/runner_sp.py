@@ -223,13 +223,13 @@ class EvoRunnerPMAPSP:
             if self.args.agent2 == "MFOS":
                 a2_mem = a2_mem._replace(th=a2_mem.curr_th)
 
-            else:
-                final_t2 = t2._replace(
-                    step_type=2 * jnp.ones_like(vals[1].step_type)
-                )
-                a2_state, a2_mem, _ = agent2.batch_update(
-                    trajectories[1], final_t2, a2_state, a2_mem
-                )
+            # else:
+            #     final_t2 = t2._replace(
+            #         step_type=2 * jnp.ones_like(vals[1].step_type)
+            #     )
+            #     a2_state, a2_mem, _ = agent2.batch_update(
+            #         trajectories[1], final_t2, a2_state, a2_mem
+            #     )
 
             return (
                 t1,
@@ -279,7 +279,7 @@ class EvoRunnerPMAPSP:
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
             if self.args.env_type == "coin_game":
                 env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean().item(),
+                    lambda x: x.mean(),
                     self.cg_stats(env_state),
                 )
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
