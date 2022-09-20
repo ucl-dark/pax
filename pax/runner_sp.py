@@ -449,6 +449,10 @@ class EvoRunnerPMAPSP:
             ) = evo_rollout(a1_params, a2_params, rng_devices)
             fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
+            other_fitness = jnp.reshape(other_fitness, popsize * num_devices)
+            other_fitness_re = fit_shaper.apply(
+                y, other_fitness
+            )  # Maximize fitness
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
@@ -457,11 +461,15 @@ class EvoRunnerPMAPSP:
             )
 
             evo_state2 = strategy.tell(
-                x, fitness_re - fitness_re.mean(), evo_state2, es_params
+                y,
+                other_fitness_re - other_fitness_re.mean(),
+                evo_state2,
+                es_params,
             )
 
             # Logging
             log = es_logging.update(log, x, fitness)
+            # log = es_logging.update(log, y, other_fitness)
 
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
