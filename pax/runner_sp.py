@@ -162,15 +162,27 @@ class EvoRunnerPMAPSP:
                 env_state,
             )
 
-            traj1 = Sample(
-                t1.observation,
-                a1,
-                tprime_1.reward,
-                new_a1_mem.extras["log_probs"],
-                new_a1_mem.extras["values"],
-                tprime_1.last(),
-                a1_mem.hidden,
-            )
+            if self.args.agent1 == "MFOS":
+                traj1 = SampleMFOS(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    tprime_1.last(),
+                    a1_mem.hidden,
+                    a1_mem.th,
+                )
+            else:
+                traj1 = Sample(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    tprime_1.last(),
+                    a1_mem.hidden,
+                )
             if self.args.agent2 == "MFOS":
                 traj2 = SampleMFOS(
                     t2.observation,
@@ -220,6 +232,9 @@ class EvoRunnerPMAPSP:
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # do second agent update
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
             if self.args.agent2 == "MFOS":
                 a2_mem = a2_mem._replace(th=a2_mem.curr_th)
 
