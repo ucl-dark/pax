@@ -19,7 +19,7 @@ pmap: True
 sp: True
 
 # Training
-top_k: 1
+top_k: 5
 popsize: 50 #128 
 num_envs: 2 #50
 num_opps: 1

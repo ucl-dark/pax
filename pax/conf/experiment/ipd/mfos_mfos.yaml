@@ -19,13 +19,13 @@ pmap: True
 sp: True
 
 # Training
-top_k: 1
+top_k: 5
 popsize: 50 #128 
 num_envs: 2 #50
 num_opps: 1
 num_steps: 10_000
 num_inner_steps: 100 
-num_generations: 5000
+num_generations: 50
 num_devices: 1
 
 # Evaluation

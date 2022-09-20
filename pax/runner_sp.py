@@ -421,13 +421,14 @@ class EvoRunnerPMAPSP:
                 num_devices, -1
             )
             # Ask for params
+            rng_evo1, rng_evo2 = jax.random.split(rng_evo, 2)
             x, evo_state1 = strategy.ask(
-                rng_evo, evo_state1, es_params
+                rng_evo1, evo_state1, es_params
             )  # this means that x isn't of shape (total_popsize, params)
             a1_params = param_reshaper1.reshape(x)
 
             y, evo_state2 = strategy.ask(
-                rng_evo, evo_state2, es_params
+                rng_evo2, evo_state2, es_params
             )  # this means that x isn't of shape (total_popsize, params)
             a2_params = param_reshaper2.reshape(y)
             if self.num_devices == 1:
