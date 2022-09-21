@@ -483,7 +483,7 @@ class MetaSPEvoRunner:
             )
             vals, stack = jax.lax.scan(
                 _outer_nl_rollout,
-                (*t_init, a1_state, a1_mem, a3_state, a3_mem, env_state),
+                (*t_init, a2_state, a2_mem, a3_state, a3_mem, env_state),
                 None,
                 length=env.num_trials,
             )
@@ -619,9 +619,15 @@ class MetaSPEvoRunner:
         agent2._state = agent2._state._replace(params=vmap_state2.params)
 
         # need some naive learners!
+
+        obs_spec = (
+            env.observation_spec().shape
+            if self.args.env_type == "coin_game"
+            else (env.observation_spec().num_values,)
+        )
         agent3 = make_agent(
             self.args,
-            obs_spec=(env.observation_spec().num_values,),
+            obs_spec=obs_spec,
             action_spec=env.action_spec().num_values,
             seed=0,
             player_id=3,
