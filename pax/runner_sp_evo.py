@@ -524,8 +524,8 @@ class MetaSPEvoRunner:
             ) = _sp_rollout(a1_params, a2_params, rng_sp)
 
             return {
-                "fitness": fitness,
-                "other_fitness": other_fitness,
+                "xp_fitness": fitness,
+                "xp_other_fitness": other_fitness,
                 "sp_fitness": sp_fitness,
                 "sp_other_fitness": sp_other_fitness,
                 "reward_0_xp": rewards_0_xp,
@@ -703,12 +703,12 @@ class MetaSPEvoRunner:
                 )
 
             results = pmap_rollout(a1_params, a2_params, rng_devices)
-            fitness = (1 - lmbda) * results["fitness"] + lmbda * results[
-                "sp_fitness"
+            fitness = (1 - lmbda) * results["sp_fitness"] + lmbda * results[
+                "xp_fitness"
             ]
             other_fitness = (1 - lmbda) * results[
-                "other_fitness"
-            ] + lmbda * results["sp_other_fitness"]
+                "sp_other_fitness"
+            ] + lmbda * results["xp_other_fitness"]
 
             # Maximize fitness
             fitness_re = fit_shaper.apply(
