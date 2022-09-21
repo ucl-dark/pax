@@ -79,7 +79,7 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cg
+  project: ipd
   group: '${env_id}-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
