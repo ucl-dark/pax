@@ -380,13 +380,39 @@ class MetaSPEvoRunner:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_3.rewards.mean(axis=(0, 1, 3, 4))
-            env_stats = jax.tree_util.tree_map(
-                lambda x: x.mean(),
-                self.cg_stats(env_state),
-            )
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cg_stats(env_state),
+                )
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_3 = traj_3.rewards.sum(axis=1).mean()
+
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
+            else:
+                rewards_0 = traj_1.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
+                env_stats = {}
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_3 = traj_3.rewards.sum(axis=1).mean()
+
             return (
                 fitness,
                 other_fitness,
@@ -467,10 +493,6 @@ class MetaSPEvoRunner:
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
-            a1_mem = agent1.batch_reset(a1_mem, False)
-            a2_mem = agent2.batch_reset(a2_mem, False)
-
             return (
                 fitness,
                 other_fitness,
@@ -645,9 +667,9 @@ class MetaSPEvoRunner:
                     lambda x: jax.lax.expand_dims(x, (0,)), a2_params
                 )
 
-            sp_flag = jax.random.uniform(rng_flag) < lmbda
+            xp_flag = jax.random.uniform(rng_flag) < lmbda
 
-            if sp_flag:
+            if not xp_flag:
                 (
                     fitness,
                     _,
@@ -655,7 +677,7 @@ class MetaSPEvoRunner:
                     rewards_0,
                     rewards_1,
                 ) = xp_rollout(a1_params, rng_devices)
-                other_fitness, _, env_stats, rewards_0, rewards_1 = xp_rollout(
+                other_fitness, _, _, rewards_0, rewards_1 = xp_rollout(
                     a2_params, rng_devices
                 )
             else:
@@ -687,7 +709,9 @@ class MetaSPEvoRunner:
             )
 
             # Logging
-            log = es_logging.update(log, x, fitness)
+            log = es_logging.update(
+                log, x, jnp.reshape(fitness, popsize * num_devices)
+            )
 
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
@@ -722,11 +746,12 @@ class MetaSPEvoRunner:
                     "meta",
                     "sequential",
                 ]:
-                    env_stats = {}
+                    rewards_0 = rewards_0.mean()
+                    rewards_1 = rewards_0.mean()
                 else:
                     env_stats = {}
 
-                print(f"Generation: {gen}")
+                print(f"Generation: {gen} | {['XP', 'SP'][not xp_flag]}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -755,7 +780,7 @@ class MetaSPEvoRunner:
                 print()
 
                 if watchers:
-                    flag = "/sp" if sp_flag else "/xp"
+                    flag = "/sp" if not xp_flag else "/xp"
                     wandb_log = {
                         "generations": self.generations,
                         f"train{flag}/fitness/player_1": float(fitness.mean()),
