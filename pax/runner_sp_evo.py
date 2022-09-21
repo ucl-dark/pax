@@ -311,7 +311,7 @@ class MetaSPEvoRunner:
                 a3_state,
                 a3_mem,
                 env_state,
-            ), trajectories
+            ), (*trajectories, a3_state)
 
         def _outer_meta_rollout(carry, unused):
             """Runner meta algos"""
@@ -344,7 +344,84 @@ class MetaSPEvoRunner:
                 env_state,
             ), trajectories
 
-        def _evo_rollout(
+        def _xp_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
+            """Runner for a single Naive Learner Step"""
+
+            rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
+            # this will be serialized so pulls out initial state
+            a1_state, a1_mem = agent1._state, agent1._mem
+            a1_state = a1_state._replace(
+                params=params,
+            )
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
+            # init agent 2
+            a3_state, a3_mem = agent3.batch_init(
+                jax.random.split(rng_key, popsize * num_opps).reshape(
+                    self.popsize, num_opps, -1
+                ),
+                agent3._mem.hidden,
+            )
+
+            # run the training loop!
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
+            vals, stack = jax.lax.scan(
+                _outer_nl_rollout,
+                (*t_init, a1_state, a1_mem, a3_state, a3_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+
+            traj_1, traj_3, a3_metrics = stack
+            t1, t3, a1_state, a1_mem, a3_state, a3_mem, env_state = vals
+
+            # Fitness
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_3.rewards.mean(axis=(0, 1, 3, 4))
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cg_stats(env_state),
+                )
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_3 = traj_3.rewards.sum(axis=1).mean()
+
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
+            else:
+                rewards_0 = traj_1.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
+                env_stats = {}
+
+            rewards_0 = traj_1.rewards.sum(axis=1).mean()
+            rewards_3 = traj_3.rewards.sum(axis=1).mean()
+
+            return (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_3,
+            )
+
+        def _sp_rollout(
             params1: jnp.ndarray, params2: jnp.ndarray, rng_device: jnp.ndarray
         ):
             """Runner for one fitness step"""
@@ -353,9 +430,7 @@ class MetaSPEvoRunner:
                 rng_run,
                 rng_gen,
                 rng_key,
-                rng_nl_1,
-                rng_nl_2,
-            ) = jax.random.split(rng_device, 6)
+            ) = jax.random.split(rng_device, 4)
             # this will be serialized so pulls out initial state
             a1_state, a1_mem = agent1._state, agent1._mem
             a1_state = a1_state._replace(
@@ -381,8 +456,6 @@ class MetaSPEvoRunner:
                 length=env.num_trials,
             )
             traj_1, traj_2 = stack
-
-            # DELIBERATELY REMOVE THESE SO THEY ARE NOT SEEN
             t1, t2, _, _, _, _, env_state = vals
 
             # Fitness
@@ -420,129 +493,49 @@ class MetaSPEvoRunner:
 
             rewards_0 = traj_1.rewards.sum(axis=1).mean()
             rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
-            a1_mem = agent1.batch_reset(a1_mem, False)
-            a2_mem = agent2.batch_reset(a2_mem, False)
-
-            # run loop against Naive Learner bitches
-            a3_state, a3_mem = agent3.batch_init(
-                jax.random.split(rng_nl_1, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                agent3._mem.hidden,
-            )
-
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_nl_1
-            )
-            # agent 1 vs agent 3
-            vals, stack = jax.lax.scan(
-                _outer_nl_rollout,
-                (*t_init, a1_state, a1_mem, a3_state, a3_mem, env_state),
-                None,
-                length=env.num_trials,
-            )
-
-            traj_3, _ = stack
-            t3, _, _, _, _, _, env_state2 = vals
-
-            if self.args.env_type == "coin_game":
-                env_stats3 = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.cg_stats(env_state2),
-                )
-                rewards_0 = traj_3.rewards.sum(axis=1).mean()
-
-            elif self.args.env_type in [
-                "meta",
-                "sequential",
-            ]:
-                final_t3 = t3._replace(
-                    step_type=2 * jnp.ones_like(t3.step_type)
-                )
-                env_stats3 = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.ipd_stats(
-                        traj_3.observations,
-                        traj_3.actions,
-                        final_t3.observation,
-                    ),
-                )
-                rewards_3 = traj_3.rewards.mean()
-            else:
-                rewards_3 = traj_3.rewards.mean()
-                env_stats = {}
-
-            rewards_3 = traj_3.rewards.sum(axis=1).mean()
-
-            a3_state, a3_mem = agent3.batch_init(
-                jax.random.split(rng_nl_2, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                agent3._mem.hidden,
-            )
-
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_nl_2
-            )
-
-            # agent 2 vs agent 3
-            vals, stack = jax.lax.scan(
-                _outer_nl_rollout,
-                (*t_init, a2_state, a2_mem, a3_state, a3_mem, env_state),
-                None,
-                length=env.num_trials,
-            )
-
-            (
-                traj_4,
-                _,
-            ) = stack
-            t4, _, _, _, _, _, env_state5 = vals
-
-            if self.args.env_type == "coin_game":
-                env_stats5 = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.cg_stats(env_state5),
-                )
-                rewards_0 = traj_4.rewards.sum(axis=1).mean()
-
-            elif self.args.env_type in [
-                "meta",
-                "sequential",
-            ]:
-                final_t4 = t4._replace(
-                    step_type=2 * jnp.ones_like(t3.step_type)
-                )
-                env_stats5 = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.ipd_stats(
-                        traj_4.observations,
-                        traj_4.actions,
-                        final_t4.observation,
-                    ),
-                )
-                rewards_4 = traj_4.rewards.mean()
-            else:
-                rewards_4 = traj_4.rewards.mean()
-                env_stats = {}
-
-            rewards_4 = traj_4.rewards.sum(axis=1).mean()
-
-            fitness_nl = traj_3.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness_nl = traj_4.rewards.mean(axis=(0, 1, 3, 4))
-
             return (
                 fitness,
                 other_fitness,
-                fitness_nl,
-                other_fitness_nl,
                 env_stats,
                 rewards_0,
                 rewards_1,
-                rewards_3,
-                rewards_4,
             )
+
+        def _pmap_rollout(
+            a1_params: jnp.ndarray, a2_params: jnp.ndarray, rng: jnp.ndarray
+        ):
+            rng_sp, rng_xp_1, rng_xp_2 = jax.random.split(rng, 3)
+            (
+                fitness,
+                _,
+                env_stats_xp_1,
+                rewards_0_xp,
+                _,
+            ) = _xp_rollout(a1_params, rng_xp_1)
+            other_fitness, _, env_stats_xp_2, rewards_1_xp, _ = _xp_rollout(
+                a2_params, rng_xp_2
+            )
+            (
+                sp_fitness,
+                sp_other_fitness,
+                env_stats_sp,
+                rewards_0_sp,
+                rewards_1_sp,
+            ) = _sp_rollout(a1_params, a2_params, rng_sp)
+
+            return {
+                "xp_fitness": fitness,
+                "xp_other_fitness": other_fitness,
+                "sp_fitness": sp_fitness,
+                "sp_other_fitness": sp_other_fitness,
+                "reward_0_xp": rewards_0_xp,
+                "reward_1_xp": rewards_1_xp,
+                "reward_0_sp": rewards_0_sp,
+                "reward_1_sp": rewards_1_sp,
+                "env_stats_xp_1": env_stats_xp_1,
+                "env_stats_xp_2": env_stats_xp_2,
+                "env_stats_sp": env_stats_sp,
+            }
 
         print("Training")
         print("------------------------------")
@@ -676,13 +669,14 @@ class MetaSPEvoRunner:
             a3_key,
             a3_hidden,
         )
-        evo_rollout = jax.pmap(_evo_rollout)
+        pmap_rollout = jax.pmap(_pmap_rollout)
+
         lmbda = 1
         lmbda_anneal = self.args.lambda_anneal
 
         for gen in range(num_gens):
             # run generation step
-            rng_evo, rng_devices = jax.random.split(rng, 2)
+            rng, rng_evo, rng_devices, rng_flag = jax.random.split(rng, 4)
             rng_devices = jnp.tile(rng_devices, num_devices).reshape(
                 num_devices, -1
             )
@@ -707,42 +701,27 @@ class MetaSPEvoRunner:
                 a2_params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), a2_params
                 )
-            (
-                fitness,
-                other_fitness,
-                fitness_nl,
-                other_fitness_nl,
-                env_stats,
-                rewards_0,
-                rewards_1,
-                rewards_3,
-                rewards_4,
-            ) = evo_rollout(a1_params, a2_params, rng_devices)
 
-            combined_fitness = (1 - lmbda) * fitness + lmbda * fitness_nl
-            combined_other_fitness = (
-                1 - lmbda
-            ) * other_fitness + lmbda * other_fitness_nl
+            results = pmap_rollout(a1_params, a2_params, rng_devices)
+            fitness = (1 - lmbda) * results["sp_fitness"] + lmbda * results[
+                "xp_fitness"
+            ]
+            other_fitness = (1 - lmbda) * results[
+                "sp_other_fitness"
+            ] + lmbda * results["xp_other_fitness"]
 
-            combined_fitness = jnp.reshape(
-                combined_fitness, popsize * num_devices
-            )
+            # Maximize fitness
             fitness_re = fit_shaper.apply(
-                x, combined_fitness
-            )  # Maximize fitness
-
-            combined_other_fitness = jnp.reshape(
-                combined_other_fitness, popsize * num_devices
+                x, jnp.reshape(fitness, popsize * num_devices)
             )
             other_fitness_re = fit_shaper.apply(
-                y, combined_other_fitness
-            )  # Maximize fitness
+                y, jnp.reshape(other_fitness, popsize * num_devices)
+            )
 
             # Tell
             evo_state1 = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state1, es_params
             )
-
             evo_state2 = strategy.tell(
                 y,
                 other_fitness_re - other_fitness_re.mean(),
@@ -751,7 +730,9 @@ class MetaSPEvoRunner:
             )
 
             # Logging
-            log = es_logging.update(log, x, combined_fitness)
+            log = es_logging.update(
+                log, x, jnp.reshape(fitness, popsize * num_devices)
+            )
 
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
@@ -779,20 +760,25 @@ class MetaSPEvoRunner:
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
-                    rewards_0 = rewards_0.mean()
-                    rewards_1 = rewards_1.mean()
-                    rewards_3 = rewards_3.mean()
-                    rewards_4 = rewards_4.mean()
+                    rewards_0 = results["reward_0_sp"].mean()
+                    rewards_1 = results["reward_1_sp"].mean()
+                    rewards_2 = results["reward_0_xp"].mean()
+                    rewards_3 = results["reward_1_xp"].mean()
 
                 elif self.args.env_type in [
                     "meta",
                     "sequential",
                 ]:
-                    env_stats = {}
-                else:
-                    env_stats = {}
+                    rewards_0 = results["reward_0_sp"].mean()
+                    rewards_1 = results["reward_1_sp"].mean()
+                    rewards_2 = results["reward_0_xp"].mean()
+                    rewards_3 = results["reward_1_xp"].mean()
+                    env_stats = results["env_stats_sp"]
 
-                print(f"Generation: {gen}")
+                else:
+                    env_stats = results["env_stats_sp"]
+
+                print(f"Generation: {gen}| Lambda: {lmbda}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -800,9 +786,15 @@ class MetaSPEvoRunner:
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
                 print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                    f"Total Episode Reward SP: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
-                print(f"Env Stats: {env_stats}")
+                print(
+                    f"Total Episode Reward XP: {float(rewards_2.mean()), float(rewards_3.mean())}"
+                )
+                print(f"Env Stats SP: {results['env_stats_sp']}")
+                # print(f"Env Stats XP1: {results['env_stats_xp_1']}")
+                # print(f"Env Stats XP2: {results['env_stats_xp_2']}")
+
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -823,44 +815,40 @@ class MetaSPEvoRunner:
                 if watchers:
                     wandb_log = {
                         "generations": self.generations,
-                        "train/fitness/player_1": float(fitness.mean()),
-                        "train/fitness/player_2": float(other_fitness.mean()),
-                        "train/fitness/player_3": float(fitness_nl.mean()),
-                        "train/fitness/player_4": float(
-                            other_fitness_nl.mean()
-                        ),
-                        "train/fitness/top_overall_mean": log["log_top_mean"][
+                        f"train/fitness/player_1": float(fitness.mean()),
+                        f"train/fitness/player_2": float(other_fitness.mean()),
+                        f"train/fitness/top_overall_mean": log["log_top_mean"][
                             gen
                         ],
-                        "train/fitness/top_overall_std": log["log_top_std"][
+                        f"train/fitness/top_overall_std": log["log_top_std"][
                             gen
                         ],
-                        "train/fitness/top_gen_mean": log["log_top_gen_mean"][
+                        f"train/fitness/top_gen_mean": log["log_top_gen_mean"][
                             gen
                         ],
-                        "train/fitness/top_gen_std": log["log_top_gen_std"][
+                        f"train/fitness/top_gen_std": log["log_top_gen_std"][
                             gen
                         ],
-                        "train/fitness/gen_std": log["log_gen_std"][gen],
-                        "train/time/minutes": float(
+                        f"train/fitness/gen_std": log["log_gen_std"][gen],
+                        f"train/time/minutes": float(
                             (time.time() - self.start_time) / 60
                         ),
                         "train/time/seconds": float(
                             (time.time() - self.start_time)
                         ),
-                        "train/episode_reward/player_1": float(
+                        f"train/episode_reward/player_1": float(
                             rewards_0.mean()
                         ),
-                        "train/episode_reward/player_2": float(
+                        f"train/episode_reward/player_2": float(
                             rewards_1.mean()
                         ),
-                        "train/episode_reward/player_3": float(
-                            rewards_0.mean()
+                        f"train/episode_reward/player_3": float(
+                            rewards_2.mean()
                         ),
-                        "train/episode_reward/player_4": float(
-                            rewards_1.mean()
+                        f"train/episode_reward/player_4": float(
+                            rewards_3.mean()
                         ),
-                        "train/lambda": lmbda,
+                        f"train/lambda": lmbda,
                     }
                     wandb_log.update(env_stats)
                     # wandb_log = wandb_log | env_stats
