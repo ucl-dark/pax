@@ -444,8 +444,10 @@ class MetaEvoRunner:
             fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
 
-            other_fitness = jnp.reshape(fitness, popsize * num_devices)
-            other_fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
+            other_fitness = jnp.reshape(other_fitness, popsize * num_devices)
+            other_fitness_re = fit_shaper.apply(
+                x, other_fitness
+            )  # Maximize fitness
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
@@ -454,7 +456,7 @@ class MetaEvoRunner:
             )
 
             evo_state2 = strategy.tell(
-                x,
+                y,
                 other_fitness_re - other_fitness_re.mean(),
                 evo_state2,
                 es_params,
@@ -559,7 +561,8 @@ class MetaEvoRunner:
                             rewards_1.mean()
                         ),
                     }
-                    wandb_log = wandb_log | env_stats
+                    wandb_log.update(env_stats)
+                    # wandb_log = wandb_log | env_stats
                     # loop through population
                     for idx, (overall_fitness, gen_fitness) in enumerate(
                         zip(log["top_fitness"], log["top_gen_fitness"])
@@ -576,13 +579,14 @@ class MetaEvoRunner:
                     flattened_metrics = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), {}
                     )
-                    agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics
-                    )
-
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics
-                    )
+                    agent2._logger.metrics.update(flattened_metrics)
+                    # agent2._logger.metrics = (
+                    #     agent2._logger.metrics | flattened_metrics
+                    # )
+                    agent1._logger.metrics.update(flattened_metrics)
+                    # agent1._logger.metrics = (
+                    #     agent1._logger.metrics | flattened_metrics
+                    # )
                     agents.log(watchers)
                     wandb.log(wandb_log)
             self.generations += 1
