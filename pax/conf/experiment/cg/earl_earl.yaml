@@ -20,7 +20,7 @@ sp: True
 lambda_anneal: 0.0015
 
 # Training
-top_k: 1
+top_k: 5
 popsize: 50 #128 
 num_envs: 10 #50
 num_opps: 1
