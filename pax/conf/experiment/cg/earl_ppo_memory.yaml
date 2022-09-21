@@ -28,8 +28,11 @@ num_generations: 5000
 
 # Evaluation
 num_seeds: 10
-run_path: ucl-dark/cg/20o5qob2
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
+# run_path: ucl-dark/cg/20o5qob2
+# model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
+
+run_path: ucl-dark/cg/2vqt63b9
+model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
 
 # PPO agent parameters
 ppo:

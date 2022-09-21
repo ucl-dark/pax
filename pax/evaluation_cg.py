@@ -446,7 +446,7 @@ class EvalRunnerCG:
             )
             gradients, _ =jax.flatten_util.ravel_pytree(gradients)
             intra_bins.append(gradients)
-        import pdb; pdb.set_trace()
+
         print("Bins", len(intra_bins))
         grid = jnp.zeros(shape=(8, 8))
         for i in range(8):
