@@ -447,7 +447,7 @@ class MetaSPEvoRunner:
             t3, _, _, _, _, _, env_state2 = vals
 
             if self.args.env_type == "coin_game":
-                env_stats = jax.tree_util.tree_map(
+                env_stats3 = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cg_stats(env_state2),
                 )
@@ -460,7 +460,7 @@ class MetaSPEvoRunner:
                 final_t3 = t3._replace(
                     step_type=2 * jnp.ones_like(t3.step_type)
                 )
-                env_stats = jax.tree_util.tree_map(
+                env_stats3 = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
                         traj_3.observations,
@@ -501,7 +501,7 @@ class MetaSPEvoRunner:
             t4, _, _, _, _, _, env_state5 = vals
 
             if self.args.env_type == "coin_game":
-                env_stats = jax.tree_util.tree_map(
+                env_stats5 = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cg_stats(env_state5),
                 )
@@ -514,7 +514,7 @@ class MetaSPEvoRunner:
                 final_t4 = t4._replace(
                     step_type=2 * jnp.ones_like(t3.step_type)
                 )
-                env_stats = jax.tree_util.tree_map(
+                env_stats5 = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
                         traj_4.observations,
