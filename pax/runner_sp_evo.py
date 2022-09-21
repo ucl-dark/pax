@@ -778,7 +778,7 @@ class MetaSPEvoRunner:
                 else:
                     env_stats = results["env_stats_sp"]
 
-                print(f"Generation: {gen}")
+                print(f"Generation: {gen}| Lambda: {lmbda}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -798,18 +798,18 @@ class MetaSPEvoRunner:
                 print(
                     "--------------------------------------------------------------------------"
                 )
-                # print(
-                #     f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                #     f" | Std: {log['log_top_gen_std'][gen]}"
-                # )
-                # print(
-                #     "--------------------------------------------------------------------------"
-                # )
-                # print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
-                # print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
-                # print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
-                # print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
-                # print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
+                print(
+                    f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
+                    f" | Std: {log['log_top_gen_std'][gen]}"
+                )
+                print(
+                    "--------------------------------------------------------------------------"
+                )
+                print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
+                print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
+                print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
+                print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
+                print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
                 if watchers:

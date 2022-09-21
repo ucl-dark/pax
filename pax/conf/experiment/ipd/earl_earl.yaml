@@ -17,7 +17,7 @@ evo: True
 eval: False 
 pmap: True
 sp: True
-lambda_anneal: 0.0005
+lambda_anneal: 0.0015
 
 # Training
 top_k: 5
