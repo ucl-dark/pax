@@ -17,7 +17,7 @@ evo: True
 eval: False 
 pmap: True
 sp: True
-lambda_anneal: 0.0015
+lambda_anneal: 0.0005
 
 # Training
 top_k: 5
@@ -36,7 +36,7 @@ model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 8
+  num_minibatches: 4
   num_epochs: 2 
   gamma: 0.96
   gae_lambda: 0.95
@@ -44,18 +44,15 @@ ppo:
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.1
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
   entropy_coeff_horizon: 0.6e8
   entropy_coeff_end: 0.005
-  lr_scheduling: True
-  learning_rate: 0.005
+  lr_scheduling: False
+  learning_rate: 1
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
-  output_channels: 16
-  kernel_shape: [3, 3]
-  separate: True # only works with CNN
   hidden_size: 16
   
 # ES parameters 
@@ -68,7 +65,7 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1     # Initial learning rate
+  lrate_init: 0.01     # Initial learning rate
   lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1

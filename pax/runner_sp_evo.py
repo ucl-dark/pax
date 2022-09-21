@@ -501,6 +501,42 @@ class MetaSPEvoRunner:
                 rewards_1,
             )
 
+        def _pmap_rollout(
+            a1_params: jnp.ndarray, a2_params: jnp.ndarray, rng: jnp.ndarray
+        ):
+            rng_sp, rng_xp_1, rng_xp_2 = jax.random.split(rng, 3)
+            (
+                fitness,
+                _,
+                env_stats_xp_1,
+                rewards_0_xp,
+                _,
+            ) = _xp_rollout(a1_params, rng_xp_1)
+            other_fitness, _, env_stats_xp_2, rewards_1_xp, _ = _xp_rollout(
+                a2_params, rng_xp_2
+            )
+            (
+                sp_fitness,
+                sp_other_fitness,
+                env_stats_sp,
+                rewards_0_sp,
+                rewards_1_sp,
+            ) = _sp_rollout(a1_params, a2_params, rng_sp)
+
+            return {
+                "fitness": fitness,
+                "other_fitness": other_fitness,
+                "sp_fitness": sp_fitness,
+                "sp_other_fitness": sp_other_fitness,
+                "reward_0_xp": rewards_0_xp,
+                "reward_1_xp": rewards_1_xp,
+                "reward_0_sp": rewards_0_sp,
+                "reward_1_sp": rewards_1_sp,
+                "env_stats_xp_1": env_stats_xp_1,
+                "env_stats_xp_2": env_stats_xp_2,
+                "env_stats_sp": env_stats_sp,
+            }
+
         print("Training")
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
@@ -633,8 +669,7 @@ class MetaSPEvoRunner:
             a3_key,
             a3_hidden,
         )
-        sp_rollout = jax.pmap(_sp_rollout)
-        xp_rollout = jax.pmap(_xp_rollout)
+        pmap_rollout = jax.pmap(_pmap_rollout)
 
         lmbda = 1
         lmbda_anneal = self.args.lambda_anneal
@@ -667,27 +702,13 @@ class MetaSPEvoRunner:
                     lambda x: jax.lax.expand_dims(x, (0,)), a2_params
                 )
 
-            xp_flag = jax.random.uniform(rng_flag) < lmbda
-
-            if not xp_flag:
-                (
-                    fitness,
-                    _,
-                    env_stats,
-                    rewards_0,
-                    rewards_1,
-                ) = xp_rollout(a1_params, rng_devices)
-                other_fitness, _, _, rewards_0, rewards_1 = xp_rollout(
-                    a2_params, rng_devices
-                )
-            else:
-                (
-                    fitness,
-                    other_fitness,
-                    env_stats,
-                    rewards_0,
-                    rewards_1,
-                ) = sp_rollout(a1_params, a2_params, rng_devices)
+            results = pmap_rollout(a1_params, a2_params, rng_devices)
+            fitness = (1 - lmbda) * results["fitness"] + lmbda * results[
+                "sp_fitness"
+            ]
+            other_fitness = (1 - lmbda) * results[
+                "other_fitness"
+            ] + lmbda * results["sp_other_fitness"]
 
             # Maximize fitness
             fitness_re = fit_shaper.apply(
@@ -739,19 +760,25 @@ class MetaSPEvoRunner:
 
             if gen % log_interval == 0:
                 if self.args.env_type == "coin_game":
-                    rewards_0 = rewards_0.mean()
-                    rewards_1 = rewards_1.mean()
+                    rewards_0 = results["reward_0_sp"].mean()
+                    rewards_1 = results["reward_1_sp"].mean()
+                    rewards_2 = results["reward_0_xp"].mean()
+                    rewards_3 = results["reward_1_xp"].mean()
 
                 elif self.args.env_type in [
                     "meta",
                     "sequential",
                 ]:
-                    rewards_0 = rewards_0.mean()
-                    rewards_1 = rewards_0.mean()
-                else:
-                    env_stats = {}
+                    rewards_0 = results["reward_0_sp"].mean()
+                    rewards_1 = results["reward_1_sp"].mean()
+                    rewards_2 = results["reward_0_xp"].mean()
+                    rewards_3 = results["reward_1_xp"].mean()
+                    env_stats = results["env_stats_sp"]
 
-                print(f"Generation: {gen} | {['XP', 'SP'][not xp_flag]}")
+                else:
+                    env_stats = results["env_stats_sp"]
+
+                print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -759,60 +786,67 @@ class MetaSPEvoRunner:
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
                 print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                    f"Total Episode Reward SP: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
-                print(f"Env Stats: {env_stats}")
+                print(
+                    f"Total Episode Reward XP: {float(rewards_2.mean()), float(rewards_3.mean())}"
+                )
+                print(f"Env Stats SP: {results['env_stats_sp']}")
+                # print(f"Env Stats XP1: {results['env_stats_xp_1']}")
+                # print(f"Env Stats XP2: {results['env_stats_xp_2']}")
+
                 print(
                     "--------------------------------------------------------------------------"
                 )
-                print(
-                    f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                    f" | Std: {log['log_top_gen_std'][gen]}"
-                )
-                print(
-                    "--------------------------------------------------------------------------"
-                )
-                print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
-                print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
-                print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
-                print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
-                print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
+                # print(
+                #     f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
+                #     f" | Std: {log['log_top_gen_std'][gen]}"
+                # )
+                # print(
+                #     "--------------------------------------------------------------------------"
+                # )
+                # print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
+                # print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
+                # print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
+                # print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
+                # print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
                 if watchers:
-                    flag = "/sp" if not xp_flag else "/xp"
                     wandb_log = {
                         "generations": self.generations,
-                        f"train{flag}/fitness/player_1": float(fitness.mean()),
-                        f"train{flag}/fitness/player_2": float(
-                            other_fitness.mean()
-                        ),
-                        f"train{flag}/fitness/top_overall_mean": log[
-                            "log_top_mean"
-                        ][gen],
-                        f"train{flag}/fitness/top_overall_std": log[
-                            "log_top_std"
-                        ][gen],
-                        f"train{flag}/fitness/top_gen_mean": log[
-                            "log_top_gen_mean"
-                        ][gen],
-                        f"train{flag}/fitness/top_gen_std": log[
-                            "log_top_gen_std"
-                        ][gen],
-                        f"train{flag}/fitness/gen_std": log["log_gen_std"][
+                        f"train/fitness/player_1": float(fitness.mean()),
+                        f"train/fitness/player_2": float(other_fitness.mean()),
+                        f"train/fitness/top_overall_mean": log["log_top_mean"][
                             gen
                         ],
+                        f"train/fitness/top_overall_std": log["log_top_std"][
+                            gen
+                        ],
+                        f"train/fitness/top_gen_mean": log["log_top_gen_mean"][
+                            gen
+                        ],
+                        f"train/fitness/top_gen_std": log["log_top_gen_std"][
+                            gen
+                        ],
+                        f"train/fitness/gen_std": log["log_gen_std"][gen],
                         f"train/time/minutes": float(
                             (time.time() - self.start_time) / 60
                         ),
                         "train/time/seconds": float(
                             (time.time() - self.start_time)
                         ),
-                        f"train{flag}/episode_reward/player_1": float(
+                        f"train/episode_reward/player_1": float(
                             rewards_0.mean()
                         ),
-                        f"train{flag}/episode_reward/player_2": float(
+                        f"train/episode_reward/player_2": float(
                             rewards_1.mean()
+                        ),
+                        f"train/episode_reward/player_3": float(
+                            rewards_2.mean()
+                        ),
+                        f"train/episode_reward/player_4": float(
+                            rewards_3.mean()
                         ),
                         f"train/lambda": lmbda,
                     }
@@ -822,10 +856,10 @@ class MetaSPEvoRunner:
                         zip(log["top_fitness"], log["top_gen_fitness"])
                     ):
                         wandb_log[
-                            f"train{flag}/fitness/top_overall_agent_{idx+1}"
+                            f"train/fitness/top_overall_agent_{idx+1}"
                         ] = overall_fitness
                         wandb_log[
-                            f"train{flag}/fitness/top_gen_agent_{idx+1}"
+                            f"train/fitness/top_gen_agent_{idx+1}"
                         ] = gen_fitness
 
                     # player 2 metrics
