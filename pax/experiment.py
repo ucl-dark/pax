@@ -56,11 +56,11 @@ from pax.watchers import (
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
-    if not args.eval:
-        os.makedirs(
-            save_dir,
-            exist_ok=True,
-        )
+    # if not args.eval:
+    os.makedirs(
+        save_dir,
+        exist_ok=True,
+    )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -154,6 +154,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
+            eval=args.eval,
         )
         test_env = CoinGame(
             1,
@@ -161,6 +162,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
+            eval=args.eval,
         )
         if logger:
             logger.info(
@@ -192,6 +194,13 @@ def env_setup(args, logger=None):
 
 def runner_setup(args, agents, save_dir, logger):
     if args.eval:
+        if (
+            args.agent1 == "PPO_memory_pretrained"
+            or args.agent1 == "PPO_pretrained"
+        ):
+            logger.info("Training with Runner")
+            return RunnerPretrained(args, save_dir)
+
         if args.env_id == "ipd":
             logger.info("Evaluating with EvalRunnerIPD")
             return EvalRunnerIPD(args)
@@ -290,15 +299,8 @@ def runner_setup(args, agents, save_dir, logger):
                 args, strategy, es_params, param_reshaper, save_dir
             )
     else:
-        if (
-            args.agent1 == "PPO_memory_pretrained"
-            or args.agent1 == "PPO_pretrained"
-        ):
-            logger.info("Training with Runner")
-            return RunnerPretrained(args, save_dir)
-        else:
-            logger.info("Training with Runner")
-            return Runner(args, save_dir)
+        logger.info("Training with Runner")
+        return Runner(args, save_dir)
 
 
 # flake8: noqa: C901
@@ -314,6 +316,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                True,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -345,6 +348,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                False,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -428,6 +432,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                False,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -472,6 +477,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
+                    False,
                 )
                 .action_spec()
                 .num_values
@@ -499,6 +505,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
+                    False,
                 )
                 .action_spec()
                 .num_values
@@ -707,20 +714,20 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    # If evaluating, pass in the number of seeds you want to evaluate over
-    if args.eval:
-        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+    # # If evaluating, pass in the number of seeds you want to evaluate over
+    # if args.eval:
+    #     runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 
     # If training, get the number of iterations to run
+    # else:
+    if args.evo:
+        num_iters = args.num_generations  # number of generations
     else:
-        if args.evo:
-            num_iters = args.num_generations  # number of generations
-        else:
-            num_iters = int(
-                args.total_timesteps / args.num_steps
-            )  # number of episodes
-            print(f"Number of episodes: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of episodes: {num_iters}")
+    runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":

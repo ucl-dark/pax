@@ -172,6 +172,7 @@ class CoinGame:
         num_steps: int,
         seed: int,
         cnn: Boolean,
+        eval: Boolean,
     ):
 
         num_trials = int(num_steps / inner_ep_length)
@@ -236,6 +237,13 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
+            if eval:
+                zero_stats = jnp.zeros(
+                    (num_trials, inner_ep_length), dtype=jnp.int8
+                )
+            else:
+                zero_stats = jnp.zeros((num_trials, 1), dtype=jnp.int8)
+
             state = CoinGameState(
                 all_pos[0, :],
                 all_pos[1, :],
@@ -244,10 +252,10 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
+                zero_stats,
+                zero_stats,
+                zero_stats,
+                zero_stats,
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -314,19 +322,38 @@ class CoinGame:
                 new_random_coin_poses[1],
                 state.blue_coin_pos,
             )
+            if not eval:
+                time_idx = 0
+                ep_length = 1
+            else:
+                time_idx = state.inner_t
+                ep_length = inner_ep_length
 
-            next_red_coop = state.red_coop + jnp.zeros(num_trials).at[
-                state.outer_t
-            ].set(red_red_matches)
-            next_red_defect = state.red_defect + jnp.zeros(num_trials).at[
-                state.outer_t
-            ].set(red_blue_matches)
-            next_blue_coop = state.blue_coop + jnp.zeros(num_trials).at[
-                state.outer_t
-            ].set(blue_blue_matches)
-            next_blue_defect = state.blue_defect + jnp.zeros(num_trials).at[
-                state.outer_t
-            ].set(blue_red_matches)
+            red_coop = (
+                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
+                .at[state.outer_t, time_idx]
+                .set(red_red_matches)
+            )
+            red_defect = (
+                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
+                .at[state.outer_t, time_idx]
+                .set(red_blue_matches)
+            )
+            blue_coop = (
+                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
+                .at[state.outer_t, time_idx]
+                .set(blue_blue_matches)
+            )
+            blue_defect = (
+                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
+                .at[state.outer_t, time_idx]
+                .set(blue_red_matches)
+            )
+
+            next_red_coop = state.red_coop + red_coop
+            next_red_defect = state.red_defect + red_defect
+            next_blue_coop = state.blue_coop + blue_coop
+            next_blue_defect = state.blue_defect + blue_defect
 
             next_state = CoinGameState(
                 new_red_pos,

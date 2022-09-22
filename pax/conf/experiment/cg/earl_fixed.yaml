@@ -27,7 +27,7 @@ popsize: 128 #512
 # total popsize = popsize * num_devices
 num_envs: 50
 num_opps: 1
-num_devices: 2
+num_devices: 1
 num_steps: 9600
 num_inner_steps: 16 
 num_generations: 2000
@@ -61,6 +61,7 @@ ppo:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
+  with_cnn: False
   
 # ES parameters 
 es: 

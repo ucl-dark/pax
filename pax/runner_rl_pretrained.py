@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import cg_eval_stats, ipd_visitation
 from pax.utils import save, load
 
 MAX_WANDB_CALLS = 10000
@@ -63,7 +63,7 @@ class RunnerPretrained:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = jax.jit(cg_visitation)
+        self.cg_stats = cg_eval_stats
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
@@ -221,7 +221,7 @@ class RunnerPretrained:
                 print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
+                        lambda x: x,
                         self.cg_stats(env_state),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
