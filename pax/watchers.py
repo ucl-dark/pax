@@ -512,6 +512,6 @@ def cg_eval_stats(env_state: NamedTuple) -> dict:
         "coins_per_episode/2": total_2.mean(axis=0),  # [num_trials]
         "prob_defect_first/1": red_shot_first_flag.mean(),
         "prob_defect_first/2": blue_shot_first_flag.mean(),
-        "prob_reciprocity/1": red_recip.mean(axis=0),
-        "prob_reciprocity/2": blue_recip.mean(axis=0),
+        "prob_reciprocity/1": jnp.nanmean(red_recip, axis=0),
+        "prob_reciprocity/2": jnp.nanmean(blue_recip, axis=0),
     }

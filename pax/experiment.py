@@ -532,6 +532,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 False,
+                False,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:

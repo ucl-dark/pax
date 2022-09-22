@@ -185,7 +185,7 @@ def test_naive_tft_as_second_player():
 
 def test_coin_chaser():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     t1, t2 = env.reset()
     env.state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),

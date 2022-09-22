@@ -1,4 +1,3 @@
-from multiprocessing.spawn import old_main_modules
 import jax.numpy as jnp
 import pytest
 
@@ -179,7 +178,7 @@ def test_reset():
 
 def test_coingame_shapes():
     batch_size = 2
-    env = CoinGame(batch_size, 8, 16, 0, False)
+    env = CoinGame(batch_size, 8, 16, 0, False, False)
     action = jnp.ones(batch_size, dtype=int)
 
     t1, t2 = env.reset()
@@ -202,7 +201,7 @@ def test_coingame_shapes():
 
 def test_coingame_move():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
@@ -238,7 +237,7 @@ def test_coingame_move():
 
 def test_coingame_egocentric_colors():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -277,7 +276,7 @@ def test_coingame_egocentric_colors():
 
 def test_coingame_egocentric_pos():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -329,7 +328,7 @@ def test_coingame_egocentric_pos():
 
 def test_coingame_stay():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     t1, t2 = env.reset()
 
     stay = 4 * jnp.ones(bs, dtype=int)
@@ -356,7 +355,7 @@ def test_coingame_stay():
 
 def test_coingame_egocentric():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
