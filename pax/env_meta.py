@@ -244,7 +244,7 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
-            if eval:
+            if False:
                 zero_stats = jnp.zeros(
                     (num_trials, inner_ep_length), dtype=jnp.int8
                 )
@@ -329,7 +329,7 @@ class CoinGame:
                 new_random_coin_poses[1],
                 state.blue_coin_pos,
             )
-            if not eval:
+            if True:
                 time_idx = 0
                 ep_length = 1
             else:
@@ -493,16 +493,35 @@ class CoinGame:
         """Returns the action spec."""
         return specs.DiscreteArray(num_values=5, name="actions")
 
-    def render(self, state: CoinGameState):
+    def render(self, state: CoinGameState, episode_index: int):
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import (
+            FigureCanvasAgg as FigureCanvas,
+        )
+        from PIL import Image
+        import numpy as np
+
         """Small utility for plotting the agent's state."""
-        fig, ax = plt.subplots()
-        ax.imshow(jnp.zeros((3, 3)), cmap="Greys", vmin=0, vmax=1)
+        fig = Figure()
+        canvas = FigureCanvas(fig)
+        ax = fig.gca()
+        ax.imshow(jnp.zeros((4, 4)), cmap="Greys", vmin=0, vmax=1)
+        ax.margins(0)
 
-        red_pos = jnp.squeeze(env.state.red_pos)
-        blue_pos = jnp.squeeze(env.state.blue_pos)
-        red_coin_pos = jnp.squeeze(env.state.red_coin_pos)
-        blue_coin_pos = jnp.squeeze(env.state.blue_coin_pos)
-
+        ax.annotate(
+            f"Episode {episode_index}",
+            fontsize=20,
+            xy=(4, 4),
+            xycoords="data",
+            xytext=(4 - 0.3, 4 + 0.25),
+        )
+        ax.set_xticks(jnp.arange(3))
+        ax.set_yticks(jnp.arange(3))
+        ax.grid()
+        red_pos = jnp.squeeze(state.red_pos)
+        blue_pos = jnp.squeeze(state.blue_pos)
+        red_coin_pos = jnp.squeeze(state.red_coin_pos)
+        blue_coin_pos = jnp.squeeze(state.blue_coin_pos)
         ax.annotate(
             "R",
             fontsize=20,
@@ -534,34 +553,32 @@ class CoinGame:
                 blue_coin_pos[1] + 0.25,
             ),
         )
-        return fig, ax
+
+        canvas.draw()
+        image = Image.frombytes(
+            "RGB", fig.canvas.get_width_height(), fig.canvas.tostring_rgb()
+        )
+        return image
 
 
 if __name__ == "__main__":
-    from PIL import Image
-    import tempfile
-    import os
-
     bs = 1
     env = CoinGame(bs, 8, 16, 0, True, False)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     rng = jax.random.PRNGKey(0)
-    with tempfile.TemporaryDirectory() as td:
-        for i in range(7):
-            rng, rng1, rng2 = jax.random.split(rng, 3)
-            a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
-            a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
-            t1, t2 = env.step((a1 * action, a2 * action))
-            fig, ax = env.render(env.state)
-            obs1, obs2 = t1.observation[0], t2.observation[0]
-            plt.savefig(os.path.join(td, f"file_{i}.png"))
-        pics = []
-        for i in range(7):
-            img = Image.open((os.path.join(td, f"file_{i}.png")))
-            pics.append(img)
+    pics = []
+
+    for _ in range(7):
+        rng, rng1, rng2 = jax.random.split(rng, 3)
+        a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
+        a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
+        t1, t2 = env.step((a1 * action, a2 * action))
+        img = env.render(env.state, 1)
+        pics.append(img)
+
     pics[0].save(
-        "test.gif",
+        "test1.gif",
         format="gif",
         save_all=True,
         append_images=pics[1:],

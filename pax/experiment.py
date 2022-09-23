@@ -715,8 +715,8 @@ def main(args):
         watchers = False
 
     # # If evaluating, pass in the number of seeds you want to evaluate over
-    # if args.eval:
-    #     runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+    if args.eval:
+        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 
     # If training, get the number of iterations to run
     # else:

@@ -1,9 +1,8 @@
 from datetime import datetime
 import os
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
-from dm_env import TimeStep
 import jax
 import jax.numpy as jnp
 import wandb
@@ -39,7 +38,7 @@ class EvalRunnerCG:
         self.train_episodes = 0
         self.num_seeds = args.num_seeds
         self.run_path = args.run_path
-        self.model_path = args.model_path
+        self.model_path1 = args.model_path
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
@@ -93,16 +92,13 @@ class EvalRunnerCG:
                 a2_state,
                 new_a2_mem,
                 env_state,
-            ), (
-                traj1,
-                traj2,
-            )
+            ), (traj1, traj2, env_state)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
-            vals, trajectories = jax.lax.scan(
+            vals, stacks = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
@@ -117,7 +113,7 @@ class EvalRunnerCG:
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_mem
+                stacks[1], final_t2, a2_state, a2_mem
             )
 
             return (
@@ -128,7 +124,7 @@ class EvalRunnerCG:
                 a2_state,
                 a2_mem,
                 env_state,
-            ), (*trajectories, a2_metrics)
+            ), (*stacks, a2_metrics)
 
         print("Evaluation")
         print("------------------------------")
@@ -141,17 +137,28 @@ class EvalRunnerCG:
         rng, _ = jax.random.split(self.random_key)
 
         # Load model
-        print("Local model_path", os.path.join(os.getcwd(), self.model_path))
+        print("Local model_path", os.path.join(os.getcwd(), self.model_path1))
+        print("Local model_path", os.path.join(os.getcwd(), self.model_path2))
+
         if watchers:
             wandb.restore(
-                name=self.model_path, run_path=self.run_path, root=os.getcwd()
+                name=self.model_path1,
+                run_path=self.run_path1,
+                root=os.getcwd(),
             )
-        params = load(self.model_path)
+            wandb.restore(
+                name=self.model_path2,
+                run_path=self.run_path2,
+                root=os.getcwd(),
+            )
+        params1 = load(self.model_path1)
+        params2 = load(self.model_path2)
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        a1_state = a1_state._replace(params=params)
+        a1_state = a1_state._replace(params=params1)
+        a2_state = a2_state._replace(params=params2)
 
         mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
         mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
@@ -169,17 +176,17 @@ class EvalRunnerCG:
                 (self.num_opps, env.num_envs), rng_run
             )
 
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
+            # if self.args.agent2 == "NaiveEx":
+            #     a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
-                # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
-                )
+            # elif (
+            #     self.args.env_type in ["meta", "infinite"]
+            #     or self.args.coin_type == "coin_meta"
+            # ):
+            #     # meta-experiments - init 2nd agent per trial
+            #     a2_state, a2_mem = agent2.batch_init(
+            #         jax.random.split(rng, self.num_opps), a2_mem.hidden
+            #     )
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -189,7 +196,7 @@ class EvalRunnerCG:
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-            traj_1, traj_2, a2_metrics = stack
+            traj_1, traj_2, env_state_stacked, a2_metrics = stack
 
             if self.args.env_type == "coin_game":
                 env_stats = self.cg_stats(env_state)
@@ -210,6 +217,29 @@ class EvalRunnerCG:
                 mean_coins_per_episode_p2 = mean_coins_per_episode_p2.at[
                     i, :
                 ].set(env_stats["coins_per_episode/2"])
+
+                pics = []
+                print("Rendering")
+                # Num Trials, Episode Length, .....
+                _env_state = jax.tree_util.tree_map(
+                    lambda x: x.reshape(x.shape[0] * x.shape[1], *x.shape[2:]),
+                    env_state_stacked,
+                )
+
+                for i in range(env.episode_length):
+                    img = env.render(
+                        jax.tree_util.tree_map(lambda x: x[i, ...], _env_state)
+                    )
+                    pics.append(img)
+
+                pics[0].save(
+                    "test.gif",
+                    format="gif",
+                    save_all=True,
+                    append_images=pics[1:],
+                    duration=300,
+                    loop=0,
+                )
 
             elif self.args.env_type in [
                 "meta",
