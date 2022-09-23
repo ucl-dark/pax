@@ -192,12 +192,6 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
-    if (
-        args.agent1 == "PPO_memory_pretrained"
-        or args.agent1 == "PPO_pretrained"
-    ):
-        logger.info("Training with Runner")
-        return RunnerPretrained(args, save_dir)
     if args.eval:
         if (
             args.agent1 == "PPO_memory_pretrained"

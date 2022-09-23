@@ -37,8 +37,10 @@ class EvalRunnerCG:
         self.train_steps = 0
         self.train_episodes = 0
         self.num_seeds = args.num_seeds
-        self.run_path = args.run_path
-        self.model_path1 = args.model_path
+        self.run_path1 = args.run_path1
+        self.run_path2 = args.run_path2
+        self.model_path1 = args.model_path1
+        self.model_path2 = args.model_path2
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
@@ -222,7 +224,9 @@ class EvalRunnerCG:
                 print("Rendering")
                 # Num Trials, Episode Length, .....
                 _env_state = jax.tree_util.tree_map(
-                    lambda x: x.reshape(x.shape[0] * x.shape[1], *x.shape[2:]),
+                    lambda x: jnp.squeeze(
+                        x.reshape(x.shape[0] * x.shape[1], *x.shape[2:])
+                    ),
                     env_state_stacked,
                 )
 
