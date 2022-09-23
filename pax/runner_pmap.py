@@ -359,7 +359,7 @@ class EvoRunnerPMAP:
                     "meta",
                     "sequential",
                 ]:
-                    env_stats = {}
+                    env_stats = env_stats
                 else:
                     env_stats = {}
 
