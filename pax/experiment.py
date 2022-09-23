@@ -589,12 +589,8 @@ def agent_setup(args, logger):
 
     if args.agent1 == "PPO_memory":
         if not args.ppo.with_memory:
-            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
-    if args.agent1 == "PPO":
-        if args.ppo.with_memory:
-            raise ValueError(
-                "Can't use ppo.memory=False but set agent=PPO_memory"
-            )
+            raise ValueError("Can't use PPO_memory but set ppo.with_memory=False")
+
 
     if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
