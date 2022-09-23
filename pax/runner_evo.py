@@ -167,28 +167,26 @@ class EvoRunner:
             )
             a1_mem = agent1.batch_reset(a1_mem, False)
 
-            # init agent 2
             if self.args.agent2 == "NaiveEx":
+                # Exact requires env state
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
-                # meta-experiments - init 2nd agent per trial
+            else:
+                # Else randomly init
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng_key, popsize * num_opps).reshape(
                         self.popsize, num_opps, -1
                     ),
                     agent2._mem.hidden,
                 )
+
+            # Rollout
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.num_trials,
             )
-
             traj_1, traj_2, a2_metrics = stack
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
