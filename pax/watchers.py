@@ -461,10 +461,11 @@ def cg_eval_stats(env_state: NamedTuple) -> dict:
         attacks = 0
         for i in range(16 - window):
             attack = sig1[..., i] == 1
+            attacks += jnp.where(attack, 1, 0)
             responses = sig2[..., i : i + 2]
             _r = jnp.where(responses.sum(), 1, 0)
             val += jnp.where(attack, _r, 0)
-            attacks += jnp.where(attack, 1, 0)
+
         return val / attacks
 
     game_stats = [], []
