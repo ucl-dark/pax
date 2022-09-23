@@ -122,7 +122,7 @@ class NaiveExact:
         num_envs = t.reward.shape[-1]
         return (
             TrainingState(
-                # t.observation[:, :5],
+                t.observation[..., :5],
                 timesteps=0,
                 num_episodes=0,
                 # loss=0,

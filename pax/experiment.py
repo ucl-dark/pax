@@ -40,7 +40,7 @@ from pax.strategies import (
     Stay,
     TitForTat,
 )
-from pax.utils import Section, load
+from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
     logger_naive,

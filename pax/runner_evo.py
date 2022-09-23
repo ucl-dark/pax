@@ -172,9 +172,14 @@ class EvoRunner:
         log = es_logging.initialize()
 
         # Evolution specific: add pop size dimension
-        env.batch_step = jax.jit(
-            jax.vmap(env.batch_step),
-        )
+        if self.args.env_type == "infinite" and self.args.env_id == "ipd":
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step, (0, None), (0, None))
+            )
+        else:
+            env.batch_step = jax.jit(
+                jax.vmap(env.batch_step),
+            )
 
         if self.args.env_type == "coin_game":
             env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
@@ -208,12 +213,17 @@ class EvoRunner:
             a1_mem = agent1.batch_reset(a1_mem, False)
 
             # Player 2
-            a2_state, a2_mem = agent2.batch_init(
-                jax.random.split(rng_key, popsize * num_opps).reshape(
-                    self.popsize, num_opps, -1
-                ),
-                a2_mem.hidden,
-            )
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
+
+            elif (
+                self.args.env_type in ["meta", "infinite"]
+                or self.args.coin_type == "coin_meta"
+            ):
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                )
 
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -279,6 +289,8 @@ class EvoRunner:
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()
                 else:
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Generation: {gen}")
