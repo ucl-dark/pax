@@ -1,5 +1,6 @@
+from re import X
 from typing import NamedTuple, Tuple
-from xmlrpc.client import Boolean
+import matplotlib.pyplot as plt
 
 import jax
 import jax.numpy as jnp
@@ -173,8 +174,8 @@ class CoinGame:
         inner_ep_length: int,
         num_steps: int,
         seed: int,
-        cnn: Boolean,
-        eval: Boolean,
+        cnn: bool,
+        eval: bool,
     ):
 
         if eval:
@@ -494,41 +495,76 @@ class CoinGame:
 
     def render(self, state: CoinGameState):
         """Small utility for plotting the agent's state."""
-        import matplotlib.pyplot as plt
-
         fig, ax = plt.subplots()
         ax.imshow(jnp.zeros((3, 3)), cmap="Greys", vmin=0, vmax=1)
+
+        red_pos = jnp.squeeze(env.state.red_pos)
+        blue_pos = jnp.squeeze(env.state.blue_pos)
+        red_coin_pos = jnp.squeeze(env.state.red_coin_pos)
+        blue_coin_pos = jnp.squeeze(env.state.blue_coin_pos)
+
         ax.annotate(
             "R",
             fontsize=20,
-            xy=(state.red_pos[0], state.red_pos[1]),
+            xy=(red_pos[0], red_pos[1]),
             xycoords="data",
-            xytext=(state.red_pos[0] - 0.3, state.red_pos[1] + 0.25),
+            xytext=(red_pos[0] - 0.3, red_pos[1] + 0.25),
         )
         ax.annotate(
             "B",
             fontsize=20,
-            xy=(state.blue_pos[0], state.blue_pos[1]),
+            xy=(blue_pos[0], blue_pos[1]),
             xycoords="data",
-            xytext=(state.blue_pos[0] - 0.3, state.blue_pos[1] + 0.25),
+            xytext=(blue_pos[0] - 0.3, blue_pos[1] + 0.25),
         )
         ax.annotate(
             "Rc",
             fontsize=20,
-            xy=(state.red_coin_pos[0], state.red_coin_pos[1]),
+            xy=(red_coin_pos[0], red_coin_pos[1]),
             xycoords="data",
-            xytext=(state.red_coin_pos[0] - 0.3, state.red_coin_pos[1] + 0.25),
+            xytext=(red_coin_pos[0] - 0.3, red_coin_pos[1] + 0.25),
         )
         ax.annotate(
             "Bc",
             fontsize=20,
-            xy=(state.blue_coin_pos[0], state.blue_coin_pos[1]),
+            xy=(blue_coin_pos[0], blue_coin_pos[1]),
             xycoords="data",
             xytext=(
-                state.blue_coin_pos[0] - 0.3,
-                state.blue_coin_pos[1] + 0.25,
+                blue_coin_pos[0] - 0.3,
+                blue_coin_pos[1] + 0.25,
             ),
         )
-        ax.set_xticks([])
-        ax.set_yticks([])
-        return (fig,)
+        return fig, ax
+
+
+if __name__ == "__main__":
+    from PIL import Image
+    import tempfile
+    import os
+
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True, False)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    rng = jax.random.PRNGKey(0)
+    with tempfile.TemporaryDirectory() as td:
+        for i in range(7):
+            rng, rng1, rng2 = jax.random.split(rng, 3)
+            a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
+            a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
+            t1, t2 = env.step((a1 * action, a2 * action))
+            fig, ax = env.render(env.state)
+            obs1, obs2 = t1.observation[0], t2.observation[0]
+            plt.savefig(os.path.join(td, f"file_{i}.png"))
+        pics = []
+        for i in range(7):
+            img = Image.open((os.path.join(td, f"file_{i}.png")))
+            pics.append(img)
+    pics[0].save(
+        "test.gif",
+        format="gif",
+        save_all=True,
+        append_images=pics[1:],
+        duration=300,
+        loop=0,
+    )

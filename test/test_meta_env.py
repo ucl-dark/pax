@@ -205,34 +205,34 @@ def test_coingame_move():
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
-        red_pos=jnp.array([[0, 0]]),
-        blue_pos=jnp.array([[1, 0]]),
-        red_coin_pos=jnp.array([[0, 2]]),
-        blue_coin_pos=jnp.array([[1, 2]]),
+        red_pos=jnp.array([[0, 0]], jnp.int8),
+        blue_pos=jnp.array([[1, 0]], jnp.int8),
+        red_coin_pos=jnp.array([[0, 2]], jnp.int8),
+        blue_coin_pos=jnp.array([[1, 2]], jnp.int8),
         key=env.state.key,
         inner_t=env.state.inner_t,
         outer_t=env.state.outer_t,
-        red_coop=jnp.zeros(1),
-        red_defect=jnp.zeros(1),
-        blue_coop=jnp.zeros(1),
-        blue_defect=jnp.zeros(1),
+        red_coop=jnp.zeros((bs, 2, 1), jnp.int8),
+        red_defect=jnp.zeros((bs, 2, 1), jnp.int8),
+        blue_coop=jnp.zeros((bs, 2, 1), jnp.int8),
+        blue_defect=jnp.zeros((bs, 2, 1), jnp.int8),
     )
 
     t1, t2 = env.step((action, action))
     assert t1.reward == 1
     assert t2.reward == 1
-    assert (env.state.red_coop == jnp.array([1, 0])).all()
-    assert (env.state.red_defect == jnp.array([0, 0])).all()
-    assert (env.state.blue_coop == jnp.array([1, 0])).all()
-    assert (env.state.blue_defect == jnp.array([0, 0])).all()
+    assert (env.state.red_coop == jnp.array([[[1], [0]]], jnp.int8)).all()
+    assert (env.state.red_defect == jnp.array([[[0], [0]]], jnp.int8)).all()
+    assert (env.state.blue_coop == jnp.array([[[1], [0]]], jnp.int8)).all()
+    assert (env.state.blue_defect == jnp.array([[[0], [0]]], jnp.int8)).all()
 
     t1, t2 = env.step((action, action))
     assert t1.reward == 0
     assert t2.reward == 0
-    assert (env.state.red_coop == jnp.array([1, 0])).all()
-    assert (env.state.red_defect == jnp.array([0, 0])).all()
-    assert (env.state.blue_coop == jnp.array([1, 0])).all()
-    assert (env.state.blue_defect == jnp.array([0, 0])).all()
+    assert (env.state.red_coop == jnp.array([[[1], [0]]])).all()
+    assert (env.state.red_defect == jnp.array([[[0], [0]]])).all()
+    assert (env.state.blue_coop == jnp.array([[[1], [0]]])).all()
+    assert (env.state.blue_defect == jnp.array([[[0], [0]]])).all()
 
 
 def test_coingame_egocentric_colors():
@@ -380,3 +380,18 @@ def test_coingame_egocentric():
         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+
+def test_coingame_render():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True, False)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    for _ in range(7):
+        t1, t2 = env.step((action, action))
+        fig, ax = env.render(env.state)
+        fig.show()
+
+
+if __name__ == "__main__":
+    test_coingame_render()
