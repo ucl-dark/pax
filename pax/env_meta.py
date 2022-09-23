@@ -505,7 +505,9 @@ class CoinGame:
         fig = Figure()
         canvas = FigureCanvas(fig)
         ax = fig.gca()
-        ax.imshow(jnp.zeros((4, 4)), cmap="Greys", vmin=0, vmax=1)
+        ax.imshow(
+            jnp.zeros((3, 3)), cmap="Greys", vmin=0, vmax=1, aspect="equal"
+        )
         ax.margins(0)
 
         ax.annotate(
@@ -515,8 +517,8 @@ class CoinGame:
             xycoords="data",
             xytext=(4 - 0.3, 4 + 0.25),
         )
-        ax.set_xticks(jnp.arange(3))
-        ax.set_yticks(jnp.arange(3))
+        ax.set_xticks(jnp.arange(1, 4))
+        ax.set_yticks(jnp.arange(1, 4))
         ax.grid()
         red_pos = jnp.squeeze(state.red_pos)
         blue_pos = jnp.squeeze(state.blue_pos)
@@ -525,6 +527,7 @@ class CoinGame:
         ax.annotate(
             "R",
             fontsize=20,
+            color="red",
             xy=(red_pos[0], red_pos[1]),
             xycoords="data",
             xytext=(red_pos[0] - 0.3, red_pos[1] + 0.25),
@@ -532,6 +535,7 @@ class CoinGame:
         ax.annotate(
             "B",
             fontsize=20,
+            color="blue",
             xy=(blue_pos[0], blue_pos[1]),
             xycoords="data",
             xytext=(blue_pos[0] - 0.3, blue_pos[1] + 0.25),
@@ -539,12 +543,14 @@ class CoinGame:
         ax.annotate(
             "Rc",
             fontsize=20,
+            color="red",
             xy=(red_coin_pos[0], red_coin_pos[1]),
             xycoords="data",
             xytext=(red_coin_pos[0] - 0.3, red_coin_pos[1] + 0.25),
         )
         ax.annotate(
             "Bc",
+            color="blue",
             fontsize=20,
             xy=(blue_coin_pos[0], blue_coin_pos[1]),
             xycoords="data",
