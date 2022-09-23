@@ -190,6 +190,12 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if (
+        args.agent1 == "PPO_memory_pretrained"
+        or args.agent1 == "PPO_pretrained"
+    ):
+        logger.info("Training with Runner")
+        return RunnerPretrained(args, save_dir)
     if args.eval:
         if args.env_id == "ipd":
             logger.info("Evaluating with EvalRunnerIPD")
@@ -283,15 +289,8 @@ def runner_setup(args, agents, save_dir, logger):
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
 
     else:
-        if (
-            args.agent1 == "PPO_memory_pretrained"
-            or args.agent1 == "PPO_pretrained"
-        ):
-            logger.info("Training with Runner")
-            return RunnerPretrained(args, save_dir)
-        else:
-            logger.info("Training with Runner")
-            return Runner(args, save_dir)
+        logger.info("Training with Runner")
+        return Runner(args, save_dir)
 
 
 # flake8: noqa: C901
