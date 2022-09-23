@@ -493,7 +493,7 @@ class CoinGame:
         """Returns the action spec."""
         return specs.DiscreteArray(num_values=5, name="actions")
 
-    def render(self, state: CoinGameState, episode_index: int):
+    def render(self, state: CoinGameState):
         from matplotlib.figure import Figure
         from matplotlib.backends.backend_agg import (
             FigureCanvasAgg as FigureCanvas,
@@ -502,21 +502,22 @@ class CoinGame:
         import numpy as np
 
         """Small utility for plotting the agent's state."""
-        fig = Figure()
+        fig = Figure((3, 3))
         canvas = FigureCanvas(fig)
         ax = fig.gca()
         ax.imshow(
-            jnp.zeros((3, 3)), cmap="Greys", vmin=0, vmax=1, aspect="equal"
+            np.zeros((3, 33)),
+            cmap="Greys",
+            vmin=0,
+            vmax=1,
+            aspect="equal",
+            interpolation="none",
+            origin="lower",
+            extent=[0, 3, 0, 3],
         )
-        ax.margins(0)
+        ax.set_aspect("equal")
 
-        ax.annotate(
-            f"Episode {episode_index}",
-            fontsize=20,
-            xy=(4, 4),
-            xycoords="data",
-            xytext=(4 - 0.3, 4 + 0.25),
-        )
+        # ax.margins(0)
         ax.set_xticks(jnp.arange(1, 4))
         ax.set_yticks(jnp.arange(1, 4))
         ax.grid()
@@ -530,7 +531,7 @@ class CoinGame:
             color="red",
             xy=(red_pos[0], red_pos[1]),
             xycoords="data",
-            xytext=(red_pos[0] - 0.3, red_pos[1] + 0.25),
+            xytext=(red_pos[0] + 0.5, red_pos[1] + 0.5),
         )
         ax.annotate(
             "B",
@@ -538,7 +539,7 @@ class CoinGame:
             color="blue",
             xy=(blue_pos[0], blue_pos[1]),
             xycoords="data",
-            xytext=(blue_pos[0] - 0.3, blue_pos[1] + 0.25),
+            xytext=(blue_pos[0] + 0.3, blue_pos[1] + 0.3),
         )
         ax.annotate(
             "Rc",
@@ -546,7 +547,7 @@ class CoinGame:
             color="red",
             xy=(red_coin_pos[0], red_coin_pos[1]),
             xycoords="data",
-            xytext=(red_coin_pos[0] - 0.3, red_coin_pos[1] + 0.25),
+            xytext=(red_coin_pos[0] + 0.3, red_coin_pos[1] + 0.3),
         )
         ax.annotate(
             "Bc",
@@ -555,14 +556,16 @@ class CoinGame:
             xy=(blue_coin_pos[0], blue_coin_pos[1]),
             xycoords="data",
             xytext=(
-                blue_coin_pos[0] - 0.3,
-                blue_coin_pos[1] + 0.25,
+                blue_coin_pos[0] + 0.3,
+                blue_coin_pos[1] + 0.3,
             ),
         )
 
         canvas.draw()
         image = Image.frombytes(
-            "RGB", fig.canvas.get_width_height(), fig.canvas.tostring_rgb()
+            "RGB",
+            fig.canvas.get_width_height(),
+            fig.canvas.tostring_rgb(),
         )
         return image
 
@@ -575,12 +578,12 @@ if __name__ == "__main__":
     rng = jax.random.PRNGKey(0)
     pics = []
 
-    for _ in range(7):
+    for _ in range(16):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
         a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
         t1, t2 = env.step((a1 * action, a2 * action))
-        img = env.render(env.state, 1)
+        img = env.render(env.state)
         pics.append(img)
 
     pics[0].save(
