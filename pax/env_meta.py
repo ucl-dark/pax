@@ -5,6 +5,8 @@ import jax
 import jax.numpy as jnp
 from dm_env import Environment, TimeStep, specs, termination, transition
 
+import warnings
+
 
 class MetaFiniteGame:
     def __init__(
@@ -175,6 +177,10 @@ class CoinGame:
         eval: Boolean,
     ):
 
+        if eval:
+            warnings.warn(
+                "Running in Eval Mode: stats will not be jitted and state are muchl large arrays"
+            )
         num_trials = int(num_steps / inner_ep_length)
 
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
@@ -485,3 +491,44 @@ class CoinGame:
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
         return specs.DiscreteArray(num_values=5, name="actions")
+
+    def render(self, state: CoinGameState):
+        """Small utility for plotting the agent's state."""
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        ax.imshow(jnp.zeros((3, 3)), cmap="Greys", vmin=0, vmax=1)
+        ax.annotate(
+            "R",
+            fontsize=20,
+            xy=(state.red_pos[0], state.red_pos[1]),
+            xycoords="data",
+            xytext=(state.red_pos[0] - 0.3, state.red_pos[1] + 0.25),
+        )
+        ax.annotate(
+            "B",
+            fontsize=20,
+            xy=(state.blue_pos[0], state.blue_pos[1]),
+            xycoords="data",
+            xytext=(state.blue_pos[0] - 0.3, state.blue_pos[1] + 0.25),
+        )
+        ax.annotate(
+            "Rc",
+            fontsize=20,
+            xy=(state.red_coin_pos[0], state.red_coin_pos[1]),
+            xycoords="data",
+            xytext=(state.red_coin_pos[0] - 0.3, state.red_coin_pos[1] + 0.25),
+        )
+        ax.annotate(
+            "Bc",
+            fontsize=20,
+            xy=(state.blue_coin_pos[0], state.blue_coin_pos[1]),
+            xycoords="data",
+            xytext=(
+                state.blue_coin_pos[0] - 0.3,
+                state.blue_coin_pos[1] + 0.25,
+            ),
+        )
+        ax.set_xticks([])
+        ax.set_yticks([])
+        return (fig,)
