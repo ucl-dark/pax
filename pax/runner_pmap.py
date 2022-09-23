@@ -187,13 +187,31 @@ class EvoRunnerPMAP:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            env_stats = jax.tree_util.tree_map(
-                lambda x: x.mean().item(),
-                self.cg_stats(env_state),
-            )
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean().item(),
+                    self.cg_stats(env_state),
+                )
 
-            rewards_0 = traj_1.rewards.sum(axis=1).mean()
-            rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
             return (
                 fitness,
                 other_fitness,
