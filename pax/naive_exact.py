@@ -10,10 +10,9 @@ from pax.utils import MemoryState
 
 class TrainingState(NamedTuple):
     # Training state consists of network parameters, random key, timesteps
-    params: jnp.ndarray
     timesteps: int
     num_episodes: int
-    loss: float
+    # loss: float
 
 
 class Logger:
@@ -67,12 +66,11 @@ class NaiveExact:
             L_1 = jnp.matmul(M, jnp.reshape(payout_mat_1, (4, 1)))
             return L_1.sum(), M
 
-        grad_fn = jax.jit(jax.vmap(jax.value_and_grad(_loss, has_aux=True)))
+        grad_fn = jax.vmap(jax.value_and_grad(_loss, has_aux=True))
 
         def policy(state, obs, mem):
-            action = state.params
-            other_action = obs[:, 5:]
-
+            action = mem.hidden
+            other_action = obs[..., 5:]
             (loss, _), grad = grad_fn(action, other_action)
 
             # gradient ascent
@@ -80,12 +78,11 @@ class NaiveExact:
 
             # update state
             _state = TrainingState(
-                params=action,
                 timesteps=state.timesteps + 1,
                 num_episodes=state.num_episodes,
-                loss=loss.sum(),
             )
-            return action, _state, mem
+            _mem = mem._replace(hidden=action)
+            return action, _state, _mem
 
         self._policy = policy
 
@@ -105,15 +102,15 @@ class NaiveExact:
         }
 
         self._state = TrainingState(
-            jnp.zeros((env.num_envs, 5)),
+            # jnp.zeros((env.num_envs, 5)),
             timesteps=0,
             num_episodes=0,
-            loss=0,
+            # loss=0,
         )
 
         self._mem = (
             MemoryState(
-                hidden=jnp.zeros((num_envs, 1)),
+                hidden=jnp.zeros((num_envs, 5)),
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
@@ -128,10 +125,10 @@ class NaiveExact:
                 t.observation[..., :5],
                 timesteps=0,
                 num_episodes=0,
-                loss=0,
+                # loss=0,
             ),
             MemoryState(
-                hidden=jnp.zeros((num_envs, 1)),
+                hidden=t.observation[:, :5],
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
