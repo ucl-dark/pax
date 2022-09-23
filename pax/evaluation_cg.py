@@ -230,6 +230,8 @@ class EvalRunnerCG:
                     env_state_stacked,
                 )
 
+                print(_env_state.red_pos.shape)
+
                 for i in range(env.episode_length):
                     img = env.render(
                         jax.tree_util.tree_map(lambda x: x[i, ...], _env_state)
