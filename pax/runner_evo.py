@@ -1,12 +1,13 @@
-from datetime import datetime
 import os
-import time
-from typing import List, NamedTuple
 
-from dm_env import TimeStep
-from evosax import FitnessShaper
+import time
+from datetime import datetime
+from typing import NamedTuple
+
 import jax
 import jax.numpy as jnp
+from evosax import FitnessShaper
+
 import wandb
 from pax.utils import save
 
@@ -52,6 +53,17 @@ class EvoRunner:
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.num_devices = args.num_devices
+
+        def pmap_reshape(cg_state):
+            return jax.tree_util.tree_map(
+                lambda x: x.reshape(
+                    (self.num_devices * self.popsize,) + x.shape[2:]
+                ),
+                cg_state,
+            )
+
+        self.pmap_reshape = pmap_reshape
 
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
@@ -140,6 +152,81 @@ class EvoRunner:
                 env_state,
             ), (*trajectories, a2_metrics)
 
+        def _evo_rollout(params: jnp.ndarray, rng_device: jnp.ndarray):
+            """Runner for one fitness step"""
+            rng, rng_run, rng_gen, rng_key = jax.random.split(rng_device, 4)
+            # rollout
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
+
+            # this will be serialized so pulls out initial state
+            a1_state, a1_mem = agent1._state, agent1._mem
+            a1_state = a1_state._replace(
+                params=params,
+            )
+            a1_mem = agent1.batch_reset(a1_mem, False)
+
+            if self.args.agent2 == "NaiveEx":
+                # Exact requires env state
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
+
+            else:
+                # Else randomly init
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng_key, popsize * num_opps).reshape(
+                        self.popsize, num_opps, -1
+                    ),
+                    agent2._mem.hidden,
+                )
+
+            # Rollout
+            vals, stack = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+            traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            # Fitness
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cg_stats(env_state),
+                )
+
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
+            return (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a2_metrics,
+            )
+
         print("Training")
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
@@ -155,6 +242,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
+        num_devices = self.num_devices
         num_gens = num_generations
         strategy = self.strategy
         es_params = self.es_params
@@ -171,7 +259,7 @@ class EvoRunner:
         )
         log = es_logging.initialize()
 
-        # Evolution specific: add pop size dimension
+        # Evolution specific: add num_devices dimension
         if self.args.env_type == "infinite" and self.args.env_id == "ipd":
             env.batch_step = jax.jit(
                 jax.vmap(env.batch_step, (0, None), (0, None))
@@ -184,61 +272,62 @@ class EvoRunner:
         if self.args.env_type == "coin_game":
             env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
 
-        # Reshape a single agent's params before vmapping
+        # these are batched
+        pmap_init_hidden = jnp.tile(
+            agent1._mem.hidden,
+            (num_devices * popsize, num_opps, 1, 1),
+        )
+
+        dumb_rng = agent1._state.random_key
+        vmap_state, _ = agent1.batch_init(
+            jax.random.split(dumb_rng, num_devices * popsize),
+            pmap_init_hidden,
+        )
+
+        # hiddens are used only on device (so not batched)
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
         )
+
         agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
+            jax.random.split(dumb_rng, popsize),
             init_hidden,
         )
 
-        a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
+        agent1._state = agent1._state._replace(params=vmap_state.params)
+        # a2_state, a2_mem = agent2._state, agent2._mem
+
+        evo_rollout = jax.pmap(_evo_rollout)
 
         for gen in range(num_gens):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
+            # run generation step
+            rng_evo, rng_devices = jax.random.split(rng, 2)
+            rng_devices = jnp.tile(rng_devices, num_devices).reshape(
+                num_devices, -1
             )
-
-            # Ask
-            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
-
-            # Player 1
-            a1_state = a1_state._replace(
-                params=param_reshaper.reshape(x),
-            )
-            a1_mem = agent1.batch_reset(a1_mem, False)
-
-            # Player 2
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
-
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
-                # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+            # Ask for params
+            x, evo_state = strategy.ask(
+                rng_evo, evo_state, es_params
+            )  # this means that x isn't of shape (total_popsize, params)
+            a1_params = param_reshaper.reshape(
+                x
+            )  # reshape x into (num_devices, popsize, ....)
+            if self.num_devices == 1:
+                a1_params = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), a1_params
                 )
-
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-                None,
-                length=env.num_trials,
-            )
-
-            traj_1, traj_2, a2_metrics = stack
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-
-            # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a2_metrics,
+            ) = evo_rollout(a1_params, rng_devices)
+            fitness = jnp.reshape(fitness, popsize * num_devices)
             fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
+            env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
             evo_state = strategy.tell(
@@ -251,10 +340,20 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x.reshape(x.shape[1:]), top_params
-                )
+                if self.args.num_devices > 1:
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0 : self.args.num_devices]
+                    )
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x[0].reshape(x[0].shape[1:]), top_params
+                    )
+                else:
+                    top_params = param_reshaper.reshape(
+                        log["top_gen_params"][0:1]
+                    )
+                    top_params = jax.tree_util.tree_map(
+                        lambda x: x.reshape(x.shape[1:]), top_params
+                    )
                 save(top_params, log_savepath)
                 if watchers:
                     print(f"Saving generation {gen} locally and to WandB")
@@ -263,36 +362,8 @@ class EvoRunner:
                     print(f"Saving iteration {gen} locally")
 
             if gen % log_interval == 0:
-                if self.args.env_type == "coin_game":
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.mean().item(),
-                        self.cg_stats(env_state),
-                    )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
-                elif self.args.env_type in [
-                    "meta",
-                    "sequential",
-                ]:
-                    final_t1 = t1._replace(
-                        step_type=2 * jnp.ones_like(t1.step_type)
-                    )
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.ipd_stats(
-                            traj_1.observations,
-                            traj_1.actions,
-                            final_t1.observation,
-                        ),
-                    )
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-                else:
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-                    env_stats = {}
-
+                rewards_0 = rewards_0.mean()
+                rewards_1 = rewards_1.mean()
                 print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
@@ -321,51 +392,63 @@ class EvoRunner:
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
-            if watchers:
-                wandb_log = {
-                    "generations": self.generations,
-                    "train/fitness/player_1": float(fitness.mean()),
-                    "train/fitness/player_2": float(other_fitness.mean()),
-                    "train/fitness/top_overall_mean": log["log_top_mean"][gen],
-                    "train/fitness/top_overall_std": log["log_top_std"][gen],
-                    "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
-                    "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                    "train/fitness/gen_std": log["log_gen_std"][gen],
-                    "train/time/minutes": float(
-                        (time.time() - self.start_time) / 60
-                    ),
-                    "train/time/seconds": float(
-                        (time.time() - self.start_time)
-                    ),
-                    "train/episode_reward/player_1": float(rewards_0.mean()),
-                    "train/episode_reward/player_2": float(rewards_1.mean()),
-                }
-                wandb_log = wandb_log | env_stats
-                # loop through population
-                for idx, (overall_fitness, gen_fitness) in enumerate(
-                    zip(log["top_fitness"], log["top_gen_fitness"])
-                ):
-                    wandb_log[
-                        f"train/fitness/top_overall_agent_{idx+1}"
-                    ] = overall_fitness
-                    wandb_log[
-                        f"train/fitness/top_gen_agent_{idx+1}"
-                    ] = gen_fitness
+                if watchers:
+                    wandb_log = {
+                        "generations": self.generations,
+                        "train/fitness/player_1": float(fitness.mean()),
+                        "train/fitness/player_2": float(other_fitness.mean()),
+                        "train/fitness/top_overall_mean": log["log_top_mean"][
+                            gen
+                        ],
+                        "train/fitness/top_overall_std": log["log_top_std"][
+                            gen
+                        ],
+                        "train/fitness/top_gen_mean": log["log_top_gen_mean"][
+                            gen
+                        ],
+                        "train/fitness/top_gen_std": log["log_top_gen_std"][
+                            gen
+                        ],
+                        "train/fitness/gen_std": log["log_gen_std"][gen],
+                        "train/time/minutes": float(
+                            (time.time() - self.start_time) / 60
+                        ),
+                        "train/time/seconds": float(
+                            (time.time() - self.start_time)
+                        ),
+                        "train/episode_reward/player_1": float(
+                            rewards_0.mean()
+                        ),
+                        "train/episode_reward/player_2": float(
+                            rewards_1.mean()
+                        ),
+                    }
+                    wandb_log = wandb_log | env_stats
+                    # loop through population
+                    for idx, (overall_fitness, gen_fitness) in enumerate(
+                        zip(log["top_fitness"], log["top_gen_fitness"])
+                    ):
+                        wandb_log[
+                            f"train/fitness/top_overall_agent_{idx+1}"
+                        ] = overall_fitness
+                        wandb_log[
+                            f"train/fitness/top_gen_agent_{idx+1}"
+                        ] = gen_fitness
 
-                # player 2 metrics
-                # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
-                agent2._logger.metrics = (
-                    agent2._logger.metrics | flattened_metrics
-                )
+                    # player 2 metrics
+                    # metrics [outer_timesteps, num_opps]
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    )
+                    agent2._logger.metrics = (
+                        agent2._logger.metrics | flattened_metrics
+                    )
 
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics
-                )
-                agents.log(watchers)
-                wandb.log(wandb_log)
-        self.generations += 1
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
+                    )
+                    agents.log(watchers)
+                    wandb.log(wandb_log)
+            self.generations += 1
 
         return agents
