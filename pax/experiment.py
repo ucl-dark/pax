@@ -407,38 +407,6 @@ def agent_setup(args, logger):
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
-        ppo_agent = make_mfos_agent(
-            args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
-            seed=seed,
-            player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
-        )
-        return ppo_agent
-
-    def get_mfos_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                False,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         ppo_agent = make_mfos_agent(
             args,
             obs_spec=obs_spec,
