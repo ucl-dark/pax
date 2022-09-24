@@ -4,6 +4,8 @@ import logging
 import os
 
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
@@ -370,9 +372,11 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError(
-                "PPO Tabular agent only works on Coin Game."
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
             )
+            obs_spec = (dummy_env.observation_spec().num_values,)
+
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
@@ -497,31 +501,6 @@ def agent_setup(args, logger):
         agent = Stay(num_actions)
         agent.player_id = player_id
         return agent
-
-    def get_PPO_tabular_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                False,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            raise NotImplementedError(
-                "PPO Tabular agent only works on Coin Game."
-            )
-
-        ppo_agent = make_agent(
-            args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
-            seed=seed,
-            player_id=player_id,
-            tabular=True,
-        )
 
         return ppo_agent
 

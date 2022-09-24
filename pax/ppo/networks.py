@@ -246,16 +246,29 @@ def make_coingame_network(num_actions: int, tabular: bool, args):
     return network
 
 
-def make_ipd_network(num_actions: int):
+def make_ipd_network(num_actions: int, tabular: bool, args):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
         layers = []
-        layers.extend(
-            [
-                CategoricalValueHead(num_values=num_actions),
-            ]
-        )
+        if tabular:
+            layers.extend(
+                [
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
+        else:
+            (
+                [
+                    hk.nets.MLP(
+                        [args.ppo.hidden_size, args.ppo.hidden_size],
+                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                        b_init=hk.initializers.Constant(0),
+                        activate_final=True,
+                    ),
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -287,7 +300,7 @@ def make_cartpole_network(num_actions: int):
 
 
 def make_GRU_ipd_network(num_actions: int):
-    hidden_size = 25
+    hidden_size = 3
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
