@@ -423,13 +423,8 @@ class EvoRunner:
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
 
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics
-                    )
-
-                    agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics
-                    )
+                    agent1._logger.metrics.update(flattened_metrics)
+                    agent2._logger.metrics.update(flattened_metrics)
                     agents.log(watchers)
                     wandb.log(wandb_log)
             self.generations += 1
