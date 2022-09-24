@@ -1,5 +1,3 @@
-from collections import namedtuple
-from turtle import hideturtle
 from typing import Optional, Tuple
 from unittest.mock import MagicMock
 
