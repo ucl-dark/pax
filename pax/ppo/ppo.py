@@ -480,7 +480,7 @@ def make_agent(
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)
     else:
-        network = make_ipd_network(action_spec)
+        network = make_ipd_network(action_spec, tabular, args)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
