@@ -265,6 +265,7 @@ def make_ipd_network(num_actions: int, tabular: bool, args):
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
+                        activation=jnp.tanh,
                     ),
                     CategoricalValueHead(num_values=num_actions),
                 ]
