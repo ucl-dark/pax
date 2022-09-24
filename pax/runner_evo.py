@@ -221,8 +221,14 @@ class EvoRunner:
                 or self.args.coin_type == "coin_meta"
             ):
                 # meta-experiments - init 2nd agent per trial
+                # a2_state, a2_mem = agent2.batch_init(
+                #     jax.random.split(rng, self.num_opps), a2_mem.hidden
+                # )
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                    jax.random.split(rng_key, popsize * num_opps).reshape(
+                        self.popsize, num_opps, -1
+                    ),
+                    agent2._mem.hidden,
                 )
 
             vals, stack = jax.lax.scan(
