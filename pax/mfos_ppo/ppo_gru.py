@@ -74,7 +74,6 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         player_id: int = 0,
-        has_sgd_jit: bool = True,
     ):
         @jax.jit
         def policy(
@@ -463,10 +462,7 @@ class PPO:
         self.make_initial_state = make_initial_state
 
         self.prepare_batch = prepare_batch
-        if has_sgd_jit:
-            self._sgd_step = jax.jit(sgd_step)
-        else:
-            self._sgd_step = sgd_step
+        self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -546,7 +542,11 @@ class PPO:
 
 # TODO: seed, and player_id not used in CartPole
 def make_gru_agent(
-    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
+    args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    player_id: int,
 ):
     """Make PPO agent"""
     # Network
@@ -611,7 +611,6 @@ def make_gru_agent(
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
-        has_sgd_jit=has_sgd_jit,
     )
     return agent
 

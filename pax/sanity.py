@@ -187,7 +187,7 @@ def agent_setup(args, logger):
     dummy_env = gym.make(args.env_id)
     dummy_player_id = 0
     seed = args.seed
-    if args.ppo.with_memory:
+    if args.player1 == "PPO_memory":
         agent = make_gru_agent(
             args,
             obs_spec=dummy_env.observation_space.shape,

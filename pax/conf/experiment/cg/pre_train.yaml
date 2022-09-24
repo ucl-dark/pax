@@ -3,7 +3,7 @@ seed: 1323
 
 # Agents  
 agent1: 'PPO_memory_pretrained'
-agent2: 'PPO_memory'
+agent2: 'Tabular'
 
 # Environment
 env_id: coin_game
@@ -33,8 +33,8 @@ num_seeds: 10
 # model_path: exp/sanity-PPO_memory-vs-GoodGreedy-parity/run-seed-0/2022-09-13_21.10.54.299490/iteration_900
 
 # PPO RNN pretrained against PPO RNN with hideen layer size: 16
-run_path: ucl-dark/cg/2vqt63b9
-model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
+# run_path: ucl-dark/cg/2vqt63b9
+# model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.03.14.102140/iteration_9900
 
 # PPO agent pretrained against PPO with hidden layer size: 64
 # run_path: ucl-dark/cg/2zhb6btn
@@ -48,7 +48,17 @@ model_path: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-13_22.
 # run_path: ucl-dark/cg/a0ox9ah5
 # model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.34.19.830221/iteration_500
 
+# EARL pretrained against PPO RNN
+run_path: ucl-dark/cg/13eg6wcm
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-16_19.17.09.045492/generation_600
 
+# EARL pretrained against Tabular
+# run_path: ucl-dark/cg/3srrphdb
+# model_path: exp/EARL-PPO_memory-vs-Tabular/run-seed-0/2022-09-16_19.45.59.867542/generation_600
+
+# EARL pretrained against PPO
+# run_path: ucl-dark/cg/2vxi9b0n
+# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0/2022-09-19_10.25.28.808811/generation_2900
 # PPO agent parameters
 ppo:
   num_minibatches: 8

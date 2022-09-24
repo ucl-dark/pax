@@ -219,7 +219,7 @@ class NaiveLearner:
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_map(
+            batch = jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
 
@@ -273,10 +273,10 @@ class NaiveLearner:
                 key, params, opt_state, timesteps, batch = carry
                 key, subkey = jax.random.split(key)
                 permutation = jax.random.permutation(subkey, batch_size)
-                shuffled_batch = jax.tree_map(
+                shuffled_batch = jax.tree_util.tree_map(
                     lambda x: jnp.take(x, permutation, axis=0), batch
                 )
-                minibatches = jax.tree_map(
+                minibatches = jax.tree_util.tree_map(
                     lambda x: jnp.reshape(
                         x, [num_minibatches, -1] + list(x.shape[1:])
                     ),
@@ -305,7 +305,7 @@ class NaiveLearner:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            metrics = jax.tree_util.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )

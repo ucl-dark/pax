@@ -54,7 +54,6 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
-        has_sgd_jit: bool = False,
         tabular: bool = False,
     ):
         @jax.jit
@@ -266,7 +265,7 @@ class PPO:
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_map(
+            batch = jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
 
@@ -320,10 +319,10 @@ class PPO:
                 key, params, opt_state, timesteps, batch = carry
                 key, subkey = jax.random.split(key)
                 permutation = jax.random.permutation(subkey, batch_size)
-                shuffled_batch = jax.tree_map(
+                shuffled_batch = jax.tree_util.tree_map(
                     lambda x: jnp.take(x, permutation, axis=0), batch
                 )
-                minibatches = jax.tree_map(
+                minibatches = jax.tree_util.tree_map(
                     lambda x: jnp.reshape(
                         x, [num_minibatches, -1] + list(x.shape[1:])
                     ),
@@ -352,7 +351,7 @@ class PPO:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            metrics = jax.tree_util.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )
@@ -472,7 +471,6 @@ def make_agent(
     action_spec,
     seed: int,
     player_id: int,
-    has_sgd_jit: bool,
     tabular=False,
 ):
     """Make PPO agent"""
@@ -482,7 +480,7 @@ def make_agent(
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)
     else:
-        network = make_ipd_network(action_spec)
+        network = make_ipd_network(action_spec, tabular, args)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
@@ -534,7 +532,6 @@ def make_agent(
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
-        has_sgd_jit=has_sgd_jit,
         tabular=tabular,
     )
     agent.player_id = player_id
