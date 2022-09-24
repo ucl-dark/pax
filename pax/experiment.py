@@ -3,7 +3,7 @@ from functools import partial
 import logging
 import os
 
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
