@@ -309,6 +309,7 @@ class EvoRunner:
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
+            self.generations += 1
             if watchers:
                 wandb_log = {
                     "generations": self.generations,
@@ -349,6 +350,5 @@ class EvoRunner:
                 agent1._logger.metrics.update(flattened_metrics)
                 agents.log(watchers)
                 wandb.log(wandb_log)
-        self.generations += 1
 
         return agents
