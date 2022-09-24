@@ -52,6 +52,7 @@ ppo:
   with_memory: True
   with_cnn: False
   separate: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:
