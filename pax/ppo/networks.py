@@ -258,7 +258,7 @@ def make_ipd_network(num_actions: int, tabular: bool, args):
                 ]
             )
         else:
-            (
+            layers.extend(
                 [
                     hk.nets.MLP(
                         [args.ppo.hidden_size, args.ppo.hidden_size],
