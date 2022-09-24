@@ -55,16 +55,6 @@ class EvoRunner:
         self.cg_stats = jax.jit(cg_visitation)
         self.num_devices = args.num_devices
 
-        def pmap_reshape(cg_state):
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape(
-                    (self.num_devices * self.popsize,) + x.shape[2:]
-                ),
-                cg_state,
-            )
-
-        self.pmap_reshape = pmap_reshape
-
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
@@ -135,9 +125,7 @@ class EvoRunner:
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # do second agent update
-            final_t2 = t2._replace(
-                step_type=2 * jnp.ones_like(vals[1].step_type)
-            )
+            final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
@@ -296,25 +284,21 @@ class EvoRunner:
         )
 
         agent1._state = agent1._state._replace(params=vmap_state.params)
-        # a2_state, a2_mem = agent2._state, agent2._mem
 
-        evo_rollout = jax.pmap(_evo_rollout)
+        evo_rollout = (
+            jax.pmap(_evo_rollout) if num_devices > 1 else _evo_rollout
+        )
 
         for gen in range(num_gens):
             # run generation step
             rng_evo, rng_devices = jax.random.split(rng, 2)
-            rng_devices = jnp.tile(rng_devices, num_devices).reshape(
-                num_devices, -1
-            )
+            if num_devices > 1:
+                rng_devices = jnp.tile(rng_devices, num_devices).reshape(
+                    num_devices, -1
+                )
             # Ask for params
             x, evo_state = strategy.ask(rng_evo, evo_state, es_params)
-            a1_params = param_reshaper.reshape(
-                x
-            )  # reshape x into (num_devices, popsize, ....)
-            if num_devices == 1:
-                a1_params = jax.tree_util.tree_map(
-                    lambda x: jax.lax.expand_dims(x, (0,)), a1_params
-                )
+            a1_params = param_reshaper.reshape(x)
             (
                 fitness,
                 other_fitness,
