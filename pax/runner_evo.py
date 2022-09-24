@@ -111,10 +111,11 @@ class EvoRunner:
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            a1_mem = agent1.batch_reset(a1_mem, False)
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
-                carry,
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.inner_episode_length,
             )
