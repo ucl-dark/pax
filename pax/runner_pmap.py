@@ -372,6 +372,7 @@ class EvoRunnerPMAP:
                 print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
+                self.generations += 1
 
                 if watchers:
                     wandb_log = {
@@ -430,6 +431,5 @@ class EvoRunnerPMAP:
                     )
                     agents.log(watchers)
                     wandb.log(wandb_log)
-            self.generations += 1
 
         return agents
