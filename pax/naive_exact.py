@@ -31,6 +31,7 @@ class NaiveExact:
         player_id: int,
     ):
 
+        # Initialise training state (parameters, optimiser state, extras).
         payout_mat_1 = jnp.array([[r[0] for r in env.payoff]])
         gamma = env.gamma
 
