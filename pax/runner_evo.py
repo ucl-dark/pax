@@ -289,9 +289,9 @@ class EvoRunner:
                 print(
                     "--------------------------------------------------------------------------"
                 )
-                print(
-                    f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
-                )
+                # print(
+                #     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                # )
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
