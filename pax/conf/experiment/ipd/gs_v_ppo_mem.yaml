@@ -2,19 +2,19 @@
 
 # Agents  
 agent1: 'PPO'
-agent2: 'PPO'
+agent2: 'PPO_memory'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: ipd
 game: ipd 
 env_type: meta
 env_discount: 0.96
-payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
 evo: True 
 eval: False
-pmap: True
 
 # Training
 top_k: 5
@@ -96,7 +96,7 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: mp
+  project: ipd
   group: 'GS-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
