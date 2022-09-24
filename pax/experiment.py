@@ -314,17 +314,12 @@ def agent_setup(args, logger):
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
         )
         return ppo_memory_agent
 
@@ -345,18 +340,12 @@ def agent_setup(args, logger):
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
         )
 
         return ppo_agent
@@ -376,19 +365,12 @@ def agent_setup(args, logger):
             raise NotImplementedError(
                 "PPO Tabular agent only works on Coin Game."
             )
-
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
             tabular=True,
         )
 
@@ -524,18 +506,12 @@ def agent_setup(args, logger):
                 "PPO Tabular agent only works on Coin Game."
             )
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=True,
             tabular=True,
         )
 
@@ -578,15 +554,6 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    if args.agent1 == "PPO_memory":
-        if not args.ppo.with_memory:
-            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
-    if args.agent1 == "PPO":
-        if args.ppo.with_memory:
-            raise ValueError(
-                "Can't use ppo.memory=False but set agent=PPO_memory"
-            )
-
     if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
@@ -601,15 +568,21 @@ def agent_setup(args, logger):
 def watcher_setup(args, logger):
     """Set up watcher variables."""
 
+    def ppo_memory_log(agent):
+        losses = losses_ppo(agent)
+        if not args.env_type == "coin_game":
+            policy = policy_logger_ppo_with_memory(agent)
+            losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
     def ppo_log(agent):
         losses = losses_ppo(agent)
         if not args.env_type == "coin_game":
-            if args.ppo.with_memory:
-                policy = policy_logger_ppo_with_memory(agent)
-            else:
-                policy = policy_logger_ppo(agent)
-                value = value_logger_ppo(agent)
-                losses.update(value)
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
             losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -656,9 +629,9 @@ def watcher_setup(args, logger):
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
         "PPO": ppo_log,
-        "PPO_memory": ppo_log,
+        "PPO_memory": ppo_memory_log,
         "PPO_pretrained": ppo_log,
-        "PPO_memory_pretrained": ppo_log,
+        "PPO_memory_pretrained": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,

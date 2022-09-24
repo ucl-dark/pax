@@ -54,7 +54,6 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
-        has_sgd_jit: bool = False,
         tabular: bool = False,
     ):
         @jax.jit
@@ -472,7 +471,6 @@ def make_agent(
     action_spec,
     seed: int,
     player_id: int,
-    has_sgd_jit: bool,
     tabular=False,
 ):
     """Make PPO agent"""
@@ -534,7 +532,6 @@ def make_agent(
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
-        has_sgd_jit=has_sgd_jit,
         tabular=tabular,
     )
     agent.player_id = player_id
