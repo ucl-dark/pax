@@ -222,7 +222,10 @@ class EvoRunner:
             ):
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                    jax.random.split(rng_key, popsize * num_opps).reshape(
+                        self.popsize, num_opps, -1
+                    ),
+                    agent2._mem.hidden,
                 )
 
             vals, stack = jax.lax.scan(
@@ -320,7 +323,7 @@ class EvoRunner:
                 print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
-
+            self.generations += 1
             if watchers:
                 wandb_log = {
                     "generations": self.generations,
@@ -366,6 +369,6 @@ class EvoRunner:
                 )
                 agents.log(watchers)
                 wandb.log(wandb_log)
-        self.generations += 1
+
 
         return agents
