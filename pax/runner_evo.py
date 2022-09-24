@@ -307,13 +307,11 @@ class EvoRunner:
                 num_devices, -1
             )
             # Ask for params
-            x, evo_state = strategy.ask(
-                rng_evo, evo_state, es_params
-            )  # this means that x isn't of shape (total_popsize, params)
+            x, evo_state = strategy.ask(rng_evo, evo_state, es_params)
             a1_params = param_reshaper.reshape(
                 x
             )  # reshape x into (num_devices, popsize, ....)
-            if self.num_devices == 1:
+            if num_devices == 1:
                 a1_params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), a1_params
                 )
@@ -440,8 +438,14 @@ class EvoRunner:
                     flattened_metrics = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
-                    agent2._logger.metrics.update(flattened_metrics)
-                    agent1._logger.metrics.update(flattened_metrics)
+
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics
+                    )
+
+                    agent2._logger.metrics = (
+                        agent2._logger.metrics | flattened_metrics
+                    )
                     agents.log(watchers)
                     wandb.log(wandb_log)
             self.generations += 1
