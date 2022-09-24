@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO'
-agent2: 'PPO'
+agent2: 'Tabular'
 
 # Environment
 env_id: ipd
