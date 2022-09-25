@@ -470,8 +470,8 @@ class Random:
 
 
 class Stay:
-    def __init__(self, num_actions: int):
-        self.make_initial_state = initial_state_fun
+    def __init__(self, num_actions: int, num_envs: int):
+        self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}

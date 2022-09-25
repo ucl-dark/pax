@@ -517,7 +517,7 @@ def agent_setup(args, logger):
                 .num_values
             )
 
-        agent = Stay(num_actions)
+        agent = Stay(num_actions, args.num_envs)
         agent.player_id = player_id
         return agent
 
