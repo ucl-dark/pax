@@ -24,6 +24,7 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.runner_pretrained import RunnerPretrained
@@ -380,6 +381,32 @@ def agent_setup(args, logger):
 
         return ppo_agent
 
+    def get_mfos_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
+            )
+            obs_spec = (dummy_env.observation_spec().num_values,)
+
+        ppo_agent = make_mfos_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
+        return ppo_agent
+
     def get_hyper_agent(seed, player_id):
         dummy_env = InfiniteMatrixGame(
             args.num_envs,
@@ -512,6 +539,7 @@ def agent_setup(args, logger):
         "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
+        "MFOS": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -607,6 +635,7 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
+        "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
         "PPO_pretrained": ppo_log,
