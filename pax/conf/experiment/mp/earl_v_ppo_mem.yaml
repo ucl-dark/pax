@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'PPO'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: ipd
@@ -64,6 +64,7 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:
