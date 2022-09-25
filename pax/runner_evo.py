@@ -1,14 +1,13 @@
 from datetime import datetime
 import os
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
-from dm_env import TimeStep
 from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
-from pax.utils import save
+from pax.utils import save, TrainingState, MemoryState
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -140,6 +139,83 @@ class EvoRunner:
                 env_state,
             ), (*trajectories, a2_metrics)
 
+        def evo_rollout(
+            params: jnp.ndarray,
+            rng_run: jnp.ndarray,
+            rng_key: jnp.ndarray,
+            a1_state: TrainingState,
+            a1_mem: MemoryState,
+        ):
+            # env reset
+            t_init, env_state = env.runner_reset(
+                (popsize, num_opps, env.num_envs), rng_run
+            )
+            # Player 1
+            a1_state = a1_state._replace(params=params)
+            a1_mem = agent1.batch_reset(a1_mem, False)
+            # Player 2
+            if self.args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(t_init[1])
+
+            else:
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng_key, popsize * num_opps).reshape(
+                        self.popsize, num_opps, -1
+                    ),
+                    agent2._mem.hidden,
+                )
+
+            vals, stack = jax.lax.scan(
+                _outer_rollout,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.num_trials,
+            )
+
+            traj_1, traj_2, a2_metrics = stack
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            # Fitness
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+
+            # Stats
+            if self.args.env_type == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cg_stats(env_state),
+                )
+
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
+            elif self.args.env_type in [
+                "meta",
+                "sequential",
+            ]:
+                final_t1 = t1._replace(
+                    step_type=2 * jnp.ones_like(t1.step_type)
+                )
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        final_t1.observation,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
+            return (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a2_metrics,
+            )
+
         print("Training")
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
@@ -170,6 +246,7 @@ class EvoRunner:
             maximize=True,
         )
         log = es_logging.initialize()
+        num_devices = self.args.num_devices
 
         # Evolution specific: add pop size dimension
         if self.args.env_type == "infinite" and self.args.env_id == "ipd":
@@ -195,56 +272,35 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
-
+        evo_rollout = jax.pmap(
+            evo_rollout,
+            in_axes=(0, None, None, None, None),
+        )
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
-            )
-
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
-
-            # Player 1
-            a1_state = a1_state._replace(
-                params=param_reshaper.reshape(x),
-            )
-            a1_mem = agent1.batch_reset(a1_mem, False)
-
-            # Player 2
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
-
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
-                # meta-experiments - init 2nd agent per trial
-                # a2_state, a2_mem = agent2.batch_init(
-                #     jax.random.split(rng, self.num_opps), a2_mem.hidden
-                # )
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng_key, popsize * num_opps).reshape(
-                        self.popsize, num_opps, -1
-                    ),
-                    agent2._mem.hidden,
+            params = param_reshaper.reshape(x)
+            if num_devices == 1:
+                params = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
+            # Evo Rollout
+            (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a2_metrics,
+            ) = evo_rollout(params, rng_run, rng_key, a1_state, a1_mem)
 
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
-                None,
-                length=env.num_trials,
-            )
+            # Reshape over devices
+            fitness = jnp.reshape(fitness, popsize * num_devices)
+            env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
-            traj_1, traj_2, a2_metrics = stack
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-
-            # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            fitness_re = fit_shaper.apply(x, fitness)  # Maximize fitness
+            # Maximize fitness
+            fitness_re = fit_shaper.apply(x, fitness)
 
             # Tell
             evo_state = strategy.tell(
@@ -257,9 +313,8 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x.reshape(x.shape[1:]), top_params
+                top_params = param_reshaper.reshape_single_flat(
+                    evo_state.best_member
                 )
                 save(top_params, log_savepath)
                 if watchers:
@@ -269,36 +324,6 @@ class EvoRunner:
                     print(f"Saving iteration {gen} locally")
 
             if gen % log_interval == 0:
-                if self.args.env_type == "coin_game":
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.mean().item(),
-                        self.cg_stats(env_state),
-                    )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
-                elif self.args.env_type in [
-                    "meta",
-                    "sequential",
-                ]:
-                    final_t1 = t1._replace(
-                        step_type=2 * jnp.ones_like(t1.step_type)
-                    )
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.ipd_stats(
-                            traj_1.observations,
-                            traj_1.actions,
-                            final_t1.observation,
-                        ),
-                    )
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-                else:
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-                    env_stats = {}
-
                 print(f"Generation: {gen}")
                 print(
                     "--------------------------------------------------------------------------"
