@@ -356,10 +356,9 @@ class EvoRunner:
                 print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
                 print()
 
-            self.generations += 1
             if watchers:
                 wandb_log = {
-                    "generations": self.generations,
+                    "generations": gen,
                     "train/fitness/player_1": float(fitness.mean()),
                     "train/fitness/player_2": float(other_fitness.mean()),
                     "train/fitness/top_overall_mean": log["log_top_mean"][gen],
