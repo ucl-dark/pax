@@ -27,8 +27,8 @@ run_path: ucl-dark/ipd/w1x0vqb7
 model_path: exp/PPO-vs-TitForTat-ipd-parity/PPO-vs-TitForTat-ipd-parity-run-seed-0/2022-09-08_15.56.38.018596/iteration_260
 
 ppo:
-  num_minibatches: 10
-  num_epochs: 4
+  num_minibatches: 4
+  num_epochs: 2
   gamma: 0.96
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
@@ -49,6 +49,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'PPO-vs-${agent2}-${game}-parity'
+  group: 'Tabular-vs-${agent2}-${game}-parity'
   name: run-seed-${seed}
   log: True
