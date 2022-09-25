@@ -289,14 +289,7 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        if args.pmap:
-            return EvoRunnerPMAP(
-                args, strategy, es_params, param_reshaper, save_dir
-            )
-        else:
-            return EvoRunner(
-                args, strategy, es_params, param_reshaper, save_dir
-            )
+        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
 
     else:
         logger.info("Training with Runner")
