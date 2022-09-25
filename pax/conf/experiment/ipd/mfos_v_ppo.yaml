@@ -96,7 +96,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'GS-${agent1}-vs-${agent2}'
+  group: '${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 
