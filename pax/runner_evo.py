@@ -276,10 +276,6 @@ class EvoRunner:
 
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
-            )
-
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
