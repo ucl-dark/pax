@@ -247,6 +247,7 @@ class EvoRunner:
             maximize=True,
         )
         log = es_logging.initialize()
+        num_devices = self.args.num_devices
 
         # Evolution specific: add pop size dimension
         if self.args.env_type == "infinite" and self.args.env_id == "ipd":
@@ -272,14 +273,19 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
-        # a2_state, a2_mem = agent2._state, agent2._mem
-
+        evo_rollout = jax.pmap(
+            evo_rollout,
+            in_axes=(0, None, None, None, None),
+        )
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
-
+            if num_devices == 1:
+                params = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), params
+                )
             # Evo Rollout
             (
                 fitness,
@@ -289,6 +295,10 @@ class EvoRunner:
                 rewards_1,
                 a2_metrics,
             ) = evo_rollout(params, rng_run, rng_key, a1_state, a1_mem)
+
+            # Reshape over devices
+            fitness = jnp.reshape(fitness, popsize * num_devices)
+            env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Maximize fitness
             fitness_re = fit_shaper.apply(x, fitness)
@@ -304,9 +314,8 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x.reshape(x.shape[1:]), top_params
+                top_params = param_reshaper.reshape_single_flat(
+                    evo_state.best_member
                 )
                 save(top_params, log_savepath)
                 if watchers:
