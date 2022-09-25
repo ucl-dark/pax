@@ -521,8 +521,6 @@ def agent_setup(args, logger):
         agent.player_id = player_id
         return agent
 
-        return ppo_agent
-
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
