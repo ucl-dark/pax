@@ -355,10 +355,11 @@ def make_GRU_coingame_network(num_actions: int, args):
 
         else:
             torso = hk.nets.MLP(
-                [args.ppo.hidden_size, args.ppo.hidden_size],
+                [args.ppo.hidden_size],
                 w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
+                activation=jnp.tanh,
             )
         gru = hk.GRU(args.ppo.hidden_size)
         embedding = torso(inputs)
