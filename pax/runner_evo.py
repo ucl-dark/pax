@@ -1,14 +1,13 @@
 from datetime import datetime
 import os
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
-from dm_env import TimeStep
 from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
-from pax.utils import save
+from pax.utils import save, TrainingState, MemoryState
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -143,9 +142,9 @@ class EvoRunner:
         def evo_rollout(
             params: jnp.ndarray,
             rng_run: jnp.ndarray,
-            rng_key,
-            a1_state,
-            a1_mem,
+            rng_key: jnp.ndarray,
+            a1_state: TrainingState,
+            a1_mem: MemoryState,
         ):
             # env reset
             t_init, env_state = env.runner_reset(
