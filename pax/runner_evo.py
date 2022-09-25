@@ -121,6 +121,10 @@ class EvoRunner:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
+            # MFOS has to takes a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
             # do second agent update
             final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)

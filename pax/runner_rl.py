@@ -68,7 +68,6 @@ class Runner:
             """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
 
-            print(a1_state, a1_mem)
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
@@ -126,11 +125,13 @@ class Runner:
                 length=env.inner_episode_length,
             )
 
+            # MFOS has to takes a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
-
             final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
-
             a2_state, a2_memory, a2_metrics = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_memory
             )

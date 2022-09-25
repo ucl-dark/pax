@@ -25,11 +25,10 @@ from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
-from pax.runner_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
 from pax.runner_rl_mfos import RunnerMFOS
-from pax.runner_rl_pretrained import RunnerPretrained
+from pax.runner_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,

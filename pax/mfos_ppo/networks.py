@@ -1,6 +1,4 @@
-from typing import Optional, Tuple
-from unittest.mock import MagicMock
-
+from typing import Tuple
 import distrax
 import haiku as hk
 import jax
