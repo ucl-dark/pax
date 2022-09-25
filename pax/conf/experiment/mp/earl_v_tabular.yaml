@@ -14,7 +14,6 @@ payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 # Runner 
 evo: True 
 eval: False
-pmap: True
 
 # Training
 top_k: 5
