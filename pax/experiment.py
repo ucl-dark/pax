@@ -24,10 +24,9 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
-from pax.runner_pmap import EvoRunnerPMAP
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
-from pax.runner_rl_pretrained import RunnerPretrained
+from pax.runner_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -289,14 +288,7 @@ def runner_setup(args, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        if args.pmap:
-            return EvoRunnerPMAP(
-                args, strategy, es_params, param_reshaper, save_dir
-            )
-        else:
-            return EvoRunner(
-                args, strategy, es_params, param_reshaper, save_dir
-            )
+        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
 
     else:
         logger.info("Training with Runner")

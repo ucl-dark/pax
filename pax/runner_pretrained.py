@@ -1,6 +1,6 @@
 import os
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
