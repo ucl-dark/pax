@@ -171,6 +171,7 @@ class CoinGame:
         inner_ep_length: int,
         num_steps: int,
         seed: int,
+        size: int,
         cnn: Boolean,
     ):
 
@@ -194,16 +195,17 @@ class CoinGame:
             agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
             ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
 
-            rel_other_player = (state.blue_pos + ego_offset) % 3
-            rel_red_coin = (state.red_coin_pos + ego_offset) % 3
-            rel_blue_coin = (state.blue_coin_pos + ego_offset) % 3
+            rel_other_player = (state.blue_pos + ego_offset) % size
+            rel_red_coin = (state.red_coin_pos + ego_offset) % size
+            rel_blue_coin = (state.blue_coin_pos + ego_offset) % size
 
             # create observation
-            obs = jnp.zeros((3, 3, 4), dtype=jnp.int8)
+            obs = jnp.zeros((size, size, 4), dtype=jnp.int8)
             obs = obs.at[1, 1, 0].set(1)
             obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
             obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
             obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
+            obs = obs[1:4, 1:4, :]
             return obs
 
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
@@ -262,8 +264,8 @@ class CoinGame:
             actions: Tuple[int, int], state: CoinGameState
         ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray, CoinGameState]:
             action_0, action_1 = actions
-            new_red_pos = (state.red_pos + MOVES[action_0]) % 3
-            new_blue_pos = (state.blue_pos + MOVES[action_1]) % 3
+            new_red_pos = (state.red_pos + MOVES[action_0]) % size
+            new_blue_pos = (state.blue_pos + MOVES[action_1]) % size
 
             red_reward = 0
             blue_reward = 0
@@ -300,9 +302,9 @@ class CoinGame:
                 red_blue_matches, blue_reward - 2, blue_reward
             )
 
-            key, subkey = jax.random.split(state.key)
+            new_key, subkey = jax.random.split(state.key)
             new_random_coin_poses = jax.random.randint(
-                subkey, shape=(2, 2), minval=0, maxval=3
+                subkey, shape=(2, 2), minval=0, maxval=size
             )
             new_red_coin_pos = jnp.where(
                 jnp.logical_or(red_red_matches, blue_red_matches),
@@ -333,7 +335,7 @@ class CoinGame:
                 new_blue_pos,
                 new_red_coin_pos,
                 new_blue_coin_pos,
-                key,
+                new_key,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
                 red_coop=next_red_coop,
@@ -362,7 +364,7 @@ class CoinGame:
                 jnp.where(
                     done, new_ep_state.blue_coin_pos, next_state.blue_coin_pos
                 ),
-                key,
+                new_key,
                 jnp.where(done, jnp.zeros_like(inner_t), next_state.inner_t),
                 jnp.where(done, outer_t + 1, outer_t),
                 next_state.red_coop,
@@ -413,7 +415,7 @@ class CoinGame:
         self.runner_step = jax.vmap(runner_step)
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))
         self.batch_reset = jax.jit(jax.vmap(jax.vmap(_reset)))
-
+        self.size = size
         self.cnn = cnn
 
     def runner_reset(
@@ -448,7 +450,7 @@ class CoinGame:
             )
         else:
             return specs.BoundedArray(
-                shape=(36,),
+                shape=(3 * 3 * 4,),
                 minimum=0,
                 maximum=1,
                 name="obs",

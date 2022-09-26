@@ -301,7 +301,9 @@ class EvoRunner:
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * num_devices)
-            env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
+            env_stats = jax.tree_util.tree_map(
+                lambda x: jnp.nanmean(x), env_stats
+            )
 
             # Maximize fitness
             fitness_re = fit_shaper.apply(x, fitness)
@@ -317,7 +319,7 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape_single_flat(
+                top_params = param_reshaper.reshape_single_network(
                     evo_state.best_member
                 )
                 save(top_params, log_savepath)

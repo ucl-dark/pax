@@ -107,7 +107,7 @@ class Tabular(hk.Module):
             idx = jnp.mod(idx, 9)
             idx = chunks * idx
             idx = jnp.sum(idx)
-            return jax.nn.one_hot(idx, num_classes=6561)
+            return jax.nn.one_hot(idx, num_classes=729)
 
         self.input_to_onehot = jax.vmap(_input_to_onehot)
 

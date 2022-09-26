@@ -172,7 +172,6 @@ class GoodGreedy:
             )
             x, y = jnp.divmod(jnp.argmax(other_coin_pos), 3)
             other_path = jnp.array([x, y]) - agent_loc
-
             agent_path_length = jnp.sum(jnp.abs(agent_path))
             other_path_length = jnp.sum(jnp.abs(other_path))
             path = jnp.where(

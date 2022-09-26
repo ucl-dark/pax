@@ -155,6 +155,7 @@ def env_setup(args, logger=None):
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
             seed=args.seed,
+            size=args.grid_size,
             cnn=args.ppo.with_cnn,
         )
         test_env = CoinGame(
@@ -162,6 +163,7 @@ def env_setup(args, logger=None):
             inner_ep_length=args.num_inner_steps,
             num_steps=args.num_steps,
             seed=args.seed,
+            size=args.grid_size,
             cnn=args.ppo.with_cnn,
         )
         if logger:
@@ -198,10 +200,10 @@ def runner_setup(args, agents, save_dir, logger):
         or args.agent1 == "PPO_pretrained"
     ):
         logger.info("Training with Runner")
-        agent1, _ = agents.agents 
+        agent1, _ = agents.agents
         param_reshaper = ParameterReshaper(
-                agent1._state.params, n_devices=args.num_devices
-            )
+            agent1._state.params, n_devices=args.num_devices
+        )
         return RunnerPretrained(args, save_dir, param_reshaper)
     if args.eval:
         if args.env_id == "ipd":
@@ -311,6 +313,7 @@ def agent_setup(args, logger):
                 args.num_envs,
                 args.num_steps,
                 args.num_steps,
+                args.grid_size,
                 0,
                 args.ppo.with_cnn,
             )
@@ -337,6 +340,7 @@ def agent_setup(args, logger):
                 args.num_envs,
                 args.num_steps,
                 args.num_steps,
+                args.grid_size,
                 0,
                 args.ppo.with_cnn,
             )
@@ -365,6 +369,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 args.num_steps,
                 0,
+                args.grid_size,
                 False,
             )
             obs_spec = dummy_env.observation_spec().shape
@@ -393,6 +398,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 args.num_steps,
                 0,
+                args.grid_size,
                 False,
             )
             obs_spec = dummy_env.observation_spec().shape
@@ -480,6 +486,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     args.num_steps,
                     0,
+                    args.grid_size,
                     args.ppo.with_cnn,
                 )
                 .action_spec()
@@ -507,6 +514,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     args.num_steps,
                     0,
+                    args.grid_size,
                     args.ppo.with_cnn,
                 )
                 .action_spec()
