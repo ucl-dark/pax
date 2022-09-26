@@ -317,8 +317,9 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape_single_flat(
-                    evo_state.best_member
+                top_params = param_reshaper.reshape(log["top_gen_params"][0:1])
+                top_params = jax.tree_util.tree_map(
+                    lambda x: x.reshape(x.shape[1:]), top_params
                 )
                 save(top_params, log_savepath)
                 if watchers:

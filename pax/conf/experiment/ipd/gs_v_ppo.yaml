@@ -42,8 +42,11 @@ num_seeds: 20
 # run_path: ucl-dark/ipd/1hffijy2
 # model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
 # EARL vs. PPO trained on seed=25
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+# run_path: ucl-dark/ipd/1ui7wfop
+# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+
+run_path: ucl-dark/ipd/i85lvk56
+model_path: exp/EARL-PPO_memory-vs-Tabular/run-seed-0-OpenES-pop-size-4-num-opps-1/2022-09-26_14.01.35.581330/generation_100
 
 # PPO agent parameters
 ppo:
