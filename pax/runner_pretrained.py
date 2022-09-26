@@ -214,7 +214,7 @@ class RunnerPretrained:
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
-                save(a1_state.params, log_savepath)
+                save(a2_state.params, log_savepath)
                 if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
                     wandb.save(log_savepath)
