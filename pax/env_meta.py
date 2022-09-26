@@ -16,6 +16,7 @@ class MetaFiniteGame:
     ) -> None:
 
         self.payoff = jnp.array(payoff)
+        p = 0.4
 
         def step(actions, state):
             inner_t, outer_t, rng = state
@@ -54,7 +55,11 @@ class MetaFiniteGame:
 
             obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
-
+            s1 = jnp.where(
+                jax.random.uniform(rng, (1,)) < p,
+                jax.random.randint(rng, s1.shape, 0, 4),
+                s1,
+            )
             # out step keeping
             reset_inner = inner_t == inner_ep_length
             inner_t = jax.lax.select(reset_inner, 0.0, inner_t)
