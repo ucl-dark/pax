@@ -122,9 +122,6 @@ class EvoRunner:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
-            # reset memory between episodes
-            a1_mem = agent1.batch_reset(a1_mem, False)
-
             # MFOS has to takes a meta-action for each episode
             if self.args.agent1 == "MFOS":
                 a1_mem = a1_mem._replace(th=a1_mem.curr_th)
