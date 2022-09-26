@@ -198,7 +198,11 @@ def runner_setup(args, agents, save_dir, logger):
         or args.agent1 == "PPO_pretrained"
     ):
         logger.info("Training with Runner")
-        return RunnerPretrained(args, save_dir)
+        agent1, _ = agents.agents 
+        param_reshaper = ParameterReshaper(
+                agent1._state.params, n_devices=args.num_devices
+            )
+        return RunnerPretrained(args, save_dir, param_reshaper)
     if args.eval:
         if args.env_id == "ipd":
             logger.info("Evaluating with EvalRunnerIPD")

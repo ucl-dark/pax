@@ -49,8 +49,8 @@ num_seeds: 10
 # model_path:  exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-17_16.34.19.830221/iteration_500
 
 # EARL pretrained against PPO RNN
-run_path: ucl-dark/cg/13eg6wcm
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-16_19.17.09.045492/generation_600
+# run_path: ucl-dark/cg/13eg6wcm
+# model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-16_19.17.09.045492/generation_600
 
 # EARL pretrained against Tabular
 # run_path: ucl-dark/cg/3srrphdb
@@ -59,6 +59,11 @@ model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-16_19.17.09.045
 # EARL pretrained against PPO
 # run_path: ucl-dark/cg/2vxi9b0n
 # model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0/2022-09-19_10.25.28.808811/generation_2900
+
+# {NEW} EARL pretrained against PPO RNN
+run_path: ucl-dark/cg/v348mp4r
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+
 # PPO agent parameters
 ppo:
   num_minibatches: 8

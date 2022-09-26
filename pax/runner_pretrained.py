@@ -40,7 +40,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 class RunnerPretrained:
     """Holds the runner's state."""
 
-    def __init__(self, args, save_dir):
+    def __init__(self, args, save_dir, param_reshaper):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -52,6 +52,7 @@ class RunnerPretrained:
         self.run_path = args.run_path
         self.save_dir = save_dir
         self.model_path = args.model_path
+        self.param_reshaper = param_reshaper
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -159,6 +160,11 @@ class RunnerPretrained:
                 name=self.model_path, run_path=self.run_path, root=os.getcwd()
             )
         pretrained_params = load(self.model_path)
+        # import pdb; pdb.set_trace()
+        pretrained_params = self.param_reshaper.reshape_single_net(pretrained_params)
+        # pretrained_params = jax.tree_util.tree_map(
+        #     lambda x: x.reshape(a1_state.params.shape), pretrained_params
+        # )
         a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
