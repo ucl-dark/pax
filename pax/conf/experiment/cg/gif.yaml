@@ -37,8 +37,8 @@ model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.99
 # run_path2: ucl-dark/cg/2nc1lii1
 # model_path2: exp/coin_game-PPO_memory_pretrained-vs-Tabular-parity/run-seed-0/2022-09-23_17.22.42.691628/iteration_9900
 
-run_path2: ucl-dark/cg/3tw3b65o
-model_path2: exp/coin_game-PPO_memory_pretrained-vs-PPO_memory-parity/run-seed-1323/2022-09-26_14.34.59.459153
+run_path2: ucl-dark/cg/2dnz5i4r
+model_path2: exp/coin_game-PPO_memory_pretrained-vs-PPO_memory-parity/run-seed-1323/2022-09-26_14.59.25.104993/iteration_9900
 
 num_devices: 1
 
