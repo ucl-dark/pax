@@ -27,12 +27,18 @@ num_generations: 5000
 
 # Evaluation
 num_seeds: 10
-run_path1: ucl-dark/cg/20o5qob2
-model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
+# run_path1: ucl-dark/cg/20o5qob2
+# model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
+
+run_path1: ucl-dark/cg/v348mp4r
+model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
 
 # Tabular trained against pretrained EARL
-run_path2: ucl-dark/cg/2nc1lii1
-model_path2: exp/coin_game-PPO_memory_pretrained-vs-Tabular-parity/run-seed-0/2022-09-23_17.22.42.691628/iteration_9900
+# run_path2: ucl-dark/cg/2nc1lii1
+# model_path2: exp/coin_game-PPO_memory_pretrained-vs-Tabular-parity/run-seed-0/2022-09-23_17.22.42.691628/iteration_9900
+
+run_path2: ucl-dark/cg/3tw3b65o
+model_path2: exp/coin_game-PPO_memory_pretrained-vs-PPO_memory-parity/run-seed-1323/2022-09-26_14.34.59.459153
 
 num_devices: 1
 

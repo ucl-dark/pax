@@ -211,7 +211,11 @@ def runner_setup(args, agents, save_dir, logger):
             return EvalRunnerIPD(args)
         elif args.env_id == "coin_game":
             logger.info("Evaluating with EvalRunnerCG")
-            return EvalRunnerCG(args)
+            agent1, _ = agents.agents
+            param_reshaper = ParameterReshaper(
+                agent1._state.params, n_devices=args.num_devices
+            )
+            return EvalRunnerCG(args, param_reshaper)
 
     if args.evo:
         agent1, _ = agents.agents

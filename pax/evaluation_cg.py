@@ -26,7 +26,7 @@ class Sample(NamedTuple):
 class EvalRunnerCG:
     """Holds the runner's state."""
 
-    def __init__(self, args):
+    def __init__(self, args, param_reshaper):
         self.args = args
         self.num_opps = args.num_opps
         self.eval_steps = 0
@@ -43,6 +43,7 @@ class EvalRunnerCG:
         self.model_path2 = args.model_path2
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.param_reshaper = param_reshaper
 
     def eval_loop(self, env, agents, num_seeds, watchers):
         """Run evaluation of agents in environment"""
@@ -154,6 +155,9 @@ class EvalRunnerCG:
                 root=os.getcwd(),
             )
         params1 = load(self.model_path1)
+        params1 = self.param_reshaper.reshape_single_net(
+            params1
+        )
         params2 = load(self.model_path2)
 
         a1_state, a1_mem = agent1._state, agent1._mem
