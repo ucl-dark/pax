@@ -45,6 +45,7 @@ num_seeds: 20
 run_path: ucl-dark/ipd/1ui7wfop
 model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
 
+
 # PPO agent parameters
 ppo:
   num_minibatches: 4
