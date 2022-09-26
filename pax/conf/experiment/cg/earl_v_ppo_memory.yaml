@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'Random'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
@@ -14,7 +14,7 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Save
 save: True
-save_interval: 10
+save_interval: 100
 
 # Runner 
 evo: True 
@@ -22,14 +22,14 @@ eval: False
 
 # Training
 top_k: 5
-popsize: 128 #512
+popsize: 1000 #512
 # total popsize = popsize * num_devices
-num_envs: 50
+num_envs: 100
 num_opps: 1
-num_devices: 1
+num_devices: 4
 num_steps: 9600
 num_inner_steps: 16 
-num_generations: 2000
+num_generations: 3000
 
 # Evaluation
 num_seeds: 10

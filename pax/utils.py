@@ -87,11 +87,11 @@ class Section(object):
 
 
 def add_batch_dim(values):
-    return jax.tree_map(lambda x: jnp.expand_dims(x, axis=0), values)
+    return jax.tree_util.tree_map(lambda x: jnp.expand_dims(x, axis=0), values)
 
 
 def to_numpy(values):
-    return jax.tree_map(np.asarray, values)
+    return jax.tree_util.tree_map(np.asarray, values)
 
 
 class TrainingState(NamedTuple):

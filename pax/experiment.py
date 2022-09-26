@@ -4,6 +4,8 @@ import logging
 import os
 
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
@@ -22,9 +24,10 @@ from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
+from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
-from pax.runner_rl_pretrained import RunnerPretrained
+from pax.runner_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -192,14 +195,17 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
+    if (
+        args.agent1 == "PPO_memory_pretrained"
+        or args.agent1 == "PPO_pretrained"
+    ):
+        logger.info("Training with Runner")
+        agent1, _ = agents.agents
+        param_reshaper = ParameterReshaper(
+            agent1._state.params, n_devices=args.num_devices
+        )
+        return RunnerPretrained(args, save_dir, param_reshaper)
     if args.eval:
-        if (
-            args.agent1 == "PPO_memory_pretrained"
-            or args.agent1 == "PPO_pretrained"
-        ):
-            logger.info("Training with Runner")
-            return RunnerPretrained(args, save_dir)
-
         if args.env_id == "ipd":
             logger.info("Evaluating with EvalRunnerIPD")
             return EvalRunnerIPD(args)
@@ -318,17 +324,12 @@ def agent_setup(args, logger):
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
         )
         return ppo_memory_agent
 
@@ -350,18 +351,12 @@ def agent_setup(args, logger):
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
         )
 
         return ppo_agent
@@ -378,14 +373,10 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            raise NotImplementedError(
-                "PPO Tabular agent only works on Coin Game."
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
             )
-
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
+            obs_spec = (dummy_env.observation_spec().num_values,)
 
         ppo_agent = make_agent(
             args,
@@ -393,10 +384,35 @@ def agent_setup(args, logger):
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=has_sgd_jit,
             tabular=True,
         )
 
+        return ppo_agent
+
+    def get_mfos_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            dummy_env = SequentialMatrixGame(
+                args.num_envs, args.payoff, args.num_steps
+            )
+            obs_spec = (dummy_env.observation_spec().num_values,)
+
+        ppo_agent = make_mfos_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+        )
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
@@ -512,7 +528,7 @@ def agent_setup(args, logger):
                 .num_values
             )
 
-        agent = Stay(num_actions)
+        agent = Stay(num_actions, args.num_envs)
         agent.player_id = player_id
         return agent
 
@@ -566,6 +582,7 @@ def agent_setup(args, logger):
         "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
+        "MFOS": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -587,15 +604,6 @@ def agent_setup(args, logger):
     agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
     agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-    if args.agent1 == "PPO_memory":
-        if not args.ppo.with_memory:
-            raise ValueError("Can't use PPO_memory but set ppo.memory=False")
-    if args.agent1 == "PPO":
-        if args.ppo.with_memory:
-            raise ValueError(
-                "Can't use ppo.memory=False but set agent=PPO_memory"
-            )
-
     if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
@@ -610,15 +618,21 @@ def agent_setup(args, logger):
 def watcher_setup(args, logger):
     """Set up watcher variables."""
 
+    def ppo_memory_log(agent):
+        losses = losses_ppo(agent)
+        if not args.env_type == "coin_game":
+            policy = policy_logger_ppo_with_memory(agent)
+            losses.update(policy)
+        if args.wandb.log:
+            wandb.log(losses)
+        return
+
     def ppo_log(agent):
         losses = losses_ppo(agent)
         if not args.env_type == "coin_game":
-            if args.ppo.with_memory:
-                policy = policy_logger_ppo_with_memory(agent)
-            else:
-                policy = policy_logger_ppo(agent)
-                value = value_logger_ppo(agent)
-                losses.update(value)
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
             losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -664,10 +678,11 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
+        "MFOS": dumb_log,
         "PPO": ppo_log,
-        "PPO_memory": ppo_log,
+        "PPO_memory": ppo_memory_log,
         "PPO_pretrained": ppo_log,
-        "PPO_memory_pretrained": ppo_log,
+        "PPO_memory_pretrained": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,

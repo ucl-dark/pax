@@ -14,7 +14,6 @@ payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 # Runner 
 evo: True 
 eval: False
-pmap: True
 
 # Training
 top_k: 5
@@ -64,6 +63,7 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:

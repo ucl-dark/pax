@@ -65,7 +65,6 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         player_id: int = 0,
-        has_sgd_jit: bool = True,
     ):
         @jax.jit
         def policy(
@@ -249,11 +248,11 @@ class PPO:
             key, params, opt_state, timesteps, batch = carry
             key, subkey = jax.random.split(key)
             permutation = jax.random.permutation(subkey, batch_size)
-            shuffled_batch = jax.tree_map(
+            shuffled_batch = jax.tree_util.tree_map(
                 lambda x: jnp.take(x, permutation, axis=0), batch
             )
             shuffled_batch = batch
-            minibatches = jax.tree_map(
+            minibatches = jax.tree_util.tree_map(
                 lambda x: jnp.reshape(
                     x, [num_minibatches, -1] + list(x.shape[1:])
                 ),
@@ -319,7 +318,7 @@ class PPO:
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_map(
+            batch = jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
 
@@ -337,7 +336,7 @@ class PPO:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            metrics = jax.tree_util.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )
@@ -434,10 +433,7 @@ class PPO:
         self.make_initial_state = make_initial_state
 
         self.prepare_batch = prepare_batch
-        if has_sgd_jit:
-            self._sgd_step = jax.jit(sgd_step)
-        else:
-            self._sgd_step = sgd_step
+        self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
         self._logger = Logger()
@@ -515,9 +511,7 @@ class PPO:
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(
-    args, obs_spec, action_spec, seed: int, player_id: int, has_sgd_jit: bool
-):
+def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
@@ -593,7 +587,6 @@ def make_gru_agent(
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         player_id=player_id,
-        has_sgd_jit=has_sgd_jit,
     )
     return agent
 
