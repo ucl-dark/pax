@@ -319,7 +319,7 @@ class EvoRunner:
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                top_params = param_reshaper.reshape_single_network(
+                top_params = param_reshaper.reshape_single_net(
                     evo_state.best_member
                 )
                 save(top_params, log_savepath)

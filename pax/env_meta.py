@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 from typing import NamedTuple, Tuple
 from xmlrpc.client import Boolean
 
@@ -176,6 +177,12 @@ class CoinGame:
     ):
 
         num_trials = int(num_steps / inner_ep_length)
+        if not size % 2:
+            raise ValueError("Only support odd grid sizes")
+
+        center = jnp.floor(size / 2).astype(dtype=jnp.int8)
+        l_idx = center - 1
+        u_idx = center + 2  # as upper bound is not inclusive
 
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -193,7 +200,7 @@ class CoinGame:
             # new_redcoin = (2, 2)
 
             agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
-            ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
+            ego_offset = center * jnp.ones(2, dtype=jnp.int8) - agent_loc
 
             rel_other_player = (state.blue_pos + ego_offset) % size
             rel_red_coin = (state.red_coin_pos + ego_offset) % size
@@ -205,8 +212,10 @@ class CoinGame:
             obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
             obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
             obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
-            obs = obs[1:4, 1:4, :]
-            return obs
+
+            # clip observation space to 3x3
+            obs_slice = obs[l_idx:u_idx, l_idx:u_idx, :]
+            return obs_slice
 
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
             obs1 = _relative_position(state)

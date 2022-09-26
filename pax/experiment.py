@@ -313,8 +313,8 @@ def agent_setup(args, logger):
                 args.num_envs,
                 args.num_steps,
                 args.num_steps,
-                args.grid_size,
                 0,
+                args.grid_size,
                 args.ppo.with_cnn,
             )
             obs_spec = dummy_env.observation_spec().shape
@@ -340,8 +340,8 @@ def agent_setup(args, logger):
                 args.num_envs,
                 args.num_steps,
                 args.num_steps,
-                args.grid_size,
                 0,
+                args.grid_size,
                 args.ppo.with_cnn,
             )
             obs_spec = dummy_env.observation_spec().shape
@@ -367,8 +367,8 @@ def agent_setup(args, logger):
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
-                args.num_steps,
                 0,
+                args.num_steps,
                 args.grid_size,
                 False,
             )
@@ -396,8 +396,8 @@ def agent_setup(args, logger):
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
-                args.num_steps,
                 0,
+                args.num_steps,
                 args.grid_size,
                 False,
             )
@@ -440,8 +440,8 @@ def agent_setup(args, logger):
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
-                args.num_steps,
                 0,
+                args.grid_size,
                 args.ppo.with_cnn,
             )
             obs_spec = dummy_env.observation_spec().shape

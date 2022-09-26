@@ -58,6 +58,9 @@ class EvilGreedy:
             agent_coin_pos = obs[..., 2]
             other_coin_pos = obs[..., 3]
 
+            coin_present = jnp.max(agent_coin_pos)
+            other_coin_present = jnp.max(other_coin_pos)
+
             # find path to both sets of coins
             agent_loc = jnp.array([1, 1])
             # assumes square grid
@@ -76,8 +79,25 @@ class EvilGreedy:
 
             agent_path_length = jnp.sum(jnp.abs(agent_path))
             other_path_length = jnp.sum(jnp.abs(other_path))
+
+            # if coin not present then set length to infinity and beyond!!!
+            agent_path_length = jnp.where(
+                coin_present, agent_path_length, jnp.inf
+            )
+            other_path_length = jnp.where(
+                other_coin_present, other_path_length, jnp.inf
+            )
+
             path = jnp.where(
                 agent_path_length < other_path_length, agent_path, other_path
+            )
+            shortest_length = jnp.where(
+                agent_path_length < other_path_length,
+                agent_path_length,
+                other_path_length,
+            )
+            path = jnp.where(
+                shortest_length == jnp.inf, jnp.array([0, 0]), path
             )
 
             stay = (jnp.array([0, 0]) == path).all()
@@ -157,6 +177,9 @@ class GoodGreedy:
             agent_coin_pos = obs[..., 2]
             other_coin_pos = obs[..., 3]
 
+            coin_present = jnp.max(agent_coin_pos)
+            other_coin_present = jnp.max(other_coin_pos)
+
             # find path to both sets of coins
             agent_loc = jnp.array([1, 1])
             # assumes square grid
@@ -174,8 +197,25 @@ class GoodGreedy:
             other_path = jnp.array([x, y]) - agent_loc
             agent_path_length = jnp.sum(jnp.abs(agent_path))
             other_path_length = jnp.sum(jnp.abs(other_path))
+
+            # if coin not present then set length to infinity and beyond!!!
+            agent_path_length = jnp.where(
+                coin_present, agent_path_length, jnp.inf
+            )
+            other_path_length = jnp.where(
+                other_coin_present, other_path_length, jnp.inf
+            )
+
             path = jnp.where(
                 agent_path_length <= other_path_length, agent_path, other_path
+            )
+            shortest_length = jnp.where(
+                agent_path_length < other_path_length,
+                agent_path_length,
+                other_path_length,
+            )
+            path = jnp.where(
+                shortest_length == jnp.inf, jnp.array([0, 0]), path
             )
 
             stay = (jnp.array([0, 0]) == path).all()
