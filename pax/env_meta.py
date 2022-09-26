@@ -53,13 +53,14 @@ class MetaFiniteGame:
             s1 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s1))
             s2 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s2))
 
-            obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
+            rng, _ = jax.random.split(rng)
             s1 = jnp.where(
-                jax.random.uniform(rng, (1,)) < p,
-                jax.random.randint(rng, s1.shape, 0, 4),
+                jax.random.uniform(rng) < p,
+                jax.random.randint(rng, s1.shape, 0, 5),
                 s1,
             )
+            obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # out step keeping
             reset_inner = inner_t == inner_ep_length
             inner_t = jax.lax.select(reset_inner, 0.0, inner_t)
