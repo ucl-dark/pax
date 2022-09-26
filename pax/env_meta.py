@@ -52,6 +52,10 @@ class MetaFiniteGame:
             s1 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s1))
             s2 = jax.lax.select(done, jnp.float32(4.0), jnp.float32(s2))
 
+            s1 = 4 * jnp.ones_like(
+                s1
+            )  # Agent 1 observation are just the start states
+
             obs = jax.nn.one_hot(s1, 5), jax.nn.one_hot(s2, 5)
             # done = jax.lax.select(inner_t >= inner_ep_length, 2, 1)
 
