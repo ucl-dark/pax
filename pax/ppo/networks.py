@@ -301,7 +301,8 @@ def make_cartpole_network(num_actions: int):
 
 
 def make_GRU_ipd_network(num_actions: int):
-    hidden_size = 25
+    hidden_size = 128
+    # memory_size = args.ppo.memory_size
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
