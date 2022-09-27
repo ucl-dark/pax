@@ -301,7 +301,6 @@ class PPO:
                 updates, opt_state = optimizer.update(gradients, opt_state)
                 params = optax.apply_updates(params, updates)
 
-                metrics["opt_count"] = opt_state[1].count
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
@@ -455,7 +454,6 @@ class PPO:
 
         traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
-        self._logger.metrics["opt_count"] = metrics["opt_count"]
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -486,9 +484,11 @@ def make_agent(
         network = make_ipd_network(action_spec, tabular, args)
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
     transition_steps = int(
-        batch_size * args.ppo.num_epochs * args.ppo.num_minibatches / 2
+        (args.num_steps / args.num_inner_steps)
+        * args.ppo.num_epochs
+        * args.ppo.num_minibatches
+        / 2
     )
 
     if args.ppo.lr_scheduling:
@@ -498,22 +498,12 @@ def make_agent(
             transition_steps=transition_steps,
         )
 
-        # @optax.inject_hyperparams
-        # def optimizer_fn(learning_rate):
-        #     return optax.chain(
-        #     optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-        #     optax.scale_by_adam(eps=args.ppo.adam_epsilon),
-        #     optax.scale_by_schedule(learning_rate),
-        #     optax.scale(-1),
-        # )
-
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
             optax.scale_by_adam(eps=args.ppo.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
-        # optimizer=optimizer_fn(scheduler)
 
     else:
         optimizer = optax.chain(
