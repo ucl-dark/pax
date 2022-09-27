@@ -23,7 +23,8 @@ num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 num_generations: 5000
-total_timesteps: 1.28e7
+total_timesteps: 1e11
+eval_every: 1e11
 
 # Evaluation 
 num_seeds: 20

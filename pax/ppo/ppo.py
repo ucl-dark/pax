@@ -301,7 +301,6 @@ class PPO:
                 updates, opt_state = optimizer.update(gradients, opt_state)
                 params = optax.apply_updates(params, updates)
 
-                # metrics['learning_rate'] = opt_state.
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
