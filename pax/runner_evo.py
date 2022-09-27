@@ -180,6 +180,7 @@ class EvoRunner:
             traj_1, traj_2, a2_metrics = stack
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
+            print(a1_state.opt_state)
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))

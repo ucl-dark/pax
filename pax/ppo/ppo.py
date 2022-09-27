@@ -301,6 +301,7 @@ class PPO:
                 updates, opt_state = optimizer.update(gradients, opt_state)
                 params = optax.apply_updates(params, updates)
 
+                # metrics['learning_rate'] = opt_state.
                 metrics["norm_grad"] = optax.global_norm(gradients)
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
@@ -484,11 +485,8 @@ def make_agent(
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
-    transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
+    transition_steps = int(
+        batch_size * args.ppo.num_epochs * args.ppo.num_minibatches / 2
     )
 
     if args.ppo.lr_scheduling:
