@@ -434,4 +434,8 @@ def cg_visitation(env_state: NamedTuple) -> dict:
         "total_coins/2": total_2.sum(),  # int
         "coins_per_episode/1": total_1.mean(axis=0),  # [num_trials]
         "coins_per_episode/2": total_2.mean(axis=0),  # [num_trials]
+        "final_prob_coop/1": jnp.nanmean(prob_1, axis=0)[-1],  # [1]
+        "final_prob_coop/2": jnp.nanmean(prob_2, axis=0)[-1],  # [1]
+        "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
+        "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
     }
