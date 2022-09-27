@@ -18,10 +18,10 @@ eval: True
 
 # Training
 top_k: 1
-popsize: 50 #128 
-num_envs: 10 #50
+popsize: 1 #128 
+num_envs: 1 #50
 num_opps: 1
-num_steps: 9600
+num_steps: 160
 num_inner_steps: 16 
 num_generations: 5000
 
@@ -30,8 +30,10 @@ num_seeds: 1
 # run_path1: ucl-dark/cg/20o5qob2
 # model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-14_04.02.45.419354/generation_400
 
-run_path1: ucl-dark/cg/v348mp4r
-model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+# run_path1: ucl-dark/cg/v348mp4r
+# model_path1: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+run_path1: ucl-dark/cg/esmypce2
+model_path1: exp/GS-PPO-vs-PPO_memory/run-seed-0/2022-09-26_00.12.01.102079/generation_700
 
 # Tabular trained against pretrained EARL
 # run_path2: ucl-dark/cg/2nc1lii1
