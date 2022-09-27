@@ -553,18 +553,12 @@ def agent_setup(args, logger):
                 "PPO Tabular agent only works on Coin Game."
             )
 
-        if args.env_type == "meta":
-            has_sgd_jit = False
-        else:
-            has_sgd_jit = True
-
         ppo_agent = make_agent(
             args,
             obs_spec=obs_spec,
             action_spec=dummy_env.action_spec().num_values,
             seed=seed,
             player_id=player_id,
-            has_sgd_jit=True,
             tabular=True,
         )
 
@@ -732,15 +726,15 @@ def main(args):
         runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 
     # If training, get the number of iterations to run
-    # else:
-    if args.evo:
-        num_iters = args.num_generations  # number of generations
     else:
-        num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-        print(f"Number of episodes: {num_iters}")
-    runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        if args.evo:
+            num_iters = args.num_generations  # number of generations
+        else:
+            num_iters = int(
+                args.total_timesteps / args.num_steps
+            )  # number of episodes
+            print(f"Number of episodes: {num_iters}")
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":

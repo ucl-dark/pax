@@ -502,11 +502,11 @@ class CoinGame:
         import numpy as np
 
         """Small utility for plotting the agent's state."""
-        fig = Figure((3, 3))
+        fig = Figure((5, 2))
         canvas = FigureCanvas(fig)
-        ax = fig.gca()
+        ax = fig.add_subplot(121)
         ax.imshow(
-            np.zeros((3, 33)),
+            np.zeros((3, 3)),
             cmap="Greys",
             vmin=0,
             vmax=1,
@@ -539,7 +539,7 @@ class CoinGame:
             color="blue",
             xy=(blue_pos[0], blue_pos[1]),
             xycoords="data",
-            xytext=(blue_pos[0] + 0.3, blue_pos[1] + 0.3),
+            xytext=(blue_pos[0] + 0.5, blue_pos[1] + 0.5),
         )
         ax.annotate(
             "Rc",
@@ -561,6 +561,44 @@ class CoinGame:
             ),
         )
 
+        ax2 = fig.add_subplot(122)
+        ax2.text(0.0, 0.95, "Timestep: %s" % (state.inner_t))
+        ax2.text(0.0, 0.75, "Episode: %s" % (state.outer_t))
+        ax2.text(
+            0.0, 0.45, "Red Coop: %s" % (state.red_coop[state.outer_t].sum())
+        )
+        ax2.text(
+            0.6,
+            0.45,
+            "Red Defects : %s" % (state.red_defect[state.outer_t].sum()),
+        )
+        ax2.text(
+            0.0, 0.25, "Blue Coop: %s" % (state.blue_coop[state.outer_t].sum())
+        )
+        ax2.text(
+            0.6,
+            0.25,
+            "Blue Defects : %s" % (state.blue_defect[state.outer_t].sum()),
+        )
+        ax2.text(
+            0.0,
+            0.05,
+            "Red Total: %s"
+            % (
+                state.red_defect[state.outer_t].sum()
+                + state.red_coop[state.outer_t].sum()
+            ),
+        )
+        ax2.text(
+            0.6,
+            0.05,
+            "Blue Total: %s"
+            % (
+                state.blue_defect[state.outer_t].sum()
+                + state.blue_coop[state.outer_t].sum()
+            ),
+        )
+        ax2.axis("off")
         canvas.draw()
         image = Image.frombytes(
             "RGB",
