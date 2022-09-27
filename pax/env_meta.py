@@ -174,7 +174,7 @@ class CoinGame:
         cnn: Boolean,
     ):
 
-        num_trials = int(num_steps / inner_ep_length)
+        num_episodes = int(num_steps / inner_ep_length)
 
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -244,10 +244,10 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
-                jnp.zeros(num_trials),
+                jnp.zeros(num_episodes),
+                jnp.zeros(num_episodes),
+                jnp.zeros(num_episodes),
+                jnp.zeros(num_episodes),
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -315,16 +315,16 @@ class CoinGame:
                 state.blue_coin_pos,
             )
 
-            next_red_coop = state.red_coop + jnp.zeros(num_trials).at[
+            next_red_coop = state.red_coop + jnp.zeros(num_episodes).at[
                 state.outer_t
             ].set(red_red_matches)
-            next_red_defect = state.red_defect + jnp.zeros(num_trials).at[
+            next_red_defect = state.red_defect + jnp.zeros(num_episodes).at[
                 state.outer_t
             ].set(red_blue_matches)
-            next_blue_coop = state.blue_coop + jnp.zeros(num_trials).at[
+            next_blue_coop = state.blue_coop + jnp.zeros(num_episodes).at[
                 state.outer_t
             ].set(blue_blue_matches)
-            next_blue_defect = state.blue_defect + jnp.zeros(num_trials).at[
+            next_blue_defect = state.blue_defect + jnp.zeros(num_episodes).at[
                 state.outer_t
             ].set(blue_red_matches)
 
@@ -406,7 +406,7 @@ class CoinGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = num_trials
+        self.num_trials = num_episodes
         self.episode_length = num_steps
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
 
