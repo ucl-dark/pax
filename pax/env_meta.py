@@ -158,11 +158,11 @@ class CoinGameState(NamedTuple):
 
 STATES = jnp.array(
     [
-        [0],  # CC
-        [1],  # CD
-        [2],  # DC
-        [3],  # DD
-        [4],  # SS
+        [0],  # SS
+        [1],  # CC
+        [2],  # CD
+        [3],  # DC
+        [4],  # DD
         [5],  # SC
         [6],  # SD
         [7],  # CS
@@ -192,11 +192,7 @@ class CoinGame:
         eval: bool,
     ):
 
-        if eval:
-            warnings.warn(
-                "Running in Eval Mode: stats will not be jitted and state are muchl large arrays"
-            )
-        num_trials = int(num_steps / inner_ep_length)
+        num_episodes = int(num_steps / inner_ep_length)
 
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -258,7 +254,7 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
-            zero_stats = jnp.zeros((num_trials), dtype=jnp.int8)
+            zero_stats = jnp.zeros((num_episodes), dtype=jnp.int8)
 
             state = CoinGameState(
                 all_pos[0, :],
@@ -272,6 +268,7 @@ class CoinGame:
                 zero_stats,
                 zero_stats,
                 zero_stats,
+                jnp.zeros(num_steps),
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -339,31 +336,18 @@ class CoinGame:
                 state.blue_coin_pos,
             )
 
-            red_coop = (
-                jnp.zeros((num_trials), dtype=jnp.int8)
-                .at[state.outer_t]
-                .set(red_red_matches)
-            )
-            red_defect = (
-                jnp.zeros((num_trials), dtype=jnp.int8)
-                .at[state.outer_t]
-                .set(red_blue_matches)
-            )
-            blue_coop = (
-                jnp.zeros((num_trials), dtype=jnp.int8)
-                .at[state.outer_t]
-                .set(blue_blue_matches)
-            )
-            blue_defect = (
-                jnp.zeros((num_trials), dtype=jnp.int8)
-                .at[state.outer_t]
-                .set(blue_red_matches)
-            )
-
-            next_red_coop = state.red_coop + red_coop
-            next_red_defect = state.red_defect + red_defect
-            next_blue_coop = state.blue_coop + blue_coop
-            next_blue_defect = state.blue_defect + blue_defect
+            next_red_coop = state.red_coop + jnp.zeros(num_episodes).at[
+                state.outer_t
+            ].set(red_red_matches)
+            next_red_defect = state.red_defect + jnp.zeros(num_episodes).at[
+                state.outer_t
+            ].set(red_blue_matches)
+            next_blue_coop = state.blue_coop + jnp.zeros(num_episodes).at[
+                state.outer_t
+            ].set(blue_blue_matches)
+            next_blue_defect = state.blue_defect + jnp.zeros(num_episodes).at[
+                state.outer_t
+            ].set(blue_red_matches)
 
             next_state = CoinGameState(
                 new_red_pos,
@@ -443,7 +427,7 @@ class CoinGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = num_trials
+        self.num_trials = num_episodes
         self.episode_length = num_steps
         self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
 
