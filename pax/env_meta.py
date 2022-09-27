@@ -153,8 +153,22 @@ class CoinGameState(NamedTuple):
     red_defect: jnp.ndarray
     blue_coop: jnp.ndarray
     blue_defect: jnp.ndarray
+    # history: jnp.ndarray
 
 
+STATES = jnp.array(
+    [
+        [0],  # CC
+        [1],  # CD
+        [2],  # DC
+        [3],  # DD
+        [4],  # SS
+        [5],  # SC
+        [6],  # SD
+        [7],  # CS
+        [8],  # DS
+    ]
+)
 # class CoinGameJAX:
 MOVES = jnp.array(
     [
@@ -244,12 +258,7 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
-            if False:
-                zero_stats = jnp.zeros(
-                    (num_trials, inner_ep_length), dtype=jnp.int8
-                )
-            else:
-                zero_stats = jnp.zeros((num_trials, 1), dtype=jnp.int8)
+            zero_stats = jnp.zeros((num_trials), dtype=jnp.int8)
 
             state = CoinGameState(
                 all_pos[0, :],
@@ -329,31 +338,25 @@ class CoinGame:
                 new_random_coin_poses[1],
                 state.blue_coin_pos,
             )
-            if True:
-                time_idx = 0
-                ep_length = 1
-            else:
-                time_idx = state.inner_t
-                ep_length = inner_ep_length
 
             red_coop = (
-                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
-                .at[state.outer_t, time_idx]
+                jnp.zeros((num_trials), dtype=jnp.int8)
+                .at[state.outer_t]
                 .set(red_red_matches)
             )
             red_defect = (
-                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
-                .at[state.outer_t, time_idx]
+                jnp.zeros((num_trials), dtype=jnp.int8)
+                .at[state.outer_t]
                 .set(red_blue_matches)
             )
             blue_coop = (
-                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
-                .at[state.outer_t, time_idx]
+                jnp.zeros((num_trials), dtype=jnp.int8)
+                .at[state.outer_t]
                 .set(blue_blue_matches)
             )
             blue_defect = (
-                jnp.zeros((num_trials, ep_length), dtype=jnp.int8)
-                .at[state.outer_t, time_idx]
+                jnp.zeros((num_trials), dtype=jnp.int8)
+                .at[state.outer_t]
                 .set(blue_red_matches)
             )
 
