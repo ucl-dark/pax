@@ -332,6 +332,8 @@ class EvoRunner:
                 print(
                     "--------------------------------------------------------------------------"
                 )
+                print("opt count:")
+                print(agent2._logger.metrics["opt_count"])
                 print(
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
