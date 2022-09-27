@@ -308,7 +308,8 @@ def make_GRU_ipd_network(num_actions: int):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        gru = hk.GRU(hidden_size)
+        # gru = hk.GRU(hidden_size)
+        gru = hk.VanillaRNN(hidden_size)
         embedding, state = gru(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
