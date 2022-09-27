@@ -139,6 +139,110 @@ class EvilGreedy:
         return self._state, self._mem
 
 
+class RandomGreedy:
+    def __init__(self, num_envs, *args):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self.reset_memory = reset_mem_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self._logger = Logger()
+        self._logger.metrics = {}
+
+        def _greedy_step(obs, rng):
+            """do this for a single obs and then vmap"""
+            # reshape so that obs is no longer flattened
+            obs = obs.reshape(3, 3, 4)
+
+            # [3, 3]
+            # [3, 3]
+            agent_coin_pos = obs[..., 2]
+            other_coin_pos = obs[..., 3]
+
+            # find path to both sets of coins
+            agent_loc = jnp.array([1, 1])
+            # assumes square grid
+            x, y = jnp.divmod(jnp.argmax(agent_coin_pos), 3)
+            agent_path = (
+                jnp.array(
+                    [
+                        x,
+                        y,
+                    ]
+                )
+                - agent_loc
+            )
+            x, y = jnp.divmod(jnp.argmax(other_coin_pos), 3)
+            other_path = jnp.array([x, y]) - agent_loc
+
+            agent_path_length = jnp.sum(jnp.abs(agent_path))
+            other_path_length = jnp.sum(jnp.abs(other_path))
+
+            equal_path = jnp.where(
+                agent_path_length <= other_path_length, agent_path, other_path
+            )
+            new_rng, _ = jax.random.split(rng)
+            p = jax.random.uniform(
+                new_rng,
+            )
+            random_path = jnp.where(p < 0.5, agent_path, other_path)
+
+            shorted_path = jnp.where(
+                agent_path_length < other_path_length, agent_path, other_path
+            )
+
+            path = jnp.where(equal_path, random_path, shorted_path)
+
+            stay = (jnp.array([0, 0]) == path).all()
+            right = (jnp.array([0, 1]) == path).all()
+            left = (jnp.array([0, -1]) == path).all()
+            up = (jnp.array([1, 0]) == path).all()
+            down = (jnp.array([-1, 0]) == path).all()
+
+            ur = (jnp.array([1, 1]) == path).all()
+            ul = (jnp.array([1, -1]) == path).all()
+            dr = (jnp.array([-1, 1]) == path).all()
+            dl = (jnp.array([-1, -1]) == path).all()
+
+            action = 0  # default right
+            action = jax.lax.select(stay, 4, action)
+            action = jax.lax.select(right, 0, action)
+            action = jax.lax.select(left, 1, action)
+            action = jax.lax.select(up, 2, action)
+            action = jax.lax.select(down, 3, action)
+
+            # ul -> l ur -> u,  dl -> d, dr -> r,
+            action = jax.lax.select(ur, 2, action)
+            action = jax.lax.select(ul, 1, action)
+            action = jax.lax.select(dr, 0, action)
+            action = jax.lax.select(dl, 3, action)
+            return action, new_rng
+
+        self._greedy_step = _greedy_step
+        greedy_step = jax.vmap(
+            _greedy_step, in_axes=(0, None), out_axes=(0, None)
+        )
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+
+            action, new_rng = greedy_step(obs, state.random_key)
+            state = state._replace(random_key=new_rng)
+            return action, state, mem
+
+        self._policy = _policy
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
+
 class GoodGreedy:
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)

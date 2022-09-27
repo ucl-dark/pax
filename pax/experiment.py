@@ -33,6 +33,7 @@ from pax.strategies import (
     Defect,
     EvilGreedy,
     GoodGreedy,
+    RandomGreedy,
     GrimTrigger,
     Human,
     HyperAltruistic,
@@ -198,10 +199,10 @@ def runner_setup(args, agents, save_dir, logger):
         or args.agent1 == "PPO_pretrained"
     ):
         logger.info("Training with Runner")
-        agent1, _ = agents.agents 
+        agent1, _ = agents.agents
         param_reshaper = ParameterReshaper(
-                agent1._state.params, n_devices=args.num_devices
-            )
+            agent1._state.params, n_devices=args.num_devices
+        )
         return RunnerPretrained(args, save_dir, param_reshaper)
     if args.eval:
         if args.env_id == "ipd":
@@ -535,6 +536,7 @@ def agent_setup(args, logger):
         "Grim": partial(GrimTrigger, args.num_envs),
         "GoodGreedy": partial(GoodGreedy, args.num_envs),
         "EvilGreedy": partial(EvilGreedy, args.num_envs),
+        "RandomGreedy": partial(RandomGreedy, args.num_envs),
         "PPO": get_PPO_agent,
         "PPO_pretrained": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
@@ -637,6 +639,7 @@ def watcher_setup(args, logger):
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
+        "RandomGreedy": dumb_log,
         "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
