@@ -29,21 +29,41 @@ num_devices: 1
 
 # Evaluation 
 num_seeds: 20
-# # EARL vs. PPO trained on seed=0
-# run_path: ucl-dark/ipd/13o3v95p
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900
-# EARL vs. PPO trained on seed=1
-# run_path: ucl-dark/ipd/dopodr9n
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-1-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.58.912526/generation_2900
-# EARL vs. PPO trained on seed=2
-# run_path: ucl-dark/ipd/265ftn32
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-2-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.17.00.437954/generation_2900
-# EARL vs. PPO trained on seed=3
-# run_path: ucl-dark/ipd/1hffijy2
-# model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
-# EARL vs. PPO trained on seed=25
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+# GS vs. Tabular trained on seed=0, where Naive Learners have their learning rate annealed halfway through the trial 
+# run_path: ucl-dark/ipd/1gg0p92x
+# model_path: exp/GS-PPO-vs-Tabular/run-seed-0-pop-size-1000/2022-09-28_01.57.34.854198/generation_4900
+
+# GS vs. Tabular trained on seed=1, where Naive Learners have their learning rate annealed halfway through the trial 
+# run_path: ucl-dark/ipd/scffrmfv
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-1-pop-size-1000/2022-09-28_05.00.56.131987/generation_4900
+
+# GS vs. Tabular trained on seed=2, where Naive Learners have their learning rate annealed halfway through the trial 
+# run_path: ucl-dark/ipd/2858x8sa
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-2-pop-size-1000/2022-09-28_07.38.37.221049/generation_4900
+
+# GS vs. Tabular trained on seed=3, where Naive Learners have their learning rate annealed halfway through the trial 
+# run_path: ucl-dark/ipd/1y9tefvj
+# model_path: exp/GS-PPO-vs-Tabular/run-seed-3-pop-size-1000/2022-09-28_01.57.40.696321/generation_4900
+
+# GS vs. Tabular trained on seed=4, where Naive Learners have their learning rate annealed halfway through the trial 
+# run_path: ucl-dark/ipd/8j6zmb6h
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-4-pop-size-1000/2022-09-28_05.11.49.206169/generation_4900
+
+# GS vs. Tabular trained on seed = 0
+# run_path: ucl-dark/ipd/tywwxijw
+# model_path: exp/GS-PPO-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_16.06.55.715665/generation_4900
+# GS vs. Tabular trained on seed = 1
+# run_path: ucl-dark/ipd/2lyn9n10
+# model_path: exp/GS-PPO-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_16.07.48.978281/generation_4900
+# GS vs. Tabular trained on seed = 2
+# run_path: ucl-dark/ipd/f2xhuhcz
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-2-pop-size-1000/2022-09-25_16.08.35.015944/generation_4900
+# GS vs. Tabular trained on seed = 3
+run_path: ucl-dark/ipd/16wzxeb6
+model_path: exp/GS-PPO-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_16.09.01.274669/generation_4900
+# GS vs. Tabular trained on seed = 4
+# run_path: ucl-dark/ipd/3dzkof3f
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_16.41.50.643263/generation_4900
 
 # PPO agent parameters
 ppo:
