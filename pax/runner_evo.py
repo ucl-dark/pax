@@ -225,10 +225,9 @@ class EvoRunner:
             fitness = jnp.concatenate([traj11.rewards, traj21.rewards]).mean(
                 axis=(0, 1, 3, 4)
             )
-            other_fitness = traj21.rewards.mean(
-                axis=(0, 1, 3, 4)
-            ) + traj22.rewards.mean(axis=(0, 1, 3, 4))
-
+            other_fitness = jnp.concatenate(
+                [traj12.rewards, traj22.rewards]
+            ).mean(axis=(0, 1, 3, 4))
             # Stats
             if self.args.env_type == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -260,7 +259,7 @@ class EvoRunner:
                     [traj11.rewards, traj21.rewards]
                 ).mean()
                 rewards_1 = jnp.concatenate(
-                    [traj21.rewards, traj22.rewards]
+                    [traj12.rewards, traj22.rewards]
                 ).mean()
             return (
                 fitness,
