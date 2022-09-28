@@ -411,7 +411,6 @@ class PPO:
         self._total_steps = 0
         self._until_sgd = 0
         self._logger.metrics = {
-            "opt_count": 0,
             "total_steps": 0,
             "sgd_steps": 0,
             "loss_total": 0,
@@ -484,11 +483,12 @@ def make_agent(
         network = make_ipd_network(action_spec, tabular, args)
 
     # Optimizer
-    transition_steps = int(
-        (args.num_steps / args.num_inner_steps)
+    batch_size = int(args.num_envs * args.num_steps)
+    transition_steps = (
+        args.total_timesteps
+        / batch_size
         * args.ppo.num_epochs
         * args.ppo.num_minibatches
-        / 2
     )
 
     if args.ppo.lr_scheduling:
@@ -497,7 +497,6 @@ def make_agent(
             end_value=0,
             transition_steps=transition_steps,
         )
-
         optimizer = optax.chain(
             optax.clip_by_global_norm(args.ppo.max_gradient_norm),
             optax.scale_by_adam(eps=args.ppo.adam_epsilon),

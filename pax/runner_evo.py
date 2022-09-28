@@ -52,6 +52,7 @@ class EvoRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
+    # flake8: noqa: C901
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
@@ -107,13 +108,41 @@ class EvoRunner:
                 traj2,
             )
 
-        def _outer_rollout(carry, unused):
+        def _outer_rollout_fixed(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
-                carry,
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.inner_episode_length,
+            )
+
+            # update second agent
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+
+            # MFOS has to takes a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
+            return (
+                t1,
+                t2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+            ), trajectories
+
+        def _outer_rollout_training(carry, unused):
+            """Runner for trial"""
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.inner_episode_length,
             )
@@ -169,20 +198,36 @@ class EvoRunner:
                     ),
                     agent2._mem.hidden,
                 )
+            split = jax.random.uniform(rng, minval=0.2)
+            training_trials = int(split * env.num_trials)
+            non_training_trials = int((1 - split) * env.num_trials)
 
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
+            vals, stack1 = jax.lax.scan(
+                _outer_rollout_training,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=training_trials,
             )
 
-            traj_1, traj_2, a2_metrics = stack
+            # hardstop part
+            vals, stack2 = jax.lax.scan(
+                _outer_rollout_fixed,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=non_training_trials,
+            )
+
+            traj11, traj12, a2_metrics = stack1
+            traj21, traj22 = stack2
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            fitness = jnp.concatenate([traj11.rewards, traj21.rewards]).mean(
+                axis=(0, 1, 3, 4)
+            )
+            other_fitness = traj21.rewards.mean(
+                axis=(0, 1, 3, 4)
+            ) + traj22.rewards.mean(axis=(0, 1, 3, 4))
 
             # Stats
             if self.args.env_type == "coin_game":
@@ -191,8 +236,8 @@ class EvoRunner:
                     self.cg_stats(env_state),
                 )
 
-                rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                # rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                # rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
             elif self.args.env_type in [
                 "meta",
@@ -204,13 +249,19 @@ class EvoRunner:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
-                        traj_1.observations,
-                        traj_1.actions,
+                        jnp.concatenate(
+                            [traj11.observations, traj21.observations]
+                        ),
+                        jnp.concatenate([traj11.actions, traj21.actions]),
                         final_t1.observation,
                     ),
                 )
-                rewards_0 = traj_1.rewards.mean()
-                rewards_1 = traj_2.rewards.mean()
+                rewards_0 = jnp.concatenate(
+                    [traj11.rewards, traj21.rewards]
+                ).mean()
+                rewards_1 = jnp.concatenate(
+                    [traj21.rewards, traj22.rewards]
+                ).mean()
             return (
                 fitness,
                 other_fitness,
@@ -276,19 +327,19 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
-        evo_rollout = jax.pmap(
-            evo_rollout,
-            in_axes=(0, None, None, None, None),
-        )
+        # evo_rollout = jax.pmap(
+        #     evo_rollout,
+        #     in_axes=(0, None, None, None, None),
+        # )
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
-            if num_devices == 1:
-                params = jax.tree_util.tree_map(
-                    lambda x: jax.lax.expand_dims(x, (0,)), params
-                )
+            # if num_devices == 1:
+            #     params = jax.tree_util.tree_map(
+            #         lambda x: jax.lax.expand_dims(x, (0,)), params
+            #     )
             # Evo Rollout
             (
                 fitness,
