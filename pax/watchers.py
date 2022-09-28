@@ -431,6 +431,7 @@ def cg_visitation(env_state: NamedTuple) -> dict:
 
     prob_coop_1 = jnp.nanmean(env_state.coop1 / env_state.counter, axis=0)
     prob_coop_2 = jnp.nanmean(env_state.coop2 / env_state.counter, axis=0)
+    count = jnp.nanmean(env_state.counter, axis=0)
     return {
         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
@@ -460,4 +461,22 @@ def cg_visitation(env_state: NamedTuple) -> dict:
         "cooperation_probability/2/SD": prob_coop_2[6],
         "cooperation_probability/2/CS": prob_coop_2[7],
         "cooperation_probability/2/DS": prob_coop_2[8],
+        "state_visitation/SS": count[0],
+        "state_visitation/CC": count[1],
+        "state_visitation/CD": count[2],
+        "state_visitation/DC": count[3],
+        "state_visitation/DD": count[4],
+        "state_visitation/SC": count[5],
+        "state_visitation/SD": count[6],
+        "state_visitation/CS": count[7],
+        "state_visitation/DS": count[8],
+        "state_visitation2/SS": count[0],
+        "state_visitation2/CC": count[1],
+        "state_visitation2/CD": count[2],
+        "state_visitation2/DC": count[3],
+        "state_visitation2/DD": count[4],
+        "state_visitation2/SC": count[5],
+        "state_visitation2/SD": count[6],
+        "state_visitation2/CS": count[7],
+        "state_visitation2/DS": count[8],
     }
