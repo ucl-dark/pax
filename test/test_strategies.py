@@ -89,7 +89,7 @@ def test_naive_alt():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=10, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=10, num_envs=1, player_id=0)
 
     alt_action = 20 * jnp.ones((batch_number, 5))
     timestep, _ = env.reset()
@@ -140,7 +140,7 @@ def test_naive_tft():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=1, player_id=0)
     tft_action = jnp.tile(
         20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
     )
@@ -166,7 +166,7 @@ def test_naive_tft_as_second_player():
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=1, player_id=0)
 
     tft_action = jnp.tile(
         20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
@@ -185,7 +185,7 @@ def test_naive_tft_as_second_player():
 
 def test_coin_chaser():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, False)
     t1, t2 = env.reset()
     env.state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),

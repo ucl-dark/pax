@@ -212,7 +212,7 @@ class RunnerPretrained:
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
-                save(a1_state.params, log_savepath)
+                save(a2_state.params, log_savepath)
                 if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
                     wandb.save(log_savepath)
@@ -225,7 +225,7 @@ class RunnerPretrained:
                 print(f"Episode {i}")
                 if self.args.env_type == "coin_game":
                     env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
+                        lambda x: x,
                         self.cg_stats(env_state),
                     )
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()

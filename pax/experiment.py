@@ -59,11 +59,11 @@ from pax.watchers import (
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
-    if not args.eval:
-        os.makedirs(
-            save_dir,
-            exist_ok=True,
-        )
+    # if not args.eval:
+    os.makedirs(
+        save_dir,
+        exist_ok=True,
+    )
     if args.wandb.log:
         print("name", str(args.wandb.name))
         if args.debug:
@@ -212,7 +212,11 @@ def runner_setup(args, agents, save_dir, logger):
             return EvalRunnerIPD(args)
         elif args.env_id == "coin_game":
             logger.info("Evaluating with EvalRunnerCG")
-            return EvalRunnerCG(args)
+            agent1, _ = agents.agents
+            param_reshaper = ParameterReshaper(
+                agent1._state.params, n_devices=args.num_devices
+            )
+            return EvalRunnerCG(args, param_reshaper)
 
     if args.evo:
         agent1, _ = agents.agents
@@ -535,6 +539,34 @@ def agent_setup(args, logger):
         agent.player_id = player_id
         return agent
 
+    def get_PPO_tabular_agent(seed, player_id):
+        # dummy environment to get observation and action spec
+        if args.env_type == "coin_game":
+            dummy_env = CoinGame(
+                args.num_envs,
+                args.num_steps,
+                args.num_steps,
+                0,
+                False,
+                False,
+            )
+            obs_spec = dummy_env.observation_spec().shape
+        else:
+            raise NotImplementedError(
+                "PPO Tabular agent only works on Coin Game."
+            )
+
+        ppo_agent = make_agent(
+            args,
+            obs_spec=obs_spec,
+            action_spec=dummy_env.action_spec().num_values,
+            seed=seed,
+            player_id=player_id,
+            tabular=True,
+        )
+
+        return ppo_agent
+
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
@@ -694,7 +726,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    # If evaluating, pass in the number of seeds you want to evaluate over
+    # # If evaluating, pass in the number of seeds you want to evaluate over
     if args.eval:
         runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 

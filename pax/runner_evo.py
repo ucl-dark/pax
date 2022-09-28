@@ -51,6 +51,7 @@ class EvoRunner:
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.cg_stats = cg_visitation
 
     def train_loop(self, env, agents, num_generations, watchers):
         """Run training of agents in environment"""
