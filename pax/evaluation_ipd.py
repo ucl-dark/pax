@@ -127,6 +127,11 @@ class EvalRunnerIPD:
             final_t2 = t2._replace(
                 step_type=2 * jnp.ones_like(vals[1].step_type)
             )
+
+            # MFOS has to takes a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
