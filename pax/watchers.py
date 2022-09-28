@@ -418,9 +418,9 @@ def ipd_visitation(
 
 
 def cg_visitation(env_state: NamedTuple) -> dict:
-    # env state : [num_opps x num_envs, num_episodes]
+    # env state : [num_opps, num_envs, num_episodes]
     env_state = jax.tree_util.tree_map(
-        lambda x: x.reshape(-1, x.shape[-2]), env_state
+        lambda x: x.reshape(-1, x.shape[-1]), env_state
     )
 
     total_1 = env_state.red_coop + env_state.red_defect
@@ -429,6 +429,8 @@ def cg_visitation(env_state: NamedTuple) -> dict:
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
 
+    prob_coop_1 = env_state.coop1 / env_state.counter
+    prob_coop_2 = env_state.coop2 / env_state.counter
     return {
         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
@@ -440,162 +442,22 @@ def cg_visitation(env_state: NamedTuple) -> dict:
         "final_prob_coop/2": jnp.nanmean(prob_2, axis=0)[-1],  # [1]
         "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
         "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
+        "cooperation_probability/1/SS": prob_coop_1[0],
+        "cooperation_probability/1/CC": prob_coop_1[1],
+        "cooperation_probability/1/CD": prob_coop_1[2],
+        "cooperation_probability/1/DC": prob_coop_1[3],
+        "cooperation_probability/1/DD": prob_coop_1[4],
+        "cooperation_probability/1/SC": prob_coop_1[5],
+        "cooperation_probability/1/SD": prob_coop_1[6],
+        "cooperation_probability/1/CS": prob_coop_1[7],
+        "cooperation_probability/1/DS": prob_coop_1[8],
+        "cooperation_probability/2/SS": prob_coop_2[0],
+        "cooperation_probability/2/CC": prob_coop_2[1],
+        "cooperation_probability/2/CD": prob_coop_2[2],
+        "cooperation_probability/2/DC": prob_coop_2[3],
+        "cooperation_probability/2/DD": prob_coop_2[4],
+        "cooperation_probability/2/SC": prob_coop_2[5],
+        "cooperation_probability/2/SD": prob_coop_2[6],
+        "cooperation_probability/2/CS": prob_coop_2[7],
+        "cooperation_probability/2/DS": prob_coop_2[8],
     }
-
-
-# def cg_eval_stats(env_state: NamedTuple) -> dict:
-#     # env state : [num_opps x num_envs, num_trials]
-#     # eval env state : [num_opps x num_envs, num_trials, num_timesteps]
-
-#     env_state = jax.tree_util.tree_map(
-#         lambda x: x.reshape(-1, x.shape[-2], x.shape[-1]), env_state
-#     )
-
-#     first_red_defect = env_state.red_defect.argmax(axis=-1)
-#     first_blue_defect = env_state.blue_defect.argmax(axis=-1)
-
-#     # only want where one breaks before the other (no ties)
-#     # red_shot_first_flag = jnp.where(first_red_defect < first_blue_defect, 1, 0)
-#     # blue_shot_first_flag = jnp.where(
-#     #     first_blue_defect < first_red_defect, 1, 0
-#     # )
-
-#     def calculate_reciprocity(sig1, sig2, window):
-#         val = 0
-#         attacks = 0
-#         for i in range(16 - window):
-#             attack = sig1[..., i] == 1
-#             attacks += jnp.where(attack, 1, 0)
-#             responses = sig2[..., i : i + 2]
-#             _r = jnp.where(responses.sum(), 1, 0)
-#             val += jnp.where(attack, _r, 0)
-
-#         return val / attacks
-
-#     game_stats = [], []
-#     for env_idx in range(env_state.red_coop.shape[0]):
-#         trial_stats = [], []
-#         for trial_idx in range(env_state.red_coop.shape[1]):
-#             trial_stats[0].append(
-#                 calculate_reciprocity(
-#                     env_state.red_defect[env_idx, trial_idx, :],
-#                     env_state.blue_defect[env_idx, trial_idx, :],
-#                     2,
-#                 )
-#             )
-
-#             trial_stats[1].append(
-#                 calculate_reciprocity(
-#                     env_state.blue_defect[env_idx, trial_idx, :],
-#                     env_state.red_defect[env_idx, trial_idx, :],
-#                     2,
-#                 )
-#             )
-
-#         game_stats[0].append(jnp.stack(trial_stats[0]))
-#         game_stats[1].append(jnp.stack(trial_stats[1]))
-
-#     # red_recip = jnp.stack(game_stats[0])
-#     # blue_recip = jnp.stack(game_stats[1])
-
-#     total_1 = env_state.red_coop.sum(axis=-1) + env_state.red_defect.sum(
-#         axis=-1
-#     )
-#     total_2 = env_state.blue_coop.sum(axis=-1) + env_state.blue_defect.sum(
-#         axis=-1
-#     )
-
-#     prob_1 = env_state.red_coop.sum(axis=-1) / total_1
-#     prob_2 = env_state.blue_coop.sum(axis=-1) / total_2
-
-#     return {
-#         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
-#         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
-#         "total_coins/1": total_1.sum(),  # int
-#         "total_coins/2": total_2.sum(),  # int
-#         "coins_per_episode/1": total_1.mean(axis=0),  # [num_episodes]
-#         "coins_per_episode/2": total_2.mean(axis=0),  # [num_episodes]
-#         "final_prob_coop/1": jnp.nanmean(prob_1, axis=0)[-1],  # [1]
-#         "final_prob_coop/2": jnp.nanmean(prob_2, axis=0)[-1],  # [1]
-#         "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
-#         "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
-#     }
-
-
-# def cg_eval_stats(env_state: NamedTuple) -> dict:
-#     # env state : [num_opps x num_envs, num_trials]
-#     # eval env state : [num_opps x num_envs, num_trials, num_timesteps]
-
-#     env_state = jax.tree_util.tree_map(
-#         lambda x: x.reshape(-1, x.shape[-2], x.shape[-1]), env_state
-#     )
-
-#     first_red_defect = env_state.red_defect.argmax(axis=-1)
-#     first_blue_defect = env_state.blue_defect.argmax(axis=-1)
-
-#     # only want where one breaks before the other (no ties)
-#     red_shot_first_flag = jnp.where(first_red_defect < first_blue_defect, 1, 0)
-#     blue_shot_first_flag = jnp.where(
-#         first_blue_defect < first_red_defect, 1, 0
-#     )
-
-#     def calculate_reciprocity(sig1, sig2, window):
-#         val = 0
-#         attacks = 0
-#         for i in range(16 - window):
-#             attack = sig1[..., i] == 1
-#             attacks += jnp.where(attack, 1, 0)
-#             responses = sig2[..., i : i + 2]
-#             _r = jnp.where(responses.sum(), 1, 0)
-#             val += jnp.where(attack, _r, 0)
-
-#         return val / attacks
-
-#     game_stats = [], []
-#     for env_idx in range(env_state.red_coop.shape[0]):
-#         trial_stats = [], []
-#         for trial_idx in range(env_state.red_coop.shape[1]):
-#             trial_stats[0].append(
-#                 calculate_reciprocity(
-#                     env_state.red_defect[env_idx, trial_idx, :],
-#                     env_state.blue_defect[env_idx, trial_idx, :],
-#                     2,
-#                 )
-#             )
-
-#             trial_stats[1].append(
-#                 calculate_reciprocity(
-#                     env_state.blue_defect[env_idx, trial_idx, :],
-#                     env_state.red_defect[env_idx, trial_idx, :],
-#                     2,
-#                 )
-#             )
-
-#         game_stats[0].append(jnp.stack(trial_stats[0]))
-#         game_stats[1].append(jnp.stack(trial_stats[1]))
-
-#     red_recip = jnp.stack(game_stats[0])
-#     blue_recip = jnp.stack(game_stats[1])
-
-#     total_1 = env_state.red_coop.sum(axis=-1) + env_state.red_defect.sum(
-#         axis=-1
-#     )
-#     total_2 = env_state.blue_coop.sum(axis=-1) + env_state.blue_defect.sum(
-#         axis=-1
-#     )
-
-#     prob_1 = env_state.red_coop.sum(axis=-1) / total_1
-#     prob_2 = env_state.blue_coop.sum(axis=-1) / total_2
-
-#     return {
-#         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_trials]
-#         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_trials]
-#         "total_coins/1": total_1.sum(),  # int
-#         "total_coins/2": total_2.sum(),  # int
-#         "coins_per_episode/1": total_1.mean(axis=0),  # [num_trials]
-#         "coins_per_episode/2": total_2.mean(axis=0),  # [num_trials]
-#         "prob_defect_first/1": red_shot_first_flag.mean(),
-#         "prob_defect_first/2": blue_shot_first_flag.mean(),
-#         "prob_reciprocity/1": jnp.nanmean(red_recip, axis=0),
-#         "prob_reciprocity/2": jnp.nanmean(blue_recip, axis=0),
-#     }

@@ -1,12 +1,9 @@
-from re import X
 from typing import NamedTuple, Tuple
 import matplotlib.pyplot as plt
 
 import jax
 import jax.numpy as jnp
 from dm_env import Environment, TimeStep, specs, termination, transition
-
-import warnings
 
 
 class MetaFiniteGame:
@@ -153,7 +150,10 @@ class CoinGameState(NamedTuple):
     red_defect: jnp.ndarray
     blue_coop: jnp.ndarray
     blue_defect: jnp.ndarray
-    # history: jnp.ndarray
+    counter: jnp.ndarray  # 9
+    coop1: jnp.ndarray  # 9
+    coop2: jnp.ndarray  # 9
+    last_state: jnp.ndarray  # 2
 
 
 STATES = jnp.array(
@@ -169,7 +169,6 @@ STATES = jnp.array(
         [8],  # DS
     ]
 )
-# class CoinGameJAX:
 MOVES = jnp.array(
     [
         [0, 1],  # right
@@ -268,7 +267,10 @@ class CoinGame:
                 zero_stats,
                 zero_stats,
                 zero_stats,
-                jnp.zeros(num_steps),
+                jnp.zeros(9),
+                jnp.zeros(9),
+                jnp.zeros(9),
+                jnp.zeros(2),
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -278,6 +280,51 @@ class CoinGame:
             )
 
             return output, state
+
+        def _update_stats(
+            state: CoinGameState,
+            rr: jnp.ndarray,
+            rb: jnp.ndarray,
+            br: jnp.ndarray,
+            bb: jnp.ndarray,
+        ):
+            def state2idx(s: jnp.ndarray) -> int:
+                idx = 0
+                idx = jnp.where((s == jnp.array([1, 1])).all(), 1, idx)
+                idx = jnp.where((s == jnp.array([1, 2])).all(), 2, idx)
+                idx = jnp.where((s == jnp.array([2, 1])).all(), 3, idx)
+                idx = jnp.where((s == jnp.array([2, 2])).all(), 4, idx)
+                idx = jnp.where((s == jnp.array([0, 1])).all(), 5, idx)
+                idx = jnp.where((s == jnp.array([0, 2])).all(), 6, idx)
+                idx = jnp.where((s == jnp.array([2, 0])).all(), 7, idx)
+                idx = jnp.where((s == jnp.array([1, 0])).all(), 8, idx)
+                return idx
+
+            # actions are X, C, D
+            a1 = 0
+            a1 = jnp.where(rr, 1, a1)
+            a1 = jnp.where(rb, 2, a1)
+
+            a2 = 0
+            a2 = jnp.where(bb, 1, a2)
+            a2 = jnp.where(br, 2, a2)
+
+            # if we didn't get a coin this turn, use the last convention
+            convention_1 = jnp.where(a1 > 0, a1, state.last_state[0])
+            convention_2 = jnp.where(a2 > 0, a2, state.last_state[1])
+
+            idx = state2idx(state.last_state)
+            counter = state.counter + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(1)
+            coop1 = state.coop1 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(rr)
+            coop2 = state.coop2 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(bb)
+            convention = jnp.stack([convention_1, convention_2]).reshape(2)
+            return counter, coop1, coop2, convention
 
         def _step(
             actions: Tuple[int, int], state: CoinGameState
@@ -321,6 +368,14 @@ class CoinGame:
                 red_blue_matches, blue_reward - 2, blue_reward
             )
 
+            (counter, coop1, coop2, last_state) = _update_stats(
+                state,
+                red_red_matches,
+                red_blue_matches,
+                blue_red_matches,
+                blue_blue_matches,
+            )
+
             key, subkey = jax.random.split(state.key)
             new_random_coin_poses = jax.random.randint(
                 subkey, shape=(2, 2), minval=0, maxval=3
@@ -336,18 +391,18 @@ class CoinGame:
                 state.blue_coin_pos,
             )
 
-            next_red_coop = state.red_coop + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(red_red_matches)
-            next_red_defect = state.red_defect + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(red_blue_matches)
-            next_blue_coop = state.blue_coop + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(blue_blue_matches)
-            next_blue_defect = state.blue_defect + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(blue_red_matches)
+            next_red_coop = state.red_coop + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(red_red_matches)
+            next_red_defect = state.red_defect + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(red_blue_matches)
+            next_blue_coop = state.blue_coop + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_blue_matches)
+            next_blue_defect = state.blue_defect + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_red_matches)
 
             next_state = CoinGameState(
                 new_red_pos,
@@ -361,6 +416,10 @@ class CoinGame:
                 red_defect=next_red_defect,
                 blue_coop=next_blue_coop,
                 blue_defect=next_blue_defect,
+                counter=counter,
+                coop1=coop1,
+                coop2=coop2,
+                last_state=last_state,
             )
 
             obs1, obs2 = _state_to_obs(next_state)
@@ -390,6 +449,10 @@ class CoinGame:
                 next_state.red_defect,
                 next_state.blue_coop,
                 next_state.blue_defect,
+                counter,
+                coop1,
+                coop2,
+                jnp.where(done, jnp.zeros(2), last_state),
             )
 
             obs1 = jnp.where(done, new_ep_outputs[0].observation, obs1)
@@ -429,7 +492,23 @@ class CoinGame:
         self.inner_episode_length = inner_ep_length
         self.num_trials = num_episodes
         self.episode_length = num_steps
-        self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
+        self.state = CoinGameState(
+            0,
+            0,
+            0,
+            0,
+            self.key,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            jnp.zeros(9),
+            jnp.zeros(9),
+            jnp.zeros(9),
+            jnp.zeros(2),
+        )
 
         self.runner_step = jax.vmap(runner_step)
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))

@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_eval_stats, ipd_visitation
+from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import save, load
 
 MAX_WANDB_CALLS = 10000
@@ -64,7 +64,7 @@ class RunnerPretrained:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = cg_eval_stats
+        self.cg_stats = jax.jit(cg_visitation)
 
     def train_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):

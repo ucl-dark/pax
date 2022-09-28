@@ -155,9 +155,7 @@ class EvalRunnerCG:
                 root=os.getcwd(),
             )
         params1 = load(self.model_path1)
-        params1 = self.param_reshaper.reshape_single_net(
-            params1
-        )
+        params1 = self.param_reshaper.reshape_single_net(params1)
         params2 = load(self.model_path2)
 
         a1_state, a1_mem = agent1._state, agent1._mem
