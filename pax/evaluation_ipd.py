@@ -27,7 +27,7 @@ class Sample(NamedTuple):
 class EvalRunnerIPD:
     """Holds the runner's state."""
 
-    def __init__(self, args):
+    def __init__(self, args, param_reshaper):
         self.algo = args.es.algo
         self.args = args
         self.num_opps = args.num_opps
@@ -43,6 +43,7 @@ class EvalRunnerIPD:
         self.model_path = args.model_path
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.param_reshaper = param_reshaper
 
         def _reshape_opp_dim(x):
             # x: [num_opps, num_envs ...]
@@ -163,8 +164,10 @@ class EvalRunnerIPD:
             wandb.restore(
                 name=self.model_path, run_path=self.run_path, root=os.getcwd()
             )
-        params = load(self.model_path)
-
+        if self.args.agent1 == "MFOS":
+            params = self.param_reshaper.reshape_single_net(
+                load(self.model_path)
+            )
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
