@@ -167,6 +167,7 @@ STATES = jnp.array(
         [6],  # SD
         [7],  # CS
         [8],  # DS
+        [9],  # SameSquare
     ]
 )
 MOVES = jnp.array(
@@ -266,9 +267,9 @@ class CoinGame:
                 zero_stats,
                 zero_stats,
                 zero_stats,
-                jnp.zeros(9),
-                jnp.zeros(9),
-                jnp.zeros(9),
+                jnp.zeros(10),
+                jnp.zeros(10),
+                jnp.zeros(10),
                 jnp.zeros(2),
             )
             obs1, obs2 = _state_to_obs(state)
@@ -286,6 +287,7 @@ class CoinGame:
             rb: jnp.ndarray,
             br: jnp.ndarray,
             bb: jnp.ndarray,
+            ss: jnp.ndarray,
         ):
             def state2idx(s: jnp.ndarray) -> int:
                 idx = 0
@@ -323,6 +325,22 @@ class CoinGame:
                 state.counter, dtype=jnp.int16
             ).at[idx].set(bb)
             convention = jnp.stack([convention_1, convention_2]).reshape(2)
+
+            ## same step logic
+            counter = counter + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[9].set(ss)
+
+            c1_ss = jnp.where(ss, rr, 0)
+            c2_ss = jnp.where(ss, bb, 0)
+
+            coop1 = coop1 + jnp.zeros_like(state.counter, dtype=jnp.int16).at[
+                9
+            ].set(c1_ss)
+            coop2 = coop2 + jnp.zeros_like(state.counter, dtype=jnp.int16).at[
+                9
+            ].set(c2_ss)
+
             return counter, coop1, coop2, convention
 
         def _step(
@@ -334,6 +352,8 @@ class CoinGame:
 
             red_reward = 0
             blue_reward = 0
+
+            same_square = jnp.all(new_red_pos == new_blue_pos, axis=-1)
 
             red_red_matches = jnp.all(
                 new_red_pos == state.red_coin_pos, axis=-1
@@ -373,6 +393,7 @@ class CoinGame:
                 red_blue_matches,
                 blue_red_matches,
                 blue_blue_matches,
+                same_square,
             )
 
             key, subkey = jax.random.split(state.key)

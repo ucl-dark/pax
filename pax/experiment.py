@@ -157,7 +157,6 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
-            eval=args.eval,
         )
         test_env = CoinGame(
             1,
@@ -165,7 +164,6 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
-            eval=args.eval,
         )
         if logger:
             logger.info(
@@ -320,7 +318,6 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
-                True,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -491,7 +488,6 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
-                    False,
                 )
                 .action_spec()
                 .num_values
@@ -519,7 +515,6 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
-                    False,
                 )
                 .action_spec()
                 .num_values
@@ -545,7 +540,6 @@ def agent_setup(args, logger):
                 args.num_steps,
                 args.num_steps,
                 0,
-                False,
                 False,
             )
             obs_spec = dummy_env.observation_spec().shape
