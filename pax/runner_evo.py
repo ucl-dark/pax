@@ -198,7 +198,7 @@ class EvoRunner:
                     ),
                     agent2._mem.hidden,
                 )
-            split = jax.random.uniform(rng, minval=0.2)
+            split = jax.random.uniform(rng_run, minval=0.2)
             training_trials = int(split * env.num_trials)
             non_training_trials = int((1 - split) * env.num_trials)
 
