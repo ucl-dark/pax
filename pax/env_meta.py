@@ -1,5 +1,5 @@
 from typing import NamedTuple, Tuple
-from xmlrpc.client import Boolean
+import matplotlib.pyplot as plt
 
 import jax
 import jax.numpy as jnp
@@ -150,9 +150,25 @@ class CoinGameState(NamedTuple):
     red_defect: jnp.ndarray
     blue_coop: jnp.ndarray
     blue_defect: jnp.ndarray
+    counter: jnp.ndarray  # 9
+    coop1: jnp.ndarray  # 9
+    coop2: jnp.ndarray  # 9
+    last_state: jnp.ndarray  # 2
 
 
-# class CoinGameJAX:
+STATES = jnp.array(
+    [
+        [0],  # SS
+        [1],  # CC
+        [2],  # CD
+        [3],  # DC
+        [4],  # DD
+        [5],  # SC
+        [6],  # SD
+        [7],  # CS
+        [8],  # DS
+    ]
+)
 MOVES = jnp.array(
     [
         [0, 1],  # right
@@ -171,7 +187,7 @@ class CoinGame:
         inner_ep_length: int,
         num_steps: int,
         seed: int,
-        cnn: Boolean,
+        cnn: bool,
     ):
 
         num_episodes = int(num_steps / inner_ep_length)
@@ -236,6 +252,8 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
+            zero_stats = jnp.zeros((num_episodes), dtype=jnp.int8)
+
             state = CoinGameState(
                 all_pos[0, :],
                 all_pos[1, :],
@@ -244,10 +262,14 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
-                jnp.zeros(num_episodes),
-                jnp.zeros(num_episodes),
-                jnp.zeros(num_episodes),
-                jnp.zeros(num_episodes),
+                zero_stats,
+                zero_stats,
+                zero_stats,
+                zero_stats,
+                jnp.zeros(9),
+                jnp.zeros(9),
+                jnp.zeros(9),
+                jnp.zeros(2),
             )
             obs1, obs2 = _state_to_obs(state)
 
@@ -257,6 +279,51 @@ class CoinGame:
             )
 
             return output, state
+
+        def _update_stats(
+            state: CoinGameState,
+            rr: jnp.ndarray,
+            rb: jnp.ndarray,
+            br: jnp.ndarray,
+            bb: jnp.ndarray,
+        ):
+            def state2idx(s: jnp.ndarray) -> int:
+                idx = 0
+                idx = jnp.where((s == jnp.array([1, 1])).all(), 1, idx)
+                idx = jnp.where((s == jnp.array([1, 2])).all(), 2, idx)
+                idx = jnp.where((s == jnp.array([2, 1])).all(), 3, idx)
+                idx = jnp.where((s == jnp.array([2, 2])).all(), 4, idx)
+                idx = jnp.where((s == jnp.array([0, 1])).all(), 5, idx)
+                idx = jnp.where((s == jnp.array([0, 2])).all(), 6, idx)
+                idx = jnp.where((s == jnp.array([2, 0])).all(), 7, idx)
+                idx = jnp.where((s == jnp.array([1, 0])).all(), 8, idx)
+                return idx
+
+            # actions are X, C, D
+            a1 = 0
+            a1 = jnp.where(rr, 1, a1)
+            a1 = jnp.where(rb, 2, a1)
+
+            a2 = 0
+            a2 = jnp.where(bb, 1, a2)
+            a2 = jnp.where(br, 2, a2)
+
+            # if we didn't get a coin this turn, use the last convention
+            convention_1 = jnp.where(a1 > 0, a1, state.last_state[0])
+            convention_2 = jnp.where(a2 > 0, a2, state.last_state[1])
+
+            idx = state2idx(state.last_state)
+            counter = state.counter + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(1)
+            coop1 = state.coop1 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(rr)
+            coop2 = state.coop2 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(bb)
+            convention = jnp.stack([convention_1, convention_2]).reshape(2)
+            return counter, coop1, coop2, convention
 
         def _step(
             actions: Tuple[int, int], state: CoinGameState
@@ -300,6 +367,14 @@ class CoinGame:
                 red_blue_matches, blue_reward - 2, blue_reward
             )
 
+            (counter, coop1, coop2, last_state) = _update_stats(
+                state,
+                red_red_matches,
+                red_blue_matches,
+                blue_red_matches,
+                blue_blue_matches,
+            )
+
             key, subkey = jax.random.split(state.key)
             new_random_coin_poses = jax.random.randint(
                 subkey, shape=(2, 2), minval=0, maxval=3
@@ -315,18 +390,18 @@ class CoinGame:
                 state.blue_coin_pos,
             )
 
-            next_red_coop = state.red_coop + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(red_red_matches)
-            next_red_defect = state.red_defect + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(red_blue_matches)
-            next_blue_coop = state.blue_coop + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(blue_blue_matches)
-            next_blue_defect = state.blue_defect + jnp.zeros(num_episodes).at[
-                state.outer_t
-            ].set(blue_red_matches)
+            next_red_coop = state.red_coop + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(red_red_matches)
+            next_red_defect = state.red_defect + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(red_blue_matches)
+            next_blue_coop = state.blue_coop + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_blue_matches)
+            next_blue_defect = state.blue_defect + jnp.zeros(
+                num_episodes, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_red_matches)
 
             next_state = CoinGameState(
                 new_red_pos,
@@ -340,6 +415,10 @@ class CoinGame:
                 red_defect=next_red_defect,
                 blue_coop=next_blue_coop,
                 blue_defect=next_blue_defect,
+                counter=counter,
+                coop1=coop1,
+                coop2=coop2,
+                last_state=last_state,
             )
 
             obs1, obs2 = _state_to_obs(next_state)
@@ -369,6 +448,10 @@ class CoinGame:
                 next_state.red_defect,
                 next_state.blue_coop,
                 next_state.blue_defect,
+                counter,
+                coop1,
+                coop2,
+                jnp.where(done, jnp.zeros(2), last_state),
             )
 
             obs1 = jnp.where(done, new_ep_outputs[0].observation, obs1)
@@ -408,7 +491,23 @@ class CoinGame:
         self.inner_episode_length = inner_ep_length
         self.num_trials = num_episodes
         self.episode_length = num_steps
-        self.state = CoinGameState(0, 0, 0, 0, self.key, 0, 0, 0, 0, 0, 0)
+        self.state = CoinGameState(
+            0,
+            0,
+            0,
+            0,
+            self.key,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            jnp.zeros(9),
+            jnp.zeros(9),
+            jnp.zeros(9),
+            jnp.zeros(2),
+        )
 
         self.runner_step = jax.vmap(runner_step)
         self.batch_step = jax.jit(jax.vmap(jax.vmap(runner_step)))
@@ -458,3 +557,143 @@ class CoinGame:
     def action_spec(self) -> specs.DiscreteArray:
         """Returns the action spec."""
         return specs.DiscreteArray(num_values=5, name="actions")
+
+    def render(self, state: CoinGameState):
+        from matplotlib.figure import Figure
+        from matplotlib.backends.backend_agg import (
+            FigureCanvasAgg as FigureCanvas,
+        )
+        from PIL import Image
+        import numpy as np
+
+        """Small utility for plotting the agent's state."""
+        fig = Figure((5, 2))
+        canvas = FigureCanvas(fig)
+        ax = fig.add_subplot(121)
+        ax.imshow(
+            np.zeros((3, 3)),
+            cmap="Greys",
+            vmin=0,
+            vmax=1,
+            aspect="equal",
+            interpolation="none",
+            origin="lower",
+            extent=[0, 3, 0, 3],
+        )
+        ax.set_aspect("equal")
+
+        # ax.margins(0)
+        ax.set_xticks(jnp.arange(1, 4))
+        ax.set_yticks(jnp.arange(1, 4))
+        ax.grid()
+        red_pos = jnp.squeeze(state.red_pos)
+        blue_pos = jnp.squeeze(state.blue_pos)
+        red_coin_pos = jnp.squeeze(state.red_coin_pos)
+        blue_coin_pos = jnp.squeeze(state.blue_coin_pos)
+        ax.annotate(
+            "R",
+            fontsize=20,
+            color="red",
+            xy=(red_pos[0], red_pos[1]),
+            xycoords="data",
+            xytext=(red_pos[0] + 0.5, red_pos[1] + 0.5),
+        )
+        ax.annotate(
+            "B",
+            fontsize=20,
+            color="blue",
+            xy=(blue_pos[0], blue_pos[1]),
+            xycoords="data",
+            xytext=(blue_pos[0] + 0.5, blue_pos[1] + 0.5),
+        )
+        ax.annotate(
+            "Rc",
+            fontsize=20,
+            color="red",
+            xy=(red_coin_pos[0], red_coin_pos[1]),
+            xycoords="data",
+            xytext=(red_coin_pos[0] + 0.3, red_coin_pos[1] + 0.3),
+        )
+        ax.annotate(
+            "Bc",
+            color="blue",
+            fontsize=20,
+            xy=(blue_coin_pos[0], blue_coin_pos[1]),
+            xycoords="data",
+            xytext=(
+                blue_coin_pos[0] + 0.3,
+                blue_coin_pos[1] + 0.3,
+            ),
+        )
+
+        ax2 = fig.add_subplot(122)
+        ax2.text(0.0, 0.95, "Timestep: %s" % (state.inner_t))
+        ax2.text(0.0, 0.75, "Episode: %s" % (state.outer_t))
+        ax2.text(
+            0.0, 0.45, "Red Coop: %s" % (state.red_coop[state.outer_t].sum())
+        )
+        ax2.text(
+            0.6,
+            0.45,
+            "Red Defects : %s" % (state.red_defect[state.outer_t].sum()),
+        )
+        ax2.text(
+            0.0, 0.25, "Blue Coop: %s" % (state.blue_coop[state.outer_t].sum())
+        )
+        ax2.text(
+            0.6,
+            0.25,
+            "Blue Defects : %s" % (state.blue_defect[state.outer_t].sum()),
+        )
+        ax2.text(
+            0.0,
+            0.05,
+            "Red Total: %s"
+            % (
+                state.red_defect[state.outer_t].sum()
+                + state.red_coop[state.outer_t].sum()
+            ),
+        )
+        ax2.text(
+            0.6,
+            0.05,
+            "Blue Total: %s"
+            % (
+                state.blue_defect[state.outer_t].sum()
+                + state.blue_coop[state.outer_t].sum()
+            ),
+        )
+        ax2.axis("off")
+        canvas.draw()
+        image = Image.frombytes(
+            "RGB",
+            fig.canvas.get_width_height(),
+            fig.canvas.tostring_rgb(),
+        )
+        return image
+
+
+if __name__ == "__main__":
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True, False)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    rng = jax.random.PRNGKey(0)
+    pics = []
+
+    for _ in range(16):
+        rng, rng1, rng2 = jax.random.split(rng, 3)
+        a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
+        a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
+        t1, t2 = env.step((a1 * action, a2 * action))
+        img = env.render(env.state)
+        pics.append(img)
+
+    pics[0].save(
+        "test1.gif",
+        format="gif",
+        save_all=True,
+        append_images=pics[1:],
+        duration=300,
+        loop=0,
+    )
