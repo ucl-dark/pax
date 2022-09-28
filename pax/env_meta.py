@@ -188,7 +188,6 @@ class CoinGame:
         num_steps: int,
         seed: int,
         cnn: bool,
-        eval: bool,
     ):
 
         num_episodes = int(num_steps / inner_ep_length)
