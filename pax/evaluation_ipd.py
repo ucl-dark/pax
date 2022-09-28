@@ -174,6 +174,8 @@ class EvalRunnerIPD:
             mean_cooperation_prob = jnp.zeros(
                 shape=(num_seeds, env.num_trials, 5)
             )
+            all_mean_rewards_p1 = jnp.zeros(shape=(num_seeds,))
+            all_mean_rewards_p2 = jnp.zeros(shape=(num_seeds,))
 
         for opp_i in range(num_seeds):
             rng, rng_run = jax.random.split(rng)
@@ -258,7 +260,6 @@ class EvalRunnerIPD:
                 "--------------------------------------------------------------------------"
             )
 
-            inner_steps = 0
             for out_step in range(env.num_trials):
                 rewards_trial_mean_p1 = traj_1.rewards[out_step].mean()
                 rewards_trial_mean_p2 = traj_2.rewards[out_step].mean()
@@ -329,24 +330,31 @@ class EvalRunnerIPD:
                         }
                     )
 
-                for in_step in range(env.inner_episode_length):
-                    rewards_step_p1 = traj_1.rewards[out_step, in_step]
-                    rewards_step_p2 = traj_2.rewards[out_step, in_step]
-                    if watchers:
-                        wandb.log(
-                            {
-                                "eval/timestep": inner_steps + 1,
-                                f"eval/reward_step/player_1_opp_{opp_i+1}": rewards_step_p1,
-                                f"eval/reward_step/player_2_opp_{opp_i+1}": rewards_step_p2,
-                            }
-                        )
-                    inner_steps += 1
+                # Remove inner step
+                # for in_step in range(env.inner_episode_length):
+                #     rewards_step_p1 = traj_1.rewards[out_step, in_step]
+                #     rewards_step_p2 = traj_2.rewards[out_step, in_step]
+                #     if watchers:
+                #         wandb.log(
+                #             {
+                #                 "eval/timestep": inner_steps + 1,
+                #                 f"eval/reward_step/player_1_opp_{opp_i+1}": rewards_step_p1,
+                #                 f"eval/reward_step/player_2_opp_{opp_i+1}": rewards_step_p2,
+                #             }
+                #         )
+                #     inner_steps += 1
 
                 mean_rewards_p1 = mean_rewards_p1.at[opp_i, out_step].set(
                     rewards_trial_mean_p1
                 )  # jnp.zeros(shape=(num_iters, env.num_trials))
                 mean_rewards_p2 = mean_rewards_p2.at[opp_i, out_step].set(
                     rewards_trial_mean_p2
+                )
+                all_mean_rewards_p1 = all_mean_rewards_p1.at[opp_i].set(
+                    rewards_0
+                )
+                all_mean_rewards_p2 = all_mean_rewards_p2.at[opp_i].set(
+                    rewards_1
                 )
                 # TODO: Remove when you move the number of iterations outside
                 # of the eval loop into experiments.py
@@ -410,6 +418,24 @@ class EvalRunnerIPD:
                         ),
                     }
                 )
+
+        wandb.log(
+            {
+                "eval/meta_episode": 1,
+                "eval/mean_reward_over_seeds/p1": mean_rewards_p1.mean(),
+                "eval/mean_reward_over_seeds/p2": mean_rewards_p2.mean(),
+                "eval/median_reward_over_seeds/p1": jnp.median(
+                    mean_rewards_p1.reshape(mean_rewards_p1.shape[0], -1).mean(
+                        axis=1
+                    )
+                ),
+                "eval/median_reward_over_seeds/p2": jnp.median(
+                    mean_rewards_p2.reshape(mean_rewards_p2.shape[0], -1).mean(
+                        axis=1
+                    )
+                ),
+            }
+        )
         for out_step in range(env.num_trials):
             if watchers:
                 wandb.log(
