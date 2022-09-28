@@ -1,4 +1,5 @@
 from functools import partial
+from symbol import trailer
 from typing import NamedTuple
 
 import chex
@@ -417,16 +418,20 @@ def ipd_visitation(
 
 
 def cg_visitation(env_state: NamedTuple) -> dict:
-    # env state : [num_opps x num_envs, num_episodes]
+    # env state : [num_opps, num_envs, num_episodes]
     env_state = jax.tree_util.tree_map(
         lambda x: x.reshape(-1, x.shape[-1]), env_state
     )
+
     total_1 = env_state.red_coop + env_state.red_defect
     total_2 = env_state.blue_coop + env_state.blue_defect
 
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
 
+    prob_coop_1 = jnp.nanmean(env_state.coop1 / env_state.counter, axis=0)
+    prob_coop_2 = jnp.nanmean(env_state.coop2 / env_state.counter, axis=0)
+    count = jnp.nanmean(env_state.counter, axis=0)
     return {
         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
@@ -438,4 +443,40 @@ def cg_visitation(env_state: NamedTuple) -> dict:
         "final_prob_coop/2": jnp.nanmean(prob_2, axis=0)[-1],  # [1]
         "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
         "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
+        "cooperation_probability/1/SS": prob_coop_1[0],
+        "cooperation_probability/1/CC": prob_coop_1[1],
+        "cooperation_probability/1/CD": prob_coop_1[2],
+        "cooperation_probability/1/DC": prob_coop_1[3],
+        "cooperation_probability/1/DD": prob_coop_1[4],
+        "cooperation_probability/1/SC": prob_coop_1[5],
+        "cooperation_probability/1/SD": prob_coop_1[6],
+        "cooperation_probability/1/CS": prob_coop_1[7],
+        "cooperation_probability/1/DS": prob_coop_1[8],
+        "cooperation_probability/2/SS": prob_coop_2[0],
+        "cooperation_probability/2/CC": prob_coop_2[1],
+        "cooperation_probability/2/CD": prob_coop_2[2],
+        "cooperation_probability/2/DC": prob_coop_2[3],
+        "cooperation_probability/2/DD": prob_coop_2[4],
+        "cooperation_probability/2/SC": prob_coop_2[5],
+        "cooperation_probability/2/SD": prob_coop_2[6],
+        "cooperation_probability/2/CS": prob_coop_2[7],
+        "cooperation_probability/2/DS": prob_coop_2[8],
+        "state_visitation/SS": count[0],
+        "state_visitation/CC": count[1],
+        "state_visitation/CD": count[2],
+        "state_visitation/DC": count[3],
+        "state_visitation/DD": count[4],
+        "state_visitation/SC": count[5],
+        "state_visitation/SD": count[6],
+        "state_visitation/CS": count[7],
+        "state_visitation/DS": count[8],
+        "state_visitation2/SS": count[0],
+        "state_visitation2/CC": count[1],
+        "state_visitation2/CD": count[2],
+        "state_visitation2/DC": count[3],
+        "state_visitation2/DD": count[4],
+        "state_visitation2/SC": count[5],
+        "state_visitation2/SD": count[6],
+        "state_visitation2/CS": count[7],
+        "state_visitation2/DS": count[8],
     }
