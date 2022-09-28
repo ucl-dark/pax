@@ -429,8 +429,8 @@ def cg_visitation(env_state: NamedTuple) -> dict:
     prob_1 = env_state.red_coop / total_1
     prob_2 = env_state.blue_coop / total_2
 
-    prob_coop_1 = env_state.coop1 / env_state.counter
-    prob_coop_2 = env_state.coop2 / env_state.counter
+    prob_coop_1 = jnp.nanmean(env_state.coop1 / env_state.counter, axis=0)
+    prob_coop_2 = jnp.nanmean(env_state.coop2 / env_state.counter, axis=0)
     return {
         "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
         "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
