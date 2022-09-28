@@ -157,6 +157,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
+            egocentric=args.egocentric,
         )
         test_env = CoinGame(
             1,
@@ -164,6 +165,7 @@ def env_setup(args, logger=None):
             num_steps=args.num_steps,
             seed=args.seed,
             cnn=args.ppo.with_cnn,
+            egocentric=args.egocentric,
         )
         if logger:
             logger.info(
@@ -314,6 +316,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                egocentric=args.egocentric,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -340,6 +343,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                egocentric=args.egocentric,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -367,6 +371,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 False,
+                egocentric=args.egocentric,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -395,6 +400,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 False,
+                egocentric=args.egocentric,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -438,6 +444,7 @@ def agent_setup(args, logger):
                 args.num_steps,
                 0,
                 args.ppo.with_cnn,
+                egocentric=args.egocentric,
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
@@ -482,6 +489,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
+                    egocentric=args.egocentric,
                 )
                 .action_spec()
                 .num_values
@@ -509,6 +517,7 @@ def agent_setup(args, logger):
                     args.num_steps,
                     0,
                     args.ppo.with_cnn,
+                    egocentric=args.egocentric,
                 )
                 .action_spec()
                 .num_values
