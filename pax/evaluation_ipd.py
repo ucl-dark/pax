@@ -55,6 +55,7 @@ class EvalRunnerIPD:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
 
+    # flake8: noqa: C901
     def eval_loop(self, env, agents, num_episodes, watchers):
         """Run training of agents in environment"""
 
@@ -110,13 +111,13 @@ class EvalRunnerIPD:
                 traj2,
             )
 
-        def _outer_rollout(carry, unused):
+        def _outer_rollout_fixed(carry, unused):
             """Runner for trial"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
-                carry,
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
                 length=env.inner_episode_length,
             )
@@ -124,15 +125,42 @@ class EvalRunnerIPD:
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
-            # do second agent update
-            final_t2 = t2._replace(
-                step_type=2 * jnp.ones_like(vals[1].step_type)
+            # MFOS has to takes a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+
+            return (
+                t1,
+                t2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+            ), trajectories
+
+        def _outer_rollout_training(carry, unused):
+            """Runner for trial"""
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                (t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=env.inner_episode_length,
             )
+
+            # update second agent
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # MFOS has to takes a meta-action for each episode
             if self.args.agent1 == "MFOS":
                 a1_mem = a1_mem._replace(th=a1_mem.curr_th)
 
+            # do second agent update
+            final_t2 = t2._replace(
+                step_type=2 * jnp.ones_like(vals[1].step_type)
+            )
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1], final_t2, a2_state, a2_mem
             )
@@ -198,29 +226,30 @@ class EvalRunnerIPD:
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
 
+            training_trials = 0.5 * env.num_trials
             # run trials
-            vals, stack = jax.lax.scan(
-                _outer_rollout,
+            vals, stack1 = jax.lax.scan(
+                _outer_rollout_training,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=training_trials,
             )
 
-            traj_1, traj_2, a2_metrics = stack
-            # update outer agent
-            final_t1 = vals[0]._replace(
-                step_type=2 * jnp.ones_like(vals[0].step_type)
+            # hardstop part
+            vals, stack2 = jax.lax.scan(
+                _outer_rollout_fixed,
+                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                None,
+                length=training_trials,
             )
-            a1_state = vals[2]
-            a1_mem = vals[3]
+
+            traj11, traj12, a2_metrics = stack1
+            traj21, traj22 = stack2
+            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             a1_mem = agent1.batch_reset(a1_mem, True)
 
-            # update second agent
-            a2_state, a2_mem = vals[4], vals[5]
-
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-            traj_1, traj_2, a2_metrics = stack
 
             # logging
             if self.args.env_type == "coin_game":
@@ -232,8 +261,8 @@ class EvalRunnerIPD:
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
             if self.args.env_type == "ipd":
-                rewards_0 = stack[0].rewards.mean()
-                rewards_1 = stack[1].rewards.mean()
+                rewards_0 = traj11.rewards.mean() + traj21.rewards.mean()
+                rewards_1 = traj12.rewards.mean() + traj22.rewards.mean()
 
             elif self.args.env_type in [
                 "meta",
@@ -243,15 +272,21 @@ class EvalRunnerIPD:
                     step_type=2 * jnp.ones_like(t1.step_type)
                 )
                 env_stats = jax.tree_util.tree_map(
-                    lambda x: x.item(),
+                    lambda x: x.mean(),
                     self.ipd_stats(
-                        traj_1.observations,
-                        traj_1.actions,
+                        jnp.concatenate(
+                            [traj11.observations, traj21.observations]
+                        ),
+                        jnp.concatenate([traj11.actions, traj21.actions]),
                         final_t1.observation,
                     ),
                 )
-                rewards_0 = traj_1.rewards.mean()
-                rewards_1 = traj_2.rewards.mean()
+                rewards_0 = jnp.concatenate(
+                    [traj11.rewards, traj21.rewards]
+                ).mean()
+                rewards_1 = jnp.concatenate(
+                    [traj12.rewards, traj22.rewards]
+                ).mean()
             else:
                 env_stats = {}
             print(f"Summary | Opponent: {opp_i+1}")
@@ -335,20 +370,6 @@ class EvalRunnerIPD:
                             ],
                         }
                     )
-
-                # Remove inner step
-                # for in_step in range(env.inner_episode_length):
-                #     rewards_step_p1 = traj_1.rewards[out_step, in_step]
-                #     rewards_step_p2 = traj_2.rewards[out_step, in_step]
-                #     if watchers:
-                #         wandb.log(
-                #             {
-                #                 "eval/timestep": inner_steps + 1,
-                #                 f"eval/reward_step/player_1_opp_{opp_i+1}": rewards_step_p1,
-                #                 f"eval/reward_step/player_2_opp_{opp_i+1}": rewards_step_p2,
-                #             }
-                #         )
-                #     inner_steps += 1
 
                 mean_rewards_p1 = mean_rewards_p1.at[opp_i, out_step].set(
                     rewards_trial_mean_p1
