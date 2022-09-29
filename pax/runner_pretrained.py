@@ -163,15 +163,17 @@ class RunnerPretrained:
                 name=self.model_path, run_path=self.run_path, root=os.getcwd()
             )
         pretrained_params = load(self.model_path)
-        pretrained_params = self.param_reshaper.reshape_single_net(
-            pretrained_params
-        )
+        # pretrained_params = self.param_reshaper.reshape_single_net(
+        #     pretrained_params
+        # )
         a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
         # run actual loop
+        cum_reward_0 = 0
+        cum_reward_1 = 0
         for i in range(num_episodes):
             rng, rng_run = jax.random.split(rng)
             t_init, env_state = env.runner_reset(
@@ -223,6 +225,11 @@ class RunnerPretrained:
                     print(f"Saving iteration {i} locally")
 
             # logging
+            if self.args.env_type == "coin_game":
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                cum_reward_0 += rewards_0
+                cum_reward_1 += rewards_1
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
@@ -256,7 +263,9 @@ class RunnerPretrained:
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
                 )
-                print()
+                print(
+                    f"Cum. Reward: {cum_reward_0 / (i+1), cum_reward_1 / (i+1)}"
+                )
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
@@ -277,6 +286,10 @@ class RunnerPretrained:
                             "train/episode_reward/player_2": float(
                                 rewards_1.mean()
                             ),
+                            "train/cum_reward/player_1": cum_reward_0
+                            / (i + 1),
+                            "train/cum_reward/player_2": cum_reward_1
+                            / (i + 1),
                         }
                         | env_stats,
                     )
