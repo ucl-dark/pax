@@ -49,8 +49,4 @@ ppo:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: mp
-  group: 'PPO-vs-${agent2}-mp-parity'
-  name: run-seed-${seed}
-  log: True
+  log: False

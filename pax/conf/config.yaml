@@ -11,7 +11,7 @@ hydra:
 # Global variables 
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
-save: True
+save: False
 save_interval: 100
 debug: False
 
@@ -49,8 +49,6 @@ eval_every: 1.0e8 # timesteps
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: ipd
-  group: ??
-  name: run-seed-${seed}
-  log: True
+  log: False
+  name: 'test'
+  project: iclr_test_pax

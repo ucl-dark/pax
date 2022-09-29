@@ -49,8 +49,4 @@ ppo:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: ipd
-  group: 'Tabular-vs-${agent2}-${game}-parity'
-  name: run-seed-${seed}
-  log: True
+  log: False

@@ -94,10 +94,6 @@ es:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: mp
-  group: 'GS-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-pop-size-${popsize}
   log: False
 
 
