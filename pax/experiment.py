@@ -197,6 +197,7 @@ def runner_setup(args, agents, save_dir, logger):
     if (
         args.agent1 == "PPO_memory_pretrained"
         or args.agent1 == "PPO_pretrained"
+        or args.agent1 == "MFOS_pretrained"
     ):
         logger.info("Training with Runner")
         agent1, _ = agents.agents
@@ -544,6 +545,7 @@ def agent_setup(args, logger):
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
+        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -641,6 +643,7 @@ def watcher_setup(args, logger):
         "EvilGreedy": dumb_log,
         "RandomGreedy": dumb_log,
         "MFOS": dumb_log,
+        "MFOS_pretrained": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
         "PPO_pretrained": ppo_log,
