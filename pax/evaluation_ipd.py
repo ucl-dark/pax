@@ -301,12 +301,21 @@ class EvalRunnerIPD:
                 "--------------------------------------------------------------------------"
             )
 
+            traj1_reward = jnp.concatenate([traj11.rewards, traj21.rewards])
+            traj2_reward = jnp.concatenate([traj12.rewards, traj22.rewards])
+
+            traj1_obs = jnp.concatenate(
+                [traj11.observations, traj21.observations]
+            )
+
+            traj1_actions = jnp.concatenate([traj11.actions, traj21.actions])
+
             for out_step in range(env.num_trials):
-                rewards_trial_mean_p1 = traj_1.rewards[out_step].mean()
-                rewards_trial_mean_p2 = traj_2.rewards[out_step].mean()
+                rewards_trial_mean_p1 = traj1_reward[out_step].mean()
+                rewards_trial_mean_p2 = traj2_reward[out_step].mean()
                 trial_env_stats = self.ipd_stats(
-                    traj_1.observations[out_step],
-                    traj_1.actions[out_step],
+                    traj1_obs[out_step],
+                    traj1_actions[out_step],
                     final_t1.observation[out_step],
                 )
 
