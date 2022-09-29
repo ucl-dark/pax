@@ -62,8 +62,13 @@ num_seeds: 20
 # run_path: ucl-dark/ipd/16wzxeb6
 # model_path: exp/GS-PPO-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_16.09.01.274669/generation_4900
 # GS vs. Tabular trained on seed = 4
-run_path: ucl-dark/ipd/3dzkof3f
-model_path:  exp/GS-PPO-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_16.41.50.643263/generation_4900
+# run_path: ucl-dark/ipd/3dzkof3f
+# model_path:  exp/GS-PPO-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_16.41.50.643263/generation_4900
+
+
+# hard stop 
+run_path: ucl-dark/ipd/2kyx0680
+model_path: exp/EARL-PPO-vs-Tabular/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-28_14.35.25.775807/generation_4900
 
 # PPO agent parameters
 ppo:

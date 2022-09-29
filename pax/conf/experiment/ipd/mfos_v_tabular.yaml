@@ -29,8 +29,8 @@ num_devices: 1
 # Evaluation 
 num_seeds: 20
 # MFOS vs. Tabular trained on seed = 0
-run_path: ucl-dark/ipd/1r9txdso
-model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400
+# run_path: ucl-dark/ipd/xyq4feoj
+# model_path:  exp/MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-28_22.45.26.138403/generation_4900
 # MFOS vs. Tabular trained on seed = 1
 # run_path: ucl-dark/ipd/13srlkhp
 # model_path: exp/GS-MFOS-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_20.33.11.352762/generation_4300
@@ -44,6 +44,9 @@ model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20
 # run_path: ucl-dark/ipd/26cqaqyc
 # model_path:  exp/GS-MFOS-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_20.38.01.382774/generation_4400
 
+# hardstop 
+run_path: ucl-dark/ipd/32k6kn5v
+model_path: exp/MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-28_14.54.58.821778/generation_4900
 # PPO agent parameters
 ppo:
   num_minibatches: 4
