@@ -164,10 +164,8 @@ class EvalRunnerIPD:
             wandb.restore(
                 name=self.model_path, run_path=self.run_path, root=os.getcwd()
             )
-        if self.args.agent1 == "MFOS":
-            params = self.param_reshaper.reshape_single_net(
-                load(self.model_path)
-            )
+        # if self.args.agent1 == "MFOS":
+        params = load(self.model_path)
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
