@@ -1,5 +1,5 @@
 # Pax
-Pax is a JAX Batched Environment for sequential matrix games (such as social dilemmas).
+Pax is a JAX Batched Environment for social dilemma games. It supports both sequential and Meta-RL agents.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
