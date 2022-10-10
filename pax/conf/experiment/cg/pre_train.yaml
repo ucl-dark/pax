@@ -61,8 +61,29 @@ num_seeds: 10
 # model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0/2022-09-19_10.25.28.808811/generation_2900
 
 # {NEW} EARL pretrained against PPO RNN
-run_path: ucl-dark/cg/v348mp4r
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+# run_path: ucl-dark/cg/v348mp4r
+# model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+
+# FINAL EARL pre-trained against PPO RNN 
+# run_path: ucl-dark/cg/z0ckvwtf
+# model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
+
+# FINAL EARL pre-trained against Tabular
+# run_path: ucl-dark/cg/2dxz9fup
+# model_path: exp/EARL-PPO_memory-vs-Tabular/run-seed-0/2022-09-28_01.59.11.312943/generation_50
+
+# FINAL MFOS pre-trained against PPO RNN 
+# run_path: ucl-dark/cg/34iaxeps
+# model_path: exp/MFOS-vs-PPO_memory/run-seed-0/2022-09-28_14.23.22.065961/generation_570
+
+# FINAL GS trained against PPO RNN 
+# run_path: ucl-dark/cg/2qrono7s
+# model_path:  exp/GS-PPO-vs-PPO_memory/run-seed-0/2022-09-28_01.51.37.913074/generation_1350
+
+# FINAL GS traind against Tab 
+run_path: ucl-dark/cg/2xc30qob
+model_path: exp/GS-PPO-vs-Tabular/run-seed-0/2022-09-28_02.01.03.381847/generation_50
+
 
 # PPO agent parameters
 ppo:
