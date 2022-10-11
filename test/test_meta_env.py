@@ -1,11 +1,8 @@
-from multiprocessing.spawn import old_main_modules
 import jax.numpy as jnp
 import pytest
 
 from pax.env_meta import CoinGame, CoinGameState, MetaFiniteGame
 from pax.strategies import TitForTat
-
-from pax.env_inner import InfiniteMatrixGame
 
 # payoff matrices for four games
 ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]
@@ -179,7 +176,7 @@ def test_reset():
 
 def test_coingame_shapes():
     batch_size = 2
-    env = CoinGame(batch_size, 8, 16, 0, False)
+    env = CoinGame(batch_size, 8, 16, 0, False, True)
     action = jnp.ones(batch_size, dtype=int)
 
     t1, t2 = env.reset()
@@ -202,7 +199,7 @@ def test_coingame_shapes():
 
 def test_coingame_move():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
@@ -217,6 +214,10 @@ def test_coingame_move():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     t1, t2 = env.step((action, action))
@@ -238,7 +239,7 @@ def test_coingame_move():
 
 def test_coingame_egocentric_colors():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -255,6 +256,10 @@ def test_coingame_egocentric_colors():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     for _ in range(7):
@@ -277,7 +282,7 @@ def test_coingame_egocentric_colors():
 
 def test_coingame_egocentric_pos():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -293,6 +298,10 @@ def test_coingame_egocentric_pos():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
     # it would be nice to have a stay action here lol
     t1, t2 = env.step((action, action))
@@ -329,7 +338,7 @@ def test_coingame_egocentric_pos():
 
 def test_coingame_stay():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     t1, t2 = env.reset()
 
     stay = 4 * jnp.ones(bs, dtype=int)
@@ -345,6 +354,10 @@ def test_coingame_stay():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
     env.state = _state
 
@@ -356,7 +369,7 @@ def test_coingame_stay():
 
 def test_coingame_egocentric():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
@@ -371,6 +384,10 @@ def test_coingame_egocentric():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     for _ in range(7):
