@@ -254,6 +254,7 @@ class CoinGame:
             outer_t = 0
 
             zero_stats = jnp.zeros((num_episodes), dtype=jnp.int8)
+            state_stats = jnp.zeros(10)
 
             state = CoinGameState(
                 all_pos[0, :],
@@ -267,9 +268,9 @@ class CoinGame:
                 zero_stats,
                 zero_stats,
                 zero_stats,
-                jnp.zeros(10),
-                jnp.zeros(10),
-                jnp.zeros(10),
+                state_stats,
+                state_stats,
+                state_stats,
                 jnp.zeros(2),
             )
             obs1, obs2 = _state_to_obs(state)
