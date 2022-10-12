@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import CoinGame, CoinGameState, MetaFiniteGame
+from pax.env_meta import CoinGame, CoinGameState, IteratedMatrixGame
 from pax.strategies import TitForTat
 
 # payoff matrices for four games
@@ -15,7 +15,7 @@ test_payoffs = [ipd, stag, sexes, chicken]
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
 
@@ -69,7 +69,7 @@ testdata = [
 def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     num_envs = 3
     all_ones = jnp.ones((num_envs,))
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     env.reset()
 
     action_1, action_2 = actions
@@ -90,7 +90,7 @@ def test_mixed_batched_outcomes() -> None:
 def test_tit_for_tat_match() -> None:
     num_envs = 5
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat(num_envs)
@@ -108,7 +108,7 @@ def test_longer_game() -> None:
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     num_steps = 50
     num_inner_steps = 2
-    env = MetaFiniteGame(num_envs, payoff, num_inner_steps, num_steps)
+    env = IteratedMatrixGame(num_envs, payoff, num_inner_steps, num_steps)
     t_0, t_1 = env.reset()
 
     agent = TitForTat(num_envs)
@@ -130,7 +130,7 @@ def test_longer_game() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 5)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 5)
     action = jnp.ones((num_envs,))
 
     # check first
@@ -156,7 +156,7 @@ def test_done():
 def test_reset():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     state = jnp.ones((num_envs,))
 
     env.reset()
