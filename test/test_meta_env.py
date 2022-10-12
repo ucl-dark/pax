@@ -398,3 +398,93 @@ def test_coingame_egocentric():
         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+    # check negative case
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[2, 2]]),
+        red_coin_pos=jnp.array([[0, 1]]),
+        blue_coin_pos=jnp.array([[0, 1]]),
+        key=env.state.key,
+        inner_t=0 * env.state.inner_t,
+        outer_t=0 * env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
+    )
+
+    t1, t2 = env.step((5 * action, 5 * action))
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+
+    assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
+    assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
+    assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
+    assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
+
+
+def test_coingame_non_egocentric():
+    bs = 1
+    env = CoinGame(bs, 8, 16, 0, True, False)
+    action = jnp.ones(bs, dtype=int)
+    t1, t2 = env.reset()
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[2, 2]]),
+        red_coin_pos=jnp.array([[1, 1]]),
+        blue_coin_pos=jnp.array([[1, 1]]),
+        key=env.state.key,
+        inner_t=env.state.inner_t,
+        outer_t=env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
+    )
+
+    t1, t2 = env.step((5 * action, 5 * action))
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+
+    expected_obs1 = jnp.array(
+        [
+            [[1, 0, 0], [0, 0, 0], [0, 0, 0]],  # agent
+            [[0, 0, 0], [0, 0, 0], [0, 0, 1]],  # other agent
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent coin
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # other coin
+        ],
+        dtype=jnp.int8,
+    )
+    # channel last
+    expected_obs1 = jnp.transpose(expected_obs1, (1, 2, 0))
+
+    assert (obs1[:, :, 0] == expected_obs1[:, :, 0]).all()
+    assert (expected_obs1 == obs1).all()
+
+    expected_obs2 = jnp.array(
+        [
+            [[0, 0, 0], [0, 0, 0], [0, 0, 1]],  # agent
+            [[1, 0, 0], [0, 0, 0], [0, 0, 0]],  # other agent
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # agent coin
+            [[0, 0, 0], [0, 1, 0], [0, 0, 0]],  # other coin
+        ],
+        dtype=jnp.int8,
+    )
+    expected_obs2 = jnp.transpose(expected_obs2, (1, 2, 0))
+    assert (expected_obs2 == obs2).all()
+
+    for _ in range(6):
+        t1, t2 = env.step((action, action))
+        obs1, obs2 = t1.observation[0], t2.observation[0]
+        # remove batch
+        assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+        assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+        assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+        assert (obs1[:, :, 3] == obs2[:, :, 2]).all()

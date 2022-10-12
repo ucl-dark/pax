@@ -1,9 +1,8 @@
 from typing import NamedTuple, Tuple
-import matplotlib.pyplot as plt
 
 import jax
 import jax.numpy as jnp
-from dm_env import Environment, TimeStep, specs, termination, transition
+from dm_env import TimeStep, specs
 
 
 class MetaFiniteGame:
