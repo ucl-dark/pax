@@ -81,17 +81,17 @@ def test_grim():
 
 
 def test_naive_alt():
-    batch_number = 1
+    bs = 1
     env = InfiniteMatrixGame(
-        num_envs=batch_number,
+        num_envs=bs,
         payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=10, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=10, num_envs=bs, player_id=0)
 
-    alt_action = 20 * jnp.ones((batch_number, 5))
+    alt_action = 20 * jnp.ones((bs, 5))
     timestep, _ = env.reset()
 
     for _ in range(500):
@@ -106,17 +106,17 @@ def test_naive_alt():
 
 
 def test_naive_defect():
-    batch_number = 5
+    bs = 5
     env = InfiniteMatrixGame(
-        num_envs=batch_number,
+        num_envs=bs,
         payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=bs, player_id=0)
 
-    defect_action = -20 * jnp.ones((batch_number, 5))
+    defect_action = -20 * jnp.ones((bs, 5))
     timestep, _ = env.reset()
 
     for _ in range(50):
@@ -132,17 +132,17 @@ def test_naive_defect():
 
 
 def test_naive_tft():
-    batch_number = 1
+    bs = 1
     env = InfiniteMatrixGame(
-        num_envs=batch_number,
+        num_envs=bs,
         payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=bs, player_id=0)
     tft_action = jnp.tile(
-        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
+        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (bs, 1)
     )
     timestep, _ = env.reset()
 
@@ -158,18 +158,18 @@ def test_naive_tft():
 
 
 def test_naive_tft_as_second_player():
-    batch_number = 1
+    bs = 1
     env = InfiniteMatrixGame(
-        num_envs=batch_number,
+        num_envs=bs,
         payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
         episode_length=jnp.inf,
         gamma=0.96,
         seed=0,
     )
-    agent = NaiveExact(action_dim=5, env=env, lr=1, seed=0, player_id=0)
+    agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=bs, player_id=0)
 
     tft_action = jnp.tile(
-        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_number, 1)
+        20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (bs, 1)
     )
     _, timestep = env.reset()
 
@@ -185,7 +185,7 @@ def test_naive_tft_as_second_player():
 
 def test_coin_chaser():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     t1, t2 = env.reset()
     env.state = CoinGameState(
         red_pos=jnp.array([[0, 0]]),
@@ -199,6 +199,10 @@ def test_coin_chaser():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     #  r 0 rc

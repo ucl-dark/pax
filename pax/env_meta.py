@@ -1,9 +1,8 @@
 from typing import NamedTuple, Tuple
-import matplotlib.pyplot as plt
 
 import jax
 import jax.numpy as jnp
-from dm_env import Environment, TimeStep, specs, termination, transition
+from dm_env import TimeStep, specs
 
 
 class MetaFiniteGame:
@@ -188,9 +187,32 @@ class CoinGame:
         num_steps: int,
         seed: int,
         cnn: bool,
+        egocentric: bool,
     ):
 
         num_episodes = int(num_steps / inner_ep_length)
+
+        def _abs_position(state: CoinGameState) -> jnp.ndarray:
+            obs1 = jnp.zeros((3, 3, 4), dtype=jnp.int8)
+            obs2 = jnp.zeros((3, 3, 4), dtype=jnp.int8)
+
+            # obs channels are [red_player, blue_player, red_coin, blue_coin]
+            obs1 = obs1.at[state.red_pos[0], state.red_pos[1], 0].set(1)
+            obs1 = obs1.at[state.blue_pos[0], state.blue_pos[1], 1].set(1)
+            obs1 = obs1.at[
+                state.red_coin_pos[0], state.red_coin_pos[1], 2
+            ].set(1)
+            obs1 = obs1.at[
+                state.blue_coin_pos[0], state.blue_coin_pos[1], 3
+            ].set(1)
+
+            # each agent has egotistic view (so thinks they are red)
+            obs2 = jnp.stack(
+                [obs1[:, :, 1], obs1[:, :, 0], obs1[:, :, 3], obs1[:, :, 2]],
+                axis=-1,
+            )
+
+            return obs1, obs2
 
         def _relative_position(state: CoinGameState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -223,17 +245,20 @@ class CoinGame:
             return obs
 
         def _state_to_obs(state: CoinGameState) -> jnp.ndarray:
-            obs1 = _relative_position(state)
+            if egocentric:
+                obs1 = _relative_position(state)
 
-            # flip red and blue coins for second agent
-            obs2 = _relative_position(
-                state._replace(
-                    red_pos=state.blue_pos,
-                    blue_pos=state.red_pos,
-                    red_coin_pos=state.blue_coin_pos,
-                    blue_coin_pos=state.red_coin_pos,
+                # flip red and blue coins for second agent
+                obs2 = _relative_position(
+                    state._replace(
+                        red_pos=state.blue_pos,
+                        blue_pos=state.red_pos,
+                        red_coin_pos=state.blue_coin_pos,
+                        blue_coin_pos=state.red_coin_pos,
+                    )
                 )
-            )
+            else:
+                obs1, obs2 = _abs_position(state)
 
             if not self.cnn:
                 return obs1.flatten(), obs2.flatten()
@@ -252,7 +277,8 @@ class CoinGame:
             inner_t = 0
             outer_t = 0
 
-            zero_stats = jnp.zeros((num_episodes), dtype=jnp.int8)
+            ep_stats = jnp.zeros((num_episodes), dtype=jnp.int8)
+            state_stats = jnp.zeros(9)
 
             state = CoinGameState(
                 all_pos[0, :],
@@ -262,13 +288,13 @@ class CoinGame:
                 key,
                 inner_t,
                 outer_t,
-                zero_stats,
-                zero_stats,
-                zero_stats,
-                zero_stats,
-                jnp.zeros(9),
-                jnp.zeros(9),
-                jnp.zeros(9),
+                ep_stats,
+                ep_stats,
+                ep_stats,
+                ep_stats,
+                state_stats,
+                state_stats,
+                state_stats,
                 jnp.zeros(2),
             )
             obs1, obs2 = _state_to_obs(state)
