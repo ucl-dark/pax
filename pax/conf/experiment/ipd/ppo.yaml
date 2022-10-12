@@ -45,11 +45,12 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
+  hidden_size: 16
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'PPO-vs-${agent2}-${game}-parity'
+  group: 'PPO-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

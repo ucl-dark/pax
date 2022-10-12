@@ -50,6 +50,6 @@ ppo:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'Tabular-vs-${agent2}-${game}-parity'
+  group: 'Tabular-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

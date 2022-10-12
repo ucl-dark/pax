@@ -41,6 +41,7 @@ ppo:
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: True
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:

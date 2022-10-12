@@ -188,7 +188,7 @@ class EvalRunnerCG:
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
             traj_1, traj_2, a2_metrics = stack
 
-            if self.args.env_type == "coin_game":
+            if self.args.env_id == "coin_game":
                 env_stats = self.cg_stats(env_state)
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()

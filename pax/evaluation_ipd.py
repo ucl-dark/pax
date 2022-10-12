@@ -222,7 +222,7 @@ class EvalRunnerIPD:
             traj_1, traj_2, a2_metrics = stack
 
             # logging
-            if self.args.env_type == "coin_game":
+            if self.args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.item(),
                     self.cg_stats(env_state, env.num_trials),

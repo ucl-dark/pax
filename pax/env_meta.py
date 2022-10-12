@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from dm_env import TimeStep, specs
 
 
-class MetaFiniteGame:
+class IteratedMatrixGame:
     def __init__(
         self,
         num_envs: int,

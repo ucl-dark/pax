@@ -40,6 +40,7 @@ ppo:
   learning_rate: 4e-3
   adam_epsilon: 1e-5
   with_memory: False
+  hidden_size: 16
 
 # Naive Learner parameters
 naive:
@@ -53,6 +54,6 @@ naive:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-parity'
+  group: '${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
