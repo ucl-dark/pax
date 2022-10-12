@@ -156,7 +156,6 @@ class Runner:
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
-        print(env)
         # run actual loop
         for i in range(num_episodes):
             rng, rng_run = jax.random.split(rng)
@@ -180,7 +179,7 @@ class Runner:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals

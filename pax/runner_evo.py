@@ -174,7 +174,7 @@ class EvoRunner:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             traj_1, traj_2, a2_metrics = stack

@@ -153,15 +153,15 @@ class EvalRunnerCG:
 
         a1_state = a1_state._replace(params=params)
 
-        mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
-        mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
-        mean_coop_prob_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
-        mean_coop_prob_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
+        mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
+        mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
+        mean_coop_prob_p1 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
+        mean_coop_prob_p2 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
         mean_coins_per_episode_p1 = jnp.zeros(
-            shape=(num_seeds, env.num_trials)
+            shape=(num_seeds, env.outer_ep_length)
         )
         mean_coins_per_episode_p2 = jnp.zeros(
-            shape=(num_seeds, env.num_trials)
+            shape=(num_seeds, env.outer_ep_length)
         )
         for i in range(self.num_seeds):
             rng, rng_run = jax.random.split(rng)
@@ -182,7 +182,7 @@ class EvalRunnerCG:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
@@ -245,7 +245,7 @@ class EvalRunnerCG:
             )
 
             # trial rewards
-            for out_step in range(env.num_trials):
+            for out_step in range(env.outer_ep_length):
                 rewards_trial_mean_p1 = (
                     traj_1.rewards[out_step].sum(axis=0).mean()
                 )
@@ -318,7 +318,7 @@ class EvalRunnerCG:
                 wandb.log(wandb_log)
             print()
 
-        for out_step in range(env.num_trials):
+        for out_step in range(env.outer_ep_length):
             if watchers:
                 wandb.log(
                     {

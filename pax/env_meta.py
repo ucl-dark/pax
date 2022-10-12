@@ -87,7 +87,7 @@ class IteratedMatrixGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = int(num_steps / inner_ep_length)
+        self.outer_ep_length = int(num_steps / inner_ep_length)
         self.episode_length = num_steps
         self._reset_next_step = True
 
@@ -101,7 +101,7 @@ class IteratedMatrixGame:
             return self.reset()
 
         output, self.state = self.runner_step(actions, self.state)
-        if (self.state[1] == self.num_trials).all():
+        if (self.state[1] == self.outer_ep_length).all():
             self._reset_next_step = True
             output = (
                 TimeStep(
@@ -515,7 +515,7 @@ class CoinGame:
 
         self.num_envs = num_envs
         self.inner_episode_length = inner_ep_length
-        self.num_trials = num_episodes
+        self.outer_ep_length = num_episodes
         self.episode_length = num_steps
         self.state = CoinGameState(
             0,

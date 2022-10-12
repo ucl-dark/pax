@@ -1,3 +1,4 @@
+from ast import arg
 from datetime import datetime
 from functools import partial
 import logging
@@ -14,7 +15,6 @@ import wandb
 
 
 from pax.env_inner import InfiniteMatrixGame
-from pax.env_inner import SequentialMatrixGame
 from pax.env_meta import CoinGame, IteratedMatrixGame
 from pax.evaluation_ipd import EvalRunnerIPD
 from pax.evaluation_cg import EvalRunnerCG
@@ -88,16 +88,19 @@ def env_setup(args, logger=None):
 
     if args.env_id == "ipd":
         if args.env_type == "sequential":
-            train_env = SequentialMatrixGame(
+
+            train_env = IteratedMatrixGame(
                 args.num_envs,
                 args.payoff,
-                args.num_steps,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
             )
-            test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
-            if logger:
-                logger.info(
-                    f"Env Type: Regular | Episode Length: {args.num_steps}"
-                )
+            test_env = IteratedMatrixGame(
+                1,
+                args.payoff,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+            )
 
         elif args.env_type == "meta":
             train_env = IteratedMatrixGame(
@@ -293,8 +296,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -320,8 +323,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -348,7 +351,7 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
+            dummy_env = IteratedMatrixGame(
                 args.num_envs, args.payoff, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
@@ -377,8 +380,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -421,8 +424,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -469,9 +472,7 @@ def agent_setup(args, logger):
             )
         else:
             num_actions = (
-                SequentialMatrixGame(
-                    args.num_envs, args.payoff, args.num_steps
-                )
+                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
                 .action_spec()
                 .num_values
             )
@@ -497,9 +498,7 @@ def agent_setup(args, logger):
             )
         else:
             num_actions = (
-                SequentialMatrixGame(
-                    args.num_envs, args.payoff, args.num_steps
-                )
+                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
                 .action_spec()
                 .num_values
             )

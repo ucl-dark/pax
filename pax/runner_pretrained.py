@@ -188,7 +188,7 @@ class RunnerPretrained:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             t1, t2, _, a1_mem, a2_state, a2_mem, env_state = vals
