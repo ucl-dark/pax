@@ -178,10 +178,7 @@ class RunnerPretrained:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
+            elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden

@@ -83,43 +83,8 @@ def global_setup(args):
     return save_dir
 
 
-def payoff_setup(args, logger):
-    """Set up payoff"""
-    games = {
-        "ipd": [[-1, -1], [-3, 0], [0, -3], [-2, -2]],
-        "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
-        "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
-        "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
-    }
-    if args.payoff is not None:
-        assert (
-            len(args.payoff) == 4
-        ), f"Expected length 4 but got {len(args.payoff)}"
-        assert (
-            len(args.payoff[0]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[0])}"
-        assert (
-            len(args.payoff[1]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[1])}"
-        assert (
-            len(args.payoff[2]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[2])}"
-        assert (
-            len(args.payoff[3]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[3])}"
-
-        payoff = args.payoff
-        logger.info(f"Game: Custom | payoff: {payoff}")
-
-    else:
-        assert args.game in games, f"{args.game} not in {games.keys()}"
-        args.payoff = games[args.game]
-        logger.info(f"Game: {args.game} | payoff: {args.payoff}")
-
-
 def env_setup(args, logger=None):
     """Set up env variables."""
-    payoff_setup(args, logger)
     if args.env_type == "sequential":
         train_env = SequentialMatrixGame(
             args.num_envs,
