@@ -352,7 +352,7 @@ def agent_setup(args, logger):
             obs_spec = dummy_env.observation_spec().shape
         else:
             dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
