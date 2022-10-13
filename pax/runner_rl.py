@@ -169,10 +169,7 @@ class Runner:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
+            elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
@@ -182,7 +179,7 @@ class Runner:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
@@ -213,7 +210,8 @@ class Runner:
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
-                if self.args.env_type == "coin_game":
+
+                if self.args.env_id == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.mean().item(),
                         self.cg_stats(env_state),

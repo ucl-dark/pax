@@ -1,3 +1,4 @@
+from ast import arg
 from datetime import datetime
 from functools import partial
 import logging
@@ -14,8 +15,7 @@ import wandb
 
 
 from pax.env_inner import InfiniteMatrixGame
-from pax.env_inner import SequentialMatrixGame
-from pax.env_meta import CoinGame, MetaFiniteGame
+from pax.env_meta import CoinGame, IteratedMatrixGame
 from pax.evaluation_ipd import EvalRunnerIPD
 from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
@@ -83,74 +83,70 @@ def global_setup(args):
     return save_dir
 
 
-def payoff_setup(args, logger):
-    """Set up payoff"""
-    games = {
-        "ipd": [[-1, -1], [-3, 0], [0, -3], [-2, -2]],
-        "stag": [[4, 4], [1, 3], [3, 1], [2, 2]],
-        "sexes": [[3, 2], [0, 0], [0, 0], [2, 3]],
-        "chicken": [[0, 0], [-1, 1], [1, -1], [-2, -2]],
-    }
-    if args.payoff is not None:
-        assert (
-            len(args.payoff) == 4
-        ), f"Expected length 4 but got {len(args.payoff)}"
-        assert (
-            len(args.payoff[0]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[0])}"
-        assert (
-            len(args.payoff[1]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[1])}"
-        assert (
-            len(args.payoff[2]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[2])}"
-        assert (
-            len(args.payoff[3]) == 2
-        ), f"Expected length 2 but got {len(args.payoff[3])}"
-
-        payoff = args.payoff
-        logger.info(f"Game: Custom | payoff: {payoff}")
-
-    else:
-        assert args.game in games, f"{args.game} not in {games.keys()}"
-        args.payoff = games[args.game]
-        logger.info(f"Game: {args.game} | payoff: {args.payoff}")
-
-
 def env_setup(args, logger=None):
     """Set up env variables."""
-    payoff_setup(args, logger)
-    if args.env_type == "sequential":
-        train_env = SequentialMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-        )
-        test_env = SequentialMatrixGame(1, args.payoff, args.num_steps)
-        if logger:
-            logger.info(
-                f"Env Type: Regular | Episode Length: {args.num_steps}"
+
+    if args.env_id == "ipd":
+        if args.env_type == "sequential":
+
+            train_env = IteratedMatrixGame(
+                args.num_envs,
+                args.payoff,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+            )
+            test_env = IteratedMatrixGame(
+                1,
+                args.payoff,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
             )
 
-    elif args.env_type == "meta":
-        train_env = MetaFiniteGame(
-            args.num_envs,
-            args.payoff,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-        )
-        test_env = MetaFiniteGame(
-            1,
-            args.payoff,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-        )
-        if logger:
-            if args.evo:
-                logger.info(f"Env Type: Meta | Generations: {args.num_steps}")
-            logger.info(f"Env Type: Meta | Episode Length: {args.num_steps}")
+        elif args.env_type == "meta":
+            train_env = IteratedMatrixGame(
+                args.num_envs,
+                args.payoff,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+            )
+            test_env = IteratedMatrixGame(
+                1,
+                args.payoff,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+            )
+            if logger:
+                if args.evo:
+                    logger.info(
+                        f"Env Type: Meta | Generations: {args.num_steps}"
+                    )
+                logger.info(
+                    f"Env Type: Meta | Episode Length: {args.num_steps}"
+                )
 
-    elif args.env_type == "coin_game":
+        elif args.env_type == "infinite":
+            train_env = InfiniteMatrixGame(
+                args.num_envs,
+                args.payoff,
+                args.num_steps,
+                args.env_discount,
+                args.seed,
+            )
+            test_env = InfiniteMatrixGame(
+                args.num_envs,
+                args.payoff,
+                args.num_steps,
+                args.env_discount,
+                args.seed + 1,
+            )
+            if logger:
+                logger.info(
+                    f"Game Type: Infinite | Inner Discount: {args.env_discount}"
+                )
+        else:
+            raise ValueError(f"Unknown env type {args.env_type}")
+
+    elif args.env_id == "coin_game":
         train_env = CoinGame(
             args.num_envs,
             inner_ep_length=args.num_inner_steps,
@@ -171,35 +167,15 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
-
-    elif args.env_type == "infinite":
-        train_env = InfiniteMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-            args.env_discount,
-            args.seed,
-        )
-        test_env = InfiniteMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-            args.env_discount,
-            args.seed + 1,
-        )
-        if logger:
-            logger.info(
-                f"Game Type: Infinite | Inner Discount: {args.env_discount}"
-            )
-
     return train_env, test_env
 
 
 def runner_setup(args, agents, save_dir, logger):
-    if (
-        args.agent1 == "PPO_memory_pretrained"
-        or args.agent1 == "PPO_pretrained"
-    ):
+    if args.agent1 in [
+        "PPO_memory_pretrained",
+        "PPO_pretrained",
+        "MFOS_pretrained",
+    ]:
         logger.info("Training with Runner")
         agent1, _ = agents.agents
         param_reshaper = ParameterReshaper(
@@ -309,7 +285,7 @@ def agent_setup(args, logger):
 
     def get_PPO_memory_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
@@ -320,8 +296,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -336,7 +312,7 @@ def agent_setup(args, logger):
 
     def get_PPO_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
@@ -347,8 +323,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -364,7 +340,7 @@ def agent_setup(args, logger):
 
     def get_PPO_tabular_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
@@ -375,8 +351,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -393,7 +369,7 @@ def agent_setup(args, logger):
 
     def get_mfos_agent(seed, player_id):
         # dummy environment to get observation and action spec
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
@@ -404,8 +380,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -437,7 +413,7 @@ def agent_setup(args, logger):
         return hyper_agent
 
     def get_naive_pg(seed, player_id):
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             dummy_env = CoinGame(
                 args.num_envs,
                 args.num_steps,
@@ -448,8 +424,8 @@ def agent_setup(args, logger):
             )
             obs_spec = dummy_env.observation_spec().shape
         else:
-            dummy_env = SequentialMatrixGame(
-                args.num_envs, args.payoff, args.num_steps
+            dummy_env = IteratedMatrixGame(
+                args.num_envs, args.payoff, args.num_steps, args.num_steps
             )
             obs_spec = (dummy_env.observation_spec().num_values,)
 
@@ -481,7 +457,7 @@ def agent_setup(args, logger):
         return agent
 
     def get_random_agent(seed, player_id):
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             num_actions = (
                 CoinGame(
                     args.num_envs,
@@ -496,9 +472,7 @@ def agent_setup(args, logger):
             )
         else:
             num_actions = (
-                SequentialMatrixGame(
-                    args.num_envs, args.payoff, args.num_steps
-                )
+                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
                 .action_spec()
                 .num_values
             )
@@ -509,7 +483,7 @@ def agent_setup(args, logger):
 
     # flake8: noqa: C901
     def get_stay_agent(seed, player_id):
-        if args.env_type == "coin_game":
+        if args.env_id == "coin_game":
             num_actions = (
                 CoinGame(
                     args.num_envs,
@@ -524,9 +498,7 @@ def agent_setup(args, logger):
             )
         else:
             num_actions = (
-                SequentialMatrixGame(
-                    args.num_envs, args.payoff, args.num_steps
-                )
+                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
                 .action_spec()
                 .num_values
             )
@@ -553,6 +525,7 @@ def agent_setup(args, logger):
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
+        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -590,7 +563,7 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if not args.env_type == "coin_game":
+        if not args.env_id == "coin_game":
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -599,7 +572,7 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if not args.env_type == "coin_game":
+        if not args.env_id == "coin_game":
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -629,7 +602,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_type == "coin_game":
+        if not args.env_id == "coin_game":
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -652,6 +625,7 @@ def watcher_setup(args, logger):
         "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
+        "MFOS_pretrained": dumb_log,
         "PPO_pretrained": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "Naive": naive_pg_log,

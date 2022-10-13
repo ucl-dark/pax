@@ -36,9 +36,12 @@ class SequentialMatrixGame(Environment):
 
         # Dummy variable used to make Runner work with
         # regular and meta learning.
-        self.num_trials = 1
+        self.outer_ep_length = 1
         self.inner_episode_length = episode_length
         self.batch_step = jax.jit(jax.vmap(self.runner_step, 0, 0))
+        raise DeprecationWarning(
+            "SequentialMatrixGame is deprecated, use InfiniteMatrixGame with inner_episode_length=num_steps"
+        )
 
     def step(
         self,
@@ -292,11 +295,11 @@ class InfiniteMatrixGame(Environment):
         self._reset_next_step = True
 
         self.state = (0.0, jax.random.PRNGKey(seed=seed))
-        self.num_trials = 1
+        self.outer_ep_length = 1
         self.inner_episode_length = episode_length
 
         # for runner
-        self.num_trials = 1
+        self.outer_ep_length = 1
         self.inner_episode_length = episode_length
         self.batch_step = jax.jit(
             jax.vmap(self.runner_step, (0, None), (0, None))

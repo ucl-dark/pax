@@ -172,12 +172,14 @@ class EvalRunnerIPD:
 
         # Track mean rewards and state visitations
         if self.args.env_id == "ipd":
-            mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.num_trials))
-            mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.num_trials))
-            mean_visits = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
-            mean_state_freq = jnp.zeros(shape=(num_seeds, env.num_trials, 5))
+            mean_rewards_p1 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
+            mean_rewards_p2 = jnp.zeros(shape=(num_seeds, env.outer_ep_length))
+            mean_visits = jnp.zeros(shape=(num_seeds, env.outer_ep_length, 5))
+            mean_state_freq = jnp.zeros(
+                shape=(num_seeds, env.outer_ep_length, 5)
+            )
             mean_cooperation_prob = jnp.zeros(
-                shape=(num_seeds, env.num_trials, 5)
+                shape=(num_seeds, env.outer_ep_length, 5)
             )
             all_mean_rewards_p1 = jnp.zeros(shape=(num_seeds,))
             all_mean_rewards_p2 = jnp.zeros(shape=(num_seeds,))
@@ -202,7 +204,7 @@ class EvalRunnerIPD:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             traj_1, traj_2, a2_metrics = stack
@@ -222,10 +224,10 @@ class EvalRunnerIPD:
             traj_1, traj_2, a2_metrics = stack
 
             # logging
-            if self.args.env_type == "coin_game":
+            if self.args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.item(),
-                    self.cg_stats(env_state, env.num_trials),
+                    self.cg_stats(env_state, env.outer_ep_length),
                 )
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
@@ -265,7 +267,7 @@ class EvalRunnerIPD:
                 "--------------------------------------------------------------------------"
             )
 
-            for out_step in range(env.num_trials):
+            for out_step in range(env.outer_ep_length):
                 rewards_trial_mean_p1 = traj_1.rewards[out_step].mean()
                 rewards_trial_mean_p2 = traj_2.rewards[out_step].mean()
                 trial_env_stats = self.ipd_stats(
@@ -351,7 +353,7 @@ class EvalRunnerIPD:
 
                 mean_rewards_p1 = mean_rewards_p1.at[opp_i, out_step].set(
                     rewards_trial_mean_p1
-                )  # jnp.zeros(shape=(num_iters, env.num_trials))
+                )  # jnp.zeros(shape=(num_iters, env.outer_ep_length))
                 mean_rewards_p2 = mean_rewards_p2.at[opp_i, out_step].set(
                     rewards_trial_mean_p2
                 )
@@ -373,7 +375,7 @@ class EvalRunnerIPD:
                             trial_env_stats["state_visitation/START"],
                         ]
                     )
-                )  # jnp.zeros(shape=(num_iters, env.num_trials, 5))
+                )  # jnp.zeros(shape=(num_iters, env.outer_ep_length, 5))
                 mean_state_freq = mean_state_freq.at[opp_i, out_step, :].set(
                     jnp.array(
                         [
@@ -441,7 +443,7 @@ class EvalRunnerIPD:
                 ),
             }
         )
-        for out_step in range(env.num_trials):
+        for out_step in range(env.outer_ep_length):
             if watchers:
                 wandb.log(
                     {

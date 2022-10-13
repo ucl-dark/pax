@@ -174,7 +174,7 @@ class EvoRunner:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
             traj_1, traj_2, a2_metrics = stack
@@ -185,7 +185,7 @@ class EvoRunner:
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
 
             # Stats
-            if self.args.env_type == "coin_game":
+            if self.args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cg_stats(env_state),
@@ -262,7 +262,7 @@ class EvoRunner:
                 jax.vmap(env.batch_step),
             )
 
-        if self.args.env_type == "coin_game":
+        if self.args.env_id == "coin_game":
             env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
 
         # Reshape a single agent's params before vmapping

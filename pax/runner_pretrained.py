@@ -178,10 +178,7 @@ class RunnerPretrained:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif (
-                self.args.env_type in ["meta", "infinite"]
-                or self.args.coin_type == "coin_meta"
-            ):
+            elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
@@ -191,20 +188,12 @@ class RunnerPretrained:
                 _outer_rollout,
                 (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.num_trials,
+                length=env.outer_ep_length,
             )
 
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+            t1, t2, _, a1_mem, a2_state, a2_mem, env_state = vals
             traj_1, traj_2, a2_metrics = stack
-            # update outer agent
-            final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
-            a1_state, _, _ = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(final_t1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
-            a1_state = a1_state._replace(params=pretrained_params)
+            # do not update outer agent as this pre-trained
 
             # update second agent
             a1_mem = agent1.batch_reset(a1_mem, False)
@@ -223,7 +212,7 @@ class RunnerPretrained:
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
-                if self.args.env_type == "coin_game":
+                if self.args.env_id == "coin_game":
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(),
                         self.cg_stats(env_state),
@@ -240,7 +229,7 @@ class RunnerPretrained:
                         self.ipd_stats(
                             traj_1.observations,
                             traj_1.actions,
-                            final_t1.observation,
+                            t1.observation,
                         ),
                     )
                     rewards_0 = traj_1.rewards.mean()

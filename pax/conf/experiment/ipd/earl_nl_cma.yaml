@@ -6,7 +6,6 @@ agent2: 'Naive'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
@@ -45,6 +44,7 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:
