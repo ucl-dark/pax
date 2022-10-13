@@ -11,8 +11,7 @@ env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
-evo: True 
-eval: False
+runner: evo
 
 # Training
 top_k: 5
