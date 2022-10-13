@@ -55,6 +55,7 @@ class PPO:
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
         tabular: bool = False,
+        player_id: int = 0,
     ):
         @jax.jit
         def policy(
@@ -69,41 +70,6 @@ class PPO:
             mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
             return actions, state, mem
-
-        @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            _value = jax.lax.select(
-                t_prime.last(),
-                jnp.zeros_like(action_extras["values"]),
-                action_extras["values"],
-            )
-
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-            return traj_batch
 
         @jax.jit
         def gae_advantages(
@@ -364,16 +330,17 @@ class PPO:
                 timesteps=timesteps + batch_size,
             )
 
-            new_mem = MemoryState(
+            new_memory = MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
-                hidden=jnp.zeros((num_envs, 1)),
             )
-            return new_state, new_mem, metrics
 
-        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
+            return new_state, new_memory, metrics
+
+        def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             if not tabular:
@@ -400,6 +367,41 @@ class PPO:
                 },
             )
 
+        @jax.jit
+        def prepare_batch(
+            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+
+            _value = jax.lax.select(
+                t_prime.last(),
+                jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
+            )
+
+            _done = jax.lax.select(
+                t_prime.last(),
+                2 * jnp.ones_like(_value),
+                jnp.zeros_like(_value),
+            )
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _done = jax.lax.expand_dims(_done, [0])
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+            return traj_batch
+
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
         self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
@@ -422,6 +424,7 @@ class PPO:
 
         # Initialize functions
         self._policy = policy
+        self.player_id = player_id
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -533,8 +536,8 @@ def make_agent(
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
         tabular=tabular,
+        player_id=player_id,
     )
-    agent.player_id = player_id
     return agent
 
 
