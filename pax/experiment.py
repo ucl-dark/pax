@@ -1,8 +1,6 @@
-from ast import arg
 from datetime import datetime
 from functools import partial
 import logging
-from multiprocessing.sharedctypes import Value
 import os
 
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
@@ -88,7 +86,6 @@ def env_setup(args, logger=None):
 
     if args.env_id == "ipd":
         if args.env_type == "sequential":
-
             train_env = IteratedMatrixGame(
                 args.num_envs,
                 args.payoff,
@@ -143,22 +140,41 @@ def env_setup(args, logger=None):
             raise ValueError(f"Unknown env type {args.env_type}")
 
     elif args.env_id == "coin_game":
-        train_env = CoinGame(
-            args.num_envs,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-            egocentric=args.egocentric,
-        )
-        test_env = CoinGame(
-            1,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-            egocentric=args.egocentric,
-        )
+        if args.env_type == "sequential":
+            train_env = CoinGame(
+                args.num_envs,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+            test_env = CoinGame(
+                1,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+
+        else:
+            train_env = CoinGame(
+                args.num_envs,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+            test_env = CoinGame(
+                1,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
