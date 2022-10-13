@@ -13,6 +13,9 @@ payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 # Runner
 runner: rl
 
+# Runner 
+evo: False
+eval: False
 # Training hyperparameters
 num_envs: 100
 num_opps: 1
