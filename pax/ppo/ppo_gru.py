@@ -310,7 +310,6 @@ class PPO:
                 shuffled_batch = jax.tree_util.tree_map(
                     lambda x: jnp.take(x, permutation, axis=0), batch
                 )
-                shuffled_batch = batch
                 minibatches = jax.tree_util.tree_map(
                     lambda x: jnp.reshape(
                         x, [num_minibatches, -1] + list(x.shape[1:])
