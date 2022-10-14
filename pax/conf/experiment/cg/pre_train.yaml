@@ -13,8 +13,7 @@ env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-evo: False 
-eval: False 
+runner: rl
 
 # Training
 num_envs: 100 # Training requires 10000 

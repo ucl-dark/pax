@@ -1,10 +1,10 @@
-from typing import Mapping, NamedTuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 from dm_env import TimeStep
 
-from pax.env_inner import InfiniteMatrixGame
+from pax.env import InfiniteMatrixGame
 from pax.utils import MemoryState
 
 

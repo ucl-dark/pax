@@ -1,24 +1,29 @@
 # Pax
-Pax is a JAX Batched Environment for social dilemma games. It supports both sequential and Meta-RL agents.
+Pax is a JAX Batched Environment for other agent shaping. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_env) and aspires to work with agents from both [acme](https://github.com/deepmind/acme) and [magi](https://github.com/ethanluoyc/magi).
+PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_env). The API has vairants of traditional gym calls: `runner_step` and `runner_reset` which are compatible with `jit`, `vmap`, `pmap` and `lax.scan`.
 
 ```python
-import IteratedPrisonersDilemma
+import SequentialMatrixGame
 
-env = IteratedPrisonersDilemma(episode_length, num_envs)
-timesteps = env.reset()
+env = SequentialMatrixGame(
+     num_envs=1,
+     payoff=[[-1, -1], [0, -3], [-3, 0], [-2, -2]],
+     inner_ep_length=10,
+     num_steps=10
+)
 
+timesteps, env_state = env.reset()
 agents = IndependentLearners(
      agent_0,
      agent_1
 )
 
 while not timestep[0].last():
-     actions = agents.step(timesteps)
-     timestep = env.step(actions))
+     actions = agents.step(timesteps, )
+     timestep, env_state = env.step(actions, env_state)
 ```
 
 and timestep returns the following:
@@ -92,21 +97,24 @@ PAX includes a number of learning and fixed agents. They are specified in the `.
 | `Naive`      | A learning agent that updates using REINFORCE [insert paper here]         |
 | `PPO`    | A learning agent that updates using PPO [insert paper here]   |
 | `PPO_memory`    | A learning agent that updates using PPO and a memory state [insert paper here]       |
-| `MFOS`    | A meta learning agent that updates using PPO [insert paper here]       |
+| `MFOS`    | Model free opponent shaping meta-agent based upon the [ICML paper 2021](https://arxiv.org/abs/2205.01447)     |
+| `GS`    | The Good Shepard meta-agent based upon the [paper](https://arxiv.org/abs/2202.10135)|
 | `Defect`    | A fixed agent that always defects        |
 | `Altruistic`    | A fixed agent that always cooperates        |
 | `TitForTat`    | A fixed agent that cooperates on the first move and then reciprocates action of the opponent from the previous turn    |
 
-*Note: MFOS is a meta-reinforcement learning algorithm, so will only work with the meta environment
+*Note: `MFOS` and `GS` are meta-agents, so will only work with the meta environment
 
 ## Environments 
-PAX includes three environments `Finite`, `Infinite`, and `Meta`. These are specified in the `yaml` files as `env_type`. 
+PAX includes three environments specified by `env_id`. These are `ipd` and `coin_game`. Independetly you can specify your enviroment type by `env_type`, the options supported are `sequential`, `meta` and `infinite`. These are specified in the config files in `pax/configs/{env_id}/EXPERIMENT.yaml`. 
 
-| Environment      | Description |
-| ----------- | ----------- |
-| `Finite`      | A sequential matrix game with a predetermined number of timesteps per episode with a discount factor $\gamma$.         |
-| `Infinite`    | An infinite matrix game that calculates exact returns given a payoff and discount factor $\gamma$        |
-| `Meta`    | A meta learning game with an outer agent (player 1) and an inner agent (player 2). The inner updates every episode, while the the outer agent updates every meta-episode, which is composed of a group of episodes or trials.        |
+| Environment ID | Environment Type | Description |
+| ----------- | ----------- | ----------- |
+|ipd| `sequential`      | An iterated matrix game with a predetermined number of timesteps per episode with a discount factor $\gamma$         |
+|ipd | `infinite`    | An infinite matrix game that calculates exact returns given a payoff and discount factor $\gamma$       |
+|ipd | `meta`    | A meta game over the iterated matrix game with an outer agent (player 1) and an inner agent (player 2). The inner updates every episode, while the the outer agent updates every meta-episode |
+|coin_game | `sequential`    | A sequential series of episode of the coin game between two players. Each player updates at the end of an episode|
+|coin_game | `meta`    | A meta learning version of the coin game with an outer agent (player 1) and an inner agent (player 2). The inner updates every episode, while the the outer agent updates every meta-episode|
 
 ## Experiments
 ```bash 
