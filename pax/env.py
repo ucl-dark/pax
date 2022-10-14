@@ -116,19 +116,19 @@ class IteratedMatrixGame:
             return self.reset()
 
         output, self.state = self.runner_step(actions, self.state)
-        if (self.state[1] == self.outer_ep_length).all():
+        if (self.state.outer_t == self.outer_ep_length).all():
             self._reset_next_step = True
             output = (
                 TimeStep(
                     2 * jnp.ones(self.num_envs, dtype=jnp.int8),
                     output[0].reward,
-                    4,
+                    output[0].discount,
                     output[0].observation,
                 ),
                 TimeStep(
                     2 * jnp.ones(self.num_envs, dtype=jnp.int8),
                     output[1].reward,
-                    4,
+                    output[1].discount,
                     output[1].observation,
                 ),
             )
