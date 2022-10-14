@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import CoinGame, CoinGameState, IteratedMatrixGame
+from pax.env import CoinGame, CoinGameState, IteratedMatrixGame
 from pax.strategies import TitForTat
 
 # payoff matrices for four games
