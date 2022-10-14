@@ -338,6 +338,9 @@ class EvalRunnerIPD:
                     )
 
                 # Remove inner step
+                # TODO: decide if keeping or not
+                # only uncomment this step if the episode length is small
+                #
                 # for in_step in range(env.inner_episode_length):
                 #     rewards_step_p1 = traj_1.rewards[out_step, in_step]
                 #     rewards_step_p2 = traj_2.rewards[out_step, in_step]
