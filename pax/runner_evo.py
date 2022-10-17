@@ -123,7 +123,7 @@ class EvoRunner:
 
             # MFOS has to takes a meta-action for each episode
             if self.args.agent1 == "MFOS":
-                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+                a1_mem = agent1.meta_policy(a1_mem)
 
             # do second agent update
             final_t2 = t2._replace(
