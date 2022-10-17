@@ -546,8 +546,8 @@ class PPO:
 
         # reset memory of agent
         mem = mem._replace(
-            hidden=jnp.zeros((self._num_envs, self._gru_dim)),
-            curr_th=jnp.ones((self._num_envs, self._gru_dim // 3)),
+            hidden=jnp.zeros_likes(mem.hidden),
+            curr_th=jnp.ones_like(mem.curr_th),
         )
 
         return mem
