@@ -22,8 +22,8 @@ agents = IndependentLearners(
 )
 
 while not timestep[0].last():
-     actions = agents.step(timesteps, )
-     timestep, env_state = env.step(actions, env_state)
+     actions = agents.step(timesteps)
+     timestep, env_state = env.runner_step(actions, env_state)
 ```
 
 and timestep returns the following:
