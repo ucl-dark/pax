@@ -16,8 +16,7 @@ save: True
 save_interval: 10
 
 # Runner 
-evo: True 
-eval: False 
+runner: evo
 
 # Training
 top_k: 5

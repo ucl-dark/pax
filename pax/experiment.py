@@ -1,4 +1,3 @@
-from ast import arg
 from datetime import datetime
 from functools import partial
 import logging
@@ -14,8 +13,7 @@ import omegaconf
 import wandb
 
 
-from pax.env_inner import InfiniteMatrixGame
-from pax.env_meta import CoinGame, IteratedMatrixGame
+from pax.env import CoinGame, IteratedMatrixGame, InfiniteMatrixGame
 from pax.evaluation_ipd import EvalRunnerIPD
 from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
@@ -59,7 +57,7 @@ from pax.watchers import (
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
-    if not args.eval:
+    if not args.runner == "eval":
         os.makedirs(
             save_dir,
             exist_ok=True,
@@ -88,7 +86,6 @@ def env_setup(args, logger=None):
 
     if args.env_id == "ipd":
         if args.env_type == "sequential":
-
             train_env = IteratedMatrixGame(
                 args.num_envs,
                 args.payoff,
@@ -116,10 +113,6 @@ def env_setup(args, logger=None):
                 num_steps=args.num_steps,
             )
             if logger:
-                if args.evo:
-                    logger.info(
-                        f"Env Type: Meta | Generations: {args.num_steps}"
-                    )
                 logger.info(
                     f"Env Type: Meta | Episode Length: {args.num_steps}"
                 )
@@ -147,22 +140,41 @@ def env_setup(args, logger=None):
             raise ValueError(f"Unknown env type {args.env_type}")
 
     elif args.env_id == "coin_game":
-        train_env = CoinGame(
-            args.num_envs,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-            egocentric=args.egocentric,
-        )
-        test_env = CoinGame(
-            1,
-            inner_ep_length=args.num_inner_steps,
-            num_steps=args.num_steps,
-            seed=args.seed,
-            cnn=args.ppo.with_cnn,
-            egocentric=args.egocentric,
-        )
+        if args.env_type == "sequential":
+            train_env = CoinGame(
+                args.num_envs,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+            test_env = CoinGame(
+                1,
+                inner_ep_length=args.num_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+
+        else:
+            train_env = CoinGame(
+                args.num_envs,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
+            test_env = CoinGame(
+                1,
+                inner_ep_length=args.num_inner_steps,
+                num_steps=args.num_steps,
+                seed=args.seed,
+                cnn=args.ppo.with_cnn,
+                egocentric=args.egocentric,
+            )
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
@@ -171,18 +183,22 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
-    if args.agent1 in [
-        "PPO_memory_pretrained",
-        "PPO_pretrained",
-        "MFOS_pretrained",
-    ]:
-        logger.info("Training with Runner")
+    if (
+        args.agent1
+        in [
+            "PPO_memory_pretrained",
+            "PPO_pretrained",
+            "MFOS_pretrained",
+        ]
+        or args.runner == "pretrained"
+    ):
+        logger.info("Training with Pre-trained Runner")
         agent1, _ = agents.agents
         param_reshaper = ParameterReshaper(
             agent1._state.params, n_devices=args.num_devices
         )
         return RunnerPretrained(args, save_dir, param_reshaper)
-    if args.eval:
+    if args.runner == "eval":
         if args.env_id == "ipd":
             logger.info("Evaluating with EvalRunnerIPD")
             return EvalRunnerIPD(args)
@@ -190,7 +206,7 @@ def runner_setup(args, agents, save_dir, logger):
             logger.info("Evaluating with EvalRunnerCG")
             return EvalRunnerCG(args)
 
-    if args.evo:
+    if args.runner == "evo":
         agent1, _ = agents.agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -274,9 +290,11 @@ def runner_setup(args, agents, save_dir, logger):
 
         return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
 
-    else:
-        logger.info("Training with Runner")
+    elif args.runner == "rl":
+        logger.info("Training with RL Runner")
         return Runner(args, save_dir)
+    else:
+        raise ValueError(f"Unknown runner type {args.runner}")
 
 
 # flake8: noqa: C901
@@ -552,10 +570,12 @@ def agent_setup(args, logger):
     logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
     logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-    if args.evo and not args.eval:
+    if args.runner in ["eval", "rl"]:
+        logger.info("Using Independent Learners")
+        return IndependentLearners([agent_0, agent_1], args)
+    if args.runner == "evo":
         logger.info("Using EvolutionaryLearners")
         return EvolutionaryLearners([agent_0, agent_1], args)
-    return IndependentLearners([agent_0, agent_1], args)
 
 
 def watcher_setup(args, logger):
@@ -669,12 +689,12 @@ def main(args):
         watchers = False
 
     # If evaluating, pass in the number of seeds you want to evaluate over
-    if args.eval:
+    if args.runner == "eval":
         runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
 
     # If training, get the number of iterations to run
     else:
-        if args.evo:
+        if args.runner == "evo":
             num_iters = args.num_generations  # number of generations
         else:
             num_iters = int(

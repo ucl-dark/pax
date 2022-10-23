@@ -1,7 +1,5 @@
-import jax
 import jax.numpy as jnp
-from pax.env_inner import InfiniteMatrixGame
-from pax.env_meta import CoinGame, CoinGameState
+from pax.env import InfiniteMatrixGame, CoinGame, CoinGameState
 from pax.strategies import EvilGreedy, TitForTat, GrimTrigger
 from pax.naive_exact import NaiveExact
 from dm_env import transition

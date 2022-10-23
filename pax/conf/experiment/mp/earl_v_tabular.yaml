@@ -11,8 +11,7 @@ env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
-evo: True 
-eval: False
+runner: evo
 
 # Training
 top_k: 5
@@ -94,7 +93,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: mp
-  group: 'GS-${agent1}-vs-${agent2}'
+  group: '${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 

@@ -25,9 +25,8 @@ env_type: coin_game
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
-# Runner 
-evo: False
-eval: False
+# Runner
+runner: rl 
 
 # Training hyperparameters
 # env_batch_size = num_envs * num_opponents
