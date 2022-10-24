@@ -26,7 +26,6 @@ from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
-from pax.runner_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -524,13 +523,10 @@ def agent_setup(args, logger):
         "EvilGreedy": partial(EvilGreedy, args.num_envs),
         "RandomGreedy": partial(RandomGreedy, args.num_envs),
         "PPO": get_PPO_agent,
-        "PPO_pretrained": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
-        "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
-        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -632,9 +628,6 @@ def watcher_setup(args, logger):
         "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
-        "MFOS_pretrained": dumb_log,
-        "PPO_pretrained": ppo_log,
-        "PPO_memory_pretrained": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
@@ -692,7 +685,7 @@ def main(args):
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.eval_loop(test_env, agent_pair, num_iters, watchers)
+        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":

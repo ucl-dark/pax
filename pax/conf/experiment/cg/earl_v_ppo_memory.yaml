@@ -33,7 +33,6 @@ num_generations: 3000
 num_seeds: 10
 run_path: ucl-dark/cg/v348mp4r
 model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
-
 # num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 ppo:
