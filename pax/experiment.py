@@ -14,8 +14,6 @@ import wandb
 
 
 from pax.env import CoinGame, IteratedMatrixGame, InfiniteMatrixGame
-from pax.evaluation_ipd import EvalRunnerIPD
-from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.naive.naive import make_naive_pg
