@@ -30,7 +30,6 @@ num_inner_steps: 16
 num_generations: 3000
 
 # Evaluation
-num_seeds: 10
 run_path: ucl-dark/cg/z0ckvwtf
 model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
 
