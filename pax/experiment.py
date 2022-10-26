@@ -401,10 +401,6 @@ def agent_setup(args, obs_spec, action_spec, logger):
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
-        # PreTrained
-        "PPO_pretrained": get_PPO_agent,
-        "PPO_memory_pretrained": get_PPO_memory_agent,
-        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -505,7 +501,6 @@ def watcher_setup(args, logger):
         "RandomGreedy": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
-        "MFOS": dumb_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
@@ -552,14 +547,21 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+
+    elif args.runner == "eval":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
