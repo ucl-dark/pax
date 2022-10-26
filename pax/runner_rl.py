@@ -63,7 +63,7 @@ class Runner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-    def train_loop(self, env, agents, num_episodes, watchers):
+    def run_loop(self, env, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry

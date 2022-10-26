@@ -665,21 +665,21 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
