@@ -137,11 +137,6 @@ class EvalRunner:
                 name=self.model_path, run_path=self.run_path, root=os.getcwd()
             )
         pretrained_params = load(self.model_path)
-        if self.args.env_id == "coin_game":
-            pretrained_params = self.param_reshaper.reshape_single_net(
-                pretrained_params
-            )
-
         a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)

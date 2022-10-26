@@ -59,8 +59,11 @@ num_seeds: 10
 # model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0/2022-09-19_10.25.28.808811/generation_2900
 
 # {NEW} EARL pretrained against PPO RNN
-run_path: ucl-dark/cg/v348mp4r
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+# run_path: ucl-dark/cg/v348mp4r
+# model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-25_23.12.56.999833/generation_400
+
+run_path: ucl-dark/cg/z0ckvwtf
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
 
 # PPO agent parameters
 ppo:
