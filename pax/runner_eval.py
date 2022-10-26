@@ -152,11 +152,6 @@ class EvalRunner:
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(t_init[1])
 
-            elif self.args.env_type in ["meta", "infinite"]:
-                # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
-                )
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -167,10 +162,6 @@ class EvalRunner:
 
             t1, t2, _, a1_mem, a2_state, a2_mem, env_state = vals
             traj_1, traj_2, a2_metrics = stack
-
-            # update second agent
-            a1_mem = agent1.batch_reset(a1_mem, False)
-            a2_mem = agent2.batch_reset(a2_mem, False)
 
             # logging
             self.train_episodes += 1
