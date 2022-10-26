@@ -36,11 +36,9 @@ num_opps: 1
 num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps
 total_timesteps: 1.0e8
-eval_every: 1.0e8 # timesteps 
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
-# num_updates = num_episodes / eval_every
 # train_batch_size = num_envs * num_opps * num_steps
 
 

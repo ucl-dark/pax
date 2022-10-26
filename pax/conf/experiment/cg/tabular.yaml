@@ -24,7 +24,6 @@ num_generations: 10000
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
-# num_updates = num_episodes / eval_every
 # train_batch_size = num_envs * num_opponents * num_steps
 
 # PPO agent parameters

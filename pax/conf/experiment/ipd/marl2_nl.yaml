@@ -17,11 +17,9 @@ num_opps: 4000
 num_steps: 200 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 0.5e9
-eval_every: 0.5e9 # timesteps 
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 
-# num_updates = num_episodes / eval_every
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters

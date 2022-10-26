@@ -1,5 +1,4 @@
 absl-py
-bsuite
 black
 chex
 distrax
@@ -14,6 +13,5 @@ jaxlib
 numpy
 optax
 pytest
-rlax
 wandb
 pytest

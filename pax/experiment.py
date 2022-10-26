@@ -3,6 +3,7 @@ from functools import partial
 import logging
 import os
 
+# uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
@@ -72,7 +73,7 @@ def global_setup(args):
             name=str(args.wandb.name),
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
-            ),
+            ),  # type: ignore
             settings=wandb.Settings(code_dir="."),
         )
         wandb.run.log_code(".")
@@ -278,115 +279,51 @@ def runner_setup(args, agents, save_dir, logger):
 
 
 # flake8: noqa: C901
-def agent_setup(args, logger):
+def agent_setup(args, obs_spec, action_spec, logger):
     """Set up agent variables."""
+    if args.env_id == "coin_game":
+        obs_shape = obs_spec.shape
+    elif args.env_id == "ipd":
+        obs_shape = (obs_spec.shape.num_values,)
+
+    num_actions = action_spec().num_values
 
     def get_PPO_memory_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_id == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         ppo_memory_agent = make_gru_agent(
             args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
         return ppo_memory_agent
 
     def get_PPO_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_id == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         ppo_agent = make_agent(
             args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
-
         return ppo_agent
 
     def get_PPO_tabular_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_id == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                False,
-                egocentric=args.egocentric,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         ppo_agent = make_agent(
             args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
             tabular=True,
         )
-
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
-        # dummy environment to get observation and action spec
-        if args.env_id == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                False,
-                egocentric=args.egocentric,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         ppo_agent = make_mfos_agent(
             args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
@@ -400,7 +337,6 @@ def agent_setup(args, logger):
             args.env_discount,
             args.seed,
         )
-
         hyper_agent = make_hyper(
             args,
             obs_spec=(dummy_env.observation_spec().num_values,),
@@ -411,26 +347,10 @@ def agent_setup(args, logger):
         return hyper_agent
 
     def get_naive_pg(seed, player_id):
-        if args.env_id == "coin_game":
-            dummy_env = CoinGame(
-                args.num_envs,
-                args.num_steps,
-                args.num_steps,
-                0,
-                args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
-            obs_spec = dummy_env.observation_spec().shape
-        else:
-            dummy_env = IteratedMatrixGame(
-                args.num_envs, args.payoff, args.num_steps, args.num_steps
-            )
-            obs_spec = (dummy_env.observation_spec().num_values,)
-
         naive_agent = make_naive_pg(
             args,
-            obs_spec=obs_spec,
-            action_spec=dummy_env.action_spec().num_values,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
@@ -455,52 +375,12 @@ def agent_setup(args, logger):
         return agent
 
     def get_random_agent(seed, player_id):
-        if args.env_id == "coin_game":
-            num_actions = (
-                CoinGame(
-                    args.num_envs,
-                    args.num_steps,
-                    args.num_steps,
-                    0,
-                    args.ppo.with_cnn,
-                    egocentric=args.egocentric,
-                )
-                .action_spec()
-                .num_values
-            )
-        else:
-            num_actions = (
-                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
-                .action_spec()
-                .num_values
-            )
-
         random_agent = Random(num_actions, args.num_envs)
         random_agent.player_id = player_id
         return random_agent
 
     # flake8: noqa: C901
     def get_stay_agent(seed, player_id):
-        if args.env_id == "coin_game":
-            num_actions = (
-                CoinGame(
-                    args.num_envs,
-                    args.num_steps,
-                    args.num_steps,
-                    0,
-                    args.ppo.with_cnn,
-                    egocentric=args.egocentric,
-                )
-                .action_spec()
-                .num_values
-            )
-        else:
-            num_actions = (
-                IteratedMatrixGame(args.num_envs, args.payoff, args.num_steps)
-                .action_spec()
-                .num_values
-            )
-
         agent = Stay(num_actions, args.num_envs)
         agent.player_id = player_id
         return agent
@@ -521,6 +401,10 @@ def agent_setup(args, logger):
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
+        # PreTrained
+        "PPO_pretrained": get_PPO_agent,
+        "PPO_memory_pretrained": get_PPO_memory_agent,
+        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -619,9 +503,9 @@ def watcher_setup(args, logger):
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
         "RandomGreedy": dumb_log,
-        "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
+        "MFOS": dumb_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
@@ -629,6 +513,9 @@ def watcher_setup(args, logger):
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
         "Tabular": ppo_log,
+        "PPO_pretrained": ppo_log,
+        "PPO_memory_pretrained": ppo_memory_log,
+        "MFOS_pretrained": dumb_log,
     }
 
     assert args.agent1 in strategies
@@ -665,21 +552,21 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.train_loop(train_env, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
