@@ -183,11 +183,7 @@ def env_setup(args, logger=None):
 def runner_setup(args, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
-        agent1, _ = agents.agents
-        param_reshaper = ParameterReshaper(
-            agent1._state.params, n_devices=args.num_devices
-        )
-        return EvalRunner(args, save_dir, param_reshaper)
+        return EvalRunner(args)
 
     if args.runner == "evo":
         agent1, _ = agents.agents

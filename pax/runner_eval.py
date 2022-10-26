@@ -27,7 +27,7 @@ class Sample(NamedTuple):
 class EvalRunner:
     """Evaluation runner"""
 
-    def __init__(self, args, save_dir, param_reshaper):
+    def __init__(self, args):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -37,9 +37,7 @@ class EvalRunner:
         self.num_opps = args.num_opps
         self.random_key = jax.random.PRNGKey(args.seed)
         self.run_path = args.run_path
-        self.save_dir = save_dir
         self.model_path = args.model_path
-        self.param_reshaper = param_reshaper
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
