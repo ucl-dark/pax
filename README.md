@@ -1,5 +1,5 @@
 # Pax
-Pax is a JAX Batched Environment for other agent shaping. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
+Pax is an experiment runner for JAX-based Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
