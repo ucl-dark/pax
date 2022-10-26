@@ -161,6 +161,9 @@ class EvalRunner:
             t1, t2, _, a1_mem, a2_state, a2_mem, env_state = vals
             traj_1, traj_2, a2_metrics = stack
 
+            # reset second agent memory
+            a2_mem = agent2.batch_reset(a2_mem, False)
+
             # logging
             self.train_episodes += 1
             if i % log_interval == 0:
