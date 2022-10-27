@@ -29,7 +29,7 @@ class InfiniteMatrixGame(environment.Environment):
             actions: Tuple[int, int],
             params: EnvParams,
         ):
-            t = state.num_steps
+            t = state.outer_t
             key, _ = jax.random.split(key, 2)
             payout_mat_1 = jnp.array([[r[0] for r in params.payoff_matrix]])
             payout_mat_2 = jnp.array([[r[1] for r in params.payoff_matrix]])
@@ -70,9 +70,12 @@ class InfiniteMatrixGame(environment.Environment):
             r1 = (1 - params.gamma) * L_1.sum()
             r2 = (1 - params.gamma) * L_2.sum()
             done = t >= params.num_steps
+            state = EnvState(
+                inner_t=state.inner_t + 1, outer_t=state.outer_t + 1
+            )
             return (
                 (obs1, obs2),
-                EnvState(t + 1, 0),
+                state,
                 (r1, r2),
                 done,
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
@@ -87,6 +90,9 @@ class InfiniteMatrixGame(environment.Environment):
             )
             obs = jax.nn.sigmoid(jax.random.uniform(key, (10,)))
             return (obs, obs), state
+
+        self.step = jax.jit(_step)
+        self.reset = jax.jit(_reset)
 
     @property
     def name(self) -> str:
