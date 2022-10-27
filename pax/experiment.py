@@ -284,9 +284,9 @@ def agent_setup(args, obs_spec, action_spec, logger):
     if args.env_id == "coin_game":
         obs_shape = obs_spec.shape
     elif args.env_id == "ipd":
-        obs_shape = (obs_spec.shape.num_values,)
+        obs_shape = (obs_spec.num_values,)
 
-    num_actions = action_spec().num_values
+    num_actions = action_spec.num_values
 
     def get_PPO_memory_agent(seed, player_id):
         ppo_memory_agent = make_gru_agent(
@@ -533,7 +533,9 @@ def main(args):
         train_env, test_env = env_setup(args, logger)
 
     with Section("Agent setup", logger=logger):
-        agent_pair = agent_setup(args, logger)
+        agent_pair = agent_setup(
+            args, train_env.observation_spec(), train_env.action_spec(), logger
+        )
 
     with Section("Watcher setup", logger=logger):
         watchers = watcher_setup(args, logger)
