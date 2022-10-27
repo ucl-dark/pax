@@ -17,11 +17,9 @@ runner: rl
 num_envs: 100
 num_opps: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 4_000_000
-eval_every: 4_000_000 # timesteps
+total_timesteps: 1_000_000
 
 # Evaluation 
-num_seeds: 10
 run_path: ucl-dark/ipd/w1x0vqb7
 model_path: exp/PPO-vs-TitForTat-ipd-parity/PPO-vs-TitForTat-ipd-parity-run-seed-0/2022-09-08_15.56.38.018596/iteration_260
 

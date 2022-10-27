@@ -23,7 +23,6 @@ num_steps: 10_000
 num_inner_steps: 100 
 num_generations: 5000
 total_timesteps: 1e11
-eval_every: 1e11
 
 # Evaluation 
 # PPO was renamed to Tabular, which is why these say PPO_memory vs. PPO 

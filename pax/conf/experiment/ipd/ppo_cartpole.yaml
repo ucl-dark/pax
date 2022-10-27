@@ -9,7 +9,6 @@ env_id: CartPole-v1
 total_timesteps: 500000
 num_envs: 4
 num_steps: 500 
-eval_every: 100000
 
 agent1: PPO
 agent2: TitForTat

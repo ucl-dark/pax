@@ -23,8 +23,6 @@ total_timesteps: 1e5
 save_interval: 100 
 
 # Evaluation 
-num_seeds: 10 
-# pre-trained PPO RNN agent 
 run_path: ucl-dark/cg/3sp0y2cy
 model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
 
