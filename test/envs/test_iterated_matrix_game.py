@@ -12,25 +12,25 @@ stag = [[4, 4], [1, 3], [3, 1], [2, 2]]
 sexes = [[3, 2], [0, 0], [0, 0], [2, 3]]
 chicken = [[0, 0], [-1, 1], [1, -1], [-2, -2]]
 test_payoffs = [ipd, stag, sexes, chicken]
-test_payoffs = [ipd]
 
 
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
-    num_envs = 1
+    num_envs = 5
     rng = jax.random.PRNGKey(0)
     env = IteratedMatrixGame()
     env_params = EnvParams(
         payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
     )
 
-    env.reset_env = jax.vmap(env.reset_env, in_axes=(0, None))
-    env.step = jax.vmap(env.step, in_axes=(None, None, 0, None))
-
-    obs, env_state = env.reset_env(rng, env_params)
-
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
+
+    # we want to batch over envs purely by actions
+    env.step = jax.vmap(
+        env.step, in_axes=(None, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
+    obs, env_state = env.reset(rng, env_params)
 
     # payoffs
     cc_p1, cc_p2 = payoff[0][0], payoff[0][1]
@@ -39,25 +39,29 @@ def test_single_batch_rewards(payoff) -> None:
     dd_p1, dd_p2 = payoff[3][0], payoff[3][1]
 
     # first step
-    tstep_0, tstep_1 = env.step(
+    obs, env_state, rewards, done, info = env.step(
         rng, env_state, (0 * action, 0 * action), env_params
     )
+    assert jnp.array_equal(rewards[0], cc_p1 * r_array)
+    assert jnp.array_equal(rewards[1], cc_p2 * r_array)
 
-    tstep_0, tstep_1 = env.step((0 * action, 0 * action))
-    assert jnp.array_equal(tstep_0.reward, cc_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, cc_p2 * r_array)
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, (1 * action, 0 * action), env_params
+    )
+    assert jnp.array_equal(rewards[0], dc_p1 * r_array)
+    assert jnp.array_equal(rewards[1], dc_p2 * r_array)
 
-    tstep_0, tstep_1 = env.step((1 * action, 0 * action))
-    assert jnp.array_equal(tstep_0.reward, dc_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, dc_p2 * r_array)
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, (0 * action, 1 * action), env_params
+    )
+    assert jnp.array_equal(rewards[0], cd_p1 * r_array)
+    assert jnp.array_equal(rewards[1], cd_p2 * r_array)
 
-    tstep_0, tstep_1 = env.step((0 * action, 1 * action))
-    assert jnp.array_equal(tstep_0.reward, cd_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, cd_p2 * r_array)
-
-    tstep_0, tstep_1 = env.step((1 * action, 1 * action))
-    assert jnp.array_equal(tstep_0.reward, dd_p1 * r_array)
-    assert jnp.array_equal(tstep_1.reward, dd_p2 * r_array)
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, (1 * action, 1 * action), env_params
+    )
+    assert jnp.array_equal(rewards[0], dd_p1 * r_array)
+    assert jnp.array_equal(rewards[1], dd_p2 * r_array)
 
 
 testdata = [
@@ -84,16 +88,27 @@ testdata = [
 def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     num_envs = 3
     all_ones = jnp.ones((num_envs,))
-    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
-    env.reset()
 
-    action_1, action_2 = actions
+    rng = jax.random.PRNGKey(0)
+
+    a1, a2 = actions
     expected_r1, expected_r2 = expected_rewards
 
-    tstep_0, tstep_1 = env.step((action_1 * all_ones, action_2 * all_ones))
+    env = IteratedMatrixGame()
+    env_params = EnvParams(
+        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
+    )
+    # we want to batch over envs purely by actions
+    env.step = jax.vmap(
+        env.step, in_axes=(None, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
+    obs, env_state = env.reset(rng, env_params)
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, (a1 * all_ones, a2 * all_ones), env_params
+    )
 
-    assert jnp.array_equal(tstep_0.reward, expected_r1 * jnp.ones((num_envs,)))
-    assert jnp.array_equal(tstep_1.reward, expected_r2 * jnp.ones((num_envs,)))
+    assert jnp.array_equal(rewards[0], expected_r1 * jnp.ones((num_envs,)))
+    assert jnp.array_equal(rewards[1], expected_r2 * jnp.ones((num_envs,)))
     # assert tstep_0.last() == False
     # assert tstep_1.last() == False
 

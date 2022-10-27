@@ -64,6 +64,7 @@ class IteratedMatrixGame(environment.Environment):
             )
             # if first step then return START state.
             done = inner_t % params.num_inner_steps == 0
+            print(done.shape, jnp.int8(4), jnp.int8(s1))
             s1 = jax.lax.select(done, jnp.int8(4), jnp.int8(s1))
             s2 = jax.lax.select(done, jnp.int8(4), jnp.int8(s2))
             obs1 = jax.nn.one_hot(s1, 5, dtype=jnp.int8)
@@ -76,9 +77,14 @@ class IteratedMatrixGame(environment.Environment):
             )
             outer_t_new = outer_t + 1
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
-            discount = jnp.zeros((), dtype=jnp.int8)
-            state = EnvState(inner_t, outer_t)
-            return (obs1, obs2), state, (r1, r2), done, {"discount": discount}
+            state = EnvState(inner_t=inner_t, outer_t=outer_t)
+            return (
+                (obs1, obs2),
+                state,
+                (r1, r2),
+                done,
+                {"discount": jnp.zeros((), dtype=jnp.int8)},
+            )
 
         def _reset_env(
             key: chex.PRNGKey, params: EnvParams
@@ -91,7 +97,8 @@ class IteratedMatrixGame(environment.Environment):
             return (obs, obs), state
 
         # for runner
-        self.step = jax.jit(_step)
+        # self.step = jax.jit(_step)
+        self.step = _step
         self.reset_env = jax.jit(_reset_env)
         # self.runner_step = jax.jit(jax.vmap(_step))
         # self.batch_step = jax.jit(jax.vmap(jax.vmap(_step)))
