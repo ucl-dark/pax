@@ -6,13 +6,13 @@ from gymnax.environments import environment, spaces
 from typing import Tuple, Optional
 
 
-@struct.dataclass
+@chex.dataclass
 class EnvState:
     inner_t: int
     outer_t: int
 
 
-@struct.dataclass
+@chex.dataclass
 class EnvParams:
     payoff_matrix: jnp.ndarray
     num_inner_steps: int
@@ -37,14 +37,14 @@ class IteratedMatrixGame(environment.Environment):
             a1, a2 = actions
             inner_t += 1
 
-            cc_p1 = params.payoff[0][0] * (a1 - 1.0) * (a2 - 1.0)
-            cc_p2 = params.payoff[0][1] * (a1 - 1.0) * (a2 - 1.0)
-            cd_p1 = params.payoff[1][0] * (1.0 - a1) * a2
-            cd_p2 = params.payoff[1][1] * (1.0 - a1) * a2
-            dc_p1 = params.payoff[2][0] * a1 * (1.0 - a2)
-            dc_p2 = params.payoff[2][1] * a1 * (1.0 - a2)
-            dd_p1 = params.payoff[3][0] * a1 * a2
-            dd_p2 = params.payoff[3][1] * a1 * a2
+            cc_p1 = params.payoff_matrix[0][0] * (a1 - 1.0) * (a2 - 1.0)
+            cc_p2 = params.payoff_matrix[0][1] * (a1 - 1.0) * (a2 - 1.0)
+            cd_p1 = params.payoff_matrix[1][0] * (1.0 - a1) * a2
+            cd_p2 = params.payoff_matrix[1][1] * (1.0 - a1) * a2
+            dc_p1 = params.payoff_matrix[2][0] * a1 * (1.0 - a2)
+            dc_p2 = params.payoff_matrix[2][1] * a1 * (1.0 - a2)
+            dd_p1 = params.payoff_matrix[3][0] * a1 * a2
+            dd_p2 = params.payoff_matrix[3][1] * a1 * a2
 
             r1 = cc_p1 + dc_p1 + cd_p1 + dd_p1
             r2 = cc_p2 + dc_p2 + cd_p2 + dd_p2
@@ -84,8 +84,8 @@ class IteratedMatrixGame(environment.Environment):
             key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[chex.Array, EnvState]:
             state = EnvState(
-                jnp.zeros((), dtype=jnp.int8),
-                jnp.zeros((), dtype=jnp.int8),
+                inner_t=jnp.zeros((), dtype=jnp.int8),
+                outer_t=jnp.zeros((), dtype=jnp.int8),
             )
             obs = jax.nn.one_hot(4 * jnp.ones(()), 5, dtype=jnp.int8)
             return (obs, obs), state

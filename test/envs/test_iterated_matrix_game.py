@@ -2,7 +2,8 @@ import jax.numpy as jnp
 import jax
 import pytest
 
-from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.iterated_matrix_game import IteratedMatrixGame, EnvParams
+
 from pax.strategies import TitForTat
 
 # payoff matrices for four games
@@ -11,6 +12,7 @@ stag = [[4, 4], [1, 3], [3, 1], [2, 2]]
 sexes = [[3, 2], [0, 0], [0, 0], [2, 3]]
 chicken = [[0, 0], [-1, 1], [1, -1], [-2, -2]]
 test_payoffs = [ipd, stag, sexes, chicken]
+test_payoffs = [ipd]
 
 
 @pytest.mark.parametrize("payoff", test_payoffs)
@@ -18,9 +20,14 @@ def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
     rng = jax.random.PRNGKey(0)
     env = IteratedMatrixGame()
-    env_state = IteratedMatrixGame.State(payoff, 5, 5)
+    env_params = EnvParams(
+        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
+    )
 
-    obs, env_state = env.env_reset(env_state)
+    env.reset_env = jax.vmap(env.reset_env, in_axes=(0, None))
+    env.step = jax.vmap(env.step, in_axes=(None, None, 0, None))
+
+    obs, env_state = env.reset_env(rng, env_params)
 
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -32,7 +39,9 @@ def test_single_batch_rewards(payoff) -> None:
     dd_p1, dd_p2 = payoff[3][0], payoff[3][1]
 
     # first step
-    tstep_0, tstep_1 = env.step(rng, (0 * action, 0 * action), env_state)
+    tstep_0, tstep_1 = env.step(
+        rng, env_state, (0 * action, 0 * action), env_params
+    )
 
     tstep_0, tstep_1 = env.step((0 * action, 0 * action))
     assert jnp.array_equal(tstep_0.reward, cc_p1 * r_array)
