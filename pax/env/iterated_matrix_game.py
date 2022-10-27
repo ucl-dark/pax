@@ -21,7 +21,7 @@ class EnvParams(struct.DataClass):
 
 class IteratedMatrixGame(environment.Environment):
     """
-    JAX Compatible version of matrix game environment. Source:
+    JAX Compatible version of matrix game environment.
     """
 
     def __init__(self):
@@ -81,6 +81,7 @@ class IteratedMatrixGame(environment.Environment):
             return (obs1, obs2), state, (r1, r2), done, {"discount": discount}
 
         # for runner
+        self.step = jax.jit(_step)
         # self.runner_step = jax.jit(jax.vmap(_step))
         # self.batch_step = jax.jit(jax.vmap(jax.vmap(_step)))
         # self.runner_reset = runner_reset
