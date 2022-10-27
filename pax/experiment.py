@@ -508,7 +508,6 @@ def watcher_setup(args, logger):
         "HyperDefect": dumb_log,
         "HyperTFT": dumb_log,
         "Tabular": ppo_log,
-        "PPO_pretrained": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
     }
@@ -570,7 +569,7 @@ def main(args):
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.eval_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
