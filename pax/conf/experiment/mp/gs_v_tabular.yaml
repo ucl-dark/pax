@@ -6,14 +6,12 @@ agent2: 'Tabular'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
-evo: True 
-eval: False
+runner: evo
 
 # Training
 top_k: 5

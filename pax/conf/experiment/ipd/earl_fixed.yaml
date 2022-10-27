@@ -6,14 +6,12 @@ agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-evo: True 
-eval: False 
+runner: evo 
 
 # Training
 top_k: 5

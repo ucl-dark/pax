@@ -6,14 +6,12 @@ agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: sequential
 env_discount: 0.99
 payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
 
-# Runner 
-evo: False
-eval: False
+# Runner
+runner: rl
 
 # Training hyperparameters
 num_envs: 100
@@ -46,11 +44,12 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
+  hidden_size: 16
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'PPO-vs-${agent2}-${game}-parity'
+  group: 'PPO-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

@@ -1,10 +1,10 @@
-from typing import Mapping, NamedTuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
 from dm_env import TimeStep
 
-from pax.env_inner import InfiniteMatrixGame
+from pax.env import InfiniteMatrixGame
 from pax.utils import MemoryState
 
 
@@ -108,14 +108,12 @@ class NaiveExact:
             # loss=0,
         )
 
-        self._mem = (
-            MemoryState(
-                hidden=jnp.zeros((num_envs, 5)),
-                extras={
-                    "values": jnp.zeros(num_envs),
-                    "log_probs": jnp.zeros(num_envs),
-                },
-            ),
+        self._mem = MemoryState(
+            hidden=jnp.zeros((num_envs, 5)),
+            extras={
+                "values": jnp.zeros(num_envs),
+                "log_probs": jnp.zeros(num_envs),
+            },
         )
 
     def make_initial_state(self, t: TimeStep):
@@ -148,7 +146,7 @@ class NaiveExact:
             self._state, t.observation, self._mem
         )
         self._logger.metrics["sgd_steps"] += 1
-        self._logger.metrics["loss_total"] = self._state.loss
+        # self._logger.metrics["loss_total"] = self._state.loss
         self._total_steps += 1
         self._logger.metrics["total_steps"] = self._total_steps
         return action

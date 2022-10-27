@@ -6,10 +6,10 @@ agent2: 'NaiveEx'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: infinite
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+runner: rl 
 
 # Training hyperparameters
 num_envs: 4000
@@ -41,6 +41,7 @@ ppo:
   learning_rate: 4e-3
   adam_epsilon: 1e-5
   with_memory: False
+  hidden_size: 16
 
 # Naive Learner parameters
 naive:
@@ -54,6 +55,6 @@ naive:
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: '${agent1}-vs-${agent2}-${game}-parity'
+  group: '${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

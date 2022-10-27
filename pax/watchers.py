@@ -1,3 +1,4 @@
+import enum
 from functools import partial
 from symbol import trailer
 from typing import NamedTuple
@@ -8,7 +9,6 @@ import jax
 import jax.numpy as jnp
 import pickle
 
-from .env_inner import State
 import pax.hyper.ppo as HyperPPO
 from pax.naive_exact import NaiveExact
 import pax.ppo.ppo as PPO
@@ -22,6 +22,14 @@ DC = jnp.array([[0, 0, 1, 0, 0]])
 DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
+
+
+class State(enum.IntEnum):
+    CC = 0
+    CD = 1
+    DC = 2
+    DD = 3
+    START = 4
 
 
 def policy_logger(agent) -> dict:

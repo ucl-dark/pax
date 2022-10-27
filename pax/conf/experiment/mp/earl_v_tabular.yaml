@@ -6,14 +6,12 @@ agent2: 'Tabular'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
-evo: True 
-eval: False
+runner: evo
 
 # Training
 top_k: 5
@@ -28,21 +26,21 @@ num_devices: 1
 
 # Evaluation 
 num_seeds: 20
-# # EARL vs. PPO trained on seed=0
-# run_path: ucl-dark/ipd/13o3v95p
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900
-# EARL vs. PPO trained on seed=1
-# run_path: ucl-dark/ipd/dopodr9n
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-1-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.58.912526/generation_2900
-# EARL vs. PPO trained on seed=2
-# run_path: ucl-dark/ipd/265ftn32
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-2-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.17.00.437954/generation_2900
-# EARL vs. PPO trained on seed=3
-# run_path: ucl-dark/ipd/1hffijy2
-# model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
-# EARL vs. PPO trained on seed=25
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+# seed = 0 
+# run_path: ucl-dark/mp/36w1tuju
+# model_path:  exp/GS-PPO_memory-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_15.52.33.707967/generation_4900
+# seed = 1 
+# run_path: ucl-dark/mp/3074jksy
+# model_path: exp/GS-PPO_memory-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_15.53.12.637138/generation_4900
+# seed = 2
+# run_path: ucl-dark/mp/1h18aq5c
+# model_path: exp/GS-PPO_memory-vs-Tabular/run-seed-2-pop-size-1000/2022-09-25_15.53.49.913885/generation_4900
+# seed = 3 
+# run_path: ucl-dark/mp/3ew2bidu
+# model_path: exp/GS-PPO_memory-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_15.54.11.059838/generation_4900
+# seed = 4 
+run_path: ucl-dark/mp/glpfg7zd
+model_path: exp/GS-PPO_memory-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_15.55.16.444095/generation_4900
 
 # PPO agent parameters
 ppo:
@@ -95,7 +93,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: mp
-  group: 'GS-${agent1}-vs-${agent2}'
+  group: '${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 

@@ -6,14 +6,12 @@ agent2: 'Tabular'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-evo: True 
-eval: False
+runner: rl 
 
 # Training
 top_k: 5
@@ -28,21 +26,21 @@ num_devices: 1
 
 # Evaluation 
 num_seeds: 20
-# # EARL vs. PPO trained on seed=0
-# run_path: ucl-dark/ipd/13o3v95p
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900
-# EARL vs. PPO trained on seed=1
-# run_path: ucl-dark/ipd/dopodr9n
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-1-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.58.912526/generation_2900
-# EARL vs. PPO trained on seed=2
-# run_path: ucl-dark/ipd/265ftn32
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-2-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.17.00.437954/generation_2900
-# EARL vs. PPO trained on seed=3
-# run_path: ucl-dark/ipd/1hffijy2
-# model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
-# EARL vs. PPO trained on seed=25
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+# MFOS vs. Tabular trained on seed = 0
+run_path: ucl-dark/ipd/1r9txdso
+model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400
+# MFOS vs. Tabular trained on seed = 1
+# run_path: ucl-dark/ipd/13srlkhp
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_20.33.11.352762/generation_4300
+# MFOS vs. Tabular trained on seed = 2
+# run_path: ucl-dark/ipd/3pfmqrpw
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-2-pop-size-1000/2022-09-25_20.34.04.832865/generation_4400
+# MFOS vs. Tabular trained on seed = 3
+# run_path: ucl-dark/ipd/groh4iwx
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_20.36.02.555928/generation_4400
+# MFOS vs. Tabular trained on seed = 4
+# run_path: ucl-dark/ipd/26cqaqyc
+# model_path:  exp/GS-MFOS-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_20.38.01.382774/generation_4400
 
 # PPO agent parameters
 ppo:

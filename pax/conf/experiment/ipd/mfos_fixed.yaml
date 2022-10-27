@@ -6,10 +6,10 @@ agent2: 'HyperTFT'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: infinite
 env_discount: 0.99
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+runner: rl 
 
 # Training hyperparameters
 num_envs: 50

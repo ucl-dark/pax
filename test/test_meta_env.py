@@ -1,10 +1,8 @@
 import jax.numpy as jnp
 import pytest
 
-from pax.env_meta import CoinGame, CoinGameState, MetaFiniteGame
+from pax.env import CoinGame, CoinGameState, IteratedMatrixGame
 from pax.strategies import TitForTat
-
-from pax.env_inner import InfiniteMatrixGame
 
 # payoff matrices for four games
 ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]
@@ -17,7 +15,7 @@ test_payoffs = [ipd, stag, sexes, chicken]
 @pytest.mark.parametrize("payoff", test_payoffs)
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 1
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
 
@@ -71,7 +69,7 @@ testdata = [
 def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     num_envs = 3
     all_ones = jnp.ones((num_envs,))
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     env.reset()
 
     action_1, action_2 = actions
@@ -92,7 +90,7 @@ def test_mixed_batched_outcomes() -> None:
 def test_tit_for_tat_match() -> None:
     num_envs = 5
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     t_0, t_1 = env.reset()
 
     tit_for_tat = TitForTat(num_envs)
@@ -110,7 +108,7 @@ def test_longer_game() -> None:
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     num_steps = 50
     num_inner_steps = 2
-    env = MetaFiniteGame(num_envs, payoff, num_inner_steps, num_steps)
+    env = IteratedMatrixGame(num_envs, payoff, num_inner_steps, num_steps)
     t_0, t_1 = env.reset()
 
     agent = TitForTat(num_envs)
@@ -132,7 +130,7 @@ def test_longer_game() -> None:
 def test_done():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 5)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 5)
     action = jnp.ones((num_envs,))
 
     # check first
@@ -158,7 +156,7 @@ def test_done():
 def test_reset():
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = MetaFiniteGame(num_envs, payoff, 5, 10)
+    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
     state = jnp.ones((num_envs,))
 
     env.reset()
@@ -178,7 +176,7 @@ def test_reset():
 
 def test_coingame_shapes():
     batch_size = 2
-    env = CoinGame(batch_size, 8, 16, 0, False, False)
+    env = CoinGame(batch_size, 8, 16, 0, False, True)
     action = jnp.ones(batch_size, dtype=int)
 
     t1, t2 = env.reset()
@@ -201,7 +199,7 @@ def test_coingame_shapes():
 
 def test_coingame_move():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
@@ -212,10 +210,14 @@ def test_coingame_move():
         key=env.state.key,
         inner_t=env.state.inner_t,
         outer_t=env.state.outer_t,
-        red_coop=jnp.zeros((bs, 2, 1), jnp.int8),
-        red_defect=jnp.zeros((bs, 2, 1), jnp.int8),
-        blue_coop=jnp.zeros((bs, 2, 1), jnp.int8),
-        blue_defect=jnp.zeros((bs, 2, 1), jnp.int8),
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     t1, t2 = env.step((action, action))
@@ -237,7 +239,7 @@ def test_coingame_move():
 
 def test_coingame_egocentric_colors():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -254,6 +256,10 @@ def test_coingame_egocentric_colors():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     for _ in range(7):
@@ -276,7 +282,7 @@ def test_coingame_egocentric_colors():
 
 def test_coingame_egocentric_pos():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
 
@@ -292,6 +298,10 @@ def test_coingame_egocentric_pos():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
     # it would be nice to have a stay action here lol
     t1, t2 = env.step((action, action))
@@ -328,7 +338,7 @@ def test_coingame_egocentric_pos():
 
 def test_coingame_stay():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     t1, t2 = env.reset()
 
     stay = 4 * jnp.ones(bs, dtype=int)
@@ -344,6 +354,10 @@ def test_coingame_stay():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
     env.state = _state
 
@@ -355,7 +369,7 @@ def test_coingame_stay():
 
 def test_coingame_egocentric():
     bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
+    env = CoinGame(bs, 8, 16, 0, True, True)
     action = jnp.ones(bs, dtype=int)
     t1, t2 = env.reset()
     env.state = CoinGameState(
@@ -370,6 +384,10 @@ def test_coingame_egocentric():
         red_defect=jnp.zeros(1),
         blue_coop=jnp.zeros(1),
         blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
     )
 
     for _ in range(7):
@@ -380,6 +398,33 @@ def test_coingame_egocentric():
         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+    # check negative case
+    env.state = CoinGameState(
+        red_pos=jnp.array([[0, 0]]),
+        blue_pos=jnp.array([[2, 2]]),
+        red_coin_pos=jnp.array([[0, 1]]),
+        blue_coin_pos=jnp.array([[0, 1]]),
+        key=env.state.key,
+        inner_t=0 * env.state.inner_t,
+        outer_t=0 * env.state.outer_t,
+        red_coop=jnp.zeros(1),
+        red_defect=jnp.zeros(1),
+        blue_coop=jnp.zeros(1),
+        blue_defect=jnp.zeros(1),
+        counter=env.state.counter,
+        coop1=env.state.coop1,
+        coop2=env.state.coop2,
+        last_state=env.state.last_state,
+    )
+
+    t1, t2 = env.step((5 * action, 5 * action))
+    obs1, obs2 = t1.observation[0], t2.observation[0]
+
+    assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
+    assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
+    assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
+    assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
 
 
 def test_coingame_render():

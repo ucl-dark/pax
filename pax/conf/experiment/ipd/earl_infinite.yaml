@@ -6,14 +6,13 @@ agent2: 'HyperTFT'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-evo: True 
-eval: False 
+runner: evo 
+
 
 # Training
 top_k: 5
@@ -52,6 +51,7 @@ ppo:
   with_memory: True
   with_cnn: False
   separate: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:

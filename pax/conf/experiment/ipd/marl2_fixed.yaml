@@ -6,10 +6,10 @@ agent2: 'TitForTat'
 
 # Environment
 env_id: ipd
-game: ipd 
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+runner: rl 
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
