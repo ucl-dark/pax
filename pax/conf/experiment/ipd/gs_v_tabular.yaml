@@ -27,7 +27,6 @@ total_timesteps: 1e11
 num_devices: 1
 
 # Evaluation 
-num_seeds: 20
 # GS vs. Tabular trained on seed=0, where Naive Learners have their learning rate annealed halfway through the trial 
 # run_path: ucl-dark/ipd/1gg0p92x
 # model_path: exp/GS-PPO-vs-Tabular/run-seed-0-pop-size-1000/2022-09-28_01.57.34.854198/generation_4900

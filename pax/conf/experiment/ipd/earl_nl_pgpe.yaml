@@ -22,7 +22,6 @@ num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
 total_timesteps: 1.5e8
-eval_every: 1.5e8
 
 # PPO agent parameters
 ppo:

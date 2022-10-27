@@ -22,11 +22,9 @@ num_steps: 10_000
 num_inner_steps: 100 
 num_generations: 1000
 total_timesteps: 2.5e7
-eval_every: 2.5e7
 num_devices: 1
 
 # Evaluation 
-num_seeds: 10
 run_path: ucl-dark/ipd/2yj1stne
 model_path: exp/EARL-PPO_memory-vs-TitForTat/run-seed-0/2022-09-08_19.49.42.048417/generation_40
 
