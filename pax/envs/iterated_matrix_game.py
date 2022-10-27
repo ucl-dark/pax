@@ -64,7 +64,6 @@ class IteratedMatrixGame(environment.Environment):
             )
             # if first step then return START state.
             done = inner_t % params.num_inner_steps == 0
-            print(done.shape, jnp.int8(4), jnp.int8(s1))
             s1 = jax.lax.select(done, jnp.int8(4), jnp.int8(s1))
             s2 = jax.lax.select(done, jnp.int8(4), jnp.int8(s2))
             obs1 = jax.nn.one_hot(s1, 5, dtype=jnp.int8)
@@ -86,7 +85,7 @@ class IteratedMatrixGame(environment.Environment):
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
             )
 
-        def _reset_env(
+        def _reset(
             key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[chex.Array, EnvState]:
             state = EnvState(
@@ -96,13 +95,9 @@ class IteratedMatrixGame(environment.Environment):
             obs = jax.nn.one_hot(4 * jnp.ones(()), 5, dtype=jnp.int8)
             return (obs, obs), state
 
-        # for runner
-        # self.step = jax.jit(_step)
-        self.step = _step
-        self.reset_env = jax.jit(_reset_env)
-        # self.runner_step = jax.jit(jax.vmap(_step))
-        # self.batch_step = jax.jit(jax.vmap(jax.vmap(_step)))
-        # self.runner_reset = runner_reset
+        # overwrite Gymnax as it makes single-agent assumptions
+        self.step = jax.jit(_step)
+        self.reset = jax.jit(_reset)
 
     @property
     def name(self) -> str:
