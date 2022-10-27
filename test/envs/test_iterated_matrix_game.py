@@ -169,26 +169,31 @@ def test_batch_by_rngs() -> None:
 def test_tit_for_tat_match() -> None:
     num_envs = 5
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    rng = jax.random.PRNGKey(0)
+    rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
+        num_envs, -1
+    )
     env = IteratedMatrixGame()
     env_params = EnvParams(
         payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=2
     )
 
+    env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
     env.step = jax.vmap(
         env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
     )
-    obs, env_state = env.reset(rng, env_params)
+
+    obs, env_state = env.reset(rngs, env_params)
     tit_for_tat = TitForTat(num_envs)
 
     action_0 = tit_for_tat.select_action(obs[0])
     action_1 = tit_for_tat.select_action(obs[1])
     assert jnp.array_equal(action_0, action_1)
 
-    obs, env_state, rewards, done, info = env.step(
-        rng, env_state, (action_0, action_1), env_params
-    )
-    assert jnp.array_equal(rewards[0], rewards[1])
+    for _ in range(10):
+        obs, env_state, rewards, done, info = env.step(
+            rngs, env_state, (action_0, action_1), env_params
+        )
+        assert jnp.array_equal(rewards[0], rewards[1])
 
 
 def test_longer_game() -> None:
