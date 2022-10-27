@@ -538,6 +538,20 @@ class PPO:
         self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
         return state, mem, metrics
 
+    def meta_policy(self, mem: MemoryState):
+        """Policy function for the meta agent"""
+
+        # update memory with the running th from previous epsiode
+        mem = mem._replace(th=mem.curr_th)
+
+        # reset memory of agent
+        mem = mem._replace(
+            hidden=jnp.zeros_like(mem.hidden),
+            curr_th=jnp.ones_like(mem.curr_th),
+        )
+
+        return mem
+
 
 # TODO: seed, and player_id not used in CartPole
 def make_gru_agent(

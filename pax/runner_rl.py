@@ -24,6 +24,19 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
+class MFOSSample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
+    meta_actions: jnp.ndarray
+
+
 @jax.jit
 def reduce_outer_traj(traj: Sample) -> Sample:
     """Used to collapse lax.scan outputs dims"""
@@ -83,15 +96,27 @@ class Runner:
                 env_state,
             )
 
-            traj1 = Sample(
-                t1.observation,
-                a1,
-                tprime_1.reward,
-                new_a1_mem.extras["log_probs"],
-                new_a1_mem.extras["values"],
-                tprime_1.last(),
-                a1_mem.hidden,
-            )
+            if self.args.agent1 == "MFOS":
+                traj1 = MFOSSample(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    tprime_1.last(),
+                    a1_mem.hidden,
+                    a1_mem.th,
+                )
+            else:
+                traj1 = Sample(
+                    t1.observation,
+                    a1,
+                    tprime_1.reward,
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    tprime_1.last(),
+                    a1_mem.hidden,
+                )
             traj2 = Sample(
                 t2.observation,
                 a2,
@@ -127,7 +152,7 @@ class Runner:
 
             # MFOS has to takes a meta-action for each episode
             if self.args.agent1 == "MFOS":
-                a1_mem = a1_mem._replace(th=a1_mem.curr_th)
+                a1_mem = agent1.meta_policy(a1_mem)
 
             # update second agent
             t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
