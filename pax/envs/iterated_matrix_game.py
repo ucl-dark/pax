@@ -6,17 +6,17 @@ from gymnax.environments import environment, spaces
 from typing import Tuple, Optional
 
 
-class EnvState(struct.DataClass):
+@struct.dataclass
+class EnvState:
     inner_t: int
     outer_t: int
 
 
-class EnvParams(struct.DataClass):
+@struct.dataclass
+class EnvParams:
     payoff_matrix: jnp.ndarray
     num_inner_steps: int
     num_outer_steps: int
-    num_players: int
-    num_actions: int
 
 
 class IteratedMatrixGame(environment.Environment):
@@ -80,8 +80,19 @@ class IteratedMatrixGame(environment.Environment):
             state = EnvState(inner_t, outer_t)
             return (obs1, obs2), state, (r1, r2), done, {"discount": discount}
 
+        def _reset_env(
+            key: chex.PRNGKey, params: EnvParams
+        ) -> Tuple[chex.Array, EnvState]:
+            state = EnvState(
+                jnp.zeros((), dtype=jnp.int8),
+                jnp.zeros((), dtype=jnp.int8),
+            )
+            obs = jax.nn.one_hot(4 * jnp.ones(()), 5, dtype=jnp.int8)
+            return (obs, obs), state
+
         # for runner
         self.step = jax.jit(_step)
+        self.reset_env = jax.jit(_reset_env)
         # self.runner_step = jax.jit(jax.vmap(_step))
         # self.batch_step = jax.jit(jax.vmap(jax.vmap(_step)))
         # self.runner_reset = runner_reset
@@ -109,13 +120,3 @@ class IteratedMatrixGame(environment.Environment):
     def state_space(self, params: EnvParams) -> spaces.Dict:
         """State space of the environment."""
         return spaces.Discrete(5)
-
-    def reset_env(
-        self, key: chex.PRNGKey, params: EnvParams
-    ) -> Tuple[chex.Array, EnvState]:
-        state = EnvState(
-            jnp.zeros((), dtype=jnp.int8),
-            jnp.zeros((), dtype=jnp.int8),
-        )
-        obs = jax.nn.one_hot(4 * jnp.ones(()), 5, dtype=jnp.int8)
-        return (obs, obs), state
