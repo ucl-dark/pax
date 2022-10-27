@@ -96,13 +96,12 @@ celerybeat.pid
 
 # Cython debug symbols
 cython_debug/
-axelrod/wandb/run-20211130_111239-3e5d7pih/files/wandb-metadata.json
 
 # WandBD
 wandb/
-axelrod/models
 exp/
 
 # Hydra
 .hydra
 exp/
+venv/

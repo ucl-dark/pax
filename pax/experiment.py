@@ -14,8 +14,6 @@ import wandb
 
 
 from pax.env import CoinGame, IteratedMatrixGame, InfiniteMatrixGame
-from pax.evaluation_ipd import EvalRunnerIPD
-from pax.evaluation_cg import EvalRunnerCG
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.naive.naive import make_naive_pg
@@ -23,9 +21,9 @@ from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
 from pax.ppo.ppo_gru import make_gru_agent
 from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
+from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import Runner
-from pax.runner_pretrained import RunnerPretrained
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -183,28 +181,9 @@ def env_setup(args, logger=None):
 
 
 def runner_setup(args, agents, save_dir, logger):
-    if (
-        args.agent1
-        in [
-            "PPO_memory_pretrained",
-            "PPO_pretrained",
-            "MFOS_pretrained",
-        ]
-        or args.runner == "pretrained"
-    ):
-        logger.info("Training with Pre-trained Runner")
-        agent1, _ = agents.agents
-        param_reshaper = ParameterReshaper(
-            agent1._state.params, n_devices=args.num_devices
-        )
-        return RunnerPretrained(args, save_dir, param_reshaper)
     if args.runner == "eval":
-        if args.env_id == "ipd":
-            logger.info("Evaluating with EvalRunnerIPD")
-            return EvalRunnerIPD(args)
-        elif args.env_id == "coin_game":
-            logger.info("Evaluating with EvalRunnerCG")
-            return EvalRunnerCG(args)
+        logger.info("Evaluating with EvalRunner")
+        return EvalRunner(args)
 
     if args.runner == "evo":
         agent1, _ = agents.agents
@@ -293,6 +272,7 @@ def runner_setup(args, agents, save_dir, logger):
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return Runner(args, save_dir)
+
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -537,13 +517,10 @@ def agent_setup(args, logger):
         "EvilGreedy": partial(EvilGreedy, args.num_envs),
         "RandomGreedy": partial(RandomGreedy, args.num_envs),
         "PPO": get_PPO_agent,
-        "PPO_pretrained": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
-        "PPO_memory_pretrained": get_PPO_memory_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
-        "MFOS_pretrained": get_mfos_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -645,9 +622,6 @@ def watcher_setup(args, logger):
         "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
-        "MFOS_pretrained": dumb_log,
-        "PPO_pretrained": ppo_log,
-        "PPO_memory_pretrained": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
@@ -688,20 +662,24 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    # If evaluating, pass in the number of seeds you want to evaluate over
-    if args.runner == "eval":
-        runner.eval_loop(train_env, agent_pair, args.num_seeds, watchers)
+    if args.runner == "evo":
+        num_iters = args.num_generations  # number of generations
+        print(f"Number of Generations: {num_iters}")
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
-    # If training, get the number of iterations to run
-    else:
-        if args.runner == "evo":
-            num_iters = args.num_generations  # number of generations
-        else:
-            num_iters = int(
-                args.total_timesteps / args.num_steps
-            )  # number of episodes
-            print(f"Number of episodes: {num_iters}")
-        runner.train_loop(train_env, agent_pair, num_iters, watchers)
+    elif args.runner == "rl":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+
+    elif args.runner == "eval":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(train_env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
