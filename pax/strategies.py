@@ -391,11 +391,11 @@ class TitForTat:
 
     def select_action(
         self,
-        timestep: TimeStep,
+        obs: jnp.ndarray,
     ) -> jnp.ndarray:
         # state is [batch x time_step x num_players]
         # return [batch]
-        return self._reciprocity(timestep.observation)
+        return self._reciprocity(obs)
 
     def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}

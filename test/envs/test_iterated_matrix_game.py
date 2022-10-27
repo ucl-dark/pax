@@ -113,7 +113,7 @@ def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
 
 
 def test_batch_by_rngs() -> None:
-    # we don't use the rng in step but good test of batchings by rngs
+    # we don't use the rng in step but good test of how runners wil use env
     num_envs = 2
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
 
@@ -199,69 +199,101 @@ def test_tit_for_tat_match() -> None:
 def test_longer_game() -> None:
     num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    num_steps = 50
+    num_outer_steps = 25
     num_inner_steps = 2
-    env = IteratedMatrixGame(num_envs, payoff, num_inner_steps, num_steps)
-    t_0, t_1 = env.reset()
+    env = IteratedMatrixGame()
+
+    # batch over actions and env_states
+    env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
+    env.step = jax.vmap(
+        env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
+
+    env_params = EnvParams(
+        payoff_matrix=payoff,
+        num_inner_steps=num_inner_steps,
+        num_outer_steps=num_outer_steps,
+    )
+
+    rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
+        num_envs, -1
+    )
+
+    obs, env_state = env.reset(rngs, env_params)
 
     agent = TitForTat(num_envs)
-    action = agent.select_action(t_0)
-
     r1 = []
     r2 = []
-    for _ in range(10):
-        action = agent.select_action(t_0)
-        t0, t1 = env.step((action, action))
-        r1.append(t0.reward)
-        r2.append(t1.reward)
+    for _ in range(num_outer_steps):
+        for _ in range(num_inner_steps):
+            action = agent.select_action(obs[0])
+            obs, env_state, rewards, done, info = env.step(
+                rngs, env_state, (action, action), env_params
+            )
+            r1.append(rewards[0])
+            r2.append(rewards[1])
+            assert jnp.array_equal(rewards[0], rewards[1])
+        assert (done == True).all()
 
-    assert jnp.array_equal(t_0.reward, t_1.reward)
     assert jnp.mean(jnp.stack(r1)) == 2
     assert jnp.mean(jnp.stack(r2)) == 2
 
 
 def test_done():
-    num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = IteratedMatrixGame(num_envs, payoff, 5, 5)
-    action = jnp.ones((num_envs,))
-
-    # check first
-    t_0, t_1 = env.step((0 * action, 0 * action))
-    assert t_0.last() == False
-    assert t_1.last() == False
+    num_outer_steps = 25
+    num_inner_steps = 5
+    env = IteratedMatrixGame()
+    env_params = EnvParams(
+        payoff_matrix=payoff,
+        num_inner_steps=num_inner_steps,
+        num_outer_steps=num_outer_steps,
+    )
+    rng = jax.random.PRNGKey(0)
+    obs, env_state = env.reset(rng, env_params)
+    action = 0
 
     for _ in range(4):
-        t_0, t_1 = env.step((0 * action, 0 * action))
-        assert t_0.last() == False
-        assert t_1.last() == False
+        obs, env_state, rewards, done, info = env.step(
+            rng, env_state, (action, action), env_params
+        )
+        assert (done == False).all()
 
     # check final
-    t_0, t_1 = env.step((0 * action, 0 * action))
-    assert t_0.last() == True
-    assert t_1.last() == True
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, (action, action), env_params
+    )
+    assert (done == True).all()
 
     # check back at start
-    assert jnp.array_equal(t_0.observation.argmax(), 4)
-    assert jnp.array_equal(t_1.observation.argmax(), 4)
+    assert jnp.array_equal(obs[0].argmax(), 4)
+    assert jnp.array_equal(obs[1].argmax(), 4)
 
 
 def test_reset():
-    num_envs = 1
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    env = IteratedMatrixGame(num_envs, payoff, 5, 10)
-    state = jnp.ones((num_envs,))
+    rng = jax.random.PRNGKey(0)
+    env = IteratedMatrixGame()
+    env_params = EnvParams(
+        payoff_matrix=payoff,
+        num_inner_steps=5,
+        num_outer_steps=2,
+    )
+    action = 0
 
-    env.reset()
+    obs, env_state = env.reset(rng, env_params)
+    for _ in range(4):
+        obs, env_state, rewards, done, info = env.step(
+            rng, env_state, (action, action), env_params
+        )
+        assert done == False
+        assert done == False
+
+    obs, env_state = env.reset(rng, env_params)
 
     for _ in range(4):
-        t_0, t_1 = env.step((0 * state, 0 * state))
-        assert t_0.last().all() == False
-        assert t_1.last().all() == False
-
-    env.reset()
-
-    for _ in range(4):
-        t_0, t_1 = env.step((0 * state, 0 * state))
-        assert t_0.last().all() == False
-        assert t_1.last().all() == False
+        obs, env_state, rewards, done, info = env.step(
+            rng, env_state, (action, action), env_params
+        )
+        assert done == False
+        assert done == False
