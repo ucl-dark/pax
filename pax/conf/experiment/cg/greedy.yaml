@@ -23,7 +23,7 @@ total_timesteps: 1.6e5
 save_interval: 100 
 
 # Evaluation 
-num_seeds: 10 
+ 
 run_path: ucl-dark/cg/12auc9um
 model_path: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-09-08_20.04.17.155963/iteration_500
 
