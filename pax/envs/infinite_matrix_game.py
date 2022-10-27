@@ -29,6 +29,7 @@ class InfiniteMatrixGame(environment.Environment):
             actions: Tuple[int, int],
             params: EnvParams,
         ):
+            # Thank you @luchris429 for this code!
             t = state.outer_t
             key, _ = jax.random.split(key, 2)
             payout_mat_1 = jnp.array([[r[0] for r in params.payoff_matrix]])
