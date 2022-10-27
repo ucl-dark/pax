@@ -111,29 +111,6 @@ class IteratedMatrixGame:
         self.batch_step = jax.jit(jax.vmap(jax.vmap(_step)))
         self.runner_reset = runner_reset
 
-    def step(self, actions):
-        if self._reset_next_step:
-            return self.reset()
-
-        output, self.state = self.runner_step(actions, self.state)
-        if (self.state.outer_t == self.outer_ep_length).all():
-            self._reset_next_step = True
-            output = (
-                TimeStep(
-                    2 * jnp.ones(self.num_envs, dtype=jnp.int8),
-                    output[0].reward,
-                    output[0].discount,
-                    output[0].observation,
-                ),
-                TimeStep(
-                    2 * jnp.ones(self.num_envs, dtype=jnp.int8),
-                    output[1].reward,
-                    output[1].discount,
-                    output[1].observation,
-                ),
-            )
-        return output
-
     def observation_spec(self) -> specs.DiscreteArray:
         """Returns the observation spec."""
         return specs.DiscreteArray(num_values=5, name="previous turn")
@@ -219,34 +196,6 @@ class InfiniteMatrixGame:
         self.inner_episode_length = episode_length
         self.batch_step = jax.jit(
             jax.vmap(self.runner_step, (0, None), (0, None))
-        )
-
-    def step(
-        self, actions: Tuple[jnp.ndarray, jnp.ndarray]
-    ) -> Tuple[TimeStep, TimeStep]:
-        """
-        takes a tuple of batched policies and produce value functions from infinite game
-        policy of form [B, 5]
-        """
-        if self._reset_next_step:
-            return self.reset()
-
-        action_1, action_2 = actions
-        self._num_steps += 1
-        assert action_1.shape == action_2.shape
-        assert action_1.shape == (self.num_envs, 5)
-
-        outputs, self.state = self._jit_step(actions, self.state)
-        r1, r2, obs1, obs2, _ = outputs
-        r1, r2 = (1 - self.gamma) * r1, (1 - self.gamma) * r2
-
-        if self._num_steps == self.episode_length:
-            self._reset_next_step = True
-            return termination(reward=r1, observation=obs1), termination(
-                reward=r2, observation=obs2
-            )
-        return transition(reward=r1, observation=obs1), transition(
-            reward=r2, observation=obs2
         )
 
     def runner_step(
@@ -726,10 +675,6 @@ class CoinGame:
 
     def reset(self) -> Tuple[TimeStep, TimeStep]:
         output, self.state = self._reset(self.key)
-        return output
-
-    def step(self, actions: Tuple[int, int]) -> Tuple[TimeStep, TimeStep]:
-        output, self.state = self.runner_step(actions, self.state)
         return output
 
     def observation_spec(self) -> specs.BoundedArray:
