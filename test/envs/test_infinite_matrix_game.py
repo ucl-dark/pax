@@ -1,10 +1,7 @@
 import jax.numpy as jnp
 import jax
-import pytest
 
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame, EnvParams
-
-from pax.strategies import TitForTat
 
 
 def test_single_infinite_game():
@@ -15,8 +12,8 @@ def test_single_infinite_game():
     tft_policy = 20 * jnp.array([1.0, -1.0, 1.0, -1.0, 1.0])
 
     # discount of 0.99 -> 1/(0.001) ~ 100 timestep
-    env = InfiniteMatrixGame()
-    env_params = EnvParams(payoff_matrix=payoff, num_steps=10, gamma=0.99)
+    env = InfiniteMatrixGame(num_steps=10)
+    env_params = EnvParams(payoff_matrix=payoff, gamma=0.99)
 
     obs, env_state = env.reset(rng, env_params)
     obs, env_state, rewards, done, info = env.step(
@@ -86,8 +83,8 @@ def test_batch_infinite_game():
     def_policy = -20 * jnp.ones((1, 5))
     tft_policy = 20 * jnp.array([[1, -1, 1, -1, 1]])
 
-    env = InfiniteMatrixGame()
-    env_params = EnvParams(payoff_matrix=payoff, num_steps=10, gamma=0.99)
+    env = InfiniteMatrixGame(num_steps=10)
+    env_params = EnvParams(payoff_matrix=payoff, gamma=0.99)
 
     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
     env.step = jax.vmap(

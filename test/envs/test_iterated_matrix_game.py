@@ -18,10 +18,8 @@ test_payoffs = [ipd, stag, sexes, chicken]
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 5
     rng = jax.random.PRNGKey(0)
-    env = IteratedMatrixGame()
-    env_params = EnvParams(
-        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
-    )
+    env = IteratedMatrixGame(num_inner_steps=5)
+    env_params = EnvParams(payoff_matrix=payoff)
 
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -94,10 +92,8 @@ def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     a1, a2 = actions
     expected_r1, expected_r2 = expected_rewards
 
-    env = IteratedMatrixGame()
-    env_params = EnvParams(
-        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
-    )
+    env = IteratedMatrixGame(num_inner_steps=5)
+    env_params = EnvParams(payoff_matrix=payoff)
     # we want to batch over envs purely by actions
     env.step = jax.vmap(
         env.step, in_axes=(None, None, 0, None), out_axes=(0, None, 0, 0, 0)
@@ -120,10 +116,8 @@ def test_batch_by_rngs() -> None:
     rng = jnp.concatenate(
         [jax.random.PRNGKey(0), jax.random.PRNGKey(0)]
     ).reshape(num_envs, -1)
-    env = IteratedMatrixGame()
-    env_params = EnvParams(
-        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=1
-    )
+    env = IteratedMatrixGame(num_inner_steps=5)
+    env_params = EnvParams(payoff_matrix=payoff)
 
     action = jnp.ones((num_envs,), dtype=jnp.float32)
     r_array = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -172,10 +166,8 @@ def test_tit_for_tat_match() -> None:
     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
         num_envs, -1
     )
-    env = IteratedMatrixGame()
-    env_params = EnvParams(
-        payoff_matrix=payoff, num_inner_steps=5, num_outer_steps=2
-    )
+    env = IteratedMatrixGame(num_inner_steps=5)
+    env_params = EnvParams(payoff_matrix=payoff)
 
     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
     env.step = jax.vmap(
@@ -201,7 +193,7 @@ def test_longer_game() -> None:
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     num_outer_steps = 25
     num_inner_steps = 2
-    env = IteratedMatrixGame()
+    env = IteratedMatrixGame(num_inner_steps=num_inner_steps)
 
     # batch over actions and env_states
     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
@@ -211,8 +203,6 @@ def test_longer_game() -> None:
 
     env_params = EnvParams(
         payoff_matrix=payoff,
-        num_inner_steps=num_inner_steps,
-        num_outer_steps=num_outer_steps,
     )
 
     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
@@ -241,19 +231,16 @@ def test_longer_game() -> None:
 
 def test_done():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
-    num_outer_steps = 25
     num_inner_steps = 5
-    env = IteratedMatrixGame()
+    env = IteratedMatrixGame(num_inner_steps=num_inner_steps)
     env_params = EnvParams(
         payoff_matrix=payoff,
-        num_inner_steps=num_inner_steps,
-        num_outer_steps=num_outer_steps,
     )
     rng = jax.random.PRNGKey(0)
     obs, env_state = env.reset(rng, env_params)
     action = 0
 
-    for _ in range(4):
+    for _ in range(num_inner_steps - 1):
         obs, env_state, rewards, done, info = env.step(
             rng, env_state, (action, action), env_params
         )
@@ -273,11 +260,9 @@ def test_done():
 def test_reset():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     rng = jax.random.PRNGKey(0)
-    env = IteratedMatrixGame()
+    env = IteratedMatrixGame(num_inner_steps=5)
     env_params = EnvParams(
         payoff_matrix=payoff,
-        num_inner_steps=5,
-        num_outer_steps=2,
     )
     action = 0
 

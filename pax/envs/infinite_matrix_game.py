@@ -15,12 +15,11 @@ class EnvState:
 @chex.dataclass
 class EnvParams:
     payoff_matrix: jnp.ndarray
-    num_steps: int
     gamma: float
 
 
 class InfiniteMatrixGame(environment.Environment):
-    def __init__(self):
+    def __init__(self, num_steps: int):
         super().__init__()
 
         def _step(
@@ -70,7 +69,7 @@ class InfiniteMatrixGame(environment.Environment):
             L_2 = jnp.matmul(M, jnp.reshape(payout_mat_2, (4, 1)))
             r1 = (1 - params.gamma) * L_1.sum()
             r2 = (1 - params.gamma) * L_2.sum()
-            done = t >= params.num_steps
+            done = t >= num_steps
             state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t + 1
             )

@@ -15,8 +15,6 @@ class EnvState:
 @chex.dataclass
 class EnvParams:
     payoff_matrix: jnp.ndarray
-    num_inner_steps: int
-    num_outer_steps: int
 
 
 class IteratedMatrixGame(environment.Environment):
@@ -24,7 +22,7 @@ class IteratedMatrixGame(environment.Environment):
     JAX Compatible version of matrix game environment.
     """
 
-    def __init__(self):
+    def __init__(self, num_inner_steps: int):
         super().__init__()
 
         def _step(
@@ -63,14 +61,14 @@ class IteratedMatrixGame(environment.Environment):
                 + 3 * (a1) * (a2)
             )
             # if first step then return START state.
-            done = inner_t % params.num_inner_steps == 0
+            done = inner_t % num_inner_steps == 0
             s1 = jax.lax.select(done, jnp.int8(4), jnp.int8(s1))
             s2 = jax.lax.select(done, jnp.int8(4), jnp.int8(s2))
             obs1 = jax.nn.one_hot(s1, 5, dtype=jnp.int8)
             obs2 = jax.nn.one_hot(s2, 5, dtype=jnp.int8)
 
             # out step keeping
-            reset_inner = inner_t == params.num_inner_steps
+            reset_inner = inner_t == num_inner_steps
             inner_t = jax.lax.select(
                 reset_inner, jnp.zeros_like(inner_t), inner_t
             )
