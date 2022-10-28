@@ -530,19 +530,22 @@ class CoinGame(environment.Environment):
 
 
 if __name__ == "__main__":
-    bs = 1
-    env = CoinGame(bs, 8, 16, 0, True, False)
-    action = jnp.ones(bs, dtype=int)
-    t1, t2 = env.reset()
+    action = 1
     rng = jax.random.PRNGKey(0)
+    env = CoinGame(8, 16, True, False)
+
+    params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
+    obs, state = env.reset(rng, params)
     pics = []
 
     for _ in range(16):
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        a1 = jax.random.randint(rng1, (1,), minval=0, maxval=4)
-        a2 = jax.random.randint(rng2, (1,), minval=0, maxval=4)
-        t1, t2 = env.step((a1 * action, a2 * action))
-        img = env.render(env.state)
+        a1 = jax.random.randint(rng1, (), minval=0, maxval=4)
+        a2 = jax.random.randint(rng2, (), minval=0, maxval=4)
+        obs, state, reward, done, info = env.step(
+            rng, state, (a1 * action, a2 * action), params
+        )
+        img = env.render(state)
         pics.append(img)
 
     pics[0].save(
