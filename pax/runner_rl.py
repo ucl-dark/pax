@@ -50,10 +50,10 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class Runner:
+class RLRunner:
     """Holds the runner's state."""
 
-    def __init__(self, args, save_dir):
+    def __init__(self, env, save_dir, args):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -76,11 +76,27 @@ class Runner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-    def run_loop(self, env, agents, num_episodes, watchers):
+        # we vmap over the rng but not params
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
+
+    def run_loop(self, env, env_params, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
-
+            (
+                t1,
+                t2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_param,
+                env_rng,
+            ) = carry
+            env_rng, _ = jax.random.split(rng)
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 t1.observation,
@@ -91,9 +107,11 @@ class Runner:
                 t2.observation,
                 a2_mem,
             )
-            (tprime_1, tprime_2), env_state = env.batch_step(
-                (a1, a2),
+            (tprime_1, tprime_2), env_state = env.step(
+                env_rng,
                 env_state,
+                (a1, a2),
+                env_param,
             )
 
             if self.args.agent1 == "MFOS":
@@ -134,6 +152,8 @@ class Runner:
                 a2_state,
                 new_a2_mem,
                 env_state,
+                env_param,
+                env_rng,
             ), (
                 traj1,
                 traj2,
@@ -147,7 +167,7 @@ class Runner:
                 _inner_rollout,
                 carry,
                 None,
-                length=env.inner_episode_length,
+                length=self.args.num_inner_steps,
             )
 
             # MFOS has to takes a meta-action for each episode
@@ -178,21 +198,24 @@ class Runner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
-        num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
+        num_iters = max(
+            int(num_episodes / (self.args.num_envs * self.num_opps)), 1
+        )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
         # run actual loop
         for i in range(num_episodes):
-            rng, rng_run = jax.random.split(rng)
-            t_init, env_state = env.runner_reset(
-                (self.num_opps, env.num_envs), rng_run
-            )
+            rngs = jnp.concatenate(
+                jax.random.split(rng, self.args.num_opps * self.args.num_envs)
+            ).reshape((self.args.num_opps, self.args.num_envs, -1))
+
+            obs, env_state = env.reset(rngs, env_params)
 
             if self.args.agent1 == "NaiveEx":
-                a1_state, a1_mem = agent1.batch_init(t_init[0])
+                a1_state, a1_mem = agent1.batch_init(obs[0])
 
             if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
+                a2_state, a2_mem = agent2.batch_init(obs[1])
 
             elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
@@ -202,9 +225,9 @@ class Runner:
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                (*obs, a1_state, a1_mem, a2_state, a2_mem, env_state),
                 None,
-                length=env.outer_ep_length,
+                length=self.args.num_steps // self.args.num_inner_steps,
             )
 
             t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals

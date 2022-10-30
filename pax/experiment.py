@@ -14,7 +14,17 @@ import omegaconf
 import wandb
 
 
-from pax.env import CoinGame, IteratedMatrixGame, InfiniteMatrixGame
+from pax.envs.coin_game import CoinGame, EnvParams as CoinGameParams
+from pax.envs.iterated_matrix_game import (
+    IteratedMatrixGame,
+    EnvParams as IteratedMatrixGameParams,
+)
+from pax.envs.infinite_matrix_game import (
+    InfiniteMatrixGame,
+    EnvParams as InfiniteMatrixGameParams,
+)
+import jax.numpy as jnp
+
 from pax.hyper.ppo import make_hyper
 from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.naive.naive import make_naive_pg
@@ -24,7 +34,7 @@ from pax.ppo.ppo_gru import make_gru_agent
 from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
-from pax.runner_rl import Runner
+from pax.runner_rl import RLRunner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -84,52 +94,23 @@ def env_setup(args, logger=None):
     """Set up env variables."""
 
     if args.env_id == "ipd":
+        payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
-            train_env = IteratedMatrixGame(
-                args.num_envs,
-                args.payoff,
-                inner_ep_length=args.num_steps,
-                num_steps=args.num_steps,
-            )
-            test_env = IteratedMatrixGame(
-                1,
-                args.payoff,
-                inner_ep_length=args.num_steps,
-                num_steps=args.num_steps,
-            )
+            env = IteratedMatrixGame(num_inner_steps=args.num_steps)
+            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
 
         elif args.env_type == "meta":
-            train_env = IteratedMatrixGame(
-                args.num_envs,
-                args.payoff,
-                inner_ep_length=args.num_inner_steps,
-                num_steps=args.num_steps,
-            )
-            test_env = IteratedMatrixGame(
-                1,
-                args.payoff,
-                inner_ep_length=args.num_inner_steps,
-                num_steps=args.num_steps,
-            )
+            env = IteratedMatrixGame(num_inner_steps=args.num_inner_steps)
+            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
             if logger:
                 logger.info(
                     f"Env Type: Meta | Episode Length: {args.num_steps}"
                 )
 
         elif args.env_type == "infinite":
-            train_env = InfiniteMatrixGame(
-                args.num_envs,
-                args.payoff,
-                args.num_steps,
-                args.env_discount,
-                args.seed,
-            )
-            test_env = InfiniteMatrixGame(
-                args.num_envs,
-                args.payoff,
-                args.num_steps,
-                args.env_discount,
-                args.seed + 1,
+            env = InfiniteMatrixGame(num_steps=args.num_steps)
+            env_params = InfiniteMatrixGameParams(
+                payoff_matrix=payoff, gamma=args.gamma
             )
             if logger:
                 logger.info(
@@ -140,48 +121,30 @@ def env_setup(args, logger=None):
 
     elif args.env_id == "coin_game":
         if args.env_type == "sequential":
-            train_env = CoinGame(
-                args.num_envs,
-                inner_ep_length=args.num_steps,
-                num_steps=args.num_steps,
-                seed=args.seed,
-                cnn=args.ppo.with_cnn,
+            env = CoinGame(
+                num_inner_steps=args.num_steps,
+                num_outer_steps=args.num_steps,
+                cnn=args.cnn,
                 egocentric=args.egocentric,
             )
-            test_env = CoinGame(
-                1,
-                inner_ep_length=args.num_steps,
-                num_steps=args.num_steps,
-                seed=args.seed,
-                cnn=args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
-
+            env_params = CoinGameParams(args.payoff_matrix)
         else:
-            train_env = CoinGame(
-                args.num_envs,
-                inner_ep_length=args.num_inner_steps,
-                num_steps=args.num_steps,
-                seed=args.seed,
-                cnn=args.ppo.with_cnn,
+            env = CoinGame(
+                num_inner_steps=args.num_inner_steps,
+                num_outer_steps=args.num_steps,
+                cnn=args.cnn,
                 egocentric=args.egocentric,
             )
-            test_env = CoinGame(
-                1,
-                inner_ep_length=args.num_inner_steps,
-                num_steps=args.num_steps,
-                seed=args.seed,
-                cnn=args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
+            env_params = CoinGameParams(args.payoff_matrix)
+
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
-    return train_env, test_env
+    return env, env_params
 
 
-def runner_setup(args, agents, save_dir, logger):
+def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(args)
@@ -272,21 +235,21 @@ def runner_setup(args, agents, save_dir, logger):
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
-        return Runner(args, save_dir)
+        return RLRunner(env, save_dir, args)
 
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
 
 # flake8: noqa: C901
-def agent_setup(args, obs_spec, action_spec, logger):
+def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
     if args.env_id == "coin_game":
-        obs_shape = obs_spec.shape
+        obs_shape = env.observation_space(env_params).shape
     elif args.env_id == "ipd":
-        obs_shape = (obs_spec.num_values,)
+        obs_shape = (env.observation_space(env_params).n,)
 
-    num_actions = action_spec.num_values
+    num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
         ppo_memory_agent = make_gru_agent(
@@ -529,18 +492,16 @@ def main(args):
         save_dir = global_setup(args)
 
     with Section("Env setup", logger=logger):
-        train_env, test_env = env_setup(args, logger)
+        env, env_params = env_setup(args, logger)
 
     with Section("Agent setup", logger=logger):
-        agent_pair = agent_setup(
-            args, train_env.observation_spec(), train_env.action_spec(), logger
-        )
+        agent_pair = agent_setup(args, env, env_params, logger)
 
     with Section("Watcher setup", logger=logger):
         watchers = watcher_setup(args, logger)
 
     with Section("Runner setup", logger=logger):
-        runner = runner_setup(args, agent_pair, save_dir, logger)
+        runner = runner_setup(args, env, agent_pair, save_dir, logger)
 
     if not args.wandb.log:
         watchers = False
@@ -548,28 +509,28 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(train_env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, agent_pair, num_iters, watchers)
 
 
 if __name__ == "__main__":
