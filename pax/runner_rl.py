@@ -83,9 +83,11 @@ class RLRunner:
         )
 
         # VMAP for num opps: we vmap over the rng but not params
-        env.reset = jax.vmap(env.reset, (0, None), 0)
-        env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
+        env.step = jax.jit(
+            jax.vmap(
+                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            )
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
@@ -94,7 +96,7 @@ class RLRunner:
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
-                rng,
+                rngs,
                 obs1,
                 obs2,
                 r1,
@@ -108,11 +110,12 @@ class RLRunner:
             ) = carry
 
             # unpack rngs
-            rng = self.split(rng, 4)
-            env_rng = rng[:, :, 0, :]
-            # a1_rng = rng[:, :, 1, :]
-            # a2_rng = rng[:, :, 2, :]
-            rng = rng[:, :, 3, :]
+            rngs = self.split(rngs, 4)
+            env_rng = rngs[:, :, 0, :]
+            # a1_rng = rngs[:, :, 1, :]
+            # a2_rng = rngs[:, :, 2, :]
+            rngs = rngs[:, :, 3, :]
+            print(rngs.shape)
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
@@ -162,7 +165,7 @@ class RLRunner:
                 a2_mem.hidden,
             )
             return (
-                rng,
+                rngs,
                 next_obs1,
                 next_obs2,
                 rewards[0],
@@ -180,20 +183,6 @@ class RLRunner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-            (
-                obs1,
-                obs2,
-                r1,
-                r2,
-                a1_state,
-                a1_mem,
-                a2_state,
-                a2_mem,
-                env_state,
-                env_param,
-                env_rng,
-            ) = carry
-
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
@@ -201,13 +190,8 @@ class RLRunner:
                 None,
                 length=self.args.num_inner_steps,
             )
-
-            # MFOS has to take a meta-action for each episode
-            if self.args.agent1 == "MFOS":
-                a1_mem = agent1.meta_policy(a1_mem)
-
-            # update second agent
             (
+                rngs,
                 obs1,
                 obs2,
                 r1,
@@ -218,13 +202,23 @@ class RLRunner:
                 a2_mem,
                 env_state,
                 env_param,
-                env_rng,
-            ) = carry
+            ) = vals
 
-            a2_state, a2_memory, a2_metrics = agent2.batch_update(
-                trajectories[1], obs2, a2_state, a2_mem
+            # MFOS has to take a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            # update second agent
+            a2_state, a2_mem, a2_metrics = agent2.batch_update(
+                trajectories[1],
+                obs2,
+                r2,
+                jnp.ones_like(r2, dtype=jnp.bool_),
+                a2_state,
+                a2_mem,
             )
             return (
+                rngs,
                 obs1,
                 obs2,
                 r1,
@@ -232,10 +226,9 @@ class RLRunner:
                 a1_state,
                 a1_mem,
                 a2_state,
-                a2_memory,
+                a2_mem,
                 env_state,
                 env_param,
-                env_rng,
             ), (*trajectories, a2_metrics)
 
         """Run training of agents in environment"""
@@ -314,8 +307,8 @@ class RLRunner:
             # final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
             a1_state, _, _ = agent1.update(
                 reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(r1),
                 self.reduce_opp_dim(obs1),
+                self.reduce_opp_dim(r1),
                 jnp.ones_like(self.reduce_opp_dim(r1), dtype=jnp.bool_),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),

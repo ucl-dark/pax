@@ -374,14 +374,12 @@ class PPO:
             # Add an additional rollout step for advantage calculation
 
             _value = jax.lax.select(
-                # t_prime.last(),
                 done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
             _done = jax.lax.select(
-                # t_prime.last(),
                 done,
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
@@ -451,7 +449,15 @@ class PPO:
         )
         return memory
 
-    def update(self, traj_batch, obs: jnp.ndarray, reward: int,  done: Any,  state, mem):
+    def update(
+        self,
+        traj_batch,
+        obs: jnp.ndarray,
+        reward: int,
+        done: Any,
+        state: TrainingState,
+        mem: MemoryState,
+    ):
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 

@@ -45,7 +45,9 @@ class IndependentLearners:
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
-        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        agent2.batch_update = jax.jit(
+            jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0), 0)
+        )
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
