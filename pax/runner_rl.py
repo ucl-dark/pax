@@ -148,7 +148,7 @@ class RLRunner:
                 traj1 = Sample(
                     obs1,
                     a1,
-                    rewards[1],
+                    rewards[0],
                     new_a1_mem.extras["log_probs"],
                     new_a1_mem.extras["values"],
                     done,
@@ -243,14 +243,13 @@ class RLRunner:
         )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
+        # RNG are the same for num_opps but different for num_envs
+        rngs = jnp.concatenate(
+            [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
+        ).reshape((self.args.num_opps, self.args.num_envs, -1))
+
         # run actual loop
         for i in range(num_episodes):
-            # RNG are the same for num_opps but different for num_envs
-            rngs = jnp.concatenate(
-                [jax.random.split(rng, self.args.num_opps)]
-                * self.args.num_envs
-            ).reshape((self.args.num_opps, self.args.num_envs, -1))
-
             obs, env_state = env.reset(rngs, env_params)
             rewards = [
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),
@@ -295,8 +294,8 @@ class RLRunner:
                 r2,
                 a1_state,
                 a1_mem,
-                _,
-                _,
+                a2_state,
+                a2_mem,
                 env_state,
                 env_params,
             ) = vals
@@ -314,6 +313,7 @@ class RLRunner:
 
             # update second agent
             a1_mem = agent1.batch_reset(a1_mem, False)
+            a2_mem = agent2.batch_reset(a2_mem, False)
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
