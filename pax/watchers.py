@@ -425,30 +425,32 @@ def ipd_visitation(
     }
 
 
-def cg_visitation(env_state: NamedTuple) -> dict:
-    # env state : [num_opps, num_envs, num_episodes]
-    env_state = jax.tree_util.tree_map(
-        lambda x: x.reshape(-1, x.shape[-1]), env_state
+def cg_visitation(state: NamedTuple) -> dict:
+    # [num_opps, num_envs, num_outer_episodes]
+    total_1 = state.red_coop + state.red_defect
+    total_2 = state.blue_coop + state.blue_defect
+    avg_prob_1 = jnp.sum(state.red_coop, axis=-1) / jnp.sum(total_1, axis=-1)
+    avg_prob_2 = jnp.sum(state.blue_coop, axis=-1) / jnp.sum(total_2, axis=-1)
+    final_prob_1 = state.red_coop[:, :, -1] / total_1[:, :, -1]
+    final_prob_2 = state.blue_coop[:, :, -1] / total_2[:, :, -1]
+
+    # [num_opps, num_envs, num_states]
+    prob_coop_1 = jnp.sum(state.coop1, axis=(0, 1)) / jnp.sum(
+        state.counter, axis=(0, 1)
     )
-
-    total_1 = env_state.red_coop + env_state.red_defect
-    total_2 = env_state.blue_coop + env_state.blue_defect
-
-    prob_1 = env_state.red_coop / total_1
-    prob_2 = env_state.blue_coop / total_2
-
-    prob_coop_1 = jnp.nanmean(env_state.coop1 / env_state.counter, axis=0)
-    prob_coop_2 = jnp.nanmean(env_state.coop2 / env_state.counter, axis=0)
-    count = jnp.nanmean(env_state.counter, axis=0)
+    prob_coop_2 = jnp.sum(state.coop2, axis=(0, 1)) / jnp.sum(
+        state.counter, axis=(0, 1)
+    )
+    count = jnp.nanmean(state.counter, axis=0)
     return {
-        "prob_coop/1": jnp.nanmean(prob_1, axis=0),  # [num_episodes]
-        "prob_coop/2": jnp.nanmean(prob_2, axis=0),  # [num_episodes]
+        "prob_coop/1": jnp.nanmean(avg_prob_1),  # [1]
+        "prob_coop/2": jnp.nanmean(avg_prob_2),  # [1]
+        "final_prob_coop/1": jnp.nanmean(final_prob_1),  # [1]
+        "final_prob_coop/2": jnp.nanmean(final_prob_2),  # [1]
         "total_coins/1": total_1.sum(),  # int
         "total_coins/2": total_2.sum(),  # int
         "coins_per_episode/1": total_1.mean(axis=0),  # [num_episodes]
         "coins_per_episode/2": total_2.mean(axis=0),  # [num_episodes]
-        "final_prob_coop/1": jnp.nanmean(prob_1, axis=0)[-1],  # [1]
-        "final_prob_coop/2": jnp.nanmean(prob_2, axis=0)[-1],  # [1]
         "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
         "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
         "cooperation_probability/1/SS": prob_coop_1[0],

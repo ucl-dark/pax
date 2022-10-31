@@ -125,7 +125,7 @@ def env_setup(args, logger=None):
         if args.env_type == "sequential":
             env = CoinGame(
                 num_inner_steps=args.num_steps,
-                num_outer_steps=args.num_steps,
+                num_outer_steps=1,
                 cnn=args.cnn,
                 egocentric=args.egocentric,
             )
