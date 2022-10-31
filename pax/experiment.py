@@ -120,6 +120,8 @@ def env_setup(args, logger=None):
             raise ValueError(f"Unknown env type {args.env_type}")
 
     elif args.env_id == "coin_game":
+        payoff = jnp.array(args.payoff)
+        env_params = CoinGameParams(payoff_matrix=payoff)
         if args.env_type == "sequential":
             env = CoinGame(
                 num_inner_steps=args.num_steps,
@@ -127,7 +129,6 @@ def env_setup(args, logger=None):
                 cnn=args.cnn,
                 egocentric=args.egocentric,
             )
-            env_params = CoinGameParams(args.payoff_matrix)
         else:
             env = CoinGame(
                 num_inner_steps=args.num_inner_steps,
@@ -135,8 +136,6 @@ def env_setup(args, logger=None):
                 cnn=args.cnn,
                 egocentric=args.egocentric,
             )
-            env_params = CoinGameParams(args.payoff_matrix)
-
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"

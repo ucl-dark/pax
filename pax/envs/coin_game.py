@@ -56,7 +56,7 @@ MOVES = jnp.array(
 
 class CoinGame(environment.Environment):
     """
-    JAX Compatible version of matrix game environment.
+    JAX Compatible version of coin game environment.
     """
 
     def __init__(
@@ -168,7 +168,6 @@ class CoinGame(environment.Environment):
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             if egocentric:
-                print("Running Egocentric")
                 obs1 = _relative_position(state)
 
                 # flip red and blue coins for second agent
@@ -340,8 +339,8 @@ class CoinGame(environment.Environment):
             obs1 = jnp.where(done, reset_obs[0], obs1)
             obs2 = jnp.where(done, reset_obs[1], obs2)
 
-            blue_reward = jnp.where(done, 0, blue_reward)
-            red_reward = jnp.where(done, 0, red_reward)
+            blue_reward = jnp.where(done, 0.0, blue_reward)
+            red_reward = jnp.where(done, 0.0, red_reward)
             return (
                 (obs1, obs2),
                 next_state,
