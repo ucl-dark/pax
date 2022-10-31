@@ -76,7 +76,7 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            state: TrainingState, observation: TimeStep, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -418,24 +418,24 @@ class PPO:
 
         @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+            traj_batch: NamedTuple, reward: jnp.ndarray, done: Any, t_prime: TimeStep, action_extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
 
             _value = jax.lax.select(
-                t_prime.last(),
+                done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
             _done = jax.lax.select(
-                t_prime.last(),
+                done,
                 2 * jnp.ones_like(_value),
                 jnp.zeros_like(_value),
             )
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
+            _reward = jax.lax.expand_dims(reward, [0])
             _done = jax.lax.expand_dims(_done, [0])
 
             # need to add final value here
@@ -490,13 +490,13 @@ class PPO:
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
-    def select_action(self, t: TimeStep):
+    def select_action(self, obs: jnp.ndarray):
         """Selects action and updates info with PPO specific information"""
         (
             actions,
             self._state,
             self._mem,
-        ) = self._policy(self._state, t.observation, self._mem)
+        ) = self._policy(self._state, obs, self._mem)
         return utils.to_numpy(actions)
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
@@ -515,15 +515,17 @@ class PPO:
 
     def update(
         self,
-        traj_batch,
-        t_prime: TimeStep,
+        traj_batch: NamedTuple,
+        obs: jnp.ndarray,
+        reward: jnp.ndarray,
+        done: Any,
         state,
         mem,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-        _, _, mem = self._policy(state, t_prime.observation, mem)
-        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        _, _, mem = self._policy(state, obs, mem)
+        traj_batch = self.prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging

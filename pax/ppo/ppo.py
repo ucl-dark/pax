@@ -451,7 +451,7 @@ class PPO:
         )
         return memory
 
-    def update(self, traj_batch, reward: int, obs: jnp.ndarray, done: Any,  state, mem):
+    def update(self, traj_batch, obs: jnp.ndarray, reward: int,  done: Any,  state, mem):
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
