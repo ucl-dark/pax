@@ -115,7 +115,6 @@ class RLRunner:
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
-            print(rngs.shape)
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
