@@ -295,8 +295,8 @@ class RLRunner:
                 r2,
                 a1_state,
                 a1_mem,
-                a2_state,
-                a2_mem,
+                _,
+                _,
                 env_state,
                 env_params,
             ) = vals
@@ -314,7 +314,6 @@ class RLRunner:
 
             # update second agent
             a1_mem = agent1.batch_reset(a1_mem, False)
-            a2_mem = agent2.batch_reset(a2_mem, False)
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
