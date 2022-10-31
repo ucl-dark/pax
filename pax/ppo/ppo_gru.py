@@ -6,6 +6,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
+
 # from dm_env import TimeStep
 
 from pax import utils
@@ -393,7 +394,10 @@ class PPO:
 
         @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, reward: jnp.ndarray, done: Any, action_extras: dict
+            traj_batch: NamedTuple,
+            reward: jnp.ndarray,
+            done: Any,
+            action_extras: dict,
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
@@ -493,7 +497,7 @@ class PPO:
         reward: jnp.ndarray,
         done: Any,
         state: TrainingState,
-        mem: jnp.ndarray,
+        mem: MemoryState,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
@@ -539,7 +543,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
     transition_steps = (
         args.total_timesteps
         / batch_size

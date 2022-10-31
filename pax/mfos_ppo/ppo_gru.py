@@ -265,11 +265,10 @@ class PPO:
             key, params, opt_state, timesteps, batch = carry
             key, subkey = jax.random.split(key)
             permutation = jax.random.permutation(subkey, batch_size)
-            shuffled_batch = jax.tree_map(
+            shuffled_batch = jax.tree_util.tree_map(
                 lambda x: jnp.take(x, permutation, axis=0), batch
             )
-            shuffled_batch = batch
-            minibatches = jax.tree_map(
+            minibatches = jax.tree_util.tree_map(
                 lambda x: jnp.reshape(
                     x, [num_minibatches, -1] + list(x.shape[1:])
                 ),
@@ -522,8 +521,8 @@ class PPO:
         obs: jnp.ndarray,
         reward: jnp.ndarray,
         done: Any,
-        state,
-        mem,
+        state: TrainingState,
+        mem: MemoryState,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""

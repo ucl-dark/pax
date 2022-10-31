@@ -9,7 +9,7 @@ import wandb
 from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import save
 
-MAX_WANDB_CALLS = 10000
+MAX_WANDB_CALLS = 1000000
 
 
 class Sample(NamedTuple):
