@@ -418,7 +418,10 @@ class PPO:
 
         @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, reward: jnp.ndarray, done: Any, t_prime: TimeStep, action_extras: dict
+            traj_batch: NamedTuple,
+            reward: jnp.ndarray,
+            done: Any,
+            action_extras: dict,
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation

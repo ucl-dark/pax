@@ -24,8 +24,6 @@ num_generations: 5000
 total_timesteps: 1e11
 num_devices: 1
 
-# Evaluation 
-num_seeds: 20
 # MFOS vs. Tabular trained on seed = 0
 run_path: ucl-dark/ipd/1r9txdso
 model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400

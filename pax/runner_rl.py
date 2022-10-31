@@ -140,7 +140,7 @@ class RLRunner:
                     rewards[0],
                     new_a1_mem.extras["log_probs"],
                     new_a1_mem.extras["values"],
-                    done[0],
+                    done,
                     a1_mem.hidden,
                     a1_mem.th,
                 )
@@ -303,7 +303,6 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            # final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
             a1_state, _, _ = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),

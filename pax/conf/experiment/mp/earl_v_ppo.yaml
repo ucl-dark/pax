@@ -25,7 +25,6 @@ total_timesteps: 1e11
 num_devices: 1
 
 # Evaluation 
-num_seeds: 20
 # # EARL vs. PPO trained on seed=0
 # run_path: ucl-dark/ipd/13o3v95p
 # model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900

@@ -462,6 +462,7 @@ def watcher_setup(args, logger):
         "GoodGreedy": dumb_log,
         "EvilGreedy": dumb_log,
         "RandomGreedy": dumb_log,
+        "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
         "Naive": naive_pg_log,
