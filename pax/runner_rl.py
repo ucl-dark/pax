@@ -1,6 +1,6 @@
 import os
 import time
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
@@ -202,7 +202,6 @@ class RLRunner:
                 env_state,
                 env_params,
             ) = vals
-
             # MFOS has to take a meta-action for each episode
             if self.args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
@@ -267,7 +266,6 @@ class RLRunner:
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
-
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -386,7 +384,6 @@ class RLRunner:
                         | env_stats,
                     )
 
-        # update agents for eval loop exit
         agents.agents[0]._state = a1_state
         agents.agents[1]._state = a2_state
         return agents

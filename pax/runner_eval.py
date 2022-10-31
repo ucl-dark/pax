@@ -27,7 +27,7 @@ class Sample(NamedTuple):
 class EvalRunner:
     """Evaluation runner"""
 
-    def __init__(self, args):
+    def __init__(self, env, args):
         self.train_steps = 0
         self.eval_steps = 0
         self.train_episodes = 0
@@ -40,53 +40,93 @@ class EvalRunner:
         self.model_path = args.model_path
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        # VMAP for num envs: we vmap over the rng but not params
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
 
-    def run_loop(self, env, agents, num_episodes, watchers):
+        # VMAP for num opps: we vmap over the rng but not params
+        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
+        env.step = jax.jit(
+            jax.vmap(
+                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            )
+        )
+
+        self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+
+    def run_loop(self, env, env_params, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = carry
+
+            # unpack rngs
+            rngs = self.split(rngs, 4)
+            env_rng = rngs[:, :, 0, :]
+            # a1_rng = rngs[:, :, 1, :]
+            # a2_rng = rngs[:, :, 2, :]
+            rngs = rngs[:, :, 3, :]
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
-                t1.observation,
+                obs1,
                 a1_mem,
             )
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
-                t2.observation,
+                obs2,
                 a2_mem,
             )
-            (tprime_1, tprime_2), env_state = env.batch_step(
-                (a1, a2),
+            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
+                env_rng,
                 env_state,
+                (a1, a2),
+                env_params,
             )
 
             traj1 = Sample(
-                t1.observation,
+                obs1,
                 a1,
-                tprime_1.reward,
+                rewards[0],
                 new_a1_mem.extras["log_probs"],
                 new_a1_mem.extras["values"],
-                tprime_1.last(),
+                done,
                 a1_mem.hidden,
             )
             traj2 = Sample(
-                t2.observation,
+                obs2,
                 a2,
-                tprime_2.reward,
+                rewards[1],
                 new_a2_mem.extras["log_probs"],
                 new_a2_mem.extras["values"],
-                tprime_2.last(),
+                done,
                 a2_mem.hidden,
             )
             return (
-                tprime_1,
-                tprime_2,
+                rngs,
+                next_obs1,
+                next_obs2,
+                rewards[0],
+                rewards[1],
                 a1_state,
                 new_a1_mem,
                 a2_state,
                 new_a2_mem,
                 env_state,
+                env_params,
             ), (
                 traj1,
                 traj2,
@@ -94,34 +134,51 @@ class EvalRunner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
-                length=env.inner_episode_length,
+                length=self.args.num_inner_steps,
             )
-
-            # update second agent
-            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
-
-            # MFOS has to takes a meta-action for each episode
-            if self.args.agent1 == "MFOS":
-                a1_mem = agent1.meta_policy(a1_mem)
-
-            final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
-            a2_state, a2_memory, a2_metrics = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_memory
-            )
-            return (
-                t1,
-                t2,
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
-                a2_memory,
+                a2_mem,
                 env_state,
+                env_params,
+            ) = vals
+            # MFOS has to take a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            # update second agent
+            a2_state, a2_mem, a2_metrics = agent2.batch_update(
+                trajectories[1],
+                obs2,
+                r2,
+                jnp.ones_like(r2, dtype=jnp.bool_),
+                a2_state,
+                a2_mem,
+            )
+            return (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
             ), (*trajectories, a2_metrics)
 
         """Run training of agents in environment"""
@@ -143,25 +200,58 @@ class EvalRunner:
         num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
+
+        # RNG are the same for num_opps but different for num_envs
+
+        rngs = jnp.concatenate(
+            [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
+        ).reshape((self.args.num_opps, self.args.num_envs, -1))
         # run actual loop
         for i in range(num_episodes):
-            rng, rng_run = jax.random.split(rng)
-            t_init, env_state = env.runner_reset(
-                (self.num_opps, env.num_envs), rng_run
-            )
+            obs, env_state = env.reset(rngs, env_params)
+            rewards = [
+                jnp.zeros((self.args.num_opps, self.args.num_envs)),
+                jnp.zeros((self.args.num_opps, self.args.num_envs)),
+            ]
 
             if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
-
+                a2_state, a2_mem = agent2.batch_init(obs[1])
+            elif self.args.env_type in ["meta", "infinite"]:
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                )
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                (
+                    rngs,
+                    *obs,
+                    *rewards,
+                    a1_state,
+                    a1_mem,
+                    a2_state,
+                    a2_mem,
+                    env_state,
+                    env_params,
+                ),
                 None,
-                length=env.outer_ep_length,
+                length=self.args.num_steps // self.args.num_inner_steps,
             )
 
-            t1, t2, _, a1_mem, a2_state, a2_mem, env_state = vals
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
             traj_1, traj_2, a2_metrics = stack
 
             # reset second agent memory
@@ -188,13 +278,15 @@ class EvalRunner:
                         self.ipd_stats(
                             traj_1.observations,
                             traj_1.actions,
-                            t1.observation,
+                            obs1,
                         ),
                     )
                     rewards_0 = traj_1.rewards.mean()
                     rewards_1 = traj_2.rewards.mean()
 
                 else:
+                    rewards_0 = traj_1.rewards.mean()
+                    rewards_1 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
