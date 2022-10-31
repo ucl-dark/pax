@@ -106,7 +106,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
                 env_state,
-                env_param,
+                env_params,
             ) = carry
 
             # unpack rngs
@@ -130,7 +130,7 @@ class RLRunner:
                 env_rng,
                 env_state,
                 (a1, a2),
-                env_param,
+                env_params,
             )
 
             if self.args.agent1 == "MFOS":
@@ -174,7 +174,7 @@ class RLRunner:
                 a2_state,
                 new_a2_mem,
                 env_state,
-                env_param,
+                env_params,
             ), (
                 traj1,
                 traj2,
@@ -200,7 +200,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
                 env_state,
-                env_param,
+                env_params,
             ) = vals
 
             # MFOS has to take a meta-action for each episode
@@ -227,7 +227,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
                 env_state,
-                env_param,
+                env_params,
             ), (*trajectories, a2_metrics)
 
         """Run training of agents in environment"""

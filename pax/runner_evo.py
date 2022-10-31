@@ -1,12 +1,13 @@
 from datetime import datetime
 import os
 import time
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
+import chex
 from pax.utils import save, TrainingState, MemoryState
 
 # TODO: import when evosax library is updated
@@ -31,7 +32,9 @@ class Sample(NamedTuple):
 class EvoRunner:
     """Holds the runner's state."""
 
-    def __init__(self, args, strategy, es_params, param_reshaper, save_dir):
+    def __init__(
+        self, env, strategy, es_params, param_reshaper, save_dir, args
+    ):
         self.algo = args.es.algo
         self.args = args
         self.es_params = es_params
@@ -52,56 +55,106 @@ class EvoRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-    def run_loop(self, env, agents, num_generations, watchers):
+        # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
+        # Evo Runner also has an additional pmap dim (num_devices, ...)
+        # For the env we vmap over the rng but not params
+
+        # num envs
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
+
+        # num opps
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
+        # pop size
+        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
+        env.step = jax.jit(
+            jax.vmap(
+                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            )
+        )
+        self.split = jax.vmap(
+            jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None)),
+            (0, None),
+        )
+
+    def run_loop(self, env, env_params, agents, num_generations, watchers):
         """Run training of agents in environment"""
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = carry
+
+            # unpack rngs
+            rngs = self.split(rngs, 4)
+            env_rng = rngs[:, :, :, 0, :]
+            # a1_rng = rngs[:, :, :, 1, :]
+            # a2_rng = rngs[:, :, :, 2, :]
+            rngs = rngs[:, :, :, 3, :]
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
-                t1.observation,
+                obs1,
                 a1_mem,
             )
-
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
-                t2.observation,
+                obs2,
                 a2_mem,
             )
-
-            (tprime_1, tprime_2), env_state = env.batch_step(
-                (a1, a2),
+            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
+                env_rng,
                 env_state,
+                (a1, a2),
+                env_params,
             )
 
             traj1 = Sample(
-                t1.observation,
+                obs1,
                 a1,
-                tprime_1.reward,
+                rewards[0],
                 new_a1_mem.extras["log_probs"],
                 new_a1_mem.extras["values"],
-                tprime_1.last(),
+                done,
                 a1_mem.hidden,
             )
             traj2 = Sample(
-                t2.observation,
+                obs2,
                 a2,
-                tprime_2.reward,
+                rewards[1],
                 new_a2_mem.extras["log_probs"],
                 new_a2_mem.extras["values"],
-                tprime_2.last(),
+                done,
                 a2_mem.hidden,
             )
             return (
-                tprime_1,
-                tprime_2,
+                rngs,
+                next_obs1,
+                next_obs2,
+                rewards[0],
+                rewards[1],
                 a1_state,
                 new_a1_mem,
                 a2_state,
                 new_a2_mem,
                 env_state,
+                env_params,
             ), (
                 traj1,
                 traj2,
@@ -109,57 +162,85 @@ class EvoRunner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = carry
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
-                length=env.inner_episode_length,
+                length=self.args.num_inner_steps,
             )
-
-            # update second agent
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
-
-            # MFOS has to takes a meta-action for each episode
-            if self.args.agent1 == "MFOS":
-                a1_mem = agent1.meta_policy(a1_mem)
-
-            # do second agent update
-            final_t2 = t2._replace(
-                step_type=2 * jnp.ones_like(vals[1].step_type)
-            )
-            a2_state, a2_mem, a2_metrics = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_mem
-            )
-
-            return (
-                t1,
-                t2,
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
                 a2_mem,
                 env_state,
+                env_params,
+            ) = vals
+            # MFOS has to take a meta-action for each episode
+            if self.args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            # update second agent
+            a2_state, a2_mem, a2_metrics = agent2.batch_update(
+                trajectories[1],
+                obs2,
+                r2,
+                jnp.ones_like(r2, dtype=jnp.bool_),
+                a2_state,
+                a2_mem,
+            )
+            return (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
             ), (*trajectories, a2_metrics)
 
         def evo_rollout(
             params: jnp.ndarray,
             rng_run: jnp.ndarray,
-            rng_key: jnp.ndarray,
             a1_state: TrainingState,
             a1_mem: MemoryState,
+            env_params: Any,
         ):
             # env reset
-            t_init, env_state = env.runner_reset(
-                (popsize, num_opps, env.num_envs), rng_run
+            rngs = jnp.concatenate(
+                [jax.random.split(rng_run, self.args.num_envs)]
+                * self.args.num_opps
+                * self.args.popsize
+            ).reshape(
+                (self.args.popsize, self.args.num_opps, self.args.num_envs, -1)
             )
+
+            obs, env_state = env.reset(rngs, env_params)
+            rewards = [
+                jnp.zeros(
+                    (self.args.popsize, self.args.num_opps, self.args.num_envs)
+                ),
+                jnp.zeros(
+                    (self.args.popsize, self.args.num_opps, self.args.num_envs)
+                ),
+            ]
+
             # Player 1
             a1_state = a1_state._replace(params=params)
             a1_mem = agent1.batch_reset(a1_mem, False)
             # Player 2
             if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(t_init[1])
+                a2_state, a2_mem = agent2.batch_init(obs[1])
 
             else:
                 # meta-experiments - init 2nd agent per trial
@@ -170,15 +251,38 @@ class EvoRunner:
                     agent2._mem.hidden,
                 )
 
+            # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
-                (*t_init, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                (
+                    rngs,
+                    *obs,
+                    *rewards,
+                    a1_state,
+                    a1_mem,
+                    a2_state,
+                    a2_mem,
+                    env_state,
+                    env_params,
+                ),
                 None,
-                length=env.outer_ep_length,
+                length=self.args.num_steps // self.args.num_inner_steps,
             )
 
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
             traj_1, traj_2, a2_metrics = stack
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
 
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
@@ -198,15 +302,13 @@ class EvoRunner:
                 "meta",
                 "sequential",
             ]:
-                final_t1 = t1._replace(
-                    step_type=2 * jnp.ones_like(t1.step_type)
-                )
+
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
                         traj_1.observations,
                         traj_1.actions,
-                        final_t1.observation,
+                        obs1,
                     ),
                 )
                 rewards_0 = traj_1.rewards.mean()
@@ -226,8 +328,8 @@ class EvoRunner:
         print(f"Number of Generations: {num_generations}")
         print(f"Number of Meta Episodes: {num_generations}")
         print(f"Population Size: {self.popsize}")
-        print(f"Number of Environments: {env.num_envs}")
-        print(f"Number of Opponent: {self.num_opps}")
+        print(f"Number of Environments: {self.args.num_envs}")
+        print(f"Number of Opponent: {self.args.num_opps}")
         print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
@@ -252,19 +354,6 @@ class EvoRunner:
         log = es_logging.initialize()
         num_devices = self.args.num_devices
 
-        # Evolution specific: add pop size dimension
-        if self.args.env_type == "infinite" and self.args.env_id == "ipd":
-            env.batch_step = jax.jit(
-                jax.vmap(env.batch_step, (0, None), (0, None))
-            )
-        else:
-            env.batch_step = jax.jit(
-                jax.vmap(env.batch_step),
-            )
-
-        if self.args.env_id == "coin_game":
-            env.batch_reset = jax.jit(jax.vmap(env.batch_reset))
-
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
             agent1._mem.hidden,
@@ -280,8 +369,10 @@ class EvoRunner:
             evo_rollout,
             in_axes=(0, None, None, None, None),
         )
+
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
@@ -297,7 +388,7 @@ class EvoRunner:
                 rewards_0,
                 rewards_1,
                 a2_metrics,
-            ) = evo_rollout(params, rng_run, rng_key, a1_state, a1_mem)
+            ) = evo_rollout(params, rng_run, a1_state, a1_mem, env_params)
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * num_devices)

@@ -4,7 +4,7 @@ import logging
 import os
 
 # uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=8"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
@@ -231,7 +231,9 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(args, strategy, es_params, param_reshaper, save_dir)
+        return EvoRunner(
+            env, strategy, es_params, param_reshaper, save_dir, args
+        )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -510,7 +512,7 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
