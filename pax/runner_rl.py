@@ -76,38 +76,53 @@ class RLRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
 
-        # we vmap over the rng but not params
+        # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
 
+        # VMAP for num opps: we vmap over the rng but not params
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
+
+        self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+
     def run_loop(self, env, env_params, agents, num_episodes, watchers):
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
-                t1,
-                t2,
+                rng,
+                obs1,
+                obs2,
                 a1_state,
                 a1_mem,
                 a2_state,
                 a2_mem,
                 env_state,
                 env_param,
-                env_rng,
             ) = carry
-            env_rng, _ = jax.random.split(rng)
+
+            # unpack rngs
+            rng = self.split(rng, 4)
+            env_rng = rng[:, :, 0, :]
+            # a1_rng = rng[:, :, 1, :]
+            # a2_rng = rng[:, :, 2, :]
+            rng = rng[:, :, 3, :]
+
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
-                t1.observation,
+                obs1,
                 a1_mem,
             )
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
-                t2.observation,
+                obs2,
                 a2_mem,
             )
-            (tprime_1, tprime_2), env_state = env.step(
+            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
                 (a1, a2),
@@ -116,44 +131,44 @@ class RLRunner:
 
             if self.args.agent1 == "MFOS":
                 traj1 = MFOSSample(
-                    t1.observation,
+                    obs1,
                     a1,
-                    tprime_1.reward,
+                    rewards[0],
                     new_a1_mem.extras["log_probs"],
                     new_a1_mem.extras["values"],
-                    tprime_1.last(),
+                    done[0],
                     a1_mem.hidden,
                     a1_mem.th,
                 )
             else:
                 traj1 = Sample(
-                    t1.observation,
+                    obs1,
                     a1,
-                    tprime_1.reward,
+                    rewards[1],
                     new_a1_mem.extras["log_probs"],
                     new_a1_mem.extras["values"],
-                    tprime_1.last(),
+                    done,
                     a1_mem.hidden,
                 )
             traj2 = Sample(
-                t2.observation,
+                obs2,
                 a2,
-                tprime_2.reward,
+                rewards[1],
                 new_a2_mem.extras["log_probs"],
                 new_a2_mem.extras["values"],
-                tprime_2.last(),
+                done,
                 a2_mem.hidden,
             )
             return (
-                tprime_1,
-                tprime_2,
+                rng,
+                next_obs1,
+                next_obs2,
                 a1_state,
                 new_a1_mem,
                 a2_state,
                 new_a2_mem,
                 env_state,
                 env_param,
-                env_rng,
             ), (
                 traj1,
                 traj2,
@@ -161,7 +176,18 @@ class RLRunner:
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
-            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = carry
+            (
+                obs1,
+                obs2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_param,
+                env_rng,
+            ) = carry
+
             # play episode of the game
             vals, trajectories = jax.lax.scan(
                 _inner_rollout,
@@ -170,24 +196,36 @@ class RLRunner:
                 length=self.args.num_inner_steps,
             )
 
-            # MFOS has to takes a meta-action for each episode
+            # MFOS has to take a meta-action for each episode
             if self.args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
             # update second agent
-            t1, t2, a1_state, a1_mem, a2_state, a2_memory, env_state = vals
-            final_t2 = t2._replace(step_type=2 * jnp.ones_like(t2.step_type))
+            (
+                obs1,
+                obs2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_param,
+                env_rng,
+            ) = carry
+
             a2_state, a2_memory, a2_metrics = agent2.batch_update(
-                trajectories[1], final_t2, a2_state, a2_memory
+                trajectories[1], obs2, a2_state, a2_mem
             )
             return (
-                t1,
-                t2,
+                obs1,
+                obs2,
                 a1_state,
                 a1_mem,
                 a2_state,
                 a2_memory,
                 env_state,
+                env_param,
+                env_rng,
             ), (*trajectories, a2_metrics)
 
         """Run training of agents in environment"""
@@ -205,8 +243,10 @@ class RLRunner:
         print(f"Log Interval {log_interval}")
         # run actual loop
         for i in range(num_episodes):
+            # RNG are the same for num_opps but different for num_envs
             rngs = jnp.concatenate(
-                jax.random.split(rng, self.args.num_opps * self.args.num_envs)
+                [jax.random.split(rng, self.args.num_opps)]
+                * self.args.num_envs
             ).reshape((self.args.num_opps, self.args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, env_params)
@@ -222,21 +262,42 @@ class RLRunner:
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
+
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
-                (*obs, a1_state, a1_mem, a2_state, a2_mem, env_state),
+                (
+                    rngs,
+                    *obs,
+                    a1_state,
+                    a1_mem,
+                    a2_state,
+                    a2_mem,
+                    env_state,
+                    env_params,
+                ),
                 None,
                 length=self.args.num_steps // self.args.num_inner_steps,
             )
 
-            t1, t2, a1_state, a1_mem, a2_state, a2_mem, env_state = vals
+            (
+                rngs,
+                obs1,
+                obs2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
             traj_1, traj_2, a2_metrics = stack
+
             # update outer agent
-            final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
+            # final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
             a1_state, _, _ = agent1.update(
                 reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(final_t1),
+                self.reduce_opp_dim(obs1),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
@@ -276,7 +337,7 @@ class RLRunner:
                         self.ipd_stats(
                             traj_1.observations,
                             traj_1.actions,
-                            final_t1.observation,
+                            obs1,
                         ),
                     )
                     rewards_0 = traj_1.rewards.mean()
