@@ -97,6 +97,8 @@ class RLRunner:
                 rng,
                 obs1,
                 obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
@@ -163,6 +165,8 @@ class RLRunner:
                 rng,
                 next_obs1,
                 next_obs2,
+                rewards[0],
+                rewards[1],
                 a1_state,
                 new_a1_mem,
                 a2_state,
@@ -179,6 +183,8 @@ class RLRunner:
             (
                 obs1,
                 obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
@@ -204,6 +210,8 @@ class RLRunner:
             (
                 obs1,
                 obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
@@ -219,6 +227,8 @@ class RLRunner:
             return (
                 obs1,
                 obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
@@ -250,6 +260,10 @@ class RLRunner:
             ).reshape((self.args.num_opps, self.args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, env_params)
+            rewards = [
+                jnp.zeros((self.args.num_opps, self.args.num_envs)),
+                jnp.zeros((self.args.num_opps, self.args.num_envs)),
+            ]
 
             if self.args.agent1 == "NaiveEx":
                 a1_state, a1_mem = agent1.batch_init(obs[0])
@@ -269,6 +283,7 @@ class RLRunner:
                 (
                     rngs,
                     *obs,
+                    *rewards,
                     a1_state,
                     a1_mem,
                     a2_state,
@@ -284,6 +299,8 @@ class RLRunner:
                 rngs,
                 obs1,
                 obs2,
+                r1,
+                r2,
                 a1_state,
                 a1_mem,
                 a2_state,
@@ -297,7 +314,9 @@ class RLRunner:
             # final_t1 = t1._replace(step_type=2 * jnp.ones_like(t1.step_type))
             a1_state, _, _ = agent1.update(
                 reduce_outer_traj(traj_1),
+                self.reduce_opp_dim(r1),
                 self.reduce_opp_dim(obs1),
+                jnp.ones_like(self.reduce_opp_dim(r1), dtype=jnp.bool_),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
