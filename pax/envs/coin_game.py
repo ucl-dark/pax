@@ -221,7 +221,7 @@ class CoinGame(environment.Environment):
                 new_blue_pos == state.blue_coin_pos, axis=-1
             )
 
-            ### [[1, -2],[1, -2]
+            ### [[1, 1, -2],[1, 1, -2]]
             _rr_reward = params.payoff_matrix[0][0]
             _rb_reward = params.payoff_matrix[0][1]
             _r_penalty = params.payoff_matrix[0][2]
@@ -236,7 +236,7 @@ class CoinGame(environment.Environment):
                 red_blue_matches, red_reward + _rb_reward, red_reward
             )
             red_reward = jnp.where(
-                blue_red_matches, red_reward - _r_penalty, red_reward
+                blue_red_matches, red_reward + _r_penalty, red_reward
             )
 
             blue_reward = jnp.where(
@@ -246,7 +246,7 @@ class CoinGame(environment.Environment):
                 blue_blue_matches, blue_reward + _bb_reward, blue_reward
             )
             blue_reward = jnp.where(
-                red_blue_matches, blue_reward - _b_penalty, blue_reward
+                red_blue_matches, blue_reward + _b_penalty, blue_reward
             )
 
             (counter, coop1, coop2, last_state) = _update_stats(
