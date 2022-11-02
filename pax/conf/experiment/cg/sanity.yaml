@@ -8,7 +8,6 @@ agent2: 'PPO_memory'
 env_id: coin_game
 env_type: sequential
 egocentric: True
-cnn: False
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
 runner: rl
