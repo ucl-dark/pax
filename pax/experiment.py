@@ -231,7 +231,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info(f"Evolution Strategy: {algo}")
 
         return EvoRunner(
-            env, strategy, es_params, param_reshaper, save_dir, args
+            agents, env, strategy, es_params, param_reshaper, save_dir, args
         )
 
     elif args.runner == "rl":
@@ -511,7 +511,7 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(agent_pair, env_params, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
@@ -525,7 +525,7 @@ def main(args):
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, agent_pair, num_iters, watchers)
+        runner.run_loop(agent_pair, env_params, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
