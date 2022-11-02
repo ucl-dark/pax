@@ -237,7 +237,14 @@ class RLRunner:
         num_iters = max(
             int(num_episodes / (self.args.num_envs * self.num_opps)), 1
         )
+
+        num_outer_steps = (
+            1
+            if self.args.env_type
+            else self.args.num_steps // self.args.num_inner_steps
+        )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+
         print(f"Log Interval {log_interval}")
         # RNG are the same for num_opps but different for num_envs
         rngs = jnp.concatenate(
@@ -278,7 +285,7 @@ class RLRunner:
                     env_params,
                 ),
                 None,
-                length=self.args.num_steps // self.args.num_inner_steps,
+                length=num_outer_steps,
             )
 
             (

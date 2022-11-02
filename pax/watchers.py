@@ -442,6 +442,7 @@ def cg_visitation(state: NamedTuple) -> dict:
         state.counter, axis=(0, 1)
     )
     count = jnp.nanmean(state.counter, axis=0)
+    print(total_1.shape)
     return {
         "prob_coop/1": jnp.nanmean(avg_prob_1),  # [1]
         "prob_coop/2": jnp.nanmean(avg_prob_2),  # [1]
@@ -449,10 +450,10 @@ def cg_visitation(state: NamedTuple) -> dict:
         "final_prob_coop/2": jnp.nanmean(final_prob_2),  # [1]
         "total_coins/1": total_1.sum(),  # int
         "total_coins/2": total_2.sum(),  # int
-        "coins_per_episode/1": total_1.mean(axis=0),  # [num_episodes]
-        "coins_per_episode/2": total_2.mean(axis=0),  # [num_episodes]
-        "final_coin_total/1": total_1.mean(axis=0)[-1],  # [1]
-        "final_coin_total/2": total_2.mean(axis=0)[-1],  # [1]
+        "coins_per_episode/1": total_1.mean(),  # [num_episodes]
+        "coins_per_episode/2": total_2.mean(),  # [num_episodes]
+        "final_coin_total/1": total_1.mean(axis=(0, 1))[-1],  # [1]
+        "final_coin_total/2": total_2.mean(axis=(0, 1))[-1],  # [1]
         "cooperation_probability/1/SS": prob_coop_1[0],
         "cooperation_probability/1/CC": prob_coop_1[1],
         "cooperation_probability/1/CD": prob_coop_1[2],

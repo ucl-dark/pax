@@ -264,7 +264,7 @@ class EvoRunner:
                     env_params,
                 ),
                 None,
-                length=self.args.num_steps // self.args.num_inner_steps,
+                length=num_outer_steps,
             )
 
             (
@@ -363,6 +363,12 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
+        num_outer_steps = (
+            1
+            if self.args.env_type
+            else self.args.num_steps // self.args.num_inner_steps
+        )
+
         evo_rollout = jax.pmap(
             evo_rollout,
             in_axes=(0, None, None, None, None),
