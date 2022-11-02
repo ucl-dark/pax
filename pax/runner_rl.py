@@ -240,7 +240,7 @@ class RLRunner:
 
         num_outer_steps = (
             1
-            if self.args.env_type
+            if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
         )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
@@ -339,9 +339,8 @@ class RLRunner:
                     rewards_0 = traj_1.rewards.sum(axis=1).mean()
                     rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
-                elif self.args.env_type in [
-                    "meta",
-                    "sequential",
+                elif self.args.env_id in [
+                    "ipd",
                 ]:
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(),

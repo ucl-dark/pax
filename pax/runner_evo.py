@@ -51,7 +51,7 @@ class EvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = jax.jit(cg_visitation)
+        self.cg_stats = jax.jit(jax.vmap(cg_visitation))
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -296,11 +296,9 @@ class EvoRunner:
                 rewards_0 = traj_1.rewards.sum(axis=1).mean()
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
-            elif self.args.env_type in [
-                "meta",
-                "sequential",
+            elif self.args.env_id in [
+                "ipd",
             ]:
-
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
@@ -365,7 +363,7 @@ class EvoRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         num_outer_steps = (
             1
-            if self.args.env_type
+            if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
         )
 
