@@ -55,9 +55,7 @@ class RLRunner:
 
     def __init__(self, env, save_dir, args):
         self.train_steps = 0
-        self.eval_steps = 0
         self.train_episodes = 0
-        self.eval_episodes = 0
         self.start_time = time.time()
         self.args = args
         self.num_opps = args.num_opps

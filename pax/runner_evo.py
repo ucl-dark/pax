@@ -40,8 +40,6 @@ class EvoRunner:
         self.es_params = es_params
         self.generations = 0
         self.num_opps = args.num_opps
-        self.eval_steps = 0
-        self.eval_episodes = 0
         self.param_reshaper = param_reshaper
         self.popsize = args.popsize
         self.random_key = jax.random.PRNGKey(args.seed)

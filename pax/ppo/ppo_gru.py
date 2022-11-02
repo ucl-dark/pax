@@ -99,7 +99,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * dones
+            discounts = gamma * jnp.logical_not(dones)
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -524,7 +524,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
             action_spec, args
         )
     else:
-        network, initial_hidden_state = make_GRU_ipd_network(action_spec)
+        network, initial_hidden_state = make_GRU_ipd_network(action_spec, args)
 
     gru_dim = initial_hidden_state.shape[1]
 
