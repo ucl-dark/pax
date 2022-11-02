@@ -81,7 +81,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * jnp.where(dones < 2, 1, 0)
+            discounts = gamma * jnp.logical_not(dones)
 
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
@@ -366,27 +366,20 @@ class PPO:
                 },
             )
 
-        @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple, reward: int, done: Any, action_extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-
             _value = jax.lax.select(
                 done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
-            _done = jax.lax.select(
-                done,
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
             _value = jax.lax.expand_dims(_value, [0])
             _reward = jax.lax.expand_dims(reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
+            _done = jax.lax.expand_dims(done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(

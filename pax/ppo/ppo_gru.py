@@ -99,8 +99,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * jnp.where(dones < 2, 1, 0)
-
+            discounts = gamma * dones
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -260,7 +259,6 @@ class PPO:
             # Compute gradients.
             grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
-            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -294,7 +292,6 @@ class PPO:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
-            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch
@@ -392,7 +389,7 @@ class PPO:
                 },
             )
 
-        @jax.jit
+        # @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple,
             reward: jnp.ndarray,
@@ -401,21 +398,15 @@ class PPO:
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-
             _value = jax.lax.select(
                 done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
-            _done = jax.lax.select(
-                done,
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
             _value = jax.lax.expand_dims(_value, [0])
             _reward = jax.lax.expand_dims(reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
+            _done = jax.lax.expand_dims(done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -439,7 +430,7 @@ class PPO:
 
         self.make_initial_state = make_initial_state
 
-        self.prepare_batch = prepare_batch
+        self._prepare_batch = prepare_batch
         self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
@@ -480,7 +471,6 @@ class PPO:
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
@@ -503,7 +493,7 @@ class PPO:
         """Update the agent -> only called at the end of a trajectory"""
 
         _, _, mem = self._policy(state, obs, mem)
-        traj_batch = self.prepare_batch(traj_batch, reward, done, mem.extras)
+        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging

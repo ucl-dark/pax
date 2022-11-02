@@ -308,7 +308,7 @@ class RLRunner:
                 self.reduce_opp_dim(a1_mem),
             )
 
-            # update second agent
+            # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
