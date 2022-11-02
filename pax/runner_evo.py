@@ -367,10 +367,10 @@ class EvoRunner:
             else self.args.num_steps // self.args.num_inner_steps
         )
 
-        evo_rollout = jax.pmap(
-            evo_rollout,
-            in_axes=(0, None, None, None, None),
-        )
+        # evo_rollout = jax.pmap(
+        #     evo_rollout,
+        #     in_axes=(0, None, None, None, None),
+        # )
 
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
@@ -378,10 +378,10 @@ class EvoRunner:
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
-            if num_devices == 1:
-                params = jax.tree_util.tree_map(
-                    lambda x: jax.lax.expand_dims(x, (0,)), params
-                )
+            # if num_devices == 1:
+            #     params = jax.tree_util.tree_map(
+            #         lambda x: jax.lax.expand_dims(x, (0,)), params
+            #     )
             # Evo Rollout
             (
                 fitness,
