@@ -421,7 +421,7 @@ class TitForTat:
         # if 0 | 2 | 4  -> C
         # if 1 | 3 -> D
         obs = obs % 2
-        action = jnp.where(obs > 0.0, 1.0, 0.0)
+        action = jnp.where(obs > 0, 1, 0)
         return action
 
 
