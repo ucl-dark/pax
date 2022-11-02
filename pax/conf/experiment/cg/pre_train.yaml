@@ -11,7 +11,7 @@ env_id: coin_game
 env_type: coin_game
 egocentric: True
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+payoff: [[1, 1, -2], [1, 1, -2]]
 
 # Runner 
 runner: rl
