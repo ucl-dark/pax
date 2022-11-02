@@ -6,7 +6,7 @@ agent2: 'GoodGreedy'
 
 # Environment
 env_id: coin_game
-env_type: coin_game
+env_type: sequential
 egocentric: True
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
