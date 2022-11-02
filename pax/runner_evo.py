@@ -213,7 +213,7 @@ class EvoRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
-        def evo_rollout(
+        def _rollout(
             _params: jnp.ndarray,
             _rng_run: jnp.ndarray,
             _a1_state: TrainingState,
@@ -285,11 +285,10 @@ class EvoRunner:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
+                    lambda x: x,
                     self.cg_stats(env_state),
                 )
 
@@ -318,7 +317,10 @@ class EvoRunner:
                 a2_metrics,
             )
 
-        self.rollout = evo_rollout
+        self.rollout = jax.pmap(
+            _rollout,
+            in_axes=(0, None, None, None, None),
+        )
 
     def run_loop(
         self,
@@ -372,11 +374,6 @@ class EvoRunner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
 
-        evo_rollout = jax.pmap(
-            self.rollout,
-            in_axes=(0, None, None, None, None),
-        )
-
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
 
@@ -395,7 +392,7 @@ class EvoRunner:
                 rewards_0,
                 rewards_1,
                 a2_metrics,
-            ) = evo_rollout(params, rng_run, a1_state, a1_mem, env_params)
+            ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * num_devices)
@@ -408,7 +405,6 @@ class EvoRunner:
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
-
             # Logging
             log = es_logging.update(log, x, fitness)
 

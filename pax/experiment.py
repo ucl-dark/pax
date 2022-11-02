@@ -4,7 +4,7 @@ import logging
 import os
 
 # uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
@@ -132,7 +132,7 @@ def env_setup(args, logger=None):
         else:
             env = CoinGame(
                 num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_steps,
+                num_outer_steps=args.num_steps // args.num_inner_steps,
                 cnn=args.ppo.with_cnn,
                 egocentric=args.egocentric,
             )
