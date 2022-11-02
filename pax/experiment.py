@@ -126,14 +126,14 @@ def env_setup(args, logger=None):
             env = CoinGame(
                 num_inner_steps=args.num_steps,
                 num_outer_steps=1,
-                cnn=args.cnn,
+                cnn=args.ppo.with_cnn,
                 egocentric=args.egocentric,
             )
         else:
             env = CoinGame(
                 num_inner_steps=args.num_inner_steps,
                 num_outer_steps=args.num_steps,
-                cnn=args.cnn,
+                cnn=args.ppo.with_cnn,
                 egocentric=args.egocentric,
             )
         if logger:
