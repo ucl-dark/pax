@@ -245,6 +245,8 @@ def test_done():
             rng, env_state, (action, action), env_params
         )
         assert (done == False).all()
+        assert (obs[0].argmax() != 4).all()
+        assert (obs[1].argmax() != 4).all()
 
     # check final
     obs, env_state, rewards, done, info = env.step(
