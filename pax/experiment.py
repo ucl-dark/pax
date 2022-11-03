@@ -26,7 +26,6 @@ from pax.envs.infinite_matrix_game import (
 import jax.numpy as jnp
 
 from pax.hyper.ppo import make_hyper
-from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
@@ -393,10 +392,10 @@ def agent_setup(args, env, env_params, logger):
 
     if args.runner in ["eval", "rl"]:
         logger.info("Using Independent Learners")
-        return IndependentLearners([agent_0, agent_1], args)
+        return (agent_0, agent_1)
     if args.runner == "evo":
         logger.info("Using EvolutionaryLearners")
-        return EvolutionaryLearners([agent_0, agent_1], args)
+        return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
