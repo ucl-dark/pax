@@ -511,7 +511,7 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(agent_pair, env_params, num_iters, watchers)
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
@@ -533,6 +533,8 @@ def main(args):
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, agent_pair, num_iters, watchers)
+
+    wandb.finish()
 
 
 if __name__ == "__main__":

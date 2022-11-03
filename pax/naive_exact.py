@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from dm_env import TimeStep
 
-from pax.env import InfiniteMatrixGame
+from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.utils import MemoryState
 
 

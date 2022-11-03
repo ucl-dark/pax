@@ -1,13 +1,13 @@
 import os
 import time
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
 import wandb
 
 from pax.watchers import cg_visitation, ipd_visitation
-from pax.utils import save
+from pax.utils import MemoryState, TrainingState, save
 
 MAX_WANDB_CALLS = 1000000
 
@@ -88,6 +88,11 @@ class RLRunner:
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+        num_outer_steps = (
+            1
+            if self.args.env_type == "sequential"
+            else self.args.num_steps // self.args.num_inner_steps
+        )
 
         agent1, agent2 = agents.agents
 
@@ -227,66 +232,52 @@ class RLRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
-        self.rollout = jax.jit(_outer_rollout)
+        def _rollout(
+            _rng_run: jnp.ndarray,
+            _a1_state: TrainingState,
+            _a1_mem: MemoryState,
+            _a2_state: TrainingState,
+            _a2_mem: MemoryState,
+            _env_params: Any,
+        ):
+            # env reset
+            rngs = jnp.concatenate(
+                [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
+            ).reshape((args.num_opps, args.num_envs, -1))
 
-    def run_loop(self, env, env_params, agents, num_episodes, watchers):
-        """Run training of agents in environment"""
-        print("Training")
-        print("-----------------------")
-        agent1, agent2 = agents.agents
-        rng, _ = jax.random.split(self.random_key)
-
-        a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
-        num_iters = max(
-            int(num_episodes / (self.args.num_envs * self.num_opps)), 1
-        )
-
-        num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_steps // self.args.num_inner_steps
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-
-        print(f"Log Interval {log_interval}")
-        # RNG are the same for num_opps but different for num_envs
-        rngs = jnp.concatenate(
-            [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
-        ).reshape((self.args.num_opps, self.args.num_envs, -1))
-
-        # run actual loop
-        for i in range(num_episodes):
-            obs, env_state = env.reset(rngs, env_params)
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
-                jnp.zeros((self.args.num_opps, self.args.num_envs)),
-                jnp.zeros((self.args.num_opps, self.args.num_envs)),
+                jnp.zeros((args.num_opps, args.num_envs)),
+                jnp.zeros((args.num_opps, args.num_envs)),
             ]
+            # Player 1
+            _a1_mem = agent1.batch_reset(_a1_mem, False)
 
-            if self.args.agent1 == "NaiveEx":
-                a1_state, a1_mem = agent1.batch_init(obs[0])
+            # Player 2
+            if args.agent1 == "NaiveEx":
+                _a1_state, _a1_mem = agent1.batch_init(obs[0])
 
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(obs[1])
+            if args.agent2 == "NaiveEx":
+                _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
             elif self.args.env_type in ["meta", "infinite"]:
                 # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+                _a2_state, _a2_mem = agent2.batch_init(
+                    jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
                 )
             # run trials
             vals, stack = jax.lax.scan(
-                self.rollout,
+                _outer_rollout,
                 (
                     rngs,
                     *obs,
                     *rewards,
-                    a1_state,
-                    a1_mem,
-                    a2_state,
-                    a2_mem,
+                    _a1_state,
+                    _a1_mem,
+                    _a2_state,
+                    _a2_mem,
                     env_state,
-                    env_params,
+                    _env_params,
                 ),
                 None,
                 length=num_outer_steps,
@@ -308,7 +299,7 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            a1_state, _, _ = agent1.update(
+            a1_state, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
                 self.reduce_opp_dim(r1),
@@ -320,6 +311,80 @@ class RLRunner:
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
+
+            # Stats
+            if args.env_id == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x,
+                    self.cg_stats(env_state),
+                )
+
+                rewards_0 = traj_1.rewards.sum(axis=1).mean()
+                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+
+            elif args.env_id in [
+                "ipd",
+            ]:
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        obs1,
+                    ),
+                )
+                rewards_0 = traj_1.rewards.mean()
+                rewards_1 = traj_2.rewards.mean()
+
+            return (
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a1_state,
+                a1_mem,
+                a1_metrics,
+                a2_state,
+                a2_mem,
+                a2_metrics,
+            )
+
+        # self.rollout = _rollout
+        self.rollout = jax.jit(_rollout)
+
+    def run_loop(self, env, env_params, agents, num_iters, watchers):
+        """Run training of agents in environment"""
+        print("Training")
+        print("-----------------------")
+        agent1, agent2 = agents.agents
+        rng, _ = jax.random.split(self.random_key)
+
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
+
+        num_iters = max(
+            int(num_iters / (self.args.num_envs * self.num_opps)), 1
+        )
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+
+        print(f"Log Interval {log_interval}")
+
+        # run actual loop
+        for i in range(num_iters):
+            rng, rng_run = jax.random.split(rng, 2)
+            # RL Rollout
+            (
+                env_stats,
+                rewards_0,
+                rewards_1,
+                a1_state,
+                a1_mem,
+                a1_metrics,
+                a2_state,
+                a2_mem,
+                a2_metrics,
+            ) = self.rollout(
+                rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
+            )
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
@@ -335,33 +400,6 @@ class RLRunner:
             if i % log_interval == 0:
                 print(f"Episode {i}")
 
-                if self.args.env_id == "coin_game":
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.mean().item(),
-                        self.cg_stats(env_state),
-                    )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
-
-                elif self.args.env_id in [
-                    "ipd",
-                ]:
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.ipd_stats(
-                            traj_1.observations,
-                            traj_1.actions,
-                            obs1,
-                        ),
-                    )
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-
-                else:
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
-                    env_stats = {}
-
                 print(f"Env Stats: {env_stats}")
                 print(
                     f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
@@ -369,12 +407,19 @@ class RLRunner:
                 print()
 
                 if watchers:
+                    # metrics [outer_timesteps]
+                    flattened_metrics_1 = jax.tree_util.tree_map(
+                        lambda x: jnp.mean(x), a1_metrics
+                    )
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics_1
+                    )
                     # metrics [outer_timesteps, num_opps]
-                    flattened_metrics = jax.tree_util.tree_map(
+                    flattened_metrics_2 = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
                     agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics
+                        agent2._logger.metrics | flattened_metrics_2
                     )
 
                     agents.log(watchers)
