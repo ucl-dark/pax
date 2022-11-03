@@ -76,7 +76,7 @@ class PPO:
     ):
         @jax.jit
         def policy(
-            state: TrainingState, observation: TimeStep, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -112,7 +112,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * jnp.where(dones < 2, 1, 0)
+            discounts = gamma * jnp.logical_not(dones)
 
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
@@ -265,11 +265,10 @@ class PPO:
             key, params, opt_state, timesteps, batch = carry
             key, subkey = jax.random.split(key)
             permutation = jax.random.permutation(subkey, batch_size)
-            shuffled_batch = jax.tree_map(
+            shuffled_batch = jax.tree_util.tree_map(
                 lambda x: jnp.take(x, permutation, axis=0), batch
             )
-            shuffled_batch = batch
-            minibatches = jax.tree_map(
+            minibatches = jax.tree_util.tree_map(
                 lambda x: jnp.reshape(
                     x, [num_minibatches, -1] + list(x.shape[1:])
                 ),
@@ -418,25 +417,23 @@ class PPO:
 
         @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+            traj_batch: NamedTuple,
+            reward: jnp.ndarray,
+            done: Any,
+            action_extras: dict,
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
 
             _value = jax.lax.select(
-                t_prime.last(),
+                done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
+            _reward = jax.lax.expand_dims(reward, [0])
+            _done = jax.lax.expand_dims(done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -490,13 +487,13 @@ class PPO:
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
-    def select_action(self, t: TimeStep):
+    def select_action(self, obs: jnp.ndarray):
         """Selects action and updates info with PPO specific information"""
         (
             actions,
             self._state,
             self._mem,
-        ) = self._policy(self._state, t.observation, self._mem)
+        ) = self._policy(self._state, obs, self._mem)
         return utils.to_numpy(actions)
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
@@ -515,15 +512,17 @@ class PPO:
 
     def update(
         self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-        mem,
+        traj_batch: NamedTuple,
+        obs: jnp.ndarray,
+        reward: jnp.ndarray,
+        done: Any,
+        state: TrainingState,
+        mem: MemoryState,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-        _, _, mem = self._policy(state, t_prime.observation, mem)
-        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        _, _, mem = self._policy(state, obs, mem)
+        traj_batch = self.prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging

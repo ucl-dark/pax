@@ -129,7 +129,7 @@ class EvilGreedy:
         )
         return action
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -233,7 +233,7 @@ class RandomGreedy:
 
         self._policy = _policy
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -332,7 +332,7 @@ class GoodGreedy:
         )
         return action
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -355,7 +355,7 @@ class GrimTrigger:
     ) -> jnp.ndarray:
         return self._trigger(timestep.observation)
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -397,7 +397,7 @@ class TitForTat:
         # return [batch]
         return self._reciprocity(obs)
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -421,7 +421,7 @@ class TitForTat:
         # if 0 | 2 | 4  -> C
         # if 1 | 3 -> D
         obs = obs % 2
-        action = jnp.where(obs > 0.0, 1.0, 0.0)
+        action = jnp.where(obs > 0, 1, 0)
         return action
 
 
@@ -442,7 +442,7 @@ class Defect:
         # return jnp.ones((batch_size, 1))
         return jnp.ones((batch_size,))
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -496,7 +496,7 @@ class Altruistic:
         batch_size = obs.shape[0]
         return jnp.zeros((batch_size,)), state, mem
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -563,7 +563,7 @@ class Random:
         )
         return action
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -607,7 +607,7 @@ class Stay:
         action = 5 * jnp.ones((batch_size,), dtype=int)
         return action
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -647,7 +647,7 @@ class HyperAltruistic:
         action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -685,7 +685,7 @@ class HyperDefect:
         action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -730,7 +730,7 @@ class HyperTFT:
         )
         return action, state, mem
 
-    def update(self, unused0, unused1, state, mem) -> None:
+    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:

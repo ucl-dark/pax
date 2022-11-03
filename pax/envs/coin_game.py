@@ -56,7 +56,7 @@ MOVES = jnp.array(
 
 class CoinGame(environment.Environment):
     """
-    JAX Compatible version of matrix game environment.
+    JAX Compatible version of coin game environment.
     """
 
     def __init__(
@@ -168,7 +168,6 @@ class CoinGame(environment.Environment):
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             if egocentric:
-                print("Running Egocentric")
                 obs1 = _relative_position(state)
 
                 # flip red and blue coins for second agent
@@ -222,7 +221,7 @@ class CoinGame(environment.Environment):
                 new_blue_pos == state.blue_coin_pos, axis=-1
             )
 
-            ### [[1, -2],[1, -2]
+            ### [[1, 1, -2],[1, 1, -2]]
             _rr_reward = params.payoff_matrix[0][0]
             _rb_reward = params.payoff_matrix[0][1]
             _r_penalty = params.payoff_matrix[0][2]
@@ -237,7 +236,7 @@ class CoinGame(environment.Environment):
                 red_blue_matches, red_reward + _rb_reward, red_reward
             )
             red_reward = jnp.where(
-                blue_red_matches, red_reward - _r_penalty, red_reward
+                blue_red_matches, red_reward + _r_penalty, red_reward
             )
 
             blue_reward = jnp.where(
@@ -247,7 +246,7 @@ class CoinGame(environment.Environment):
                 blue_blue_matches, blue_reward + _bb_reward, blue_reward
             )
             blue_reward = jnp.where(
-                red_blue_matches, blue_reward - _b_penalty, blue_reward
+                red_blue_matches, blue_reward + _b_penalty, blue_reward
             )
 
             (counter, coop1, coop2, last_state) = _update_stats(
@@ -304,29 +303,35 @@ class CoinGame(environment.Environment):
             )
 
             obs1, obs2 = _state_to_obs(next_state)
+
+            # now calculate if done for inner or outer episode
             inner_t = next_state.inner_t
             outer_t = next_state.outer_t
-            done = inner_t % num_inner_steps == 0
+            reset_inner = inner_t == num_inner_steps
 
             # if inner episode is done, return start state for next game
             reset_obs, reset_state = _reset(key, params)
             next_state = EnvState(
                 red_pos=jnp.where(
-                    done, reset_state.red_pos, next_state.red_pos
+                    reset_inner, reset_state.red_pos, next_state.red_pos
                 ),
                 blue_pos=jnp.where(
-                    done, reset_state.blue_pos, next_state.blue_pos
+                    reset_inner, reset_state.blue_pos, next_state.blue_pos
                 ),
                 red_coin_pos=jnp.where(
-                    done, reset_state.red_coin_pos, next_state.red_coin_pos
+                    reset_inner,
+                    reset_state.red_coin_pos,
+                    next_state.red_coin_pos,
                 ),
                 blue_coin_pos=jnp.where(
-                    done, reset_state.blue_coin_pos, next_state.blue_coin_pos
+                    reset_inner,
+                    reset_state.blue_coin_pos,
+                    next_state.blue_coin_pos,
                 ),
                 inner_t=jnp.where(
-                    done, jnp.zeros_like(inner_t), next_state.inner_t
+                    reset_inner, jnp.zeros_like(inner_t), next_state.inner_t
                 ),
-                outer_t=jnp.where(done, outer_t + 1, outer_t),
+                outer_t=jnp.where(reset_inner, outer_t + 1, outer_t),
                 red_coop=next_state.red_coop,
                 red_defect=next_state.red_defect,
                 blue_coop=next_state.blue_coop,
@@ -334,19 +339,19 @@ class CoinGame(environment.Environment):
                 counter=counter,
                 coop1=coop1,
                 coop2=coop2,
-                last_state=jnp.where(done, jnp.zeros(2), last_state),
+                last_state=jnp.where(reset_inner, jnp.zeros(2), last_state),
             )
 
-            obs1 = jnp.where(done, reset_obs[0], obs1)
-            obs2 = jnp.where(done, reset_obs[1], obs2)
+            obs1 = jnp.where(reset_inner, reset_obs[0], obs1)
+            obs2 = jnp.where(reset_inner, reset_obs[1], obs2)
 
-            blue_reward = jnp.where(done, 0, blue_reward)
-            red_reward = jnp.where(done, 0, red_reward)
+            blue_reward = jnp.where(reset_inner, 0.0, blue_reward)
+            red_reward = jnp.where(reset_inner, 0.0, red_reward)
             return (
                 (obs1, obs2),
                 next_state,
                 (red_reward, blue_reward),
-                done,
+                reset_inner,
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
             )
 

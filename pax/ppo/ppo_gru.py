@@ -6,7 +6,8 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from dm_env import TimeStep
+
+# from dm_env import TimeStep
 
 from pax import utils
 from pax.ppo.networks import (
@@ -98,8 +99,7 @@ class PPO:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * jnp.where(dones < 2, 1, 0)
-
+            discounts = gamma * jnp.logical_not(dones)
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -259,7 +259,6 @@ class PPO:
             # Compute gradients.
             grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
-            @jax.jit
             def model_update_minibatch(
                 carry: Tuple[hk.Params, optax.OptState, int],
                 minibatch: Batch,
@@ -293,7 +292,6 @@ class PPO:
                 metrics["norm_updates"] = optax.global_norm(updates)
                 return (params, opt_state, timesteps), metrics
 
-            @jax.jit
             def model_update_epoch(
                 carry: Tuple[
                     jnp.ndarray, hk.Params, optax.OptState, int, Batch
@@ -391,27 +389,24 @@ class PPO:
                 },
             )
 
-        @jax.jit
+        # @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
+            traj_batch: NamedTuple,
+            reward: jnp.ndarray,
+            done: Any,
+            action_extras: dict,
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-
             _value = jax.lax.select(
-                t_prime.last(),
+                done,
                 jnp.zeros_like(action_extras["values"]),
                 action_extras["values"],
             )
 
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
+            _reward = jax.lax.expand_dims(reward, [0])
+            _done = jax.lax.expand_dims(done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -435,7 +430,7 @@ class PPO:
 
         self.make_initial_state = make_initial_state
 
-        self.prepare_batch = prepare_batch
+        self._prepare_batch = prepare_batch
         self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
@@ -465,18 +460,17 @@ class PPO:
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
-    def select_action(self, t: TimeStep):
+    def select_action(self, obs: jnp.ndarray):
         """Selects action and updates info with PPO specific information"""
         (
             actions,
             self._state,
             self._mem,
-        ) = self._policy(self._state, t.observation, self._mem)
+        ) = self._policy(self._state, obs, self._mem)
         return utils.to_numpy(actions)
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
@@ -488,16 +482,18 @@ class PPO:
 
     def update(
         self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-        mem,
+        traj_batch: NamedTuple,
+        obs: jnp.ndarray,
+        reward: jnp.ndarray,
+        done: Any,
+        state: TrainingState,
+        mem: MemoryState,
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
 
-        _, _, mem = self._policy(state, t_prime.observation, mem)
-        traj_batch = self.prepare_batch(traj_batch, t_prime, mem.extras)
+        _, _, mem = self._policy(state, obs, mem)
+        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging
@@ -528,7 +524,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
             action_spec, args
         )
     else:
-        network, initial_hidden_state = make_GRU_ipd_network(action_spec)
+        network, initial_hidden_state = make_GRU_ipd_network(action_spec, args)
 
     gru_dim = initial_hidden_state.shape[1]
 
@@ -537,7 +533,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
     transition_steps = (
         args.total_timesteps
         / batch_size

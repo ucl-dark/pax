@@ -14,7 +14,7 @@ class EnvState:
 
 @chex.dataclass
 class EnvParams:
-    payoff_matrix: jnp.ndarray
+    payoff_matrix: chex.ArrayDevice
 
 
 class IteratedMatrixGame(environment.Environment):

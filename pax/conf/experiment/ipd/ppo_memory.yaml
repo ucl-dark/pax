@@ -19,7 +19,7 @@ eval: False
 # Training hyperparameters
 num_envs: 100
 num_opps: 1
-num_steps: 150 # number of steps per episode
+num_steps: 25 # number of steps per episode
 total_timesteps: 2e7
 
 # Useful information
@@ -38,14 +38,14 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.02
-  entropy_coeff_horizon: 1e9
+  entropy_coeff_horizon: 1e7
   entropy_coeff_end: 0.001
   lr_scheduling: True
-  learning_rate: 3e-4
+  learning_rate: 0.001
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
-  hidden_size: 16
+  hidden_size: 4
 
 # Logging setup
 wandb:
