@@ -236,7 +236,7 @@ def runner_setup(args, env, agents, save_dir, logger):
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
-        return RLRunner(env, save_dir, args)
+        return RLRunner(agents, env, save_dir, args)
 
     else:
         raise ValueError(f"Unknown runner type {args.runner}")

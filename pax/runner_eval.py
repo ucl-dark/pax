@@ -27,7 +27,7 @@ class Sample(NamedTuple):
 class EvalRunner:
     """Evaluation runner"""
 
-    def __init__(self, env, args):
+    def __init__(self, agents, env, args):
         self.train_episodes = 0
         self.start_time = time.time()
         self.args = args
@@ -53,7 +53,8 @@ class EvalRunner:
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
 
-    def run_loop(self, env, env_params, agents, num_episodes, watchers):
+        agent1, agent2 = agents.agents
+
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -152,7 +153,7 @@ class EvalRunner:
                 env_params,
             ) = vals
             # MFOS has to take a meta-action for each episode
-            if self.args.agent1 == "MFOS":
+            if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
             # update second agent
@@ -178,7 +179,10 @@ class EvalRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
-        """Run training of agents in environment"""
+        self.rollout = jax.jit(_outer_rollout)
+
+    def run_loop(self, env, env_params, agents, num_episodes, watchers):
+        """Run evaluation of agents in environment"""
         print("Training")
         print("-----------------------")
         agent1, agent2 = agents.agents
@@ -199,7 +203,6 @@ class EvalRunner:
         print(f"Log Interval {log_interval}")
 
         # RNG are the same for num_opps but different for num_envs
-
         rngs = jnp.concatenate(
             [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
         ).reshape((self.args.num_opps, self.args.num_envs, -1))
@@ -220,7 +223,7 @@ class EvalRunner:
                 )
             # run trials
             vals, stack = jax.lax.scan(
-                _outer_rollout,
+                self.rollout,
                 (
                     rngs,
                     *obs,
