@@ -19,7 +19,7 @@ eval: False
 # Training hyperparameters
 num_envs: 100
 num_opps: 1
-num_steps: 25 # number of steps per episode
+num_steps: 150 # number of steps per episode
 total_timesteps: 2e7
 
 # Useful information
