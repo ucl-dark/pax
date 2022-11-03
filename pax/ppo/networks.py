@@ -300,15 +300,14 @@ def make_cartpole_network(num_actions: int):
     return network
 
 
-def make_GRU_ipd_network(num_actions: int):
-    hidden_size = 25
-    hidden_state = jnp.zeros((1, hidden_size))
+def make_GRU_ipd_network(num_actions: int, args):
+    hidden_state = jnp.zeros((1, args.ppo.hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        gru = hk.GRU(hidden_size)
+        gru = hk.GRU(args.ppo.hidden_size)
         embedding, state = gru(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
