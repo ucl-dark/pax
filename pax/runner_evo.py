@@ -7,8 +7,6 @@ from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
-import chex
-from pax.learners import EvolutionaryLearners
 from pax.utils import save, TrainingState, MemoryState
 
 # TODO: import when evosax library is updated
@@ -388,8 +386,9 @@ class EvoRunner:
 
     def run_loop(
         self,
-        agents: EvolutionaryLearners,
+        env,
         env_params,
+        agents,
         num_generations: int,
         watchers: Callable,
     ):
@@ -405,7 +404,7 @@ class EvoRunner:
         print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution

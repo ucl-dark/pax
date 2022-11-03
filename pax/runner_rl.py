@@ -283,7 +283,7 @@ class RLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent1._state, agent1._mem
