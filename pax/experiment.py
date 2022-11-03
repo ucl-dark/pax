@@ -4,7 +4,7 @@ import logging
 import os
 
 # uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
@@ -132,7 +132,7 @@ def env_setup(args, logger=None):
         else:
             env = CoinGame(
                 num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_steps,
+                num_outer_steps=args.num_steps // args.num_inner_steps,
                 cnn=args.ppo.with_cnn,
                 egocentric=args.egocentric,
             )
@@ -231,12 +231,12 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info(f"Evolution Strategy: {algo}")
 
         return EvoRunner(
-            env, strategy, es_params, param_reshaper, save_dir, args
+            agents, env, strategy, es_params, param_reshaper, save_dir, args
         )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
-        return RLRunner(env, save_dir, args)
+        return RLRunner(agents, env, save_dir, args)
 
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
@@ -511,7 +511,7 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(agent_pair, env_params, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
@@ -525,7 +525,7 @@ def main(args):
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, agent_pair, num_iters, watchers)
+        runner.run_loop(agent_pair, env_params, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(

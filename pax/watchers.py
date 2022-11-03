@@ -441,7 +441,7 @@ def cg_visitation(state: NamedTuple) -> dict:
     prob_coop_2 = jnp.sum(state.coop2, axis=(0, 1)) / jnp.sum(
         state.counter, axis=(0, 1)
     )
-    count = jnp.nanmean(state.counter, axis=0)
+    count = jnp.nanmean(state.counter, axis=(0, 1))
     return {
         "prob_coop/1": jnp.nanmean(avg_prob_1),  # [1]
         "prob_coop/2": jnp.nanmean(avg_prob_2),  # [1]
@@ -480,13 +480,4 @@ def cg_visitation(state: NamedTuple) -> dict:
         "state_visitation/SD": count[6],
         "state_visitation/CS": count[7],
         "state_visitation/DS": count[8],
-        "state_visitation2/SS": count[0],
-        "state_visitation2/CC": count[1],
-        "state_visitation2/CD": count[2],
-        "state_visitation2/DC": count[3],
-        "state_visitation2/DD": count[4],
-        "state_visitation2/SC": count[5],
-        "state_visitation2/SD": count[6],
-        "state_visitation2/CS": count[7],
-        "state_visitation2/DS": count[8],
     }
