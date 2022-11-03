@@ -53,7 +53,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 class RLRunner:
     """Holds the runner's state."""
 
-    def __init__(self, env, save_dir, args):
+    def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
         self.train_episodes = 0
         self.start_time = time.time()
@@ -89,7 +89,8 @@ class RLRunner:
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
 
-    def run_loop(self, env, env_params, agents, num_episodes, watchers):
+        agent1, agent2 = agents.agents
+
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -130,7 +131,7 @@ class RLRunner:
                 env_params,
             )
 
-            if self.args.agent1 == "MFOS":
+            if args.agent1 == "MFOS":
                 traj1 = MFOSSample(
                     obs1,
                     a1,
@@ -200,7 +201,7 @@ class RLRunner:
                 env_params,
             ) = vals
             # MFOS has to take a meta-action for each episode
-            if self.args.agent1 == "MFOS":
+            if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
             # update second agent
@@ -226,6 +227,9 @@ class RLRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
+        self.rollout = jax.jit(_outer_rollout)
+
+    def run_loop(self, env, env_params, agents, num_episodes, watchers):
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
@@ -272,7 +276,7 @@ class RLRunner:
                 )
             # run trials
             vals, stack = jax.lax.scan(
-                _outer_rollout,
+                self.rollout,
                 (
                     rngs,
                     *obs,
