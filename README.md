@@ -1,4 +1,12 @@
 # Pax
+
+<p align="left">
+  <a href="https://opensource.org/licenses/Apache-2.0">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" />
+  </a>
+ </p>
+ 
+
 Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
