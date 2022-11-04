@@ -358,7 +358,7 @@ class EvoRunner:
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
             elif args.env_id in [
-                "ipd",
+                "matrix_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -386,7 +386,6 @@ class EvoRunner:
 
     def run_loop(
         self,
-        env,
         env_params,
         agents,
         num_generations: int,
@@ -562,7 +561,6 @@ class EvoRunner:
                 )
 
                 agent2._logger.metrics.update(flattened_metrics)
-                agent1._logger.metrics.update(flattened_metrics)
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)
                 wandb.log(wandb_log)

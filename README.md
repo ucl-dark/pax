@@ -70,7 +70,7 @@ Chicken   = [[ 0, 0], [ 1,-1], [-1, 1], [-2,-2]]
 These games can be called using the following flags: ```ipd, stag, sexes, chicken``` or by editing the `yaml` file. For example: 
 
 ```bash 
-python -m pax.experiment +experiment/ipd=ppo ++game="ipd" ++agent2=TitForTat,Defect ++wandb.group="testing" --multirun
+python -m pax.experiment +experiment/ipd=ppo ++game="matrix_game" ++agent2=TitForTat,Defect ++wandb.group="testing" --multirun
 ``` 
 or 
 

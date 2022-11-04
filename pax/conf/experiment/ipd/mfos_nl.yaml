@@ -5,7 +5,7 @@ agent1: 'Hyper'
 agent2: 'NaiveEx'
 
 # Environment
-env_id: ipd
+env_id: matrix_game
 env_type: infinite
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
@@ -44,10 +44,6 @@ ppo:
 # Naive Learner parameters
 naive:
   lr: 1.0
-
-# LOLA agent parameters
-# lola:
-#   ... 
 
 # Logging setup
 wandb:
