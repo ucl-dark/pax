@@ -26,7 +26,6 @@ from pax.envs.infinite_matrix_game import (
 import jax.numpy as jnp
 
 from pax.hyper.ppo import make_hyper
-from pax.learners import IndependentLearners, EvolutionaryLearners
 from pax.naive.naive import make_naive_pg
 from pax.naive_exact import NaiveExact
 from pax.ppo.ppo import make_agent
@@ -149,7 +148,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         return EvalRunner(args)
 
     if args.runner == "evo":
-        agent1, _ = agents.agents
+        agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
@@ -393,10 +392,10 @@ def agent_setup(args, env, env_params, logger):
 
     if args.runner in ["eval", "rl"]:
         logger.info("Using Independent Learners")
-        return IndependentLearners([agent_0, agent_1], args)
+        return (agent_0, agent_1)
     if args.runner == "evo":
         logger.info("Using EvolutionaryLearners")
-        return EvolutionaryLearners([agent_0, agent_1], args)
+        return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
@@ -525,14 +524,14 @@ def main(args):
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(agent_pair, env_params, num_iters, watchers)
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, agent_pair, num_iters, watchers)
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     wandb.finish()
 

@@ -7,8 +7,6 @@ from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
 import wandb
-import chex
-from pax.learners import EvolutionaryLearners
 from pax.utils import save, TrainingState, MemoryState
 
 # TODO: import when evosax library is updated
@@ -87,7 +85,71 @@ class EvoRunner:
             else self.args.num_steps // self.args.num_inner_steps
         )
 
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
+
+        # vmap agents accordingly
+        # agent 1 is batched over popsize and num_opps
+        agent1.batch_init = jax.vmap(
+            jax.vmap(
+                agent1.make_initial_state,
+                (None, 0),  # (params, rng)
+                (None, 0),  # (TrainingState, MemoryState)
+            ),
+            # both for Population
+        )
+        agent1.batch_reset = jax.jit(
+            jax.vmap(
+                jax.vmap(agent1.reset_memory, (0, None), 0), (0, None), 0
+            ),
+            static_argnums=1,
+        )
+
+        agent1.batch_policy = jax.jit(
+            jax.vmap(
+                jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
+            )
+        )
+
+        if args.agent2 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent2.batch_init = jax.jit(
+                jax.vmap(jax.vmap(agent2.make_initial_state))
+            )
+        else:
+            agent2.batch_init = jax.jit(
+                jax.vmap(
+                    jax.vmap(agent2.make_initial_state, (0, None), 0),
+                    (0, None),
+                    0,
+                )
+            )
+
+        agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy, 0, 0)))
+        agent2.batch_reset = jax.jit(
+            jax.vmap(
+                jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
+            ),
+            static_argnums=1,
+        )
+
+        agent2.batch_update = jax.jit(
+            jax.vmap(
+                jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0)),
+                (1, 0, 0, 0, 0, 0),
+            )
+        )
+        if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+
+            key = jax.random.split(
+                agent2._state.random_key, args.popsize * args.num_opps
+            ).reshape(args.popsize, args.num_opps, -1)
+
+            agent2._state, agent2._mem = agent2.batch_init(
+                key,
+                init_hidden,
+            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -342,7 +404,7 @@ class EvoRunner:
         print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
@@ -501,7 +563,8 @@ class EvoRunner:
 
                 agent2._logger.metrics.update(flattened_metrics)
                 agent1._logger.metrics.update(flattened_metrics)
-                agents.log(watchers)
+                for watcher, agent in zip(watchers, agents):
+                    watcher(agent)
                 wandb.log(wandb_log)
 
         return agents
