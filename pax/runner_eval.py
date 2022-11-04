@@ -53,7 +53,56 @@ class EvalRunner:
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
 
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
+
+        if args.agent1 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
+        else:
+            # batch MemoryState not TrainingState
+            agent1.batch_init = jax.vmap(
+                agent1.make_initial_state,
+                (None, 0),
+                (None, 0),
+            )
+        agent1.batch_reset = jax.jit(
+            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
+        )
+
+        agent1.batch_policy = jax.jit(
+            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
+        )
+
+        # batch all for Agent2
+        if args.agent2 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
+        else:
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None), 0
+            )
+        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
+        agent2.batch_reset = jax.jit(
+            jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
+        )
+        agent2.batch_update = jax.jit(
+            jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0), 0)
+        )
+
+        if args.agent1 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            agent1._state, agent1._mem = agent1.batch_init(
+                agent1._state.random_key, init_hidden
+            )
+
+        if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            agent2._state, agent2._mem = agent2.batch_init(
+                jax.random.split(agent2._state.random_key, args.num_opps),
+                init_hidden,
+            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -185,7 +234,7 @@ class EvalRunner:
         """Run evaluation of agents in environment"""
         print("Training")
         print("-----------------------")
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent1._state, agent1._mem
@@ -304,7 +353,8 @@ class EvalRunner:
                         agent2._logger.metrics | flattened_metrics
                     )
 
-                    agents.log(watchers)
+                    for watcher, agent in zip(watchers, agents):
+                        watcher(agent)
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
@@ -318,6 +368,6 @@ class EvalRunner:
                         | env_stats,
                     )
 
-        agents.agents[0]._state = a1_state
-        agents.agents[1]._state = a2_state
+        agents[0]._state = a1_state
+        agents[1]._state = a2_state
         return agents
