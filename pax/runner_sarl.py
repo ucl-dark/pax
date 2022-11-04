@@ -23,6 +23,7 @@ class Sample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
 
+
 class SARLRunner:
     """Holds the runner's state."""
 
@@ -34,12 +35,12 @@ class SARLRunner:
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
 
-        self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
-        env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        env.step = jax.jit(
+            jax.vmap(
+                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            )
         )
 
         self.split = jax.vmap(jax.random.split, (0, None))
@@ -50,13 +51,10 @@ class SARLRunner:
         else:
             # batch MemoryState not TrainingState
             agent.batch_init = jax.jit(agent.make_initial_state)
-        
-        agent.batch_reset = jax.jit(
-            agent.reset_memory, static_argnums=1
-        )
+
+        agent.batch_reset = jax.jit(agent.reset_memory, static_argnums=1)
 
         agent.batch_policy = jax.jit(agent._policy)
-
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
@@ -64,7 +62,6 @@ class SARLRunner:
             agent._state, agent._mem = agent.batch_init(
                 agent._state.random_key, init_hidden
             )
-
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -102,16 +99,16 @@ class SARLRunner:
             traj1 = Sample(
                 obs,
                 a1,
-                rewards,
+                rewards * jnp.logical_not(done),
                 new_a1_mem.extras["log_probs"],
                 new_a1_mem.extras["values"],
                 done,
                 a1_mem.hidden,
-            )   
+            )
 
             return (
                 rngs,
-                next_obs, # next_obs
+                next_obs,  # next_obs
                 rewards,
                 done,
                 a1_state,
@@ -119,8 +116,6 @@ class SARLRunner:
                 env_state,
                 env_params,
             ), traj1
-
-
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -167,8 +162,7 @@ class SARLRunner:
             ) = vals
 
             # update outer agent
-
-            _, _, _a1_metrics = agent.update(
+            a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
                 rewards,
@@ -192,27 +186,25 @@ class SARLRunner:
                 _a1_metrics,
             )
 
-        # self.rollout = _rollout
-        self.rollout = jax.jit(_rollout)
+        self.rollout = _rollout
+        # self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env, env_params, agent, num_iters, watcher):
         """Run training of agent in environment"""
         print("Training")
         print("-----------------------")
-        agent= agent
+        agent = agent
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent._state, agent._mem
 
-        num_iters = max(
-            int(num_iters / (self.args.num_envs)), 1
-        )
+        num_iters = max(int(num_iters / (self.args.num_envs)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
 
         print(f"Log Interval {log_interval}")
         print(f"Running for total iterations: {num_iters}")
         # run actual loop
-        for i in range(5):
+        for i in range(num_iters):
             rng, rng_run = jax.random.split(rng, 2)
             # RL Rollout
             (
@@ -221,9 +213,7 @@ class SARLRunner:
                 a1_state,
                 a1_mem,
                 a1_metrics,
-            ) = self.rollout(
-                rng_run, a1_state, a1_mem, env_params
-            )
+            ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
@@ -236,13 +226,11 @@ class SARLRunner:
 
             # logging
             self.train_episodes += 1
-            if True:
+            if num_iters % log_interval == 0:
                 print(f"Episode {i}")
 
                 print(f"Env Stats: {env_stats}")
-                print(
-                    f"Total Episode Reward: {float(rewards_1.mean())}"
-                )
+                print(f"Total Episode Reward: {float(rewards_1.mean())}")
                 print()
 
                 if watcher:
@@ -267,4 +255,3 @@ class SARLRunner:
 
         agent._state = a1_state
         return agent
-
