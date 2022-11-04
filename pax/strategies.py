@@ -118,17 +118,6 @@ class EvilGreedy:
 
         self._policy = _policy
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        action, self._state, self._mem = self._policy(
-            self._state, timestep.observation, self._mem
-        )
-        return action
-
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
@@ -321,17 +310,6 @@ class GoodGreedy:
 
         self._policy = _policy
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        action, self._state, self._mem = self._policy(
-            self._state, timestep.observation, self._mem
-        )
-        return action
-
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
@@ -348,12 +326,6 @@ class GrimTrigger:
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger
         self._logger.metrics = {}
-
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        return self._trigger(timestep.observation)
 
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
@@ -388,14 +360,6 @@ class TitForTat:
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
-
-    def select_action(
-        self,
-        obs: jnp.ndarray,
-    ) -> jnp.ndarray:
-        # state is [batch x time_step x num_players]
-        # return [batch]
-        return self._reciprocity(obs)
 
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
@@ -432,16 +396,6 @@ class Defect:
         self._logger = Logger()
         self._logger.metrics = {}
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        batch_size, _ = timestep.observation.shape
-        # return jnp.ones((batch_size, 1))
-        return jnp.ones((batch_size,))
-
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
@@ -471,19 +425,6 @@ class Altruistic:
         self._logger = Logger()
         self._logger.metrics = {}
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        # return jnp.zeros((batch_size, 1))
-        return jnp.zeros((batch_size,))
-
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self,
@@ -508,7 +449,7 @@ class Altruistic:
 
 class Human:
     def __init__(self, *args):
-        pass
+        raise DeprecationWarning("Human is not supported in this version")
 
     def select_action(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
         text = None
@@ -548,21 +489,6 @@ class Random:
 
         self._policy = jax.jit(_policy)
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        action = jax.random.randint(
-            self._state.new_key, (batch_size,), 0, self._num_actions
-        )
-        return action
-
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
@@ -594,19 +520,6 @@ class Stay:
 
         self._policy = jax.jit(_policy)
 
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        action = 5 * jnp.ones((batch_size,), dtype=int)
-        return action
-
     def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
         return state, mem, {}
 
@@ -622,19 +535,6 @@ class HyperAltruistic:
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
-
-    @partial(jax.jit, static_argnums=(0,))
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        return 20 * jnp.ones((batch_size, 5))
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(
@@ -662,19 +562,6 @@ class HyperDefect:
         self._logger.metrics = {}
 
     @partial(jax.jit, static_argnums=(0,))
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        return -20 * jnp.ones((batch_size, 5))
-
-    @partial(jax.jit, static_argnums=(0,))
     def _policy(
         self, state: NamedTuple, observation: jnp.array, mem: NamedTuple
     ) -> jnp.ndarray:
@@ -698,21 +585,6 @@ class HyperTFT:
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()
         self._logger.metrics = {}
-
-    def select_action(
-        self,
-        timestep: TimeStep,
-    ) -> jnp.ndarray:
-        # state is [batch x state_space]
-        # return [batch]
-        (
-            batch_size,
-            _,
-        ) = timestep.observation.shape
-        # return jnp.zeros((batch_size, 1))
-        return jnp.tile(
-            20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (batch_size, 1)
-        )
 
     @partial(jax.jit, static_argnums=(0,))
     def _policy(

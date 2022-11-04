@@ -131,20 +131,6 @@ class NaiveExact:
     def reset_memory(self, mem, *args):
         return mem
 
-    def select_action(
-        self,
-        t: TimeStep,
-    ) -> jnp.ndarray:
-
-        action, self._state, self._mem = self._policy(
-            self._state, t.observation, self._mem
-        )
-        self._logger.metrics["sgd_steps"] += 1
-        # self._logger.metrics["loss_total"] = self._state.loss
-        self._total_steps += 1
-        self._logger.metrics["total_steps"] = self._total_steps
-        return action
-
     def update(
         self, traj_batch, obs, rewards, done, state, mem
     ) -> TrainingState:
