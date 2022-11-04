@@ -533,6 +533,8 @@ def main(args):
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
+    wandb.finish()
+
 
 if __name__ == "__main__":
     main()
