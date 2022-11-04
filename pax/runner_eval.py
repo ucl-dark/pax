@@ -53,7 +53,7 @@ class EvalRunner:
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
 
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
 
         if args.agent1 == "NaiveEx":
             # special case where NaiveEx has a different call signature
@@ -234,7 +234,7 @@ class EvalRunner:
         """Run evaluation of agents in environment"""
         print("Training")
         print("-----------------------")
-        agent1, agent2 = agents.agents
+        agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent1._state, agent1._mem
@@ -353,7 +353,8 @@ class EvalRunner:
                         agent2._logger.metrics | flattened_metrics
                     )
 
-                    agents.log(watchers)
+                    for watcher, agent in zip(watchers, agents):
+                        watcher(agent)
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
@@ -367,6 +368,6 @@ class EvalRunner:
                         | env_stats,
                     )
 
-        agents.agents[0]._state = a1_state
-        agents.agents[1]._state = a2_state
+        agents[0]._state = a1_state
+        agents[1]._state = a2_state
         return agents

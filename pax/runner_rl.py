@@ -472,7 +472,8 @@ class RLRunner:
                         agent2._logger.metrics | flattened_metrics_2
                     )
 
-                    agents.log(watchers)
+                    for watcher, agent in zip(watchers, agents):
+                        watcher(agent)
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
@@ -486,6 +487,6 @@ class RLRunner:
                         | env_stats,
                     )
 
-        agents.agents[0]._state = a1_state
-        agents.agents[1]._state = a2_state
+        agents[0]._state = a1_state
+        agents[1]._state = a2_state
         return agents
