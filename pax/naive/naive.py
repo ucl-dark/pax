@@ -68,41 +68,6 @@ class NaiveLearner:
             return actions, state, mem
 
         @jax.jit
-        def prepare_batch(
-            traj_batch: NamedTuple, t_prime: TimeStep, action_extras: dict
-        ):
-            # Rollouts complete -> Training begins
-            # Add an additional rollout step for advantage calculation
-
-            _value = jax.lax.select(
-                t_prime.last(),
-                jnp.zeros_like(action_extras["values"]),
-                action_extras["values"],
-            )
-
-            _done = jax.lax.select(
-                t_prime.last(),
-                2 * jnp.ones_like(_value),
-                jnp.zeros_like(_value),
-            )
-            _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(t_prime.reward, [0])
-            _done = jax.lax.expand_dims(_done, [0])
-            # need to add final value here
-            traj_batch = traj_batch._replace(
-                behavior_values=jnp.concatenate(
-                    [traj_batch.behavior_values, _value], axis=0
-                )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-            return traj_batch
-
-        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
@@ -113,7 +78,7 @@ class NaiveLearner:
             dones = dones[:-1]
 
             # 'Zero out' the terminated states
-            discounts = gamma * jnp.where(dones < 2, 1, 0)
+            discounts = gamma * jnp.logical_not(dones)
 
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
@@ -319,11 +284,11 @@ class NaiveLearner:
             )
 
             new_memory = MemoryState(
+                hidden=jnp.zeros((num_envs, 1)),
                 extras={
                     "log_probs": jnp.zeros(num_envs),
                     "values": jnp.zeros(num_envs),
                 },
-                hidden=jnp.zeros((num_envs, 1)),  # None earlier
             )
 
             return new_state, new_memory, metrics
@@ -348,11 +313,38 @@ class NaiveLearner:
                 },
             )
 
+        def prepare_batch(
+            traj_batch: NamedTuple, reward: int, done: Any, action_extras: dict
+        ):
+            # Rollouts complete -> Training begins
+            # Add an additional rollout step for advantage calculation
+            _value = jax.lax.select(
+                done,
+                jnp.zeros_like(action_extras["values"]),
+                action_extras["values"],
+            )
+
+            _value = jax.lax.expand_dims(_value, [0])
+            _reward = jax.lax.expand_dims(reward, [0])
+            _done = jax.lax.expand_dims(done, [0])
+            # need to add final value here
+            traj_batch = traj_batch._replace(
+                behavior_values=jnp.concatenate(
+                    [traj_batch.behavior_values, _value], axis=0
+                )
+            )
+            traj_batch = traj_batch._replace(
+                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
+            )
+            traj_batch = traj_batch._replace(
+                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
+            )
+            return traj_batch
+
         # Initialise training state (parameters, optimiser state, extras).
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, None)
+        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
         self._prepare_batch = jax.jit(prepare_batch)
-
         self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
@@ -378,10 +370,10 @@ class NaiveLearner:
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
 
-    def select_action(self, t: TimeStep):
+    def select_action(self, obs: jnp.ndarray):
         """Selects action and updates info with PPO specific information"""
         actions, self._state, self._mem = self._policy(
-            self._state, t.observation, self._mem
+            self._state, obs, self._mem
         )
         return utils.to_numpy(actions)
 
@@ -395,12 +387,19 @@ class NaiveLearner:
         )
         return memory
 
-    def update(self, traj_batch, t_prime, state, mem):
+    def update(
+        self,
+        traj_batch,
+        obs: jnp.ndarray,
+        reward: int,
+        done: Any,
+        state: TrainingState,
+        mem: MemoryState,
+    ):
         """Update the agent -> only called at the end of a trajectory"""
+        _, _, mem = self._policy(state, obs, mem)
 
-        _, _, mem = self._policy(state, t_prime.observation, mem)
-
-        traj_batch = self._prepare_batch(traj_batch, t_prime, mem.extras)
+        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -408,6 +407,7 @@ class NaiveLearner:
         self._logger.metrics["loss_total"] = metrics["loss_total"]
         self._logger.metrics["loss_policy"] = metrics["loss_policy"]
         self._logger.metrics["loss_value"] = metrics["loss_value"]
+
         return state, mem, metrics
 
 

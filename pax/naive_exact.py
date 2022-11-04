@@ -151,5 +151,7 @@ class NaiveExact:
         self._logger.metrics["total_steps"] = self._total_steps
         return action
 
-    def update(self, traj_batch, t_prime, state, mem) -> TrainingState:
+    def update(
+        self, traj_batch, obs, rewards, done, state, mem
+    ) -> TrainingState:
         return state, mem, {}

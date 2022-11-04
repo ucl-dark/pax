@@ -110,7 +110,7 @@ def env_setup(args, logger=None):
         elif args.env_type == "infinite":
             env = InfiniteMatrixGame(num_steps=args.num_steps)
             env_params = InfiniteMatrixGameParams(
-                payoff_matrix=payoff, gamma=args.gamma
+                payoff_matrix=payoff, gamma=args.ppo.gamma
             )
             if logger:
                 logger.info(
@@ -248,7 +248,8 @@ def agent_setup(args, env, env_params, logger):
     if args.env_id == "coin_game":
         obs_shape = env.observation_space(env_params).shape
     elif args.env_id == "ipd":
-        obs_shape = (env.observation_space(env_params).n,)
+
+        obs_shape = env.observation_space(env_params).shape
 
     num_actions = env.num_actions
 
@@ -511,14 +512,14 @@ def main(args):
     if args.runner == "evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(

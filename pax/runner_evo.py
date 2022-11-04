@@ -324,7 +324,6 @@ class EvoRunner:
 
     def run_loop(
         self,
-        env,
         env_params,
         agents,
         num_generations: int,

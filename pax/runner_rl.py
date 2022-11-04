@@ -351,7 +351,7 @@ class RLRunner:
         # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
-    def run_loop(self, env, env_params, agents, num_iters, watchers):
+    def run_loop(self, env_params, agents, num_iters, watchers):
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
