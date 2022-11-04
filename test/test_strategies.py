@@ -1,13 +1,17 @@
 import jax.numpy as jnp
-from pax.env import InfiniteMatrixGame, CoinGame, CoinGameState
+import jax
+from pax.envs.infinite_matrix_game import (
+    InfiniteMatrixGame,
+    EnvParams as InfiniteMatrixGameParams,
+)
+from pax.envs.coin_game import CoinGame, EnvParams as CoinGameState
 from pax.strategies import EvilGreedy, TitForTat, GrimTrigger
 from pax.naive_exact import NaiveExact
-from dm_env import transition
 
 
 def test_titfortat():
-    agent = TitForTat(num_envs=1)
     batch_number = 3
+    agent = TitForTat(num_envs=1)
 
     # all obs are only of final state e.g batch x dim.
     cc_obs = jnp.asarray(batch_number * [[1, 0, 0, 0, 0]])
@@ -16,30 +20,25 @@ def test_titfortat():
     dd_obs = jnp.asarray(batch_number * [[0, 0, 0, 1, 0]])
     initial_obs = jnp.asarray(batch_number * [[0, 0, 0, 0, 1]])
 
-    cooperate_action = 0 * jnp.ones((batch_number,))
-    defect_action = 1 * jnp.ones((batch_number,))
+    cooperate_action = 0 * jnp.ones((batch_number,), dtype=jnp.int32)
+    defect_action = 1 * jnp.ones((batch_number,), dtype=jnp.int32)
 
-    cc_timestep = transition(observation=cc_obs, reward=0)
-    action = agent.select_action(cc_timestep)
+    action, _, _ = agent._policy(None, cc_obs, None)
     assert jnp.array_equal(
         cooperate_action, action
     )  # , f"cooperate_action = {cooperate_action}, action = {action}"
 
-    dd_timestep = transition(observation=dd_obs, reward=0)
-    action = agent.select_action(dd_timestep)
+    action, _, _ = agent._policy(None, dd_obs, None)
     assert jnp.array_equal(defect_action, action)
 
-    dc_timestep = transition(observation=dc_obs, reward=0)
-    action = agent.select_action(dc_timestep)
+    action, _, _ = agent._policy(None, dc_obs, None)
     # expect first player to cooperate, expect second player to defect
     assert jnp.array_equal(cooperate_action, action)
 
-    cd_timestep = transition(observation=cd_obs, reward=0)
-    action = agent.select_action(cd_timestep)
+    action, _, _ = agent._policy(None, cd_obs, None)
     assert jnp.array_equal(defect_action, action)
 
-    start_timestep = transition(observation=initial_obs, reward=0)
-    action = agent.select_action(start_timestep)
+    action, _, _ = agent._policy(None, initial_obs, None)
     assert jnp.array_equal(cooperate_action, action)
 
 
@@ -57,50 +56,68 @@ def test_grim():
     cooperate_action = 0 * jnp.ones((batch_number,))
     defect_action = 1 * jnp.ones((batch_number,))
 
-    cc_timestep = transition(observation=cc_obs, reward=0)
-    action = agent.select_action(cc_timestep)
+    action, _, _ = agent._policy(None, cc_obs, None)
     assert jnp.array_equal(cooperate_action, action)
 
-    cd_timestep = transition(observation=cd_obs, reward=0)
-    action = agent.select_action(cd_timestep)
+    action, _, _ = agent._policy(None, cd_obs, None)
     assert jnp.array_equal(defect_action, action)
 
-    dc_timestep = transition(observation=dc_obs, reward=0)
-    action = agent.select_action(dc_timestep)
+    action, _, _ = agent._policy(None, dc_obs, None)
     assert jnp.array_equal(defect_action, action)
 
-    dd_timestep = transition(observation=dd_obs, reward=0)
-    action = agent.select_action(dd_timestep)
+    action, _, _ = agent._policy(None, dd_obs, None)
     assert jnp.array_equal(defect_action, action)
 
-    start_timestep = transition(observation=initial_obs, reward=0)
-    action = agent.select_action(start_timestep)
+    action, _, _ = agent._policy(None, initial_obs, None)
     assert jnp.array_equal(cooperate_action, action)
 
 
 def test_naive_alt():
-    bs = 1
-    env = InfiniteMatrixGame(
-        num_envs=bs,
-        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
-        episode_length=jnp.inf,
-        gamma=0.96,
-        seed=0,
-    )
-    agent = NaiveExact(action_dim=5, env=env, lr=10, num_envs=bs, player_id=0)
+    num_envs = 2
 
-    alt_action = 20 * jnp.ones((bs, 5))
-    timestep, _ = env.reset()
+    rng = jnp.concatenate([jax.random.PRNGKey(0)] * num_envs).reshape(
+        num_envs, -1
+    )
+
+    env = InfiniteMatrixGame(num_steps=jnp.inf)
+    env_params = InfiniteMatrixGameParams(
+        payoff_matrix=[[2, 2], [0, 3], [3, 0], [1, 1]], gamma=0.96
+    )
+
+    # vmaps
+    split = jax.vmap(jax.random.split, in_axes=(0, None))
+    env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
+    env.step = jax.vmap(
+        env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
+
+    (obs1, obs2), env_state = env.reset(rng, env_params)
+
+    agent = NaiveExact(
+        action_dim=5,
+        env_params=env_params,
+        lr=10,
+        num_envs=num_envs,
+        player_id=0,
+    )
+    agent_state, agent_memory = agent.make_initial_state(obs1)
+
+    alt_action = 20 * jnp.ones((num_envs, 5))
 
     for _ in range(500):
-        action = agent.select_action(timestep)
-        next_timestep, _ = env.step([action, alt_action])
-        timestep = next_timestep
+        rng, _ = split(rng, 2)
+        action, agent_state, agent_memory = agent._policy(
+            agent_state, obs1, agent_memory
+        )
+        (obs1, obs2), env_state, _, _, _ = env.step(
+            rng, env_state, (action, alt_action), env_params
+        )
 
-    action = agent.select_action(timestep)
-    assert jnp.allclose(
-        3.0, env.step([action, alt_action])[0].reward, atol=0.01
+    action, _, _ = agent._policy(agent_state, obs1, agent_memory)
+    _, _, (reward0, reward1), _, _ = env.step(
+        rng, env_state, (action, alt_action), env_params
     )
+    assert jnp.allclose(3.0, reward0, atol=0.01)
 
 
 def test_naive_defect():
@@ -157,13 +174,9 @@ def test_naive_tft():
 
 def test_naive_tft_as_second_player():
     bs = 1
-    env = InfiniteMatrixGame(
-        num_envs=bs,
-        payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
-        episode_length=jnp.inf,
-        gamma=0.96,
-        seed=0,
-    )
+    env = InfiniteMatrixGame(num_steps=jnp.inf)
+    # env_params = InfiniteMatrixGameParams()
+
     agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=bs, player_id=0)
 
     tft_action = jnp.tile(

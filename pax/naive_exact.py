@@ -12,7 +12,6 @@ class TrainingState(NamedTuple):
     # Training state consists of network parameters, random key, timesteps
     timesteps: int
     num_episodes: int
-    # loss: float
 
 
 class Logger:
@@ -25,15 +24,15 @@ class NaiveExact:
     def __init__(
         self,
         action_dim: int,
-        env: InfiniteMatrixGame,
+        env_params: NamedTuple,
         lr: float,
         num_envs: int,
         player_id: int,
     ):
 
         # Initialise training state (parameters, optimiser state, extras).
-        payout_mat_1 = jnp.array([[r[0] for r in env.payoff]])
-        gamma = env.gamma
+        payout_mat_1 = jnp.array([[r[0] for r in env_params.payoff_matrix]])
+        gamma = env_params.gamma
 
         def _loss(theta1, theta2):
             theta1 = jax.nn.sigmoid(theta1)
@@ -85,11 +84,10 @@ class NaiveExact:
             return action, _state, _mem
 
         self._policy = policy
-
         self.player_id = player_id
         self.action_dim = action_dim
+        self.num_envs = num_envs
         self.eval = False
-        self.num_agents = env.num_envs
 
         # Set up counters and logger
         self._logger = Logger()
@@ -102,10 +100,8 @@ class NaiveExact:
         }
 
         self._state = TrainingState(
-            # jnp.zeros((env.num_envs, 5)),
             timesteps=0,
             num_episodes=0,
-            # loss=0,
         )
 
         self._mem = MemoryState(
@@ -116,17 +112,15 @@ class NaiveExact:
             },
         )
 
-    def make_initial_state(self, t: TimeStep):
-        num_envs = t.reward.shape[-1]
+    def make_initial_state(self, obs: jnp.ndarray):
+        num_envs = self.num_envs
         return (
             TrainingState(
-                t.observation[..., :5],
                 timesteps=0,
                 num_episodes=0,
-                # loss=0,
             ),
             MemoryState(
-                hidden=t.observation[:, :5],
+                hidden=obs[:, :5],
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
