@@ -9,6 +9,7 @@ import os
 # config.update('jax_disable_jit', True)
 
 from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
+import gymnax
 import hydra
 import omegaconf
 import wandb
@@ -34,6 +35,7 @@ from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_rl import RLRunner
+from pax.runner_sarl import SARLRunner
 from pax.strategies import (
     Altruistic,
     Defect,
@@ -139,6 +141,9 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
+    elif args.env_id == "sarl":
+        env, env_params = gymnax.make("Pendulum-v1")
+
     return env, env_params
 
 
@@ -236,6 +241,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return RLRunner(agents, env, save_dir, args)
+    elif args.runner == "sarl":
+        logger.info("Training with SARL Runner")
+        return SARLRunner(agents, env, save_dir, args)
 
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
@@ -248,6 +256,8 @@ def agent_setup(args, env, env_params, logger):
         obs_shape = env.observation_space(env_params).shape
     elif args.env_id == "ipd":
         obs_shape = (env.observation_space(env_params).n,)
+    elif args.env_id == "sarl":
+        obs_shape = env.observation_space(env_params).shape
 
     num_actions = env.num_actions
 
@@ -372,30 +382,48 @@ def agent_setup(args, env, env_params, logger):
         "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
-    assert args.agent1 in strategies
-    assert args.agent2 in strategies
+    if args.env_id == "sarl":
+        print("i'm upset")
+        assert args.agent1 in strategies
+        num_agents = 1
+        seeds = [args.seed]
+        # Create Player IDs by normalizing seeds to 1, 2 respectively
+        pids = [0]
+        agent_1 = strategies[args.agent1](seeds[0], pids[0])  # player 1
 
-    num_agents = 2
-    seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
-    # Create Player IDs by normalizing seeds to 1, 2 respectively
-    pids = [
-        seed % seed + i if seed != 0 else 1
-        for seed, i in zip(seeds, range(1, num_agents + 1))
-    ]
-    agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-    agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        logger.info(f"Agent Pair: {args.agent1}")
+        logger.info(f"Agent seeds: {seeds[0]}")
 
-    if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-        logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
-    logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
-    logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+        if args.runner in ["eval", "sarl"]:
+            logger.info("Using Independent Learners")
+            return agent_1
+    else:        
+        assert args.agent1 in strategies
+        assert args.agent2 in strategies
 
-    if args.runner in ["eval", "rl"]:
-        logger.info("Using Independent Learners")
-        return (agent_0, agent_1)
-    if args.runner == "evo":
-        logger.info("Using EvolutionaryLearners")
-        return (agent_0, agent_1)
+        num_agents = 2
+        seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
+        # Create Player IDs by normalizing seeds to 1, 2 respectively
+        pids = [
+            seed % seed + i if seed != 0 else 1
+            for seed, i in zip(seeds, range(1, num_agents + 1))
+        ]
+        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
+        logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+
+        if args.runner in ["eval", "rl"]:
+            logger.info("Using Independent Learners")
+            return (agent_0, agent_1)
+        if args.runner == "evo":
+            logger.info("Using EvolutionaryLearners")
+            return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
@@ -476,13 +504,20 @@ def watcher_setup(args, logger):
         "MFOS_pretrained": dumb_log,
     }
 
-    assert args.agent1 in strategies
-    assert args.agent2 in strategies
+    if args.env_id == "sarl":
+        assert args.agent1 in strategies
 
-    agent_0_log = strategies[args.agent1]
-    agent_1_log = strategies[args.agent2]
+        agent_1_log = strategies[args.agent1]
 
-    return [agent_0_log, agent_1_log]
+        return [agent_1_log]
+    else:
+        assert args.agent1 in strategies
+        assert args.agent2 in strategies
+
+        agent_0_log = strategies[args.agent1]
+        agent_1_log = strategies[args.agent2]
+
+        return [agent_0_log, agent_1_log]
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -513,6 +548,13 @@ def main(args):
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "rl":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "sarl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes

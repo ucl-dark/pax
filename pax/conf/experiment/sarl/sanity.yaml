@@ -1,0 +1,59 @@
+# @package _global_
+
+# Agents  
+agent1: 'PPO'
+agent2: 'PPO_memory'
+
+# Environment
+env_id: sarl
+env_type: sequential
+egocentric: True
+env_discount: 0.96
+payoff: [[1, 1, -2], [1, 1, -2]]
+runner: sarl
+
+# Training hyperparameters
+
+# env_batch_size = num_envs * num_opponents
+num_envs: 50
+num_opps: 1
+num_steps: 200 
+num_inner_steps: 200 
+total_timesteps: 1e8
+save_interval: 100 
+
+# Evaluation 
+run_path: ucl-dark/cg/3sp0y2cy
+model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
+
+# PPO agent parameters
+ppo:
+  num_minibatches: 4
+  num_epochs: 2 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.03
+  lr_scheduling: False
+  learning_rate: 0.003 #0.05
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True # only works with CNN
+  hidden_size: 16 #50
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: synq
+  group: 'sanity-${agent1}-vs-${agent2}-parity'
+  name: run-seed-${seed}
+  log: False
