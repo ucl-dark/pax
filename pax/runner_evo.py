@@ -358,7 +358,7 @@ class EvoRunner:
                 rewards_1 = traj_2.rewards.sum(axis=1).mean()
 
             elif args.env_id in [
-                "ipd",
+                "matrix_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),

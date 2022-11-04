@@ -212,7 +212,7 @@ def main(args):
     if args.wandb.log:
         wandb.init(
             entity="ucl-dark",
-            project="ipd",
+            project="matrix_game",
             group="cartpole",
             name="run-0",
         )

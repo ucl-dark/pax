@@ -5,7 +5,7 @@ agent1: 'MFOS'
 agent2: 'Tabular'
 
 # Environment
-env_id: ipd
+env_id: matrix_game
 env_type: meta
 env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]

@@ -92,7 +92,7 @@ def global_setup(args):
 def env_setup(args, logger=None):
     """Set up env variables."""
 
-    if args.env_id == "ipd":
+    if args.env_id == "matrix_game":
         payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
             env = IteratedMatrixGame(num_inner_steps=args.num_steps)
@@ -246,9 +246,11 @@ def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
     if args.env_id == "coin_game":
         obs_shape = env.observation_space(env_params).shape
-    elif args.env_id == "ipd":
-
-        obs_shape = env.observation_space(env_params).shape
+    elif args.env_id == "matrix_game":
+        if args.env_type == "infinite":
+            obs_shape = env.observation_space(env_params).shape
+        else:
+            obs_shape = env.observation_space(env_params).n
 
     num_actions = env.num_actions
 
@@ -294,17 +296,10 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
-        dummy_env = InfiniteMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-            args.env_discount,
-            args.seed,
-        )
         hyper_agent = make_hyper(
             args,
-            obs_spec=(dummy_env.observation_spec().num_values,),
-            action_spec=dummy_env.action_spec().shape[1],
+            obs_spec=obs_shape,
+            action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
@@ -321,16 +316,8 @@ def agent_setup(args, env, env_params, logger):
         return naive_agent
 
     def get_naive_learner(seed, player_id):
-        dummy_env = InfiniteMatrixGame(
-            args.num_envs,
-            args.payoff,
-            args.num_steps,
-            args.env_discount,
-            args.seed,
-        )
-
         agent = NaiveExact(
-            action_dim=dummy_env.action_spec().shape[1],
+            action_dim=num_actions,
             env=dummy_env,
             lr=args.naive.lr,
             num_envs=args.num_envs,
@@ -383,8 +370,8 @@ def agent_setup(args, env, env_params, logger):
         seed % seed + i if seed != 0 else 1
         for seed, i in zip(seeds, range(1, num_agents + 1))
     ]
-    agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-    agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+    agent_1 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+    agent_2 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
     if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
         logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
@@ -393,10 +380,10 @@ def agent_setup(args, env, env_params, logger):
 
     if args.runner in ["eval", "rl"]:
         logger.info("Using Independent Learners")
-        return (agent_0, agent_1)
+        return (agent_1, agent_2)
     if args.runner == "evo":
         logger.info("Using EvolutionaryLearners")
-        return (agent_0, agent_1)
+        return (agent_1, agent_2)
 
 
 def watcher_setup(args, logger):
@@ -480,10 +467,10 @@ def watcher_setup(args, logger):
     assert args.agent1 in strategies
     assert args.agent2 in strategies
 
-    agent_0_log = strategies[args.agent1]
-    agent_1_log = strategies[args.agent2]
+    agent_1_log = strategies[args.agent1]
+    agent_2_log = strategies[args.agent2]
 
-    return [agent_0_log, agent_1_log]
+    return [agent_1_log, agent_2_log]
 
 
 @hydra.main(config_path="conf", config_name="config")
