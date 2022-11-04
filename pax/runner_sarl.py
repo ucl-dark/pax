@@ -23,22 +23,10 @@ class Sample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
 
-@jax.jit
-def reduce_outer_traj(traj: Sample) -> Sample:
-    """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_envs ...]
-    # x: [timestep, batch_size, ...]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps,) + x.shape[2:]),
-        traj,
-    )
-
-
 class SARLRunner:
     """Holds the runner's state."""
 
-    def __init__(self, agents, env, save_dir, args):
+    def __init__(self, agent, env, save_dir, args):
         self.train_steps = 0
         self.train_episodes = 0
         self.start_time = time.time()
@@ -55,34 +43,26 @@ class SARLRunner:
         )
 
         self.split = jax.vmap(jax.random.split, (0, None))
-        num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_steps // self.args.num_inner_steps
-        )
-
-        agent1 = agents
-
-        # set up agents
+        # set up agent
         if args.agent1 == "NaiveEx":
             # special case where NaiveEx has a different call signature
-            agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
+            agent.batch_init = jax.jit(jax.vmap(agent.make_initial_state))
         else:
             # batch MemoryState not TrainingState
-            agent1.batch_init = agent1.make_initial_state 
+            agent.batch_init = jax.jit(agent.make_initial_state)
         
-        agent1.batch_reset = jax.jit(
-            agent1.reset_memory, static_argnums=1
+        agent.batch_reset = jax.jit(
+            agent.reset_memory, static_argnums=1
         )
 
-        agent1.batch_policy = jax.jit(agent1._policy)
+        agent.batch_policy = jax.jit(agent._policy)
 
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (1))
-            agent1._state, agent1._mem = agent1.batch_init(
-                agent1._state.random_key, init_hidden
+            init_hidden = jnp.tile(agent._mem.hidden, (1))
+            agent._state, agent._mem = agent.batch_init(
+                agent._state.random_key, init_hidden
             )
 
 
@@ -92,6 +72,7 @@ class SARLRunner:
                 rngs,
                 obs,
                 rewards,
+                done,
                 a1_state,
                 a1_mem,
                 env_state,
@@ -105,7 +86,7 @@ class SARLRunner:
             # a2_rng = rngs[:, 2, :]
             rngs = rngs[:, 3, :]
 
-            a1, a1_state, new_a1_mem = agent1.batch_policy(
+            a1, a1_state, new_a1_mem = agent.batch_policy(
                 a1_state,
                 obs,
                 a1_mem,
@@ -132,41 +113,14 @@ class SARLRunner:
                 rngs,
                 next_obs, # next_obs
                 rewards,
+                done,
                 a1_state,
                 new_a1_mem,
                 env_state,
                 env_params,
             ), traj1
 
-        def _outer_rollout(carry, unused):
-            """Runner for trial"""
-            # play episode of the game
-            
-            vals, trajectories = jax.lax.scan(
-                _inner_rollout,
-                carry,
-                None,
-                length=self.args.num_inner_steps,
-            )
-            (
-                rngs,
-                obs1,
-                r1,
-                a1_state,
-                a1_mem,
-                env_state,
-                env_params,
-            ) = vals
 
-            return (
-                rngs,
-                obs1,
-                r1,
-                a1_state,
-                a1_mem,
-                env_state,
-                env_params,
-            ), trajectories
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -181,94 +135,74 @@ class SARLRunner:
 
             obs, env_state = env.reset(rngs, _env_params)
             rewards = jnp.zeros((args.num_envs))
-
-            # Player 1
-            _a1_mem = agent1.batch_reset(_a1_mem, False)
+            done = jnp.zeros((args.num_envs), dtype=jnp.bool_)
+            _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # run trials
             vals, traj = jax.lax.scan(
-                _outer_rollout,
+                _inner_rollout,
                 (
                     rngs,
                     obs,
                     rewards,
+                    done,
                     _a1_state,
                     _a1_mem,
                     env_state,
                     _env_params,
                 ),
                 None,
-                length=num_outer_steps,
+                length=args.num_steps,
             )
 
             (
                 rngs,
-                obs1,
-                r1,
-                a1_state,
-                a1_mem,
+                obs,
+                rewards,
+                done,
+                _a1_state,
+                _a1_mem,
                 env_state,
                 env_params,
             ) = vals
 
             # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj),
-                obs1,
-                r1,
-                jnp.ones_like(r1, dtype=jnp.bool_),
-                a1_state,
-                a1_mem,
+
+            _, _, _a1_metrics = agent.update(
+                traj,
+                obs,
+                rewards,
+                done,
+                _a1_state,
+                _a1_mem,
             )
 
             # reset memory
-            a1_mem = agent1.batch_reset(a1_mem, False)
+            _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            if args.env_id == "coin_game":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x,
-                    self.cg_stats(env_state),
-                )
-
-                rewards = traj.rewards.sum(axis=1).mean()
-
-            elif args.env_id in [
-                "ipd",
-            ]:
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.ipd_stats(
-                        traj.observations,
-                        traj.actions,
-                        obs1,
-                    ),
-                )
-                rewards = traj.rewards.mean()
-            else:
-                #TODO: add stats @timon
-                rewards = traj.rewards.mean()
-                env_stats = {}
+            rewards = traj.rewards.sum() / args.num_envs
+            env_stats = {}
 
             return (
                 env_stats,
                 rewards,
-                a1_state,
-                a1_mem,
-                a1_metrics,
+                _a1_state,
+                _a1_mem,
+                _a1_metrics,
             )
 
         # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
-    def run_loop(self, env, env_params, agents, num_iters, watchers):
-        """Run training of agents in environment"""
+    def run_loop(self, env, env_params, agent, num_iters, watcher):
+        """Run training of agent in environment"""
         print("Training")
         print("-----------------------")
-        agent1= agents
+        agent= agent
         rng, _ = jax.random.split(self.random_key)
 
-        a1_state, a1_mem = agent1._state, agent1._mem
+        a1_state, a1_mem = agent._state, agent._mem
 
         num_iters = max(
             int(num_iters / (self.args.num_envs)), 1
@@ -278,7 +212,7 @@ class SARLRunner:
         print(f"Log Interval {log_interval}")
         print(f"Running for total iterations: {num_iters}")
         # run actual loop
-        for i in range(num_iters):
+        for i in range(5):
             rng, rng_run = jax.random.split(rng, 2)
             # RL Rollout
             (
@@ -294,7 +228,7 @@ class SARLRunner:
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
-                if watchers:
+                if watcher:
                     print(f"Saving iteration {i} locally and to WandB")
                     wandb.save(log_savepath)
                 else:
@@ -302,7 +236,7 @@ class SARLRunner:
 
             # logging
             self.train_episodes += 1
-            if i % log_interval == 0:
+            if True:
                 print(f"Episode {i}")
 
                 print(f"Env Stats: {env_stats}")
@@ -311,17 +245,16 @@ class SARLRunner:
                 )
                 print()
 
-                if watchers:
+                if watcher:
                     # metrics [outer_timesteps]
                     flattened_metrics_1 = jax.tree_util.tree_map(
                         lambda x: jnp.mean(x), a1_metrics
                     )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
+                    agent._logger.metrics = (
+                        agent._logger.metrics | flattened_metrics_1
                     )
 
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
+                    watcher(agent)
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
@@ -332,6 +265,6 @@ class SARLRunner:
                         | env_stats,
                     )
 
-        agents._state = a1_state
-        return agents
+        agent._state = a1_state
+        return agent
 

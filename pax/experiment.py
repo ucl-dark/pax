@@ -142,7 +142,7 @@ def env_setup(args, logger=None):
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
     elif args.env_id == "sarl":
-        env, env_params = gymnax.make("Pendulum-v1")
+        env, env_params = gymnax.make("CartPole-v1")
 
     return env, env_params
 
@@ -470,7 +470,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_id == "coin_game":
+        if not args.env_id in ["coin_game", "sarl"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -507,9 +507,9 @@ def watcher_setup(args, logger):
     if args.env_id == "sarl":
         assert args.agent1 in strategies
 
-        agent_1_log = strategies[args.agent1]
+        agent_1_log = naive_pg_log # strategies[args.agent1]
 
-        return [agent_1_log]
+        return agent_1_log
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies

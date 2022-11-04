@@ -479,6 +479,8 @@ def make_agent(
     """Make PPO agent"""
     if args.env_id == "CartPole-v1":
         network = make_cartpole_network(action_spec)
+    elif args.env_id == "sarl":
+        network = make_cartpole_network(action_spec)
     elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)

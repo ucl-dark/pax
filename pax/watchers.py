@@ -184,11 +184,11 @@ def losses_naive(agent: NaiveExact) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
-    num_episodes = agent._logger.metrics["num_episodes"]
+    # num_episodes = agent._logger.metrics["num_episodes"]
     losses = {
         f"train/naive_learner_{pid}/sgd_steps": sgd_steps,
         f"train/naive_learner_{pid}/loss": loss_total,
-        f"train/naive_learner_{pid}/num_episodes": num_episodes,
+        # f"train/naive_learner_{pid}/num_episodes": num_episodes,
     }
     return losses
 

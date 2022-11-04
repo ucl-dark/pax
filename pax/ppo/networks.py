@@ -43,21 +43,38 @@ class CategoricalValueHeadSeparate(hk.Module):
         name: Optional[str] = None,
     ):
         super().__init__(name=name)
+        self._action_body = hk.nets.MLP(
+                    [64, 64],
+                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                    b_init=hk.initializers.Constant(0),
+                    activate_final=True,
+                    activation=jnp.tanh,
+                    )
         self._logit_layer = hk.Linear(
             num_values,
-            w_init=hk.initializers.Constant(0.5),
-            with_bias=False,
+            w_init=hk.initializers.Orthogonal(1.0),
+            b_init=hk.initializers.Constant(0),
         )
+        self._value_body = hk.nets.MLP(
+                    [64, 64],
+                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                    b_init=hk.initializers.Constant(0),
+                    activate_final=True,
+                    activation=jnp.tanh,
+                    )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Constant(0.5),
-            with_bias=False,
+            w_init=hk.initializers.Orthogonal(0.01),
+            b_init=hk.initializers.Constant(0),
         )
 
-    def __call__(self, inputs: Tuple[jnp.ndarray, jnp.ndarray]):
-        action_output, value_output = inputs
-        logits = self._logit_layer(action_output)
-        value = jnp.squeeze(self._value_layer(value_output), axis=-1)
+    def __call__(self, inputs: jnp.ndarray):
+        # action_output, value_output = inputs
+        logits = self._action_body(inputs)
+        logits = self._logit_layer(logits)
+
+        value = self._value_body(inputs)
+        value = jnp.squeeze(self._value_layer(value), axis=-1)
         return (distrax.Categorical(logits=logits), value)
 
 
@@ -284,13 +301,15 @@ def make_cartpole_network(num_actions: int):
         layers = []
         layers.extend(
             [
-                hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                ),
-                CategoricalValueHead(num_values=num_actions),
+                # hk.nets.MLP(
+                #     [64, 64],
+                #     w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                #     b_init=hk.initializers.Constant(0),
+                #     activate_final=True,
+                #     activation=jnp.tanh,
+                # ),
+                # CategoricalValueHead(num_values=num_actions),
+                CategoricalValueHeadSeparate(num_values=num_actions)
             ]
         )
         policy_value_network = hk.Sequential(layers)
