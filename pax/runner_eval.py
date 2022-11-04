@@ -315,8 +315,8 @@ class EvalRunner:
                         lambda x: x.item(),
                         self.cg_stats(env_state),
                     )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                    rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
                 elif self.args.env_type in [
                     "meta",
@@ -330,17 +330,17 @@ class EvalRunner:
                             obs1,
                         ),
                     )
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
+                    rewards_1 = traj_1.rewards.mean()
+                    rewards_2 = traj_2.rewards.mean()
 
                 else:
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
+                    rewards_1 = traj_1.rewards.mean()
+                    rewards_2 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
                 print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 
@@ -359,10 +359,10 @@ class EvalRunner:
                         {
                             "episodes": self.train_episodes,
                             "train/episode_reward/player_1": float(
-                                rewards_0.mean()
+                                rewards_1.mean()
                             ),
                             "train/episode_reward/player_2": float(
-                                rewards_1.mean()
+                                rewards_2.mean()
                             ),
                         }
                         | env_stats,
