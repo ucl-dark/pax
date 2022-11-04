@@ -561,7 +561,6 @@ class EvoRunner:
                 )
 
                 agent2._logger.metrics.update(flattened_metrics)
-                agent1._logger.metrics.update(flattened_metrics)
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)
                 wandb.log(wandb_log)
