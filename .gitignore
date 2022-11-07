@@ -105,3 +105,4 @@ exp/
 .hydra
 exp/
 venv/
+plots/
