@@ -372,9 +372,7 @@ class RLRunner:
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id in [
-                "ipd",
-            ]:
+            elif args.env_id == "matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
