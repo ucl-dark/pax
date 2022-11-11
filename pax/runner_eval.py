@@ -247,7 +247,9 @@ class EvalRunner:
         pretrained_params = load(self.model_path)
         a1_state = a1_state._replace(params=pretrained_params)
 
-        num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
+        num_iters = max(
+            int(num_episodes / (self.args.num_envs * self.args.num_opps)), 1
+        )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
 
