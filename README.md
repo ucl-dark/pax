@@ -1,41 +1,202 @@
 # Pax
-Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
+Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies. PAX is composed of 3 components, Environments, Agents and Runners.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_env). The API has vairants of traditional gym calls: `runner_step` and `runner_reset` which are compatible with `jit`, `vmap`, `pmap` and `lax.scan`.
+
+### Environments
+Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
 
 ```python
-import SequentialMatrixGame
+import IteratedMatrixGame, EnvParams
 
-env = SequentialMatrixGame(
-     num_envs=1,
-     payoff=[[-1, -1], [0, -3], [-3, 0], [-2, -2]],
-     inner_ep_length=10,
-     num_steps=10
-)
+env = IteratedMatrixGame(num_inner_steps=5)
+env_params = EnvParams(payoff_matrix=payoff)
 
-timesteps, env_state = env.reset()
-agents = IndependentLearners(
-     agent_0,
-     agent_1
-)
+# 0 = Defect, 1 = Cooperate
+actions = (jnp.ones(()), jnp.ones(()))
+obs, env_state = env.reset(rng, env_params)
 
-while not timestep[0].last():
-     actions = agents.step(timesteps)
-     timestep, env_state = env.runner_step(actions, env_state)
+while not done:
+     obs, env_state, rewards, done, info = env.step(
+          rng,
+          env_state,
+          actions,
+          env_params)
 ```
-
-and timestep returns the following:
+Similar to [gymnax](https://github.com/RobertTLange/gymnax),  which can compose these with jax built-in functins `jit`, `vmap`, `pmap` and `lax.scan` for performant code.
 
 ```python
-timestep = timesteps[0]
-timestep.observation.shape()
-# (num_envs, num_states)
-timestep.reward.shape()
-# (num_envs, )
+import IteratedMatrixGame, EnvParams
+import jax.numpy as jnp
+ 
+# batch over env initalisations
+num_envs = 2
+payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+rollout_length = 50
+
+rng = jnp.concatenate(
+     [jax.random.PRNGKey(0), jax.random.PRNGKey(1)]
+).reshape(num_envs, -1)
+
+env = IteratedMatrixGame(num_inner_steps=rollout_length)
+env_params = EnvParams(payoff_matrix=payoff)
+
+action = jnp.ones((num_envs,), dtype=jnp.float32)
+r_array = jnp.ones((num_envs,), dtype=jnp.float32)
+
+# we want to batch over envs purely by actions
+env.step = jax.vmap(
+     env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+)
+obs, env_state = env.reset(rng, env_params)
+
+# lets scan the rollout for speed
+def rollout(carry, unused):
+     actions = (action, action)
+     carry = (_, env_state, env_rng)
+
+     obs, env_state, rewards, done, info = env.step(
+          env_rng,
+          env_state,
+          actions,
+          env_params)
+     
+     return (obs, env_state, env_rng) (obs, actions, rewards, done)
+
+final_state, trajectory = jax.lax.scan(
+     rollout, (obs, env_state, rng), rollout_length)
 ```
-*Note: The original form of Pax was much closer to Acme but diverges further every day as we vmap, scan, and JIT more components for faster training. 
+
+### Agents
+Agents were originally similar to [Acme](https://github.com/deepmind/acme) - a great building block for implementing RL agents in jax. In order to support some jax methods, we've moved to make agents more functional. All agents have an base batch size - to allow concurrent data collection. The agent interface is as followed:
+
+```python
+import jax.numpy as jnp
+import Agent
+
+args = {'hidden'= 16, 'observation_spec'=5}
+rng = jax.random.PRNGKey(0)
+bs = 1
+init_hidden = jnp.zeros((bs, args.hidden))
+obs = jnp.ones((bs, 5))
+
+agent = Agent(args)
+state, memory =  agent.make_initial_state(rng, init_hidden)
+action, state, mem = agent.policy(rng, obs, mem)
+
+# fake environment results
+done = True
+rewards = 0
+
+state, memory, stats = agent.update(
+     traj_batch,
+     obs,
+     rewards,
+     done,
+     state,
+     mem)
+
+mem = agent.reset_memory(mem, False)
+```
+
+Note that `make_initial_state`, `policy`, `update` and `reset_memory` all support `jit`, `vmap` and `lax.scan`. Allowing you to compile more of your experiment to [XLA](https://www.tensorflow.org/xla).
+
+
+```python
+     # batch MemoryState not TrainingState
+     agent.batch_reset = jax.jit(
+          jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
+     )
+
+     agent.batch_policy = jax.jit(
+            jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
+        )
+     agent1.batch_init = jax.vmap(
+          agent.make_initial_state,
+          (None, 0),
+          (None, 0),
+     )
+```
+
+### Runners
+We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up,
+
+```python
+     def _rollout(carry, unused):
+          """Runner for inner episode"""
+          (
+               rngs,
+               obs,
+               r,
+               a1_state,
+               a1_mem,
+               env_state,
+               env_params,
+          ) = carry
+
+          # unpack rngs
+          rngs = self.split(rngs, 4)
+          a1, a1_state, new_a1_mem = agent1.batch_policy(
+               a1_state,
+               obs[0],
+               a1_mem,
+          )
+
+          next_obs, env_state, rewards, done, info = env.step(
+               rngs,
+               env_state,
+               (a1, a1),
+               env_params,
+          )
+
+          traj = Sample(
+               obs1,
+               a1,
+               rewards[0],
+               new_a1_mem.extras["log_probs"],
+               new_a1_mem.extras["values"],
+               done,
+               a1_mem.hidden,
+               )
+
+          return (
+               rngs,
+               next_obs,
+               rewards,
+               a1_state,
+               new_a1_mem,
+               env_state,
+               env_params,
+          ), (
+               traj1,
+               traj2,
+          )
+
+
+     agent = Agent(args)
+     state, memory =  agent.make_initial_state(rng, init_hidden)
+     
+     for _ in range(num_updates):
+          final_timestep, batch_trajectory = jax.lax.scan(
+               _rollout,
+               ((obs, env_state, rng), rollout_length),
+               10
+          )
+
+          _, obs, rewards, a1_state, a1_mem, _, _ = final_timestep
+
+          state, memory, stats = agent.update(
+               batch_trajectory,
+               obs[0],
+               rewards[0],
+               state,
+               memory
+           )
+```
+
+Note this isn't even a fully optimised example - we could jit the outer loop!
+
 
 # Installation
 Pax is written in pure Python, but depends on C++ code via JAX.
