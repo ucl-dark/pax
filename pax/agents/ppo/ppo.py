@@ -6,11 +6,14 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from dm_env import TimeStep
 
 from pax import utils
-from pax.naive.network import make_network, make_coingame_network
-from pax.utils import MemoryState, TrainingState, get_advantages
+from pax.agents.ppo.networks import (
+    make_cartpole_network,
+    make_coingame_network,
+    make_ipd_network,
+)
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
 class Batch(NamedTuple):
@@ -28,16 +31,8 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class Logger:
-    metrics: dict
-
-
-class NaiveLearner:
-    """A simple naive learner agent using JAX
-    This agent has a few variations on the original naive learner from LOLA (Foerster 2017, et al)
-    Notably:
-    - LOLA uses a baseline for variance reduction; ours uses generalized advantages estimation
-    """
+class PPO:
+    """A simple PPO agent using JAX"""
 
     def __init__(
         self,
@@ -49,9 +44,17 @@ class NaiveLearner:
         num_steps: int = 500,
         num_minibatches: int = 16,
         num_epochs: int = 4,
+        clip_value: bool = True,
+        value_coeff: float = 0.5,
+        anneal_entropy: bool = False,
+        entropy_coeff_start: float = 0.1,
+        entropy_coeff_end: float = 0.01,
+        entropy_coeff_horizon: int = 3_000_000,
+        ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
-        entropy_coeff: float = 0.0,
+        tabular: bool = False,
+        player_id: int = 0,
     ):
         @jax.jit
         def policy(
@@ -114,26 +117,67 @@ class NaiveLearner:
             """Surrogate loss using clipped probability ratios."""
             distribution, values = network.apply(params, observations)
             log_prob = distribution.log_prob(actions)
+            entropy = distribution.entropy()
 
-            # ACTOR
-            # Importance sampling weights: current policy / behavior policy.
+            # Compute importance sampling weights: current policy / behavior policy.
             rhos = jnp.exp(log_prob - behavior_log_probs)
-            # rhos = log_prob
-            policy_loss = -jnp.mean(rhos * advantages)
 
-            # CRITIC
-            value_loss = jnp.mean((target_values - values) ** 2)
+            # Policy loss: Clipping
+            clipped_ratios_t = jnp.clip(
+                rhos, 1.0 - ppo_clipping_epsilon, 1.0 + ppo_clipping_epsilon
+            )
+            clipped_objective = jnp.fmin(
+                rhos * advantages, clipped_ratios_t * advantages
+            )
+            policy_loss = -jnp.mean(clipped_objective)
 
-            # Entropy
-            entropy_loss = -jnp.mean(distribution.entropy())
-            entropy_cost = entropy_coeff * entropy_loss
-            total_loss = policy_loss + value_loss + entropy_cost
+            # Value loss: MSE
+            value_cost = value_coeff
+            unclipped_value_error = target_values - values
+            unclipped_value_loss = unclipped_value_error**2
+
+            # Value clipping
+            if clip_value:
+                # Clip values to reduce variablility during critic training.
+                clipped_values = behavior_values + jnp.clip(
+                    values - behavior_values,
+                    -ppo_clipping_epsilon,
+                    ppo_clipping_epsilon,
+                )
+                clipped_value_error = target_values - clipped_values
+                clipped_value_loss = clipped_value_error**2
+                value_loss = jnp.mean(
+                    jnp.fmax(unclipped_value_loss, clipped_value_loss)
+                )
+            else:
+                value_loss = jnp.mean(unclipped_value_loss)
+
+            # Entropy loss: Standard entropy term
+            # Calculate the new value based on linear annealing formula
+            if anneal_entropy:
+                fraction = jnp.fmax(1 - timesteps / entropy_coeff_horizon, 0)
+                entropy_cost = (
+                    fraction * entropy_coeff_start
+                    + (1 - fraction) * entropy_coeff_end
+                )
+            # Constant Entropy term
+            else:
+                entropy_cost = entropy_coeff_start
+            entropy_loss = -jnp.mean(entropy)
+
+            # Total loss: Minimize policy and value loss; maximize entropy
+            total_loss = (
+                policy_loss
+                + entropy_cost * entropy_loss
+                + value_loss * value_cost
+            )
 
             return total_loss, {
                 "loss_total": total_loss,
                 "loss_policy": policy_loss,
                 "loss_value": value_loss,
-                "loss_entropy": entropy_cost,
+                "loss_entropy": entropy_loss,
+                "entropy_cost": entropy_cost,
             }
 
         @jax.jit
@@ -163,6 +207,8 @@ class NaiveLearner:
                 rewards=rewards, values=behavior_values, dones=dones
             )
 
+            # Exclude the last step - it was only used for bootstrapping.
+            # The shape is [num_steps, num_envs, ..]
             behavior_values = behavior_values[:-1, :]
             trajectories = Batch(
                 observations=observations,
@@ -293,10 +339,17 @@ class NaiveLearner:
 
             return new_state, new_memory, metrics
 
-        def make_initial_state(key: Any, hidden: jnp.array) -> TrainingState:
+        def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec)
+            if not tabular:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+                dummy_obs = dummy_obs.at[0].set(1)
+                dummy_obs = dummy_obs.at[9].set(1)
+                dummy_obs = dummy_obs.at[18].set(1)
+                dummy_obs = dummy_obs.at[27].set(1)
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
@@ -358,10 +411,12 @@ class NaiveLearner:
             "loss_policy": 0,
             "loss_value": 0,
             "loss_entropy": 0,
+            "entropy_cost": entropy_coeff_start,
         }
 
         # Initialize functions
         self._policy = policy
+        self.player_id = player_id
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -400,42 +455,82 @@ class NaiveLearner:
         self._logger.metrics["loss_total"] = metrics["loss_total"]
         self._logger.metrics["loss_policy"] = metrics["loss_policy"]
         self._logger.metrics["loss_value"] = metrics["loss_value"]
+        self._logger.metrics["loss_entropy"] = metrics["loss_entropy"]
+        self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
 
         return state, mem, metrics
 
 
-def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
-    """Make Naive Learner Policy Gradient agent"""
-
-    if args.env_id == "coin_game":
-        print(f"Making network for {args.env_id} with CNN")
-        network = make_coingame_network(action_spec, args)
+def make_agent(
+    args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    player_id: int,
+    tabular=False,
+):
+    """Make PPO agent"""
+    if args.env_id == "CartPole-v1":
+        network = make_cartpole_network(action_spec)
+    elif args.env_id == "coin_game":
+        print(f"Making network for {args.env_id}")
+        network = make_coingame_network(action_spec, tabular, args)
     else:
-        network = make_network(action_spec)
+        network = make_ipd_network(action_spec, tabular, args)
 
-    optimizer = optax.chain(
-        optax.clip_by_global_norm(args.naive.max_gradient_norm),
-        optax.scale_by_adam(eps=args.naive.adam_epsilon),
-        optax.scale(-args.naive.learning_rate),
+    # Optimizer
+    batch_size = int(args.num_envs * args.num_steps)
+    transition_steps = (
+        args.total_timesteps
+        / batch_size
+        * args.ppo.num_epochs
+        * args.ppo.num_minibatches
     )
+
+    if args.ppo.lr_scheduling:
+        scheduler = optax.linear_schedule(
+            init_value=args.ppo.learning_rate,
+            end_value=0,
+            transition_steps=transition_steps,
+        )
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.scale_by_schedule(scheduler),
+            optax.scale(-1),
+        )
+
+    else:
+        optimizer = optax.chain(
+            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
+            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.scale(-args.ppo.learning_rate),
+        )
 
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)
 
-    agent = NaiveLearner(
+    agent = PPO(
         network=network,
         optimizer=optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
-        num_minibatches=args.naive.num_minibatches,
-        num_epochs=args.naive.num_epochs,
-        gamma=args.naive.gamma,
-        gae_lambda=args.naive.gae_lambda,
-        entropy_coeff=args.naive.entropy_coeff,
+        num_minibatches=args.ppo.num_minibatches,
+        num_epochs=args.ppo.num_epochs,
+        clip_value=args.ppo.clip_value,
+        value_coeff=args.ppo.value_coeff,
+        anneal_entropy=args.ppo.anneal_entropy,
+        entropy_coeff_start=args.ppo.entropy_coeff_start,
+        entropy_coeff_end=args.ppo.entropy_coeff_end,
+        entropy_coeff_horizon=args.ppo.entropy_coeff_horizon,
+        ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
+        gamma=args.ppo.gamma,
+        gae_lambda=args.ppo.gae_lambda,
+        tabular=tabular,
+        player_id=player_id,
     )
-    agent.player_id = player_id
     return agent
 
 

@@ -4,10 +4,10 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
+import wandb
 from pax.utils import load
+from pax.watchers import cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 10000
 

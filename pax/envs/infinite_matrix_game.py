@@ -1,9 +1,9 @@
-import jax
-from flax import struct
-import jax.numpy as jnp
+from typing import Optional, Tuple
+
 import chex
+import jax
+import jax.numpy as jnp
 from gymnax.environments import environment, spaces
-from typing import Tuple, Optional
 
 
 @chex.dataclass

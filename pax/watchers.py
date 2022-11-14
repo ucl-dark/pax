@@ -1,18 +1,16 @@
 import enum
+import pickle
 from functools import partial
-from symbol import trailer
 from typing import NamedTuple
 
 import chex
-from flax import linen as nn
 import jax
 import jax.numpy as jnp
-import pickle
+from flax import linen as nn
 
-import pax.hyper.ppo as HyperPPO
-from pax.naive_exact import NaiveExact
-import pax.ppo.ppo as PPO
-
+import pax.agents.hyper.ppo as HyperPPO
+import pax.agents.ppo.ppo as PPO
+from pax.agents.naive_exact import NaiveExact
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])

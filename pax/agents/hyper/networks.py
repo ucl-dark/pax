@@ -1,4 +1,4 @@
-from typing import Any, Callable, NamedTuple, Optional, Tuple
+from typing import Optional, Tuple
 
 import distrax
 import haiku as hk

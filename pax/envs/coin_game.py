@@ -1,9 +1,9 @@
-import jax
-from dataclasses import replace
-import jax.numpy as jnp
+from typing import Optional, Tuple
+
 import chex
+import jax
+import jax.numpy as jnp
 from gymnax.environments import environment, spaces
-from typing import Tuple, Optional
 
 
 @chex.dataclass
@@ -420,12 +420,12 @@ class CoinGame(environment.Environment):
         return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
 
     def render(self, state: EnvState):
-        from matplotlib.figure import Figure
+        import numpy as np
         from matplotlib.backends.backend_agg import (
             FigureCanvasAgg as FigureCanvas,
         )
+        from matplotlib.figure import Figure
         from PIL import Image
-        import numpy as np
 
         """Small utility for plotting the agent's state."""
         fig = Figure((5, 2))

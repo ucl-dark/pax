@@ -1,4 +1,5 @@
 from typing import Tuple
+
 import distrax
 import haiku as hk
 import jax

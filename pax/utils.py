@@ -1,7 +1,6 @@
+import pickle
 from time import time as tic
 from typing import Mapping, NamedTuple
-from functools import partial
-import pickle
 
 import chex
 import haiku as hk
