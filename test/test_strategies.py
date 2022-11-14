@@ -234,7 +234,7 @@ def test_naive_tft():
     agent_state, agent_memory = agent.make_initial_state(obs1)
     defect_action = -20 * jnp.ones((num_envs, 5))
 
-    for _ in range(500):
+    for _ in range(50):
         rng, _ = split(rng, 2)
         action, agent_state, agent_memory = agent._policy(
             agent_state, obs1, agent_memory
@@ -250,35 +250,56 @@ def test_naive_tft():
     assert jnp.allclose(0.99, reward0, atol=0.01)
 
 
-# def test_naive_tft():
-#     bs = 1
-#     env = InfiniteMatrixGame(
-#         num_envs=bs,
-#         payoff=[[2, 2], [0, 3], [3, 0], [1, 1]],
-#         episode_length=jnp.inf,
-#         gamma=0.96,
-#         seed=0,
-#     )
-#     agent = NaiveExact(action_dim=5, env=env, lr=1, num_envs=bs, player_id=0)
-#     tft_action = jnp.tile(
-#         20 * jnp.array([[1.0, -1.0, 1.0, -1.0, 1.0]]), (bs, 1)
-#     )
-#     timestep, _ = env.reset()
+def test_naive_tft():
+    num_envs = 2
+    rng = jnp.concatenate([jax.random.PRNGKey(0)] * num_envs).reshape(
+        num_envs, -1
+    )
 
-#     for _ in range(500):
-#         rng, _ = split(rng, 2)
-#         action, agent_state, agent_memory = agent._policy(
-#             agent_state, obs1, agent_memory
-#         )
-#         (obs1, obs2), env_state, _, _, _ = env.step(
-#             rng, env_state, (action, tft_action), env_params
-#         )
+    env = InfiniteMatrixGame(num_steps=jnp.inf)
+    env_params = InfiniteMatrixGameParams(
+        payoff_matrix=[[2, 2], [0, 3], [3, 0], [1, 1]], gamma=0.96
+    )
 
-#     action, _, _ = agent._policy(agent_state, obs1, agent_memory)
-#     _, _, (reward0, reward1), _, _ = env.step(
-#         rng, env_state, (action, tft_action), env_params
-#     )
-#     assert jnp.allclose(3.0, reward0, atol=0.01)
+    # vmaps
+    split = jax.vmap(jax.random.split, in_axes=(0, None))
+    env.reset = jax.jit(
+        jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
+    )
+    env.step = jax.jit(
+        jax.vmap(
+            env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+        )
+    )
+
+    (obs1, _), env_state = env.reset(rng, env_params)
+    agent = NaiveExact(
+        action_dim=5,
+        env_params=env_params,
+        lr=1,
+        num_envs=num_envs,
+        player_id=0,
+    )
+    agent_state, agent_memory = agent.make_initial_state(obs1)
+    tft_action = jnp.tile(
+        20 * jnp.array([1.0, -1.0, 1.0, -1.0, 1.0]), (num_envs, 1)
+    )
+
+    for _ in range(50):
+        rng, _ = split(rng, 2)
+        action, agent_state, agent_memory = agent._policy(
+            agent_state, obs1, agent_memory
+        )
+
+        (obs1, _), env_state, rewards, _, _ = env.step(
+            rng, env_state, (action, tft_action), env_params
+        )
+
+    action, _, _ = agent._policy(agent_state, obs1, agent_memory)
+    _, _, (reward0, reward1), _, _ = env.step(
+        rng, env_state, (action, tft_action), env_params
+    )
+    assert jnp.allclose(2.0, reward0, atol=0.01)
 
 
 def test_naive_tft_as_second_player():
