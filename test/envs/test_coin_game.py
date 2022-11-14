@@ -21,9 +21,8 @@ def test_coingame_shapes():
     obs, new_state, rewards, done, info = env.step(
         rng, state, (action, action), params
     )
-    import pdb; pdb.set_trace()
-    assert (rewards[0].shape == ())
-    assert (rewards[1].shape == ())
+    assert rewards[0].shape == ()
+    assert rewards[1].shape == ()
 
 
 def test_coingame_move():
@@ -51,7 +50,9 @@ def test_coingame_move():
         last_state=state.last_state,
     )
 
-    _, new_state, rewards, _, _ = env.step(rng, state, (action, action), params)
+    _, new_state, rewards, _, _ = env.step(
+        rng, state, (action, action), params
+    )
     assert (state.red_pos != new_state.red_pos).any()
     assert (state.blue_pos != new_state.blue_pos).any()
     state = new_state
@@ -63,7 +64,6 @@ def test_coingame_move():
     assert (state.blue_defect == jnp.array([0, 0])).all()
     assert state.inner_t == 1
     assert state.outer_t == 0
-
 
     obs, state, rewards, done, info = env.step(
         rng, state, (action, action), params

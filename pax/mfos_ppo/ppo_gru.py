@@ -487,15 +487,6 @@ class PPO:
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
-    def select_action(self, obs: jnp.ndarray):
-        """Selects action and updates info with PPO specific information"""
-        (
-            actions,
-            self._state,
-            self._mem,
-        ) = self._policy(self._state, obs, self._mem)
-        return utils.to_numpy(actions)
-
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
 

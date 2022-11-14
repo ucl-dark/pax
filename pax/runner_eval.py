@@ -247,7 +247,9 @@ class EvalRunner:
         pretrained_params = load(self.model_path)
         a1_state = a1_state._replace(params=pretrained_params)
 
-        num_iters = max(int(num_episodes / (env.num_envs * self.num_opps)), 1)
+        num_iters = max(
+            int(num_episodes / (self.args.num_envs * self.args.num_opps)), 1
+        )
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
         print(f"Log Interval {log_interval}")
 
@@ -315,8 +317,8 @@ class EvalRunner:
                         lambda x: x.item(),
                         self.cg_stats(env_state),
                     )
-                    rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                    rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
                 elif self.args.env_type in [
                     "meta",
@@ -330,17 +332,17 @@ class EvalRunner:
                             obs1,
                         ),
                     )
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
+                    rewards_1 = traj_1.rewards.mean()
+                    rewards_2 = traj_2.rewards.mean()
 
                 else:
-                    rewards_0 = traj_1.rewards.mean()
-                    rewards_1 = traj_2.rewards.mean()
+                    rewards_1 = traj_1.rewards.mean()
+                    rewards_2 = traj_2.rewards.mean()
                     env_stats = {}
 
                 print(f"Env Stats: {env_stats}")
                 print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 
@@ -359,10 +361,10 @@ class EvalRunner:
                         {
                             "episodes": self.train_episodes,
                             "train/episode_reward/player_1": float(
-                                rewards_0.mean()
+                                rewards_1.mean()
                             ),
                             "train/episode_reward/player_2": float(
-                                rewards_1.mean()
+                                rewards_2.mean()
                             ),
                         }
                         | env_stats,

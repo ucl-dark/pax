@@ -9,7 +9,7 @@ import wandb
 from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save
 
-MAX_WANDB_CALLS = 1000000
+MAX_WANDB_CALLS = 1000
 
 
 class Sample(NamedTuple):
@@ -369,12 +369,10 @@ class RLRunner:
                     self.cg_stats(env_state),
                 )
 
-                rewards_0 = traj_1.rewards.sum(axis=1).mean()
-                rewards_1 = traj_2.rewards.sum(axis=1).mean()
+                rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id in [
-                "matrix_game",
-            ]:
+            elif args.env_id == "matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
@@ -383,13 +381,13 @@ class RLRunner:
                         obs1,
                     ),
                 )
-                rewards_0 = traj_1.rewards.mean()
-                rewards_1 = traj_2.rewards.mean()
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
 
             return (
                 env_stats,
-                rewards_0,
                 rewards_1,
+                rewards_2,
                 a1_state,
                 a1_mem,
                 a1_metrics,
@@ -424,8 +422,8 @@ class RLRunner:
             # RL Rollout
             (
                 env_stats,
-                rewards_0,
                 rewards_1,
+                rewards_2,
                 a1_state,
                 a1_mem,
                 a1_metrics,
@@ -452,7 +450,7 @@ class RLRunner:
 
                 print(f"Env Stats: {env_stats}")
                 print(
-                    f"Total Episode Reward: {float(rewards_0.mean()), float(rewards_1.mean())}"
+                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 
@@ -478,10 +476,10 @@ class RLRunner:
                         {
                             "episodes": self.train_episodes,
                             "train/episode_reward/player_1": float(
-                                rewards_0.mean()
+                                rewards_1.mean()
                             ),
                             "train/episode_reward/player_2": float(
-                                rewards_1.mean()
+                                rewards_2.mean()
                             ),
                         }
                         | env_stats,
