@@ -1,5 +1,5 @@
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
 
 from pax.envs.coin_game import CoinGame, EnvParams, EnvState
 

@@ -1,10 +1,9 @@
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
 import pytest
 
-from pax.envs.iterated_matrix_game import IteratedMatrixGame, EnvParams
-
-from pax.strategies import TitForTat
+from pax.agents.strategies import TitForTat
+from pax.envs.iterated_matrix_game import EnvParams, IteratedMatrixGame
 
 # payoff matrices for four games
 ipd = [[2, 2], [0, 3], [3, 0], [1, 1]]

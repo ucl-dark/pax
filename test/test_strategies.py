@@ -1,16 +1,13 @@
-import jax.numpy as jnp
 import jax
-from pax.envs.infinite_matrix_game import (
-    InfiniteMatrixGame,
-    EnvParams as InfiniteMatrixGameParams,
-)
-from pax.envs.coin_game import (
-    CoinGame,
-    EnvParams as CoinGameParams,
-    EnvState as CoinGameState,
-)
-from pax.strategies import EvilGreedy, TitForTat, GrimTrigger
-from pax.naive_exact import NaiveExact
+import jax.numpy as jnp
+
+from pax.agents.naive_exact import NaiveExact
+from pax.agents.strategies import EvilGreedy, GrimTrigger, TitForTat
+from pax.envs.coin_game import CoinGame
+from pax.envs.coin_game import EnvParams as CoinGameParams
+from pax.envs.coin_game import EnvState as CoinGameState
+from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
+from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 
 
 def test_titfortat():
