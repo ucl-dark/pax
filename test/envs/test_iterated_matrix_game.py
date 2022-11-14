@@ -177,8 +177,8 @@ def test_tit_for_tat_match() -> None:
     obs, env_state = env.reset(rngs, env_params)
     tit_for_tat = TitForTat(num_envs)
 
-    action_0 = tit_for_tat.select_action(obs[0])
-    action_1 = tit_for_tat.select_action(obs[1])
+    action_0, _, _ = tit_for_tat._policy(None, obs[0], None)
+    action_1, _, _ = tit_for_tat._policy(None, obs[1], None)
     assert jnp.array_equal(action_0, action_1)
 
     for _ in range(10):
@@ -216,7 +216,7 @@ def test_longer_game() -> None:
     r2 = []
     for _ in range(num_outer_steps):
         for _ in range(num_inner_steps):
-            action = agent.select_action(obs[0])
+            action, _, _ = agent._policy(None, obs[0], None)
             obs, env_state, rewards, done, info = env.step(
                 rngs, env_state, (action, action), env_params
             )
