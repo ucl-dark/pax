@@ -16,6 +16,7 @@ env_params = EnvParams(payoff_matrix=payoff)
 # 0 = Defect, 1 = Cooperate
 actions = (jnp.ones(()), jnp.ones(()))
 obs, env_state = env.reset(rng, env_params)
+done = False
 
 while not done:
      obs, env_state, rewards, done, info = env.step(
