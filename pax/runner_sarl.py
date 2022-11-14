@@ -162,7 +162,7 @@ class SARLRunner:
             ) = vals
 
             # update outer agent
-            a1_state, _, _a1_metrics = agent.update(
+            _a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
                 rewards,
