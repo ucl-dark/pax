@@ -5,7 +5,7 @@
 </h1>
 
 
-Pax is an experiment runner for multi-agent research built on top of JAX. It supports "other agent shaping", "multi agent RL" and "single agent RL" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. 
+Pax is an experiment runner for multi-agent research built on top of JAX. It supports "other agent shaping", "multi agent RL" and "single agent RL" experiments. It supports regular and meta agents, and evolutionary and RL-based optimisation. 
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
@@ -32,7 +32,7 @@ while not done:
           actions,
           env_params)
 ```
-Similar to [gymnax](https://github.com/RobertTLange/gymnax),  which can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan` for performant code.
+Similar to [gymnax](https://github.com/RobertTLange/gymnax), we can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan`.
 
 ```python
 import IteratedMatrixGame, EnvParams
@@ -93,15 +93,9 @@ agent = Agent(args)
 state, memory =  agent.make_initial_state(rng, init_hidden)
 action, state, mem = agent.policy(rng, obs, mem)
 
-# fake environment results
-done = True
-rewards = 0
-
 state, memory, stats = agent.update(
      traj_batch,
      obs,
-     rewards,
-     done,
      state,
      mem)
 

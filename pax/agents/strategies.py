@@ -1,9 +1,8 @@
 from functools import partial
-from typing import Callable, NamedTuple, Tuple
+from typing import Callable, NamedTuple
 
 import jax.numpy as jnp
 import jax.random
-from dm_env import TimeStep
 
 from pax.utils import Logger, MemoryState, TrainingState
 
@@ -445,24 +444,6 @@ class Altruistic:
 
     def make_initial_state(self, _unused, *args) -> TrainingState:
         return self._state, self._mem
-
-
-class Human:
-    def __init__(self, *args):
-        raise DeprecationWarning("Human is not supported in this version")
-
-    def select_action(self, timestep: TimeStep) -> Tuple[jnp.ndarray, None]:
-        text = None
-        batch_size, _ = timestep.observation.shape
-
-        while text not in ("0", "1"):
-            text = input("Press 0 for cooperate, Press 1 for defect:\n")
-
-        # return int(text) * jnp.ones((batch_size, 1)), None
-        return int(text) * jnp.ones((batch_size,)), None
-
-    def step(self, *args) -> None:
-        pass
 
 
 class Random:
