@@ -1,19 +1,25 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Dict, NamedTuple, Tuple
+from typing import Any, Dict, Mapping, NamedTuple, Tuple
 
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
+from dm_env import TimeStep
 
 from pax import utils
-from pax.ppo.networks import (
-    make_cartpole_network,
-    make_coingame_network,
-    make_ipd_network,
-)
-from pax.utils import Logger, MemoryState, TrainingState, get_advantages
+from pax.agents.mfos_ppo.networks import make_mfos_network
+from pax.utils import TrainingState, get_advantages
+
+
+class MemoryState(NamedTuple):
+    """State consists of network extras (to be batched)"""
+
+    hidden: jnp.ndarray
+    th: jnp.ndarray
+    curr_th: jnp.ndarray
+    extras: Mapping[str, jnp.ndarray]
 
 
 class Batch(NamedTuple):
@@ -30,16 +36,29 @@ class Batch(NamedTuple):
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
 
+    # GRU specific
+    hiddens: jnp.ndarray
+
+    # MFOS specific
+    meta_actions: jnp.ndarray
+
+
+class Logger:
+    metrics: dict
+
 
 class PPO:
-    """A simple PPO agent using JAX"""
+    """A simple PPO agent with memory using JAX"""
 
     def __init__(
         self,
         network: NamedTuple,
+        initial_hidden_state: jnp.ndarray,
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
+        gru_dim: int,
         obs_spec: Tuple,
+        batch_size: int = 2000,
         num_envs: int = 4,
         num_steps: int = 500,
         num_minibatches: int = 16,
@@ -53,7 +72,6 @@ class PPO:
         ppo_clipping_epsilon: float = 0.2,
         gamma: float = 0.99,
         gae_lambda: float = 0.95,
-        tabular: bool = False,
         player_id: int = 0,
     ):
         @jax.jit
@@ -62,15 +80,28 @@ class PPO:
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(state.params, observation)
+            (dist, values), (_current_th, hidden) = network.apply(
+                state.params,
+                (observation, mem.th),
+                mem.hidden,
+            )
+
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
-            mem = mem._replace(extras=mem.extras)
-            state = state._replace(random_key=key)
-            return actions, state, mem
 
-        @jax.jit
+            # update the hiddens and running th
+            mem = mem._replace(
+                hidden=hidden, curr_th=_current_th, extras=mem.extras
+            )
+
+            state = state._replace(random_key=key)
+            return (
+                actions,
+                state,
+                mem,
+            )
+
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
@@ -113,9 +144,14 @@ class PPO:
             target_values: jnp.array,
             advantages: jnp.array,
             behavior_values: jnp.array,
+            hiddens: jnp.ndarray,
+            meta_actions: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
-            distribution, values = network.apply(params, observations)
+            (distribution, values), _ = network.apply(
+                params, (observations, meta_actions), hiddens
+            )
+
             log_prob = distribution.log_prob(actions)
             entropy = distribution.entropy()
 
@@ -179,13 +215,78 @@ class PPO:
                 "loss_entropy": entropy_loss,
                 "entropy_cost": entropy_cost,
             }
+            # }, new_rnn_unroll_state
+
+        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
         @jax.jit
+        def model_update_minibatch(
+            carry: Tuple[hk.Params, optax.OptState, int],
+            minibatch: Batch,
+        ) -> Tuple[
+            Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
+        ]:
+            """Performs model update for a single minibatch."""
+            params, opt_state, timesteps = carry
+            # Normalize advantages at the minibatch level before using them.
+            advantages = (
+                minibatch.advantages - jnp.mean(minibatch.advantages, axis=0)
+            ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+            gradients, metrics = self.grad_fn(
+                params,
+                timesteps,
+                minibatch.observations,
+                minibatch.actions,
+                minibatch.behavior_log_probs,
+                minibatch.target_values,
+                advantages,
+                minibatch.behavior_values,
+                minibatch.hiddens,
+                minibatch.meta_actions,
+            )
+
+            # Apply updates
+            updates, opt_state = optimizer.update(gradients, opt_state)
+            params = optax.apply_updates(params, updates)
+
+            metrics["norm_grad"] = optax.global_norm(gradients)
+            metrics["norm_updates"] = optax.global_norm(updates)
+            return (params, opt_state, timesteps), metrics
+
+        @jax.jit
+        def model_update_epoch(
+            carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
+            unused_t: Tuple[()],
+        ) -> Tuple[
+            Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+            Dict[str, jnp.ndarray],
+        ]:
+            """Performs model updates based on one epoch of data."""
+            key, params, opt_state, timesteps, batch = carry
+            key, subkey = jax.random.split(key)
+            permutation = jax.random.permutation(subkey, batch_size)
+            shuffled_batch = jax.tree_util.tree_map(
+                lambda x: jnp.take(x, permutation, axis=0), batch
+            )
+            minibatches = jax.tree_util.tree_map(
+                lambda x: jnp.reshape(
+                    x, [num_minibatches, -1] + list(x.shape[1:])
+                ),
+                shuffled_batch,
+            )
+
+            (params, opt_state, timesteps), metrics = jax.lax.scan(
+                model_update_minibatch,
+                (params, opt_state, timesteps),
+                minibatches,
+                length=num_minibatches,
+            )
+            return (key, params, opt_state, timesteps, batch), metrics
+
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
             """Performs a minibatch SGD step, returning new state and metrics."""
-
             # Extract data
             (
                 observations,
@@ -194,6 +295,8 @@ class PPO:
                 behavior_log_probs,
                 behavior_values,
                 dones,
+                hiddens,
+                meta_actions,
             ) = (
                 sample.observations,
                 sample.actions,
@@ -201,8 +304,11 @@ class PPO:
                 sample.behavior_log_probs,
                 sample.behavior_values,
                 sample.dones,
+                sample.hiddens,
+                sample.meta_actions,
             )
 
+            # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
             advantages, target_values = gae_advantages(
                 rewards=rewards, values=behavior_values, dones=dones
             )
@@ -217,8 +323,9 @@ class PPO:
                 behavior_log_probs=behavior_log_probs,
                 target_values=target_values,
                 behavior_values=behavior_values,
+                hiddens=hiddens,
+                meta_actions=meta_actions,
             )
-
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # to [num_envs * num_steps,..]
             assert len(target_values.shape) > 1
@@ -230,77 +337,9 @@ class PPO:
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_util.tree_map(
+            batch = jax.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
-
-            # Compute gradients.
-            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
-
-            @jax.jit
-            def model_update_minibatch(
-                carry: Tuple[hk.Params, optax.OptState, int],
-                minibatch: Batch,
-            ) -> Tuple[
-                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
-            ]:
-                """Performs model update for a single minibatch."""
-                params, opt_state, timesteps = carry
-                # Normalize advantages at the minibatch level before using them.
-                advantages = (
-                    minibatch.advantages
-                    - jnp.mean(minibatch.advantages, axis=0)
-                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
-                gradients, metrics = grad_fn(
-                    params,
-                    timesteps,
-                    minibatch.observations,
-                    minibatch.actions,
-                    minibatch.behavior_log_probs,
-                    minibatch.target_values,
-                    advantages,
-                    minibatch.behavior_values,
-                )
-
-                # Apply updates
-                updates, opt_state = optimizer.update(gradients, opt_state)
-                params = optax.apply_updates(params, updates)
-
-                metrics["norm_grad"] = optax.global_norm(gradients)
-                metrics["norm_updates"] = optax.global_norm(updates)
-                return (params, opt_state, timesteps), metrics
-
-            @jax.jit
-            def model_update_epoch(
-                carry: Tuple[
-                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
-                ],
-                unused_t: Tuple[()],
-            ) -> Tuple[
-                Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
-                Dict[str, jnp.ndarray],
-            ]:
-                """Performs model updates based on one epoch of data."""
-                key, params, opt_state, timesteps, batch = carry
-                key, subkey = jax.random.split(key)
-                permutation = jax.random.permutation(subkey, batch_size)
-                shuffled_batch = jax.tree_util.tree_map(
-                    lambda x: jnp.take(x, permutation, axis=0), batch
-                )
-                minibatches = jax.tree_util.tree_map(
-                    lambda x: jnp.reshape(
-                        x, [num_minibatches, -1] + list(x.shape[1:])
-                    ),
-                    shuffled_batch,
-                )
-
-                (params, opt_state, timesteps), metrics = jax.lax.scan(
-                    model_update_minibatch,
-                    (params, opt_state, timesteps),
-                    minibatches,
-                    length=num_minibatches,
-                )
-                return (key, params, opt_state, timesteps, batch), metrics
 
             params = state.params
             opt_state = state.opt_state
@@ -316,12 +355,13 @@ class PPO:
                 length=num_epochs,
             )
 
-            metrics = jax.tree_util.tree_map(jnp.mean, metrics)
+            metrics = jax.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )
             metrics["rewards_std"] = jnp.std(rewards, axis=(0, 1))
 
+            # Reset the memory
             new_state = TrainingState(
                 params=params,
                 opt_state=opt_state,
@@ -330,28 +370,35 @@ class PPO:
             )
 
             new_memory = MemoryState(
-                hidden=jnp.zeros((num_envs, 1)),
+                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
+                th=jnp.ones(shape=(self._num_envs,) + (gru_dim // 3,)),
+                curr_th=jnp.ones(shape=(self._num_envs,) + (gru_dim // 3,)),
                 extras={
-                    "log_probs": jnp.zeros(num_envs),
-                    "values": jnp.zeros(num_envs),
+                    "log_probs": jnp.zeros(self._num_envs),
+                    "values": jnp.zeros(self._num_envs),
                 },
             )
 
             return new_state, new_memory, metrics
 
-        def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
+        def make_initial_state(
+            key: Any, initial_hidden_state: jnp.ndarray
+        ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
+
+            # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            if not tabular:
-                dummy_obs = jnp.zeros(shape=obs_spec)
-            else:
-                dummy_obs = jnp.zeros(shape=obs_spec)
-                dummy_obs = dummy_obs.at[0].set(1)
-                dummy_obs = dummy_obs.at[9].set(1)
-                dummy_obs = dummy_obs.at[18].set(1)
-                dummy_obs = dummy_obs.at[27].set(1)
+            hidden_size = initial_hidden_state.shape[-1]
+            dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
-            initial_params = network.init(subkey, dummy_obs)
+
+            dummy_meta = jnp.zeros(shape=hidden_size // 3)
+            dummy_meta = utils.add_batch_dim(dummy_meta)
+            dummy_input = (dummy_obs, dummy_meta)
+
+            initial_params = network.init(
+                subkey, dummy_input, initial_hidden_state
+            )
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
                 random_key=key,
@@ -359,18 +406,25 @@ class PPO:
                 opt_state=initial_opt_state,
                 timesteps=0,
             ), MemoryState(
-                hidden=jnp.zeros((num_envs, 1)),
+                hidden=jnp.zeros((num_envs, hidden_size)),
+                th=jnp.ones((num_envs, hidden_size // 3)),
+                curr_th=jnp.ones((num_envs, hidden_size // 3)),
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
             )
 
+        @jax.jit
         def prepare_batch(
-            traj_batch: NamedTuple, reward: int, done: Any, action_extras: dict
+            traj_batch: NamedTuple,
+            reward: jnp.ndarray,
+            done: Any,
+            action_extras: dict,
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
+
             _value = jax.lax.select(
                 done,
                 jnp.zeros_like(action_extras["values"]),
@@ -380,6 +434,7 @@ class PPO:
             _value = jax.lax.expand_dims(_value, [0])
             _reward = jax.lax.expand_dims(reward, [0])
             _done = jax.lax.expand_dims(done, [0])
+
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
@@ -392,12 +447,17 @@ class PPO:
             traj_batch = traj_batch._replace(
                 dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
             )
+
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
+        self._state, self._mem = make_initial_state(
+            random_key, initial_hidden_state
+        )
+
         self.make_initial_state = make_initial_state
-        self._state, self._mem = make_initial_state(random_key, jnp.zeros(1))
-        self._prepare_batch = jax.jit(prepare_batch)
+
+        self.prepare_batch = prepare_batch
         self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
@@ -416,6 +476,7 @@ class PPO:
 
         # Initialize functions
         self._policy = policy
+        self.forward = network.apply
         self.player_id = player_id
 
         # Other useful hyperparameters
@@ -424,31 +485,39 @@ class PPO:
         self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
+        self._gru_dim = gru_dim
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
+
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
+            hidden=jnp.zeros((num_envs, self._gru_dim)),
+            th=jnp.ones((num_envs, self._gru_dim // 3)),
+            curr_th=jnp.ones((num_envs, self._gru_dim // 3)),
         )
         return memory
 
     def update(
         self,
-        traj_batch,
+        traj_batch: NamedTuple,
         obs: jnp.ndarray,
-        reward: int,
+        reward: jnp.ndarray,
         done: Any,
         state: TrainingState,
         mem: MemoryState,
     ):
+
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
-
-        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
+        traj_batch = self.prepare_batch(traj_batch, reward, done, mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
+
+        # update logging
+
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
         )
@@ -457,29 +526,42 @@ class PPO:
         self._logger.metrics["loss_value"] = metrics["loss_value"]
         self._logger.metrics["loss_entropy"] = metrics["loss_entropy"]
         self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
-
         return state, mem, metrics
 
+    def meta_policy(self, mem: MemoryState):
+        """Policy function for the meta agent"""
 
-def make_agent(
+        # update memory with the running th from previous epsiode
+        mem = mem._replace(th=mem.curr_th)
+
+        # reset memory of agent
+        mem = mem._replace(
+            hidden=jnp.zeros_like(mem.hidden),
+            curr_th=jnp.ones_like(mem.curr_th),
+        )
+
+        return mem
+
+
+# TODO: seed, and player_id not used in CartPole
+def make_gru_agent(
     args,
     obs_spec,
     action_spec,
     seed: int,
     player_id: int,
-    tabular=False,
 ):
     """Make PPO agent"""
-    if args.env_id == "CartPole-v1":
-        network = make_cartpole_network(action_spec)
-    elif args.env_id == "coin_game":
-        print(f"Making network for {args.env_id}")
-        network = make_coingame_network(action_spec, tabular, args)
-    else:
-        network = make_ipd_network(action_spec, tabular, args)
+    # Network
+    network, initial_hidden_state = make_mfos_network(
+        action_spec,
+        args.ppo.hidden_size,
+    )
+
+    gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -512,9 +594,12 @@ def make_agent(
 
     agent = PPO(
         network=network,
+        initial_hidden_state=initial_hidden_state,
         optimizer=optimizer,
         random_key=random_key,
+        gru_dim=gru_dim,
         obs_spec=obs_spec,
+        batch_size=args.num_envs * args.num_opps,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=args.ppo.num_minibatches,
@@ -528,7 +613,6 @@ def make_agent(
         ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
         gamma=args.ppo.gamma,
         gae_lambda=args.ppo.gae_lambda,
-        tabular=tabular,
         player_id=player_id,
     )
     return agent

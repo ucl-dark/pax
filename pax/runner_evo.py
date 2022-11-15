@@ -1,13 +1,14 @@
-from datetime import datetime
 import os
 import time
+from datetime import datetime
 from typing import Any, Callable, NamedTuple
 
-from evosax import FitnessShaper
 import jax
 import jax.numpy as jnp
+from evosax import FitnessShaper
+
 import wandb
-from pax.utils import save, TrainingState, MemoryState
+from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog

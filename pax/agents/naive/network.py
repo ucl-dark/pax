@@ -2,8 +2,8 @@ from typing import Optional
 
 import distrax
 import haiku as hk
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
 
 
 class CategoricalValueHead(hk.Module):

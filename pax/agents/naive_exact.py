@@ -2,9 +2,8 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-from dm_env import TimeStep
 
-from pax.envs.infinite_matrix_game import InfiniteMatrixGame
+from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.utils import MemoryState
 
 
@@ -24,7 +23,7 @@ class NaiveExact:
     def __init__(
         self,
         action_dim: int,
-        env_params: NamedTuple,
+        env_params: InfiniteMatrixGameParams,
         lr: float,
         num_envs: int,
         player_id: int,
@@ -74,7 +73,6 @@ class NaiveExact:
 
             # gradient ascent
             action = action + jnp.multiply(grad, lr)
-
             # update state
             _state = TrainingState(
                 timesteps=state.timesteps + 1,

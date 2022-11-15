@@ -1,11 +1,11 @@
 from functools import partial
-from typing import Callable, Mapping, NamedTuple, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 import jax.numpy as jnp
 import jax.random
 from dm_env import TimeStep
 
-from pax.utils import MemoryState, TrainingState, Logger
+from pax.utils import Logger, MemoryState, TrainingState
 
 # states are [CC, CD, DC, DD, START]
 # actions are cooperate = 0 or defect = 1

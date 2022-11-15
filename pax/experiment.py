@@ -1,54 +1,44 @@
-from datetime import datetime
-from functools import partial
 import logging
 import os
+from datetime import datetime
+from functools import partial
 
-# uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
-
-from evosax import OpenES, CMA_ES, PGPE, ParameterReshaper, SimpleGA
 import hydra
-import omegaconf
-import wandb
-
-
-from pax.envs.coin_game import CoinGame, EnvParams as CoinGameParams
-from pax.envs.iterated_matrix_game import (
-    IteratedMatrixGame,
-    EnvParams as IteratedMatrixGameParams,
-)
-from pax.envs.infinite_matrix_game import (
-    InfiniteMatrixGame,
-    EnvParams as InfiniteMatrixGameParams,
-)
 import jax.numpy as jnp
+import omegaconf
+from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
 
-from pax.hyper.ppo import make_hyper
-from pax.naive.naive import make_naive_pg
-from pax.naive_exact import NaiveExact
-from pax.ppo.ppo import make_agent
-from pax.ppo.ppo_gru import make_gru_agent
-from pax.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
-from pax.runner_eval import EvalRunner
-from pax.runner_evo import EvoRunner
-from pax.runner_rl import RLRunner
-from pax.strategies import (
+import wandb
+from pax.agents.hyper.ppo import make_hyper
+from pax.agents.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
+from pax.agents.naive.naive import make_naive_pg
+from pax.agents.naive_exact import NaiveExact
+from pax.agents.ppo.ppo import make_agent
+from pax.agents.ppo.ppo_gru import make_gru_agent
+from pax.agents.strategies import (
     Altruistic,
     Defect,
     EvilGreedy,
     GoodGreedy,
-    RandomGreedy,
     GrimTrigger,
     Human,
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
     Random,
+    RandomGreedy,
     Stay,
     TitForTat,
 )
+from pax.envs.coin_game import CoinGame
+from pax.envs.coin_game import EnvParams as CoinGameParams
+from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
+from pax.envs.infinite_matrix_game import InfiniteMatrixGame
+from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
+from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.runner_eval import EvalRunner
+from pax.runner_evo import EvoRunner
+from pax.runner_rl import RLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -60,6 +50,11 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_ppo,
 )
+
+# uncomment to debug multi-devices on CPU
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
 
 
 def global_setup(args):
@@ -145,7 +140,7 @@ def env_setup(args, logger=None):
 def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
-        return EvalRunner(args)
+        return EvalRunner(agents, env, args)
 
     if args.runner == "evo":
         agent1, _ = agents

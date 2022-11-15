@@ -1,7 +1,7 @@
-import jax.numpy as jnp
 import jax
+import jax.numpy as jnp
 
-from pax.envs.infinite_matrix_game import InfiniteMatrixGame, EnvParams
+from pax.envs.infinite_matrix_game import EnvParams, InfiniteMatrixGame
 
 
 def test_single_infinite_game():

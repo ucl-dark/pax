@@ -1,41 +1,203 @@
 # Pax
-Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies.
+Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. Pax is composed of 3 components: Environments, Agents and Runners.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-PAX has a simple interface, similar to [dm-env](https://github.com/deepmind/dm_env). The API has vairants of traditional gym calls: `runner_step` and `runner_reset` which are compatible with `jit`, `vmap`, `pmap` and `lax.scan`.
+
+### Environments
+Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
 
 ```python
-import SequentialMatrixGame
+import IteratedMatrixGame, EnvParams
 
-env = SequentialMatrixGame(
-     num_envs=1,
-     payoff=[[-1, -1], [0, -3], [-3, 0], [-2, -2]],
-     inner_ep_length=10,
-     num_steps=10
-)
+env = IteratedMatrixGame(num_inner_steps=5)
+env_params = EnvParams(payoff_matrix=payoff)
 
-timesteps, env_state = env.reset()
-agents = IndependentLearners(
-     agent_0,
-     agent_1
-)
+# 0 = Defect, 1 = Cooperate
+actions = (jnp.ones(()), jnp.ones(()))
+obs, env_state = env.reset(rng, env_params)
+done = False
 
-while not timestep[0].last():
-     actions = agents.step(timesteps)
-     timestep, env_state = env.runner_step(actions, env_state)
+while not done:
+     obs, env_state, rewards, done, info = env.step(
+          rng,
+          env_state,
+          actions,
+          env_params)
 ```
-
-and timestep returns the following:
+Similar to [gymnax](https://github.com/RobertTLange/gymnax),  which can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan` for performant code.
 
 ```python
-timestep = timesteps[0]
-timestep.observation.shape()
-# (num_envs, num_states)
-timestep.reward.shape()
-# (num_envs, )
+import IteratedMatrixGame, EnvParams
+import jax.numpy as jnp
+ 
+# batch over env initalisations
+num_envs = 2
+payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+rollout_length = 50
+
+rng = jnp.concatenate(
+     [jax.random.PRNGKey(0), jax.random.PRNGKey(1)]
+).reshape(num_envs, -1)
+
+env = IteratedMatrixGame(num_inner_steps=rollout_length)
+env_params = EnvParams(payoff_matrix=payoff)
+
+action = jnp.ones((num_envs,), dtype=jnp.float32)
+r_array = jnp.ones((num_envs,), dtype=jnp.float32)
+
+# we want to batch over envs purely by actions
+env.step = jax.vmap(
+     env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+)
+obs, env_state = env.reset(rng, env_params)
+
+# lets scan the rollout for speed
+def rollout(carry, unused):
+     actions = (action, action)
+     carry = (_, env_state, env_rng)
+
+     obs, env_state, rewards, done, info = env.step(
+          env_rng,
+          env_state,
+          actions,
+          env_params)
+     
+     return (obs, env_state, env_rng) (obs, actions, rewards, done)
+
+final_state, trajectory = jax.lax.scan(
+     rollout, (obs, env_state, rng), rollout_length)
 ```
-*Note: The original form of Pax was much closer to Acme but diverges further every day as we vmap, scan, and JIT more components for faster training. 
+
+### Agents
+The agent interface is as follows:
+
+```python
+import jax.numpy as jnp
+import Agent
+
+args = {'hidden'= 16, 'observation_spec'=5}
+rng = jax.random.PRNGKey(0)
+bs = 1
+init_hidden = jnp.zeros((bs, args.hidden))
+obs = jnp.ones((bs, 5))
+
+agent = Agent(args)
+state, memory =  agent.make_initial_state(rng, init_hidden)
+action, state, mem = agent.policy(rng, obs, mem)
+
+# fake environment results
+done = True
+rewards = 0
+
+state, memory, stats = agent.update(
+     traj_batch,
+     obs,
+     rewards,
+     done,
+     state,
+     mem)
+
+mem = agent.reset_memory(mem, False)
+```
+
+Note that `make_initial_state`, `policy`, `update` and `reset_memory` all support `jit`, `vmap` and `lax.scan`. Allowing you to compile more of your experiment to [XLA](https://www.tensorflow.org/xla).
+
+
+```python
+     # batch MemoryState not TrainingState
+     agent.batch_reset = jax.jit(
+          jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
+     )
+
+     agent.batch_policy = jax.jit(
+            jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
+        )
+     agent1.batch_init = jax.vmap(
+          agent.make_initial_state,
+          (None, 0),
+          (None, 0),
+     )
+```
+
+### Runners
+We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up,
+
+```python
+     def _rollout(carry, unused):
+          """Runner for inner episode"""
+          (
+               rngs,
+               obs,
+               r,
+               a1_state,
+               a1_mem,
+               env_state,
+               env_params,
+          ) = carry
+
+          # unpack rngs
+          rngs = self.split(rngs, 4)
+          a1, a1_state, new_a1_mem = agent1.batch_policy(
+               a1_state,
+               obs[0],
+               a1_mem,
+          )
+
+          next_obs, env_state, rewards, done, info = env.step(
+               rngs,
+               env_state,
+               (a1, a1),
+               env_params,
+          )
+
+          traj = Sample(
+               obs1,
+               a1,
+               rewards[0],
+               new_a1_mem.extras["log_probs"],
+               new_a1_mem.extras["values"],
+               done,
+               a1_mem.hidden,
+               )
+
+          return (
+               rngs,
+               next_obs,
+               rewards,
+               a1_state,
+               new_a1_mem,
+               env_state,
+               env_params,
+          ), (
+               traj1,
+               traj2,
+          )
+
+
+     agent = Agent(args)
+     state, memory =  agent.make_initial_state(rng, init_hidden)
+     
+     for _ in range(num_updates):
+          final_timestep, batch_trajectory = jax.lax.scan(
+               _rollout,
+               ((obs, env_state, rng), rollout_length),
+               10
+          )
+
+          _, obs, rewards, a1_state, a1_mem, _, _ = final_timestep
+
+          state, memory, stats = agent.update(
+               batch_trajectory,
+               obs[0],
+               rewards[0],
+               state,
+               memory
+           )
+```
+
+Note this isn't even a fully optimised example - we could jit the outer loop!
+
 
 # Installation
 Pax is written in pure Python, but depends on C++ code via JAX.
@@ -58,7 +220,7 @@ We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydr
 python -m pax.experiment +total_timesteps=1_000_000 +num_envs=10
 ```
 
-We currently support two major environments: `MatrixGames` and `CoinGame`. By default, PAX plays the [Iterated Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma) but we also include three other common matrix games: [Stag Hunt](https://en.wikipedia.org/wiki/Stag_hunt), [Battle of the Sexes](https://en.wikipedia.org/wiki/Battle_of_the_sexes_(game_theory)), and [Chicken](https://en.wikipedia.org/wiki/Chicken_(game)). The payoff matrices are as follows: 
+We currently support two major environments: `MatrixGames` and `CoinGame`. By default, Pax plays the [Iterated Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma) but we also include three other common matrix games: [Stag Hunt](https://en.wikipedia.org/wiki/Stag_hunt), [Battle of the Sexes](https://en.wikipedia.org/wiki/Battle_of_the_sexes_(game_theory)), and [Chicken](https://en.wikipedia.org/wiki/Chicken_(game)). The payoff matrices are as follows: 
 ```     
             CC        CD       DC       DD
 IPD       = [[-2,-2], [-3, 0], [ 0,-3], [-1,-1]]
@@ -90,7 +252,7 @@ python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0],
 ```
 
 ## Agents
-PAX includes a number of learning and fixed agents. They are specified in the `.yaml` files as `Agent1` and `Agent2`. Canonically, we care about the outcome of `Agent1`. All of the learning strategies have their own folder and the fixed agents can be viewed in `pax/strategies.py` (inspired by Axelrods' Tournament). 
+Pax includes a number of learning and fixed agents. They are specified in the `.yaml` files as `Agent1` and `Agent2`. Canonically, we care about the outcome of `Agent1`. All of the learning strategies have their own folder and the fixed agents can be viewed in `pax/strategies.py` (inspired by Axelrods' Tournament). 
 
 | Agents | Description |
 | -------| ----------- |
@@ -106,7 +268,7 @@ PAX includes a number of learning and fixed agents. They are specified in the `.
 *Note: `MFOS` and `GS` are meta-agents, so will only work with the meta environment
 
 ## Environments 
-PAX includes three environments specified by `env_id`. These are `ipd` and `coin_game`. Independetly you can specify your enviroment type by `env_type`, the options supported are `sequential`, `meta` and `infinite`. These are specified in the config files in `pax/configs/{env_id}/EXPERIMENT.yaml`. 
+Pax includes three environments specified by `env_id`. These are `ipd` and `coin_game`. Independetly you can specify your enviroment type by `env_type`, the options supported are `sequential`, `meta` and `infinite`. These are specified in the config files in `pax/configs/{env_id}/EXPERIMENT.yaml`. 
 
 | Environment ID | Environment Type | Description |
 | ----------- | ----------- | ----------- |
@@ -138,7 +300,7 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 | `ipd/earl_nl_pgpe`| `PPO_memory`| `Naive`| `Meta` | `Agent2: Naive -> TBD` |
 
 ## Loading and Saving 
-1. All models trained using PAX by default are saved to the `exp` folder. 
+1. All models trained using Pax by default are saved to the `exp` folder. 
 2a. If you have the model saved locally, specify `model_path = exp/...`. By default, Player 1 will be loaded with the parameters.  
 2b. If you do not have the weights saved locally, specify the wandb run `run_path={wandb-group}{wandb-project}{}` and `model_path = exp/...` player 1 will be loaded with the parameters. 
 3. In order to run evaluation, specify `eval: True` and evaluation for `num_seeds` iterations. 
