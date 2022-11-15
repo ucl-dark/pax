@@ -14,9 +14,9 @@ runner: sarl
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 8
-num_steps: 500 
-total_timesteps: 1e6
+num_envs: 50
+num_steps: 128 # 500 Cartpole 
+total_timesteps: 1e9
 save_interval: 100 
 
 # Evaluation 
@@ -60,7 +60,7 @@ ppo:
   entropy_coeff_horizon: 1000000
   entropy_coeff_end: 0.001
   lr_scheduling: True
-  learning_rate: 5e-4
+  learning_rate: 2.5e-4 #5e-4
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
