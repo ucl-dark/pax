@@ -9,6 +9,9 @@ import wandb
 from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save
 
+# from jax.config import config
+# config.update('jax_disable_jit', True)
+
 MAX_WANDB_CALLS = 1000000
 
 
@@ -68,8 +71,6 @@ class SARLRunner:
             (
                 rngs,
                 obs,
-                rewards,
-                done,
                 a1_state,
                 a1_mem,
                 env_state,
@@ -77,11 +78,12 @@ class SARLRunner:
             ) = carry
 
             # unpack rngs
-            rngs = self.split(rngs, 4)
+            # import pdb; pdb.set_trace()
+            rngs = self.split(rngs, 2)
             env_rng = rngs[:, 0, :]
             # a1_rng = rngs[:, 1, :]
             # a2_rng = rngs[:, 2, :]
-            rngs = rngs[:, 3, :]
+            rngs = rngs[:, 1, :]
 
             a1, a1_state, new_a1_mem = agent.batch_policy(
                 a1_state,
@@ -96,6 +98,12 @@ class SARLRunner:
                 env_params,
             )
 
+            # import pdb; pdb.set_trace()
+            print("obs", obs)
+            print("actions", a1)
+            print("rewards", rewards)
+            print("done", done)
+
             traj1 = Sample(
                 obs,
                 a1,
@@ -109,8 +117,6 @@ class SARLRunner:
             return (
                 rngs,
                 next_obs,  # next_obs
-                rewards,
-                done,
                 a1_state,
                 new_a1_mem,
                 env_state,
@@ -129,18 +135,14 @@ class SARLRunner:
             ).reshape((args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, _env_params)
-            rewards = jnp.zeros((args.num_envs))
-            done = jnp.zeros((args.num_envs), dtype=jnp.bool_)
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # run trials
             vals, traj = jax.lax.scan(
                 _inner_rollout,
-                (
+                (   
                     rngs,
                     obs,
-                    rewards,
-                    done,
                     _a1_state,
                     _a1_mem,
                     env_state,
@@ -153,8 +155,6 @@ class SARLRunner:
             (
                 rngs,
                 obs,
-                rewards,
-                done,
                 _a1_state,
                 _a1_mem,
                 env_state,
@@ -165,8 +165,6 @@ class SARLRunner:
             _a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
-                rewards,
-                done,
                 _a1_state,
                 _a1_mem,
             )
@@ -175,7 +173,7 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = traj.rewards.sum() / args.num_envs
+            rewards = jnp.sum(traj.rewards)/(jnp.sum(traj.dones)+1e-8)
             env_stats = {}
 
             return (

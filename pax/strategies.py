@@ -563,7 +563,7 @@ class Random:
         )
         return action
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:

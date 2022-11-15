@@ -110,10 +110,6 @@ class PPO:
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
-            # Only need up to the rollout length
-            rewards = rewards[:-1]
-            dones = dones[:-1]
-
             # 'Zero out' the terminated states
             discounts = gamma * jnp.where(dones < 2, 1, 0)
 

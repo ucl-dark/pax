@@ -142,7 +142,7 @@ def env_setup(args, logger=None):
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
     elif args.env_id == "sarl":
-        env, env_params = gymnax.make("CartPole-v1")
+        env, env_params = gymnax.make("Acrobot-v1")
 
     return env, env_params
 
@@ -507,7 +507,7 @@ def watcher_setup(args, logger):
     if args.env_id == "sarl":
         assert args.agent1 in strategies
 
-        agent_1_log = naive_pg_log # strategies[args.agent1]
+        agent_1_log = naive_pg_log #strategies[args.agent1] #
 
         return agent_1_log
     else:
