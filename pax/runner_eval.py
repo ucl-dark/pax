@@ -25,7 +25,20 @@ class Sample(NamedTuple):
 
 
 class EvalRunner:
-    """Evaluation runner"""
+    """
+    Evaluation runner provides a convenient example for quickly writing
+    a shaping eval runner for PAX. The EvalRunner class can be used to
+    run any two agents together either in a meta-game or regular game, it composes together agents,
+    watchers, and the environment. Within the init, we declare vmaps and pmaps for training.
+    Args:
+        agents (Tuple[agents]):
+            The set of agents that will run in the experiment. Note, ordering is important for
+            logic used in the class.
+        env (gymnax.envs.Environment):
+            The environment that the agents will run in.
+        args (NamedTuple):
+            A tuple of experiment arguments used (usually provided by HydraConfig).
+    """
 
     def __init__(self, agents, env, args):
         self.train_episodes = 0

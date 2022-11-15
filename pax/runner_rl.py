@@ -51,7 +51,22 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 
 
 class RLRunner:
-    """Holds the runner's state."""
+    """
+    Reinforcement Learning runner provides a convenient example for quickly writing
+    a MARL runner for PAX. The MARLRunner class can be used to
+    run any two RL agents together either in a meta-game or regular game, it composes together agents,
+    watchers, and the environment. Within the init, we declare vmaps and pmaps for training.
+    Args:
+        agents (Tuple[agents]):
+            The set of agents that will run in the experiment. Note, ordering is
+            important for logic used in the class.
+        env (gymnax.envs.Environment):
+            The environment that the agents will run in.
+        save_dir (string):
+            The directory to save the model to.
+        args (NamedTuple):
+            A tuple of experiment arguments used (usually provided by HydraConfig).
+    """
 
     def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
