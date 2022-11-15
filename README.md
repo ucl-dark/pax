@@ -305,3 +305,19 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 2a. If you have the model saved locally, specify `model_path = exp/...`. By default, Player 1 will be loaded with the parameters.  
 2b. If you do not have the weights saved locally, specify the wandb run `run_path={wandb-group}{wandb-project}{}` and `model_path = exp/...` player 1 will be loaded with the parameters. 
 3. In order to run evaluation, specify `eval: True` and evaluation for `num_seeds` iterations. 
+
+
+## Citation
+
+If you use Pax in any of your work, please cite:
+
+```
+@misc{pax,
+    author = {Khan, Akbir and Willi, Timon and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris},
+    title = {Pax: Multi-Agent Learning in JAX},
+    year = {2022},
+    publisher = {GitHub},
+    journal = {GitHub repository},
+    howpublished = {\url{https://github.com/akbir/pax}},
+}
+```
