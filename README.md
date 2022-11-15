@@ -1,5 +1,5 @@
 # Pax
-Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports both regular and meta agents, and both evolutionary strategies and RL based optimisation strategies. PAX is composed of 3 components, Environments, Agents and Runners.
+Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. Pax is composed of 3 components: Environments, Agents and Runners.
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
@@ -25,7 +25,7 @@ while not done:
           actions,
           env_params)
 ```
-Similar to [gymnax](https://github.com/RobertTLange/gymnax),  which can compose these with jax built-in functins `jit`, `vmap`, `pmap` and `lax.scan` for performant code.
+Similar to [gymnax](https://github.com/RobertTLange/gymnax),  which can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan` for performant code.
 
 ```python
 import IteratedMatrixGame, EnvParams
@@ -70,7 +70,7 @@ final_state, trajectory = jax.lax.scan(
 ```
 
 ### Agents
-Agents were originally similar to [Acme](https://github.com/deepmind/acme) - a great building block for implementing RL agents in jax. In order to support some jax methods, we've moved to make agents more functional. All agents have an base batch size - to allow concurrent data collection. The agent interface is as followed:
+The agent interface is as follows:
 
 ```python
 import jax.numpy as jnp
@@ -220,7 +220,7 @@ We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydr
 python -m pax.experiment +total_timesteps=1_000_000 +num_envs=10
 ```
 
-We currently support two major environments: `MatrixGames` and `CoinGame`. By default, PAX plays the [Iterated Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma) but we also include three other common matrix games: [Stag Hunt](https://en.wikipedia.org/wiki/Stag_hunt), [Battle of the Sexes](https://en.wikipedia.org/wiki/Battle_of_the_sexes_(game_theory)), and [Chicken](https://en.wikipedia.org/wiki/Chicken_(game)). The payoff matrices are as follows: 
+We currently support two major environments: `MatrixGames` and `CoinGame`. By default, Pax plays the [Iterated Prisoner's Dilemma](https://en.wikipedia.org/wiki/Prisoner%27s_dilemma) but we also include three other common matrix games: [Stag Hunt](https://en.wikipedia.org/wiki/Stag_hunt), [Battle of the Sexes](https://en.wikipedia.org/wiki/Battle_of_the_sexes_(game_theory)), and [Chicken](https://en.wikipedia.org/wiki/Chicken_(game)). The payoff matrices are as follows: 
 ```     
             CC        CD       DC       DD
 IPD       = [[-2,-2], [-3, 0], [ 0,-3], [-1,-1]]
@@ -252,7 +252,7 @@ python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0],
 ```
 
 ## Agents
-PAX includes a number of learning and fixed agents. They are specified in the `.yaml` files as `Agent1` and `Agent2`. Canonically, we care about the outcome of `Agent1`. All of the learning strategies have their own folder and the fixed agents can be viewed in `pax/strategies.py` (inspired by Axelrods' Tournament). 
+Pax includes a number of learning and fixed agents. They are specified in the `.yaml` files as `Agent1` and `Agent2`. Canonically, we care about the outcome of `Agent1`. All of the learning strategies have their own folder and the fixed agents can be viewed in `pax/strategies.py` (inspired by Axelrods' Tournament). 
 
 | Agents | Description |
 | -------| ----------- |
@@ -268,7 +268,7 @@ PAX includes a number of learning and fixed agents. They are specified in the `.
 *Note: `MFOS` and `GS` are meta-agents, so will only work with the meta environment
 
 ## Environments 
-PAX includes three environments specified by `env_id`. These are `ipd` and `coin_game`. Independetly you can specify your enviroment type by `env_type`, the options supported are `sequential`, `meta` and `infinite`. These are specified in the config files in `pax/configs/{env_id}/EXPERIMENT.yaml`. 
+Pax includes three environments specified by `env_id`. These are `ipd` and `coin_game`. Independetly you can specify your enviroment type by `env_type`, the options supported are `sequential`, `meta` and `infinite`. These are specified in the config files in `pax/configs/{env_id}/EXPERIMENT.yaml`. 
 
 | Environment ID | Environment Type | Description |
 | ----------- | ----------- | ----------- |
@@ -300,7 +300,7 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 | `ipd/earl_nl_pgpe`| `PPO_memory`| `Naive`| `Meta` | `Agent2: Naive -> TBD` |
 
 ## Loading and Saving 
-1. All models trained using PAX by default are saved to the `exp` folder. 
+1. All models trained using Pax by default are saved to the `exp` folder. 
 2a. If you have the model saved locally, specify `model_path = exp/...`. By default, Player 1 will be loaded with the parameters.  
 2b. If you do not have the weights saved locally, specify the wandb run `run_path={wandb-group}{wandb-project}{}` and `model_path = exp/...` player 1 will be loaded with the parameters. 
 3. In order to run evaluation, specify `eval: True` and evaluation for `num_seeds` iterations. 
