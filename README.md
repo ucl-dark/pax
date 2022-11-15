@@ -1,6 +1,11 @@
+<h1 align="center">
+  <a href="blob/main/docs/logo.png">
+    <img src="docs/logo.png?raw=true" width="215" /></a><br>
+  <b>Mutli-Agent Reinforcement Learning Environments in JAX </b><br>
+</h1>
+
 # Pax
 Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. Pax is composed of 3 components: Environments, Agents and Runners.
-
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
 
