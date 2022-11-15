@@ -9,7 +9,7 @@ import optax
 
 from pax import utils
 from pax.agents.ppo.networks import (
-    make_cartpole_network,
+    make_sarl_network,
     make_coingame_network,
     make_ipd_network,
 )
@@ -470,8 +470,8 @@ def make_agent(
     tabular=False,
 ):
     """Make PPO agent"""
-    if args.env_id == "CartPole-v1":
-        network = make_cartpole_network(action_spec)
+    if args.env_id == "sarl":
+        network = make_sarl_network(action_spec)
     elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)
