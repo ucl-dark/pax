@@ -3,6 +3,17 @@
     <img src="https://github.com/akbir/pax/blob/main/docs/logo.png?raw=true" width="215" /></a><br>
   <b> Pax: Multi-Agent Learning in JAX </b><br>
 </h1>
+<p align="center">
+      <a href="https://pypi.python.org/pypi/gymnax">
+        <img src="https://img.shields.io/badge/python-3.9-blue.svg" /></a>
+       <a href= "https://github.com/akbir/pax/blob/main/LICENSE.md">
+        <img src="https://img.shields.io/badge/license-Apache2.0-blue.svg" /></a>
+       <a href= "https://codecov.io/gh/akbir/pax">
+        <img src="https://codecov.io/gh/akbir/gymnax/branch/main/graph/badge.svg?token=OKKPDRIQJR" /></a>
+       <a href= "https://github.com/psf/black">
+        <img src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
+</p>
+
 
 
 Pax is an experiment runner for multi-agent research built on top of JAX. It supports "other agent shaping", "multi agent RL" and "single agent RL" experiments. It supports regular and meta agents, and evolutionary and RL-based optimisation. 
@@ -305,3 +316,19 @@ We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/d
 2a. If you have the model saved locally, specify `model_path = exp/...`. By default, Player 1 will be loaded with the parameters.  
 2b. If you do not have the weights saved locally, specify the wandb run `run_path={wandb-group}{wandb-project}{}` and `model_path = exp/...` player 1 will be loaded with the parameters. 
 3. In order to run evaluation, specify `eval: True` and evaluation for `num_seeds` iterations. 
+
+
+## Citation
+
+If you use Pax in any of your work, please cite:
+
+```
+@misc{pax,
+    author = {Khan, Akbir and Willi, Timon and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris},
+    title = {Pax: Multi-Agent Learning in JAX},
+    year = {2022},
+    publisher = {GitHub},
+    journal = {GitHub repository},
+    howpublished = {\url{https://github.com/akbir/pax}},
+}
+```

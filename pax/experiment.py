@@ -22,7 +22,6 @@ from pax.agents.strategies import (
     EvilGreedy,
     GoodGreedy,
     GrimTrigger,
-    Human,
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
