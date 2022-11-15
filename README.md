@@ -1,14 +1,15 @@
 <h1 align="center">
   <a href="https://github.com/akbir/pax/blob/main/docs/logo.png">
     <img src="https://github.com/akbir/pax/blob/main/docs/logo.png?raw=true" width="215" /></a><br>
-  <b> PAX: Mutli-Agent Learning in JAX </b><br>
+  <b> Pax: Mutli-Agent Learning in JAX </b><br>
 </h1>
 
-# Pax
-Pax is an experiment runner for JAX-based Multi-Agent Batched Environments. Currently, it supports mostly "other agent shaping" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. Pax is composed of 3 components: Environments, Agents and Runners.
+
+Pax is an experiment runner for multi-agent research built on top of JAX. It supports "other agent shaping", "multi agent RL" and "single agent RL" experiments. It supports regular and meta agents, and evolutionary strategies and RL-based optimisation. 
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
+Pax is composed of 3 components: Environments, Agents and Runners.
 
 ### Environments
 Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
