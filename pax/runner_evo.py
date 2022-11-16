@@ -30,7 +30,29 @@ class Sample(NamedTuple):
 
 
 class EvoRunner:
-    """Holds the runner's state."""
+    """
+    Evoluationary Strategy runner provides a convenient example for quickly writing
+    a MARL runner for PAX. The EvoRunner class can be used to
+    run an RL agent (optimised by an Evolutionary Strategy) against an Reinforcement Learner.
+    It composes together agents, watchers, and the environment.
+    Within the init, we declare vmaps and pmaps for training.
+    The environment provided must conform to a meta-environment.
+    Args:
+        agents (Tuple[agents]):
+            The set of agents that will run in the experiment. Note, ordering is
+             important for logic used in the class.
+        env (gymnax.envs.Environment):
+            The meta-environment that the agents will run in.
+        strategy (evosax.Strategy):
+            The evolutionary strategy that will be used to train the agents.
+        param_reshaper (evosax.param_reshaper.ParameterReshaper):
+            A function that reshapes the parameters of the agents into a format that can be
+             used by the strategy.
+        save_dir (string):
+            The directory to save the model to.
+        args (NamedTuple):
+            A tuple of experiment arguments used (usually provided by HydraConfig).
+    """
 
     def __init__(
         self, agents, env, strategy, es_params, param_reshaper, save_dir, args
@@ -135,8 +157,8 @@ class EvoRunner:
 
         agent2.batch_update = jax.jit(
             jax.vmap(
-                jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0)),
-                (1, 0, 0, 0, 0, 0),
+                jax.vmap(agent2.update, (1, 0, 0, 0)),
+                (1, 0, 0, 0),
             )
         )
         if args.agent2 != "NaiveEx":
@@ -257,8 +279,6 @@ class EvoRunner:
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
                 obs2,
-                r2,
-                jnp.ones_like(r2, dtype=jnp.bool_),
                 a2_state,
                 a2_mem,
             )

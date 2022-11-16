@@ -2,6 +2,7 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
+from pax.agents.agent import AgentInterface
 
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.utils import MemoryState
@@ -17,7 +18,7 @@ class Logger:
     metrics: dict
 
 
-class NaiveExact:
+class NaiveExact(AgentInterface):
     """A Batch of Naive Learners which backprops through the game and updates every step"""
 
     def __init__(

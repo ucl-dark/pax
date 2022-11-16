@@ -7,6 +7,7 @@ import hydra
 import jax.numpy as jnp
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
+import gymnax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
@@ -21,7 +22,6 @@ from pax.agents.strategies import (
     EvilGreedy,
     GoodGreedy,
     GrimTrigger,
-    Human,
     HyperAltruistic,
     HyperDefect,
     HyperTFT,
@@ -38,11 +38,12 @@ from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
-from pax.runner_rl import RLRunner
+from pax.runner_marl import RLRunner
+from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
-    logger_naive,
+    logger_naive_exact,
     losses_naive,
     losses_ppo,
     naive_pg_losses,
@@ -87,7 +88,7 @@ def global_setup(args):
 def env_setup(args, logger=None):
     """Set up env variables."""
 
-    if args.env_id == "matrix_game":
+    if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
             env = IteratedMatrixGame(num_inner_steps=args.num_steps)
@@ -101,17 +102,16 @@ def env_setup(args, logger=None):
                     f"Env Type: Meta | Episode Length: {args.num_steps}"
                 )
 
-        elif args.env_type == "infinite":
-            env = InfiniteMatrixGame(num_steps=args.num_steps)
-            env_params = InfiniteMatrixGameParams(
-                payoff_matrix=payoff, gamma=args.ppo.gamma
+    elif args.env_id == "infinite_matrix_game":
+        payoff = jnp.array(args.payoff)
+        env = InfiniteMatrixGame(num_steps=args.num_steps)
+        env_params = InfiniteMatrixGameParams(
+            payoff_matrix=payoff, gamma=args.ppo.gamma
+        )
+        if logger:
+            logger.info(
+                f"Game Type: Infinite | Inner Discount: {args.env_discount}"
             )
-            if logger:
-                logger.info(
-                    f"Game Type: Infinite | Inner Discount: {args.env_discount}"
-                )
-        else:
-            raise ValueError(f"Unknown env type {args.env_type}")
 
     elif args.env_id == "coin_game":
         payoff = jnp.array(args.payoff)
@@ -134,6 +134,10 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
+    elif args.runner == "sarl":
+        env, env_params = gymnax.make(args.env_id)
+    else:
+        raise ValueError(f"Unknown env id {args.env_id}")
     return env, env_params
 
 
@@ -231,7 +235,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return RLRunner(agents, env, save_dir, args)
-
+    elif args.runner == "sarl":
+        logger.info("Training with SARL Runner")
+        return SARLRunner(agents, env, save_dir, args)
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -239,14 +245,11 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-    if args.env_id == "coin_game":
-        obs_shape = env.observation_space(env_params).shape
-    elif args.env_id == "matrix_game":
-        if args.env_type == "infinite":
-            obs_shape = env.observation_space(env_params).shape
-        else:
-            obs_shape = env.observation_space(env_params).n
 
+    if args.env_id == "iterated_matrix_game":
+        obs_shape = env.observation_space(env_params).n
+    else:
+        obs_shape = env.observation_space(env_params).shape
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
@@ -313,7 +316,7 @@ def agent_setup(args, env, env_params, logger):
     def get_naive_learner(seed, player_id):
         agent = NaiveExact(
             action_dim=num_actions,
-            env=dummy_env,
+            env_params=env_params,
             lr=args.naive.lr,
             num_envs=args.num_envs,
             player_id=player_id,
@@ -335,7 +338,6 @@ def agent_setup(args, env, env_params, logger):
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
-        "Human": Human,
         "Random": get_random_agent,
         "Stay": get_stay_agent,
         "Grim": partial(GrimTrigger, args.num_envs),
@@ -355,30 +357,47 @@ def agent_setup(args, env, env_params, logger):
         "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
-    assert args.agent1 in strategies
-    assert args.agent2 in strategies
+    if args.runner == "sarl":
+        assert args.agent1 in strategies
+        num_agents = 1
+        seeds = [args.seed]
+        # Create Player IDs by normalizing seeds to 1, 2 respectively
+        pids = [0]
+        agent_1 = strategies[args.agent1](seeds[0], pids[0])  # player 1
 
-    num_agents = 2
-    seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
-    # Create Player IDs by normalizing seeds to 1, 2 respectively
-    pids = [
-        seed % seed + i if seed != 0 else 1
-        for seed, i in zip(seeds, range(1, num_agents + 1))
-    ]
-    agent_1 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-    agent_2 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        logger.info(f"Agent Pair: {args.agent1}")
+        logger.info(f"Agent seeds: {seeds[0]}")
 
-    if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-        logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
-    logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
-    logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+        if args.runner in ["eval", "sarl"]:
+            logger.info("Using Independent Learners")
+            return agent_1
+    else:
+        assert args.agent1 in strategies
+        assert args.agent2 in strategies
 
-    if args.runner in ["eval", "rl"]:
-        logger.info("Using Independent Learners")
-        return (agent_1, agent_2)
-    if args.runner == "evo":
-        logger.info("Using EvolutionaryLearners")
-        return (agent_1, agent_2)
+        num_agents = 2
+        seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
+        # Create Player IDs by normalizing seeds to 1, 2 respectively
+        pids = [
+            seed % seed + i if seed != 0 else 1
+            for seed, i in zip(seeds, range(1, num_agents + 1))
+        ]
+        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
+        logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
+
+        if args.runner in ["eval", "rl"]:
+            logger.info("Using Independent Learners")
+            return (agent_0, agent_1)
+        if args.runner == "evo":
+            logger.info("Using EvolutionaryLearners")
+            return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
@@ -417,7 +436,7 @@ def watcher_setup(args, logger):
 
     def naive_logger(agent):
         losses = losses_naive(agent)
-        policy = logger_naive(agent)
+        policy = logger_naive_exact(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -425,7 +444,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_id == "coin_game":
+        if args.env_id in ["finite_matrix_game"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -459,13 +478,20 @@ def watcher_setup(args, logger):
         "MFOS_pretrained": dumb_log,
     }
 
-    assert args.agent1 in strategies
-    assert args.agent2 in strategies
+    if args.runner == "sarl":
+        assert args.agent1 in strategies
 
-    agent_1_log = strategies[args.agent1]
-    agent_2_log = strategies[args.agent2]
+        agent_1_log = naive_pg_log  # strategies[args.agent1] #
 
-    return [agent_1_log, agent_2_log]
+        return agent_1_log
+    else:
+        assert args.agent1 in strategies
+        assert args.agent2 in strategies
+
+        agent_0_log = strategies[args.agent1]
+        agent_1_log = strategies[args.agent2]
+
+        return [agent_0_log, agent_1_log]
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -501,6 +527,13 @@ def main(args):
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "sarl":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "eval":
         num_iters = int(

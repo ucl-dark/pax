@@ -51,7 +51,22 @@ def reduce_outer_traj(traj: Sample) -> Sample:
 
 
 class RLRunner:
-    """Holds the runner's state."""
+    """
+    Reinforcement Learning runner provides a convenient example for quickly writing
+    a MARL runner for PAX. The MARLRunner class can be used to
+    run any two RL agents together either in a meta-game or regular game, it composes together agents,
+    watchers, and the environment. Within the init, we declare vmaps and pmaps for training.
+    Args:
+        agents (Tuple[agents]):
+            The set of agents that will run in the experiment. Note, ordering is
+            important for logic used in the class.
+        env (gymnax.envs.Environment):
+            The environment that the agents will run in.
+        save_dir (string):
+            The directory to save the model to.
+        args (NamedTuple):
+            A tuple of experiment arguments used (usually provided by HydraConfig).
+    """
 
     def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
@@ -127,9 +142,7 @@ class RLRunner:
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
-        agent2.batch_update = jax.jit(
-            jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0), 0)
-        )
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
@@ -263,8 +276,6 @@ class RLRunner:
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
                 obs2,
-                r2,
-                jnp.ones_like(r2, dtype=jnp.bool_),
                 a2_state,
                 a2_mem,
             )
@@ -310,7 +321,7 @@ class RLRunner:
             if args.agent2 == "NaiveEx":
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
-            elif self.args.env_type in ["meta", "infinite"]:
+            elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 _a2_state, _a2_mem = agent2.batch_init(
                     jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
@@ -352,8 +363,6 @@ class RLRunner:
             a1_state, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
-                self.reduce_opp_dim(r1),
-                jnp.ones_like(self.reduce_opp_dim(r1), dtype=jnp.bool_),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
@@ -372,7 +381,7 @@ class RLRunner:
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id == "matrix_game":
+            elif args.env_id == "iterated_matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
@@ -381,6 +390,10 @@ class RLRunner:
                         obs1,
                     ),
                 )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
 

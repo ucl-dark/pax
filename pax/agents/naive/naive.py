@@ -9,6 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.naive.network import make_coingame_network, make_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
@@ -32,11 +33,9 @@ class Logger:
     metrics: dict
 
 
-class NaiveLearner:
+class NaiveLearner(AgentInterface):
     """A simple naive learner agent using JAX
     This agent has a few variations on the original naive learner from LOLA (Foerster 2017, et al)
-    Notably:
-    - LOLA uses a baseline for variance reduction; ours uses generalized advantages estimation
     """
 
     def __init__(
@@ -73,10 +72,6 @@ class NaiveLearner:
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
-            # Only need up to the rollout length
-            rewards = rewards[:-1]
-            dones = dones[:-1]
-
             # 'Zero out' the terminated states
             discounts = gamma * jnp.logical_not(dones)
 
@@ -314,7 +309,7 @@ class NaiveLearner:
             )
 
         def prepare_batch(
-            traj_batch: NamedTuple, reward: int, done: Any, action_extras: dict
+            traj_batch: NamedTuple, done: Any, action_extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
@@ -325,19 +320,11 @@ class NaiveLearner:
             )
 
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(reward, [0])
-            _done = jax.lax.expand_dims(done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
                     [traj_batch.behavior_values, _value], axis=0
                 )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
             )
             return traj_batch
 
@@ -384,15 +371,15 @@ class NaiveLearner:
         self,
         traj_batch,
         obs: jnp.ndarray,
-        reward: int,
-        done: Any,
         state: TrainingState,
         mem: MemoryState,
     ):
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
+        traj_batch = self._prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs

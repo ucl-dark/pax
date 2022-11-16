@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import optax
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.hyper.networks import make_network
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
@@ -27,7 +28,7 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class PPO:
+class PPO(AgentInterface):
     """A simple PPO agent using JAX"""
 
     def __init__(
@@ -70,10 +71,6 @@ class PPO:
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
-            # Only need up to the rollout length
-            rewards = rewards[:-1]
-            dones = dones[:-1]
-
             # 'Zero out' the terminated states
             discounts = gamma * jnp.logical_not(dones)
 
@@ -353,7 +350,7 @@ class PPO:
             )
 
         def prepare_batch(
-            traj_batch: NamedTuple, reward: int, done: Any, action_extras: dict
+            traj_batch: NamedTuple, done: Any, action_extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
@@ -364,19 +361,11 @@ class PPO:
             )
 
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(reward, [0])
-            _done = jax.lax.expand_dims(done, [0])
             # need to add final value here
             traj_batch = traj_batch._replace(
                 behavior_values=jnp.concatenate(
                     [traj_batch.behavior_values, _value], axis=0
                 )
-            )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
             )
             return traj_batch
 
@@ -426,15 +415,15 @@ class PPO:
         self,
         traj_batch,
         obs: jnp.ndarray,
-        reward: int,
-        done: Any,
         state: TrainingState,
         mem: MemoryState,
     ):
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
+        traj_batch = self._prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -448,11 +437,9 @@ class PPO:
         return state, mem, metrics
 
 
-# TODO: seed, and player_id not used in CartPole
 def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    print(f"Making network for {args.env_type}")
     network = make_network(action_spec)
 
     # Optimizer
