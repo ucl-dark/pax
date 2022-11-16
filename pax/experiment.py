@@ -88,7 +88,7 @@ def global_setup(args):
 def env_setup(args, logger=None):
     """Set up env variables."""
 
-    if args.env_id == "finite_matrix_game":
+    if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
             env = IteratedMatrixGame(num_inner_steps=args.num_steps)
@@ -247,7 +247,7 @@ def runner_setup(args, env, agents, save_dir, logger):
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
 
-    if args.env_id == "finite_matrix_game":
+    if args.env_id == "iterated_matrix_game":
         obs_shape = env.observation_space(env_params).n
     else:
         obs_shape = env.observation_space(env_params).shape

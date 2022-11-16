@@ -5,7 +5,7 @@ agent1: 'PPO'
 agent2: 'PPO_memory'
 
 # Environment
-env_id: finite_matrix_game
+env_id: iterated_matrix_game
 env_type: meta
 env_discount: 0.96
 payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
