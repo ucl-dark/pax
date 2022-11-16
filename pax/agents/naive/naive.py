@@ -9,6 +9,7 @@ import optax
 from dm_env import TimeStep
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.naive.network import make_coingame_network, make_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
@@ -32,11 +33,9 @@ class Logger:
     metrics: dict
 
 
-class NaiveLearner:
+class NaiveLearner(AgentInterface):
     """A simple naive learner agent using JAX
     This agent has a few variations on the original naive learner from LOLA (Foerster 2017, et al)
-    Notably:
-    - LOLA uses a baseline for variance reduction; ours uses generalized advantages estimation
     """
 
     def __init__(
@@ -378,7 +377,9 @@ class NaiveLearner:
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, traj_batch.dones[-1, ...], mem.extras)
+        traj_batch = self._prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
