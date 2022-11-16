@@ -94,10 +94,6 @@ class PPO:
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
-            # Only need up to the rollout length
-            rewards = rewards[:-1]
-            dones = dones[:-1]
-
             # 'Zero out' the terminated states
             discounts = gamma * jnp.logical_not(dones)
             reverse_batch = (
@@ -392,7 +388,6 @@ class PPO:
         # @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple,
-            reward: jnp.ndarray,
             done: Any,
             action_extras: dict,
         ):
@@ -405,8 +400,6 @@ class PPO:
             )
 
             _value = jax.lax.expand_dims(_value, [0])
-            _reward = jax.lax.expand_dims(reward, [0])
-            _done = jax.lax.expand_dims(done, [0])
 
             # need to add final value here
             traj_batch = traj_batch._replace(
@@ -414,13 +407,6 @@ class PPO:
                     [traj_batch.behavior_values, _value], axis=0
                 )
             )
-            traj_batch = traj_batch._replace(
-                rewards=jnp.concatenate([traj_batch.rewards, _reward], axis=0)
-            )
-            traj_batch = traj_batch._replace(
-                dones=jnp.concatenate([traj_batch.dones, _done], axis=0)
-            )
-
             return traj_batch
 
         # Initialise training state (parameters, optimiser state, extras).
@@ -475,8 +461,6 @@ class PPO:
         self,
         traj_batch: NamedTuple,
         obs: jnp.ndarray,
-        reward: jnp.ndarray,
-        done: Any,
         state: TrainingState,
         mem: MemoryState,
     ):
@@ -484,7 +468,7 @@ class PPO:
         """Update the agent -> only called at the end of a trajectory"""
 
         _, _, mem = self._policy(state, obs, mem)
-        traj_batch = self._prepare_batch(traj_batch, reward, done, mem.extras)
+        traj_batch = self._prepare_batch(traj_batch, traj_batch.dones[-1, ...], mem.extras)
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging
