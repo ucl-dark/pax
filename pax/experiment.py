@@ -16,6 +16,7 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
+from pax.agents.act.act_agent import make_act_agent
 from pax.agents.strategies import (
     Altruistic,
     Defect,
@@ -40,6 +41,7 @@ from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
+from pax.runner_act import ActRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -136,6 +138,8 @@ def env_setup(args, logger=None):
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
+    elif args.runner == "act":
+        env, env_params = gymnax.make("CartPole-v1")
     else:
         raise ValueError(f"Unknown env id {args.env_id}")
     return env, env_params
@@ -146,7 +150,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
 
-    if args.runner == "evo":
+    if args.runner == "evo" or args.runner == "act":
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -227,10 +231,14 @@ def runner_setup(args, env, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
+        if args.runner == "evo":
+            return EvoRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "act":
+            return ActRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )            
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -252,7 +260,7 @@ def agent_setup(args, env, env_params, logger):
         obs_shape = env.observation_space(env_params).shape
     num_actions = env.num_actions
 
-    def get_PPO_memory_agent(seed, player_id):
+    def get_PPO_memory_agent(seed, player_id, obs_shape=obs_shape):
         ppo_memory_agent = make_gru_agent(
             args,
             obs_spec=obs_shape,
@@ -262,7 +270,7 @@ def agent_setup(args, env, env_params, logger):
         )
         return ppo_memory_agent
 
-    def get_PPO_agent(seed, player_id):
+    def get_PPO_agent(seed, player_id, obs_shape=obs_shape):
         ppo_agent = make_agent(
             args,
             obs_spec=obs_shape,
@@ -272,7 +280,7 @@ def agent_setup(args, env, env_params, logger):
         )
         return ppo_agent
 
-    def get_PPO_tabular_agent(seed, player_id):
+    def get_PPO_tabular_agent(seed, player_id, obs_shape=obs_shape):
         ppo_agent = make_agent(
             args,
             obs_spec=obs_shape,
@@ -283,7 +291,7 @@ def agent_setup(args, env, env_params, logger):
         )
         return ppo_agent
 
-    def get_mfos_agent(seed, player_id):
+    def get_mfos_agent(seed, player_id, obs_shape=obs_shape):
         ppo_agent = make_mfos_agent(
             args,
             obs_spec=obs_shape,
@@ -293,7 +301,7 @@ def agent_setup(args, env, env_params, logger):
         )
         return ppo_agent
 
-    def get_hyper_agent(seed, player_id):
+    def get_hyper_agent(seed, player_id, obs_shape=obs_shape):
         hyper_agent = make_hyper(
             args,
             obs_spec=obs_shape,
@@ -303,7 +311,7 @@ def agent_setup(args, env, env_params, logger):
         )
         return hyper_agent
 
-    def get_naive_pg(seed, player_id):
+    def get_naive_pg(seed, player_id, obs_shape=obs_shape):
         naive_agent = make_naive_pg(
             args,
             obs_spec=obs_shape,
@@ -334,6 +342,16 @@ def agent_setup(args, env, env_params, logger):
         agent.player_id = player_id
         return agent
 
+    def get_ACT_agent(seed, player_id, obs_shape=obs_shape):
+        act_agent = make_act_agent(
+            args,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+        return act_agent
+
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
@@ -355,6 +373,7 @@ def agent_setup(args, env, env_params, logger):
         "HyperAltruistic": partial(HyperAltruistic, args.num_envs),
         "HyperDefect": partial(HyperDefect, args.num_envs),
         "HyperTFT": partial(HyperTFT, args.num_envs),
+        "ACT": get_ACT_agent,
     }
 
     if args.runner == "sarl":
@@ -372,10 +391,12 @@ def agent_setup(args, env, env_params, logger):
 
         if args.runner in ["eval", "sarl"]:
             logger.info("Using Independent Learners")
-            return agent_1
+            return agent_1       
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
+        if args.agent1 != "ACT":
+            raise NotImplementedError
 
         num_agents = 2
         seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
@@ -384,8 +405,12 @@ def agent_setup(args, env, env_params, logger):
             seed % seed + i if seed != 0 else 1
             for seed, i in zip(seeds, range(1, num_agents + 1))
         ]
-        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+        if args.runner == "act":
+            agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+            agent_1 = strategies[args.agent2](seeds[1], pids[1], obs_shape=(obs_shape[0]+2,))  # player 2
+        else:            
+            agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+            agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
         if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
             logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
@@ -395,7 +420,7 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
-        if args.runner == "evo":
+        if args.runner == "evo" or args.runner == "act":
             logger.info("Using EvolutionaryLearners")
             return (agent_0, agent_1)
 
@@ -476,6 +501,7 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
+        "ACT": dumb_log,
     }
 
     if args.runner == "sarl":
@@ -548,6 +574,11 @@ def main(args):
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "act":
+        num_iters = args.num_generations  # number of generations
+        print(f"Number of Generations: {num_iters}")
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)        
 
     wandb.finish()
 
