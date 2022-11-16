@@ -6,6 +6,7 @@ dm-haiku
 dm-tree
 evosax
 flax
+gymnax
 hydra-core
 isort
 jax
@@ -15,3 +16,4 @@ optax
 pytest
 wandb
 pytest
+pytest-cov
