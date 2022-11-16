@@ -1,7 +1,12 @@
-## Agents
+# Agents
 
 Pax includes a number of learning and fixed agents. They are specified in the `.yaml` files as `Agent1` and `Agent2`. Canonically, we care about the outcome of `Agent1`. 
 
+## Interfaces
+
+We provide an agent [interface](pax/agents/agent.py) to help develop new agents for pax. These methods are necessary for existing runners and should be functional.
+
+## Existing Agents
 
 All the learning strategies have their own folder and the fixed agents can be viewed in `pax/agents/strategies.py` (inspired by Axelrods' Tournament). 
 
