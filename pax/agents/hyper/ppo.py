@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import optax
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.hyper.networks import make_network
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
@@ -27,7 +28,7 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class PPO:
+class PPO(AgentInterface):
     """A simple PPO agent using JAX"""
 
     def __init__(

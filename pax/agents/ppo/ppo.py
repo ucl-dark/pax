@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import optax
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
     make_sarl_network,
     make_coingame_network,
@@ -31,7 +32,7 @@ class Batch(NamedTuple):
     behavior_log_probs: jnp.ndarray
 
 
-class PPO:
+class PPO(AgentInterface):
     """A simple PPO agent using JAX"""
 
     def __init__(
@@ -413,7 +414,7 @@ class PPO:
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
 
-    def reset_memory(self, memory, eval=False) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> MemoryState:
         num_envs = 1 if eval else self._num_envs
         memory = memory._replace(
             extras={
@@ -433,7 +434,9 @@ class PPO:
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, traj_batch.dones[-1, ...], mem.extras)
+        traj_batch = self._prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs

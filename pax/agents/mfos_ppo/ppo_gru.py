@@ -6,9 +6,9 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from dm_env import TimeStep
 
 from pax import utils
+from pax.agents.agent import AgentInterface
 from pax.agents.mfos_ppo.networks import make_mfos_network
 from pax.utils import TrainingState, get_advantages
 
@@ -47,7 +47,7 @@ class Logger:
     metrics: dict
 
 
-class PPO:
+class PPO(AgentInterface):
     """A simple PPO agent with memory using JAX"""
 
     def __init__(
@@ -497,7 +497,9 @@ class PPO:
 
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
-        traj_batch = self.prepare_batch(traj_batch, traj_batch.dones[-1, ...], mem.extras)
+        traj_batch = self.prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
 
         # update logging

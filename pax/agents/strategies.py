@@ -1,8 +1,10 @@
 from functools import partial
+from re import A
 from typing import Callable, NamedTuple
 
 import jax.numpy as jnp
 import jax.random
+from pax.agents.agent import AgentInterface
 
 from pax.utils import Logger, MemoryState, TrainingState
 
@@ -39,7 +41,7 @@ def reset_mem_fun(num_envs: int) -> Callable:
     return fun
 
 
-class EvilGreedy:
+class EvilGreedy(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -127,7 +129,7 @@ class EvilGreedy:
         return self._state, self._mem
 
 
-class RandomGreedy:
+class RandomGreedy(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -231,7 +233,7 @@ class RandomGreedy:
         return self._state, self._mem
 
 
-class GoodGreedy:
+class GoodGreedy(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -319,7 +321,7 @@ class GoodGreedy:
         return self._state, self._mem
 
 
-class GrimTrigger:
+class GrimTrigger(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -353,7 +355,7 @@ class GrimTrigger:
         return action
 
 
-class TitForTat:
+class TitForTat(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -388,7 +390,7 @@ class TitForTat:
         return action
 
 
-class Defect:
+class Defect(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -417,7 +419,7 @@ class Defect:
         return jnp.ones((batch_size,)), state, mem
 
 
-class Altruistic:
+class Altruistic(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -446,7 +448,7 @@ class Altruistic:
         return self._state, self._mem
 
 
-class Random:
+class Random(AgentInterface):
     def __init__(self, num_actions: int, num_envs: int):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -480,7 +482,7 @@ class Random:
         return self._state, self._mem
 
 
-class Stay:
+class Stay(AgentInterface):
     def __init__(self, num_actions: int, num_envs: int):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -511,7 +513,7 @@ class Stay:
         return self._state, self._mem
 
 
-class HyperAltruistic:
+class HyperAltruistic(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
@@ -535,7 +537,7 @@ class HyperAltruistic:
         return self._mem
 
 
-class HyperDefect:
+class HyperDefect(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
