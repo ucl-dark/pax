@@ -142,9 +142,7 @@ class RLRunner:
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
-        agent2.batch_update = jax.jit(
-            jax.vmap(agent2.update, (1, 0, 0, 0, 0, 0), 0)
-        )
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
@@ -278,8 +276,6 @@ class RLRunner:
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
                 obs2,
-                r2,
-                jnp.ones_like(r2, dtype=jnp.bool_),
                 a2_state,
                 a2_mem,
             )
@@ -367,8 +363,6 @@ class RLRunner:
             a1_state, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
-                self.reduce_opp_dim(r1),
-                jnp.ones_like(self.reduce_opp_dim(r1), dtype=jnp.bool_),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )

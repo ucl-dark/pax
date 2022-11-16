@@ -38,7 +38,7 @@ from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
-from pax.runner_rl import RLRunner
+from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -134,9 +134,8 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
-    elif args.env_id == "sarl":
-        env, env_params = gymnax.make("CartPole-v1")
-
+    elif args.runner == "sarl":
+        env, env_params = gymnax.make(args.env_id)
     else:
         raise ValueError(f"Unknown env id {args.env_id}")
     return env, env_params
@@ -358,7 +357,7 @@ def agent_setup(args, env, env_params, logger):
         "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
-    if args.env_id == "sarl":
+    if args.runner == "sarl":
         assert args.agent1 in strategies
         num_agents = 1
         seeds = [args.seed]
@@ -445,7 +444,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_id in ["coin_game", "sarl"]:
+        if args.env_id in ["finite_matrix_game"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -479,7 +478,7 @@ def watcher_setup(args, logger):
         "MFOS_pretrained": dumb_log,
     }
 
-    if args.env_id == "sarl":
+    if args.runner == "sarl":
         assert args.agent1 in strategies
 
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
