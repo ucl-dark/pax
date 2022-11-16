@@ -117,7 +117,7 @@ class EvilGreedy:
 
         self._policy = _policy
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -221,7 +221,7 @@ class RandomGreedy:
 
         self._policy = _policy
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -309,7 +309,7 @@ class GoodGreedy:
 
         self._policy = _policy
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -326,7 +326,7 @@ class GrimTrigger:
         self._logger = Logger
         self._logger.metrics = {}
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -360,7 +360,7 @@ class TitForTat:
         self._logger = Logger()
         self._logger.metrics = {}
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -395,7 +395,7 @@ class Defect:
         self._logger = Logger()
         self._logger.metrics = {}
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -436,7 +436,7 @@ class Altruistic:
         batch_size = obs.shape[0]
         return jnp.zeros((batch_size,)), state, mem
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -470,7 +470,7 @@ class Random:
 
         self._policy = jax.jit(_policy)
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -501,7 +501,7 @@ class Stay:
 
         self._policy = jax.jit(_policy)
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, mem, *args) -> MemoryState:
@@ -528,7 +528,7 @@ class HyperAltruistic:
         action = jnp.tile(20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -553,7 +553,7 @@ class HyperDefect:
         action = jnp.tile(-20 * jnp.ones((5,)), (batch_size, 1))
         return action, state, mem
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:
@@ -583,7 +583,7 @@ class HyperTFT:
         )
         return action, state, mem
 
-    def update(self, unused0, unused1, unused2, unused3, state, mem) -> None:
+    def update(self, unused0, unused1, state, mem) -> None:
         return state, mem, {}
 
     def reset_memory(self, *args) -> TrainingState:

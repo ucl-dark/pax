@@ -71,8 +71,6 @@ class SARLRunner:
             (
                 rngs,
                 obs,
-                rewards,
-                done,
                 a1_state,
                 a1_mem,
                 env_state,
@@ -113,8 +111,6 @@ class SARLRunner:
             return (
                 rngs,
                 next_obs,  # next_obs
-                rewards,
-                done,
                 a1_state,
                 new_a1_mem,
                 env_state,
@@ -133,8 +129,6 @@ class SARLRunner:
             ).reshape((args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, _env_params)
-            rewards = jnp.zeros((args.num_envs))
-            done = jnp.zeros((args.num_envs), dtype=jnp.bool_)
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # run trials
@@ -143,8 +137,6 @@ class SARLRunner:
                 (   
                     rngs,
                     obs,
-                    rewards,
-                    done,
                     _a1_state,
                     _a1_mem,
                     env_state,
@@ -157,8 +149,6 @@ class SARLRunner:
             (
                 rngs,
                 obs,
-                rewards,
-                done,
                 _a1_state,
                 _a1_mem,
                 env_state,
@@ -169,8 +159,6 @@ class SARLRunner:
             _a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
-                rewards,
-                done,
                 _a1_state,
                 _a1_mem,
             )
