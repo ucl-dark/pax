@@ -420,7 +420,9 @@ class PPO:
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
 
-        traj_batch = self._prepare_batch(traj_batch, traj_batch.dones[-1, ...], mem.extras)
+        traj_batch = self._prepare_batch(
+            traj_batch, traj_batch.dones[-1, ...], mem.extras
+        )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
             self._num_minibatches * self._num_epochs
@@ -434,11 +436,9 @@ class PPO:
         return state, mem, metrics
 
 
-# TODO: seed, and player_id not used in CartPole
 def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
 
-    print(f"Making network for {args.env_type}")
     network = make_network(action_spec)
 
     # Optimizer

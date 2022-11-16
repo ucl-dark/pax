@@ -43,7 +43,7 @@ from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
-    logger_naive,
+    logger_naive_exact,
     losses_naive,
     losses_ppo,
     naive_pg_losses,
@@ -88,7 +88,7 @@ def global_setup(args):
 def env_setup(args, logger=None):
     """Set up env variables."""
 
-    if args.env_id == "matrix_game":
+    if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
             env = IteratedMatrixGame(num_inner_steps=args.num_steps)
@@ -102,17 +102,16 @@ def env_setup(args, logger=None):
                     f"Env Type: Meta | Episode Length: {args.num_steps}"
                 )
 
-        elif args.env_type == "infinite":
-            env = InfiniteMatrixGame(num_steps=args.num_steps)
-            env_params = InfiniteMatrixGameParams(
-                payoff_matrix=payoff, gamma=args.ppo.gamma
+    elif args.env_id == "infinite_matrix_game":
+        payoff = jnp.array(args.payoff)
+        env = InfiniteMatrixGame(num_steps=args.num_steps)
+        env_params = InfiniteMatrixGameParams(
+            payoff_matrix=payoff, gamma=args.ppo.gamma
+        )
+        if logger:
+            logger.info(
+                f"Game Type: Infinite | Inner Discount: {args.env_discount}"
             )
-            if logger:
-                logger.info(
-                    f"Game Type: Infinite | Inner Discount: {args.env_discount}"
-                )
-        else:
-            raise ValueError(f"Unknown env type {args.env_type}")
 
     elif args.env_id == "coin_game":
         payoff = jnp.array(args.payoff)
@@ -137,6 +136,8 @@ def env_setup(args, logger=None):
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
+    else:
+        raise ValueError(f"Unknown env id {args.env_id}")
     return env, env_params
 
 
@@ -244,16 +245,11 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-    if args.env_id == "coin_game":
-        obs_shape = env.observation_space(env_params).shape
-    elif args.env_id == "matrix_game":
-        if args.env_type == "infinite":
-            obs_shape = env.observation_space(env_params).shape
-        else:
-            obs_shape = env.observation_space(env_params).n
+
+    if args.env_id == "iterated_matrix_game":
+        obs_shape = env.observation_space(env_params).n
     else:
         obs_shape = env.observation_space(env_params).shape
-
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
@@ -320,7 +316,7 @@ def agent_setup(args, env, env_params, logger):
     def get_naive_learner(seed, player_id):
         agent = NaiveExact(
             action_dim=num_actions,
-            env=dummy_env,
+            env_params=env_params,
             lr=args.naive.lr,
             num_envs=args.num_envs,
             player_id=player_id,
@@ -377,7 +373,7 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "sarl"]:
             logger.info("Using Independent Learners")
             return agent_1
-    else:        
+    else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
 
@@ -440,7 +436,7 @@ def watcher_setup(args, logger):
 
     def naive_logger(agent):
         losses = losses_naive(agent)
-        policy = logger_naive(agent)
+        policy = logger_naive_exact(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -448,7 +444,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if not args.env_id == "coin_game" or not args.runner == sarl:
+        if args.env_id in ["finite_matrix_game"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -485,7 +481,7 @@ def watcher_setup(args, logger):
     if args.runner == "sarl":
         assert args.agent1 in strategies
 
-        agent_1_log = naive_pg_log #strategies[args.agent1] #
+        agent_1_log = naive_pg_log  # strategies[args.agent1] #
 
         return agent_1_log
     else:

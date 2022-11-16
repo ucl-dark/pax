@@ -142,9 +142,7 @@ class RLRunner:
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
-        agent2.batch_update = jax.jit(
-            jax.vmap(agent2.update, (1, 0, 0, 0), 0)
-        )
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
@@ -323,7 +321,7 @@ class RLRunner:
             if args.agent2 == "NaiveEx":
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
-            elif self.args.env_type in ["meta", "infinite"]:
+            elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 _a2_state, _a2_mem = agent2.batch_init(
                     jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
@@ -383,7 +381,7 @@ class RLRunner:
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id == "matrix_game":
+            elif args.env_id == "iterated_matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
@@ -392,6 +390,10 @@ class RLRunner:
                         obs1,
                     ),
                 )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
 
