@@ -102,7 +102,7 @@ class InfiniteMatrixGame(environment.Environment):
     @property
     def num_actions(self) -> int:
         """Number of actions possible in environment."""
-        return 1
+        return 5
 
     def action_space(
         self, params: Optional[EnvParams] = None

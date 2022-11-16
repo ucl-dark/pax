@@ -5,8 +5,8 @@ agent1: 'Hyper'
 agent2: 'NaiveEx'
 
 # Environment
-env_id: matrix_game
-env_type: infinite
+env_id: infinite_matrix_game
+env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 runner: rl 

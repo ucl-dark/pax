@@ -280,7 +280,7 @@ class EvalRunner:
 
             if self.args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(obs[1])
-            elif self.args.env_type in ["meta", "infinite"]:
+            elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
