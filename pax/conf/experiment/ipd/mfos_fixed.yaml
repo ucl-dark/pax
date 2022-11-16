@@ -15,6 +15,7 @@ runner: rl
 num_envs: 50
 num_opps: 1
 num_steps: 5 # number of steps per episode
+num_inner_steps: 5
 total_timesteps: 5e4
 
 # Useful information

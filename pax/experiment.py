@@ -43,7 +43,7 @@ from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
-    logger_naive,
+    logger_naive_exact,
     losses_naive,
     losses_ppo,
     naive_pg_losses,
@@ -317,7 +317,7 @@ def agent_setup(args, env, env_params, logger):
     def get_naive_learner(seed, player_id):
         agent = NaiveExact(
             action_dim=num_actions,
-            env=dummy_env,
+            env_params=env_params,
             lr=args.naive.lr,
             num_envs=args.num_envs,
             player_id=player_id,
@@ -437,7 +437,7 @@ def watcher_setup(args, logger):
 
     def naive_logger(agent):
         losses = losses_naive(agent)
-        policy = logger_naive(agent)
+        policy = logger_naive_exact(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)

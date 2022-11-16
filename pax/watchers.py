@@ -191,8 +191,8 @@ def losses_naive(agent: NaiveExact) -> dict:
     return losses
 
 
-def logger_naive(agent: NaiveExact) -> dict:
-    params = agent._state.params
+def logger_naive_exact(agent: NaiveExact) -> dict:
+    params = agent._mem.hidden
     pid = agent.player_id
     params = params.mean(axis=0)
     cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
