@@ -4,7 +4,6 @@ about: Submit a bug report to help us improve Pax. If this doesn’t look right,
   choose a different type.
 title: "[BUG]"
 labels: 'bug'
----
 
 body:
 - type: markdown
