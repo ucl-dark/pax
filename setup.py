@@ -14,6 +14,10 @@ extras_require = {
         "black>=19.10b0",
         "flake8>=3.7",
         "flake8-bugbear>=20.1",
+        "sphinx==4.0.2",
+        "sphinx-rtd-theme==1.0.0",
+        "myst-parser==0.15.1",
+        "nbsphinx==0.8.6",
     ],
 }
 
