@@ -1,6 +1,6 @@
 import os
-
 import setuptools
+import subprocess
 
 
 def _parse_requirements(requirements_txt_path):
@@ -22,9 +22,30 @@ if __name__ == "__main__":
     with open("README.md") as f:
         long_description = f.read()
 
+    cwd = os.path.dirname(os.path.abspath(__file__))
+    version = open("version.txt", "r").read().strip()
+    sha = "Unknown"
+
+    try:
+        sha = (
+            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=cwd)
+            .decode("ascii")
+            .strip()
+        )
+    except subprocess.CalledProcessError:
+        pass
+
+    if sha != "Unknown" and not os.getenv("PAX_RELEASE_BUILD"):
+        version += "+" + sha[:7]
+
+    version_path = os.path.join(cwd, "pax", "version.py")
+    with open(version_path, "w") as f:
+        f.write("__version__ = '{}'\n".format(version))
+        f.write("git_version = {}\n".format(repr(sha)))
+
     setuptools.setup(
         name="pax",
-        version="0.1.0b",
+        version=version,
         description="Pax: Environment for ...",
         long_description=long_description,
         long_description_content_type="text/markdown",
