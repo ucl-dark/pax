@@ -1,9 +1,8 @@
 ---
-name: Bug Report
-description: >-
-  Report a bug or unexpected behavior to help us improve the package
-labels:
-- bug
+name: \U0001F41B Bug Report
+description: Report a bug or unexpected behavior to help us improve the package
+labels: ["bug"]
+title: "[BUG]: "
 
 body:
 - type: markdown
