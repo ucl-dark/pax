@@ -110,3 +110,6 @@ plots/
 
 # Sphinx documentation
 docs/_build/
+
+# Pax
+pax/version.py
