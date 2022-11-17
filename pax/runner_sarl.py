@@ -134,7 +134,7 @@ class SARLRunner:
             # run trials
             vals, traj = jax.lax.scan(
                 _inner_rollout,
-                (   
+                (
                     rngs,
                     obs,
                     _a1_state,
@@ -167,7 +167,7 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = jnp.sum(traj.rewards)/(jnp.sum(traj.dones)+1e-8)
+            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
 
             return (
