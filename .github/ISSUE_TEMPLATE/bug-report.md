@@ -1,9 +1,9 @@
 ---
 name: "\U0001F41B Bug Report"
-about: Submit a bug report to help us improve Pax. If this doesn’t look right,
-  choose a different type.
-title: "[BUG]"
-labels: 'bug'
+description: >-
+  Report a bug or unexpected behavior to help us improve the package
+labels:
+- bug
 
 body:
 - type: markdown
@@ -31,7 +31,7 @@ body:
 - type: input
   attributes:
     label: What pax version are you using?
-    placeholder: For example jax v0.1.0b+3c35a4e
+    placeholder: For example jax v0.1.0b+XXXX
 - type: input
   attributes:
     label: What jax/jaxlib version are you using?
