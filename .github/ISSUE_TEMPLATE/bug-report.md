@@ -1,5 +1,5 @@
 ---
-name: "\U0001F41B Bug Report"
+name: Bug Report
 description: >-
   Report a bug or unexpected behavior to help us improve the package
 labels:
