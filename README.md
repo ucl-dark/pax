@@ -25,7 +25,10 @@ Pax is composed of 3 components: Environments, Agents and Runners.
 Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
 
 ```python
-from pax.envs.iterated_matrix_game import IteratedMatrixGame, EnvParams
+from pax.envs.iterated_matrix_game import (
+    IteratedMatrixGame,
+    EnvParams,
+)
 
 env = IteratedMatrixGame(num_inner_steps=5)
 env_params = EnvParams(payoff_matrix=payoff)
@@ -36,25 +39,23 @@ obs, env_state = env.reset(rng, env_params)
 done = False
 
 while not done:
-     obs, env_state, rewards, done, info = env.step(
-          rng,
-          env_state,
-          actions,
-          env_params)
+    obs, env_state, rewards, done, info = env.step(
+        rng, env_state, actions, env_params
+    )
 ```
-Similar to [gymnax](https://github.com/RobertTLange/gymnax), we can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan`.
+We can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan`.
 
 ```python
 import IteratedMatrixGame, EnvParams
 import jax.numpy as jnp
- 
+
 # batch over env initalisations
 num_envs = 2
 payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
 rollout_length = 50
 
 rng = jnp.concatenate(
-     [jax.random.PRNGKey(0), jax.random.PRNGKey(1)]
+    [jax.random.PRNGKey(0), jax.random.PRNGKey(1)]
 ).reshape(num_envs, -1)
 
 env = IteratedMatrixGame(num_inner_steps=rollout_length)
@@ -64,28 +65,32 @@ action = jnp.ones((num_envs,), dtype=jnp.float32)
 
 # we want to batch over rngs, actions
 env.step = jax.vmap(
-     env.step,
-     in_axes=(0, None, 0, None),
-     out_axes=(0, None, 0, 0, 0)
+    env.step,
+    in_axes=(0, None, 0, None),
+    out_axes=(0, None, 0, 0, 0),
 )
 
 obs, env_state = env.reset(rng, env_params)
 
 # lets scan the rollout for speed
 def rollout(carry, unused):
-     carry = (_, env_state, env_rng)
-     actions = (action, action)
-     obs, env_state, rewards, done, info = env.step(
-          env_rng,
-          env_state,
-          actions,
-          env_params)
-     
-     return (obs, env_state, env_rng),
-      (obs, actions, rewards, done)
+    carry = (_, env_state, env_rng)
+    actions = (action, action)
+    obs, env_state, rewards, done, info = env.step(
+        env_rng, env_state, actions, env_params
+    )
+
+    return (obs, env_state, env_rng), (
+        obs,
+        actions,
+        rewards,
+        done,
+    )
+
 
 final_state, trajectory = jax.lax.scan(
-     rollout, (obs, env_state, rng), rollout_length)
+    rollout, (obs, env_state, rng), rollout_length
+)
 ```
 
 ### Agents
@@ -95,21 +100,19 @@ The agent interface is as follows:
 import jax.numpy as jnp
 import Agent
 
-args = {'hidden'= 16, 'observation_spec'=5}
+args = {"hidden": 16, "observation_spec": 5}
 rng = jax.random.PRNGKey(0)
 bs = 1
 init_hidden = jnp.zeros((bs, args.hidden))
 obs = jnp.ones((bs, 5))
 
 agent = Agent(args)
-state, memory =  agent.make_initial_state(rng, init_hidden)
+state, memory = agent.make_initial_state(rng, init_hidden)
 action, state, mem = agent.policy(rng, obs, mem)
 
 state, memory, stats = agent.update(
-     traj_batch,
-     obs,
-     state,
-     mem)
+    traj_batch, obs, state, mem
+)
 
 mem = agent.reset_memory(mem, False)
 ```
@@ -118,92 +121,90 @@ Note that `make_initial_state`, `policy`, `update` and `reset_memory` all suppor
 
 
 ```python
-     # batch MemoryState not TrainingState
-     agent.batch_reset = jax.jit(
-          jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
-     )
+# batch MemoryState not TrainingState
+agent.batch_reset = jax.jit(
+    jax.vmap(agent.reset_memory, (0, None), 0),
+    static_argnums=1,
+)
 
-     agent.batch_policy = jax.jit(
-            jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
-        )
-     agent1.batch_init = jax.vmap(
-          agent.make_initial_state,
-          (None, 0),
-          (None, 0),
-     )
+agent.batch_policy = jax.jit(
+    jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
+)
+agent1.batch_init = jax.vmap(
+    agent.make_initial_state,
+    (None, 0),
+    (None, 0),
+)
 ```
 
 ### Runners
 We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up,
 
 ```python
-     def _rollout(carry, unused):
-          """Runner for inner episode"""
-          (
-               rngs,
-               obs,
-               a_state,
-               a_mem,
-               env_state,
-               env_params,
-          ) = carry
+def _rollout(carry, unused):
+    """Runner for inner episode"""
+    (
+        rngs,
+        obs,
+        a_state,
+        a_mem,
+        env_state,
+        env_params,
+    ) = carry
 
-          # unpack rngs
-          rngs = self.split(rngs, 4)
-          action, a_state, new_a_mem = agent1.batch_policy(
-               a_state,
-               obs[0],
-               a_mem,
-          )
+    # unpack rngs
+    rngs = self.split(rngs, 4)
+    action, a_state, new_a_mem = agent1.batch_policy(
+        a_state,
+        obs[0],
+        a_mem,
+    )
 
-          next_obs, env_state, rewards, done, info = env.step(
-               rngs,
-               env_state,
-               (action, action),
-               env_params,
-          )
+    next_obs, env_state, rewards, done, info = env.step(
+        rngs,
+        env_state,
+        (action, action),
+        env_params,
+    )
 
-          traj = Sample(
-               obs1,
-               action,
-               rewards[0],
-               new_a1_mem.extras["log_probs"],
-               new_a1_mem.extras["values"],
-               done,
-               a1_mem.hidden,
-               )
+    traj = Sample(
+        obs1,
+        action,
+        rewards[0],
+        new_a1_mem.extras["log_probs"],
+        new_a1_mem.extras["values"],
+        done,
+        a1_mem.hidden,
+    )
 
-          return (
-               rngs,
-               next_obs,
-               a1_state,
-               new_a1_mem,
-               env_state,
-               env_params,
-          ), (
-               traj1,
-               traj2,
-          )
+    return (
+        rngs,
+        next_obs,
+        a1_state,
+        new_a1_mem,
+        env_state,
+        env_params,
+    ), (
+        traj1,
+        traj2,
+    )
 
 
-     agent = Agent(args)
-     state, memory =  agent.make_initial_state(rng, init_hidden)
-     
-     for _ in range(num_updates):
-          final_timestep, batch_trajectory = jax.lax.scan(
-               _rollout,
-               ((obs, env_state, rng), rollout_length),
-               10
-          )
+agent = Agent(args)
+state, memory = agent.make_initial_state(rng, init_hidden)
 
-          _, obs, rewards, a1_state, a1_mem, _, _ = final_timestep
+for _ in range(num_updates):
+    final_timestep, batch_trajectory = jax.lax.scan(
+        _rollout,
+        ((obs, env_state, rng), rollout_length),
+        10,
+    )
 
-          state, memory, stats = agent.update(
-               batch_trajectory,
-               obs[0],
-               state,
-               memory
-           )
+    _, obs, rewards, a1_state, a1_mem, _, _ = final_timestep
+
+    state, memory, stats = agent.update(
+        batch_trajectory, obs[0], state, memory
+    )
 ```
 
 Note this isn't even a fully optimised example - we could jit the outer loop!
