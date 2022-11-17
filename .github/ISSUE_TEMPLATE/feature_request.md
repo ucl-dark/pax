@@ -1,8 +1,10 @@
 ---
-name: '\U0001F680 Feature Request'
-about: 'Suggest a new idea for this project'
+name: "\U0001F680 Feature Request"
+about: Suggest an idea for this project
 title: "[FEATURE]: "
-labels: 'enhancement'
+labels: enhancement
+assignees: ''
+
 ---
 
 Please:
