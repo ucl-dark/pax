@@ -201,7 +201,7 @@ class ActRunner:
                 obs1,
                 a1_mem,
             )
-            print("Reward 1: ", r1)
+
             obs2 = jnp.concatenate([obs1, a1], axis=-1)
 
             a2, a2_state, new_a2_mem = agent2.batch_policy(
@@ -239,7 +239,7 @@ class ActRunner:
             obs1 = next_obs
             r1 = rewards
             r2 = rewards
-            print("Reward 1: ", r1)
+
             return (
                 rngs,
                 obs1,
@@ -381,7 +381,10 @@ class ActRunner:
             # Fitness
             # fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             # other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
-            fitness = traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8)
+            if args.adversary_type == "ally":
+                fitness = traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8)
+            elif args.adversary_type == "adversary":
+                fitness = -(traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8))
             other_fitness = traj_2.rewards.sum(axis=(0, 1, 3, 4))/(traj_2.dones.sum(axis=(0, 1, 3, 4))+1e-8)
             # fitness = jnp.sum(traj_1.rewards)/(jnp.sum(traj_1.dones)+1e-8)
             # other_fitness = jnp.sum(traj_2.rewards)/(jnp.sum(traj_2.dones)+1e-8)
