@@ -59,7 +59,6 @@ class RunningWithScissors(environment.Environment):
         self,
         num_inner_steps: int,
         num_outer_steps: int,
-        cnn: bool,
     ):
 
         super().__init__()
@@ -80,14 +79,16 @@ class RunningWithScissors(environment.Environment):
             # new_redcoin = (2, 2)
 
             agent_loc = jnp.array([state.red_pos[0], state.red_pos[1]])
-            ego_offset = jnp.ones(2, dtype=jnp.int8) - agent_loc
+            # agent_rot = state.red_pos[2]
 
-            rel_other_player = (state.blue_pos + ego_offset) % 3
-            rel_red_coin = (state.red_coin_pos + ego_offset) % 3
-            rel_blue_coin = (state.blue_coin_pos + ego_offset) % 3
+            ego_offset = 3 * jnp.ones(2, dtype=jnp.int8) - agent_loc
+
+            rel_other_player = state.blue_pos + ego_offset
+            rel_red_coin = state.red_coin_pos + ego_offset
+            rel_blue_coin = state.blue_coin_pos + ego_offset
 
             # create observation
-            obs = jnp.zeros((5, 5, 4), dtype=jnp.int8)
+            obs = jnp.zeros((10, 10, 4), dtype=jnp.int8)
             obs = obs.at[1, 1, 0].set(1)
             obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
             obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
@@ -109,8 +110,6 @@ class RunningWithScissors(environment.Environment):
                 )
             )
 
-            if not cnn:
-                return obs1.flatten(), obs2.flatten()
             return obs1, obs2
 
         def _step(
@@ -288,14 +287,20 @@ class RunningWithScissors(environment.Environment):
             key: jnp.ndarray, params: EnvParams
         ) -> Tuple[jnp.ndarray, EnvState]:
             key, subkey = jax.random.split(key)
-            all_pos = jax.random.randint(
-                subkey, shape=(4, 3), minval=(0, 0), maxval=(10, 4)
+            player_pos = jax.random.randint(
+                subkey, shape=(2, 3), minval=0, maxval=10
+            )
+            # clip orientation
+            player_pos = player_pos % jnp.array([10, 10, 3])
+
+            item_pos = jax.random.randint(
+                subkey, shape=(2, 2), minval=0, maxval=10
             )
             state = EnvState(
-                red_pos=all_pos[0, :],
-                blue_pos=all_pos[1, :],
-                red_coin_pos=all_pos[2, :],
-                blue_coin_pos=all_pos[3, :],
+                red_pos=player_pos[0, :],
+                blue_pos=player_pos[1, :],
+                red_coin_pos=item_pos[0, :],
+                blue_coin_pos=item_pos[1, :],
                 inner_t=0,
                 outer_t=0,
             )
@@ -305,7 +310,6 @@ class RunningWithScissors(environment.Environment):
         # overwrite Gymnax as it makes single-agent assumptions
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
-        self.cnn = cnn
 
         self.step = _step
         self.reset = _reset
