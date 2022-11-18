@@ -1,9 +1,9 @@
 # Environments
 
-## Environment 1
+## Matrix Game
 
-Lorem ipsum.
+We include 2 x 2 matrix games. 
 
-## Environment 2
+## Coin Game
 
-Lorem ipsum.
+We include a 3 x 3 grid-style game. 

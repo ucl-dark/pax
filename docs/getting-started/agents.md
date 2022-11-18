@@ -1,9 +1,17 @@
 # Agents 
 
-## Agent 1
+## PPO
 
-Lorem ipsum.
+This is a PPO agent. 
 
-## Agent 2
+## Model-Free Opponent Shaping (M-FOS)
 
-Lorem ipsum.
+This is a M-FOS agent. 
+
+## Context and History Aware Other Shaping (CHAOS)
+
+This is a CHAOS agent. 
+
+## Good Shepherd (GS)
+
+This is a GS agent. 
