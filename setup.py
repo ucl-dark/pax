@@ -48,7 +48,7 @@ if __name__ == "__main__":
         f.write("git_version = {}\n".format(repr(sha)))
 
     setuptools.setup(
-        name="pax",
+        name="pax-rl",
         version=version,
         description="Pax: Environment for ...",
         long_description=long_description,
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         url="https://github.com/akbir/pax",
         license="Apache License, Version 2.0",
         packages=["pax"],
-        python_requires=">=3.7",
+        python_requires=">=3.9",
         install_requires=_parse_requirements("requirements.txt"),
         extras_require=extras_require,
         classifiers=[
@@ -66,8 +66,6 @@ if __name__ == "__main__":
             "Operating System :: POSIX :: Linux",
             "Operating System :: MacOS",
             "Programming Language :: Python :: 3",
-            "Programming Language :: Python :: 3.7",
-            "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Topic :: Scientific/Engineering :: Artificial Intelligence",
             "Topic :: Games/Entertainment",
