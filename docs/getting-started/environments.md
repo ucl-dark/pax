@@ -27,28 +27,17 @@ while not done:
     )
 ```
 
-## Options
+## List of Environments
 
 |       Name | Description   | 
 | :----------- | :----------- |
-|`IteratedMatrixGame`| Classic normal form game with a 2x2 payoff matrix repeatedly played over `n` steps. |                       
-|`InfiniteMatrixGame` | Special case of the classic normal form game that calculates an exact value, simulating an infinite game. 
-|`CoinGame`           | Classic grid-world social dilemma environment.          |                                                 
+|`IteratedMatrixGame`(num_inner_steps)| Classic normal form game with a 2x2 payoff matrix repeatedly played over `n` steps. |                       
+|`InfiniteMatrixGame`(num_steps) | Special case of the classic normal form game that calculates an exact value, simulating an infinite game. 
+|`CoinGame`(num_inner_steps, num_outer_steps, cnn, egocentric)           | Classic grid-world social dilemma environment.          |                                                 
 
-<!-- ## Matrix Games
-We include iterated and infinite matrix games. 
-
-$$ 
-\begin{bmatrix}
-\text{CC} & \text{DC}  \\
-\text{CD} & \text{DD}  \\
-\end{bmatrix} 
-$$  -->
-
-<!-- ## Coin Game
-
-We include the classic 3 x 3 grid-style Coin Game.  -->
-
+```{note}
+Docstrings are under constuction. Please check back later. 
+```
 
 
 
