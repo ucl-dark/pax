@@ -1,6 +1,8 @@
 # Agents 
 
-We provide a number of fixed opponents and learning agents to train and train against. 
+## Overview 
+
+Pax provides a number of fixed opponents and learning agents to train and train against. 
 
 ## Fixed
 

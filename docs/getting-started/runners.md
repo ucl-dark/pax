@@ -1,6 +1,8 @@
 # Runner 
 
-We provide a number of experiment runners useful for different use cases of training and evaluating reinforcement learning agents. 
+## Overview 
+
+Pax provides a number of experiment runners useful for different use cases of training and evaluating reinforcement learning agents. 
 
 ## Single-Agent Reinforcement Learning (SARL)
 
