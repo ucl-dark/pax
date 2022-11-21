@@ -1,9 +1,25 @@
 # Environments
 
-## Matrix Game
+We provide a number of environments for learning agents to train within. 
 
-We include 2 x 2 matrix games. 
+## Matrix Games
+We include iterated and infinite matrix games. 
+
+$$ 
+\begin{bmatrix}
+\text{CC} & \text{DC}  \\
+\text{CD} & \text{DD}  \\
+\end{bmatrix} 
+$$ 
+
 
 ## Coin Game
 
-We include a 3 x 3 grid-style game. 
+We include the classic 3 x 3 grid-style Coin Game. 
+
+
+
+
+
+
+

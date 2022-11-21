@@ -217,6 +217,11 @@ Because JAX installation is different depending on your CUDA version, Haiku does
 
 First, follow these instructions to install JAX with the relevant accelerator support.
 
+``` 
+pip install -r requirements.txt
+``` 
+
+
 ## General Information
 The project entrypoint is `pax/experiment.py`. The simplest command to run a game would be: 
 

@@ -1,7 +1,3 @@
 # Installation
 
-Pax is written in pure Python, but depends on C++ code via JAX.
-
-Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
-
-First, follow these instructions to install JAX with the relevant accelerator support.
+PAX will soon be available to install via the [Python Package Index](https://github.com/akbir/pax). For full installation instructions, please refer to the [Install Guide](https://github.com/akbir/pax) in the project README.
