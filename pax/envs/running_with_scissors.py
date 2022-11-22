@@ -1,3 +1,5 @@
+from ast import Num
+from turtle import st
 from typing import Optional, Tuple
 
 import chex
@@ -28,7 +30,8 @@ ROTATIONS = jnp.array(
         [0, 0, 0],  # forward
         [0, 0, 0],  # stay
         [0, 0, 0],  # fire
-    ]
+    ],
+    dtype=jnp.int8,
 )
 
 STEP = jnp.array(
@@ -37,11 +40,16 @@ STEP = jnp.array(
         [1, 0, 0],  # right
         [0, -1, 0],  # down
         [-1, 0, 0],  # left
-    ]
+    ],
+    dtype=jnp.int8,
 )
 
 GRID_SIZE = 10
 OBS_SIZE = 5
+NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
+PADDING = OBS_SIZE - 1
+
+
 # POS = [x, y, theta]
 # right turn = 0  -> [x, y, theta + 1]
 # left turn = 1 -> [x, y, theta - 1]
@@ -54,6 +62,7 @@ class RunningWithScissors(environment.Environment):
     JAX Compatible version of coin game environment.
     0. Make the environment larger (10x10)
     1. We make the environment 2D with orientation
+    2. Agents can not stand or move onto same square (coins can respawn there tho)
     2. Then we add a fire action
     3. Then we add variable number of coins
     """
@@ -66,62 +75,102 @@ class RunningWithScissors(environment.Environment):
 
         super().__init__()
 
-        def _relative_position(state: EnvState) -> jnp.ndarray:
-            """Assume canonical agent is red player"""
-            # (x) redplayer at (2, 2)
-            # (y) redcoin at   (0 ,0)
-            #
-            #  o o x        o o y
-            #  o o o   ->   o x o
-            #  y o o        o o o
-            #
-            # redplayer goes to (1, 1)
-            # redcoing goes to  (2, 2)
-            # offset = (-1, -1)
-            # new_redcoin = (0, 0) + (-1, -1) = (-1, -1) mod3
-            # new_redcoin = (2, 2)
+        pos_choice = jnp.array(
+            [[(i, j) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
+            dtype=jnp.int8,
+        ).reshape(-1, 2)
 
-            agent_loc = state.red_pos[:2]
-            agent_rot = state.red_pos[2]
-
-            ego_offset = 3 * jnp.ones(2, dtype=jnp.int8) - agent_loc
-
-            rel_other_player = state.blue_pos[:2] + ego_offset
-            rel_red_coin = state.red_coin_pos + ego_offset
-            rel_blue_coin = state.blue_coin_pos + ego_offset
-
-            # create observation
-            obs = jnp.zeros((GRID_SIZE, GRID_SIZE, 4), dtype=jnp.int8)
-            obs = obs.at[1, 1, 0].set(1)
-            obs = obs.at[rel_other_player[0], rel_other_player[1], 1].set(1)
-            obs = obs.at[rel_red_coin[0], rel_red_coin[1], 2].set(1)
-            obs = obs.at[rel_blue_coin[0], rel_blue_coin[1], 3].set(1)
-
-            obs90 = jnp.rot90(obs, k=1, axes=(0, 1))
-            obs180 = jnp.rot90(obs, k=2, axes=(0, 1))
-            obs270 = jnp.rot90(obs, k=3, axes=(0, 1))
-
-            obs = jnp.where(agent_rot == 1, obs90, obs)
-            obs = jnp.where(agent_rot == 2, obs180, obs)
-            obs = jnp.where(agent_rot == 3, obs270, obs)
-            return obs
+        # grid = jnp.zeros(
+        #         (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
+        #         dtype=jnp.int8,
+        #     )
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
-            obs1 = _relative_position(state)
+            """Assume canonical agent is red player"""
+            # create state
+            obs = jnp.zeros(
+                (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
+                dtype=jnp.int8,
+            )
+            obs = obs.at[
+                state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
+            ].set(1)
+            obs = obs.at[
+                state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING
+            ].set(2)
+            obs = obs.at[
+                state.red_coin_pos[0] + PADDING,
+                state.red_coin_pos[1] + PADDING,
+            ].set(3)
+            obs = obs.at[
+                state.blue_coin_pos[0] + PADDING,
+                state.blue_coin_pos[1] + PADDING,
+            ].set(4)
 
-            # flip red and blue coins for second agent
-            obs2 = _relative_position(
-                EnvState(
-                    red_pos=state.blue_pos,
-                    blue_pos=state.red_pos,
-                    red_coin_pos=state.blue_coin_pos,
-                    blue_coin_pos=state.red_coin_pos,
-                    inner_t=0,
-                    outer_t=0,
-                )
+            obs = obs.at[PADDING, :].set(5)
+            obs = obs.at[:, PADDING].set(5)
+            obs = obs.at[GRID_SIZE + PADDING, :].set(5)
+            obs = obs.at[:, GRID_SIZE + PADDING].set(5)
+
+            angle = jnp.zeros(
+                (GRID_SIZE, GRID_SIZE + 2 * PADDING), dtype=jnp.int8
+            )
+            angle = angle.at[
+                state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
+            ].set(state.red_pos[2])
+            angle = angle.at[
+                state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING
+            ].set(state.blue_pos[2])
+
+            obs = jnp.stack([obs, angle], axis=-1)
+
+            # crop
+            startx = (state.red_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
+            starty = (state.red_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
+            obs1 = obs[startx : startx + OBS_SIZE, starty : starty + OBS_SIZE]
+
+            # rotate
+            obs1 = jnp.where(
+                state.red_pos[2] == 1, jnp.rot90(obs1, k=1, axes=(0, 1)), obs1
+            )
+            obs1 = jnp.where(
+                state.red_pos[2] == 2, jnp.rot90(obs1, k=2, axes=(0, 1)), obs1
+            )
+            obs1 = jnp.where(
+                state.red_pos[2] == 3, jnp.rot90(obs1, k=3, axes=(0, 1)), obs1
             )
 
-            return obs1, obs2
+            # one-hot (drop first channel as its empty blocks)
+            obs1 = jax.nn.one_hot(
+                obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
+            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4, dtype=jnp.int8)
+            obs1 = jnp.concatenate([obs1, angle1], axis=-1)
+
+            startx = (state.blue_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
+            starty = (state.blue_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
+            obs2 = obs[startx : startx + OBS_SIZE, starty : starty + OBS_SIZE]
+
+            obs2 = jnp.where(
+                state.red_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
+            )
+            obs2 = jnp.where(
+                state.red_pos[2] == 2, jnp.rot90(obs2, k=2, axes=(0, 1)), obs2
+            )
+            obs2 = jnp.where(
+                state.red_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
+            )
+            obs2 = jax.nn.one_hot(
+                obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
+            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4, dtype=jnp.int8)
+            obs2 = jnp.concatenate([obs2, angle2], axis=-1)
+
+            _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
+            _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
+            _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
+            _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
+            return obs1, _obs2
 
         def _step(
             key: chex.PRNGKey,
@@ -130,56 +179,70 @@ class RunningWithScissors(environment.Environment):
             params: EnvParams,
         ):
             action_0, action_1 = actions
-
             # turning red
-            new_red_pos = (state.red_pos + ROTATIONS[action_0]) % jnp.array(
-                [GRID_SIZE + 1, GRID_SIZE + 1, 4]
+            red_pos = jnp.int8(
+                (state.red_pos + ROTATIONS[action_0])
+                % jnp.array([GRID_SIZE + 1, GRID_SIZE + 1, 4])
             )
 
             # moving red
             red_step = action_0 == 2
             new_red_pos = jnp.where(
-                red_step, new_red_pos + STEP[state.red_pos[2]], new_red_pos
+                red_step, red_pos + STEP[state.red_pos[2]], red_pos
             )
 
             # grid boundaries
             new_red_pos = jnp.clip(
-                new_red_pos,
-                a_min=jnp.array([0, 0, 0]),
-                a_max=jnp.array([GRID_SIZE - 1, GRID_SIZE - 1, 3]),
+                red_pos,
+                a_min=jnp.array([0, 0, 0], dtype=jnp.int8),
+                a_max=jnp.array(
+                    [GRID_SIZE - 1, GRID_SIZE - 1, 3], dtype=jnp.int8
+                ),
             )
 
             # turning blue
-            new_blue_pos = (state.blue_pos + ROTATIONS[action_0]) % jnp.array(
-                [GRID_SIZE + 1, GRID_SIZE + 1, 4]
+            blue_pos = jnp.int8(
+                (state.blue_pos + ROTATIONS[action_0])
+                % jnp.array([GRID_SIZE + 1, GRID_SIZE + 1, 4], dtype=jnp.int8)
             )
 
             # moving blue
             blue_step = action_1 == 2
             new_blue_pos = jnp.where(
-                blue_step, new_blue_pos + STEP[state.blue_pos[2]], new_blue_pos
+                blue_step, blue_pos + STEP[state.blue_pos[2]], blue_pos
             )
             new_blue_pos = jnp.clip(
                 new_blue_pos,
-                a_min=jnp.array([0, 0, 0]),
-                a_max=jnp.array([GRID_SIZE - 1, GRID_SIZE - 1, 3]),
+                a_min=jnp.array([0, 0, 0], dtype=jnp.int8),
+                a_max=jnp.array(
+                    [GRID_SIZE - 1, GRID_SIZE - 1, 3], dtype=jnp.int8
+                ),
+            )
+
+            # if collision, randomly choose who gets square
+            collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
+            red_takes_square = jax.random.choice(key, jnp.array([0, 1]))
+            red_pos = jnp.where(
+                collision * red_takes_square, new_red_pos, red_pos
+            )
+            blue_pos = jnp.where(
+                collision * (1 - red_takes_square), new_blue_pos, blue_pos
             )
 
             # rewards
             red_reward, blue_reward = 0, 0
 
             red_red_matches = jnp.all(
-                new_red_pos[:2] == state.red_coin_pos, axis=-1
+                red_pos[:2] == state.red_coin_pos, axis=-1
             )
             red_blue_matches = jnp.all(
-                new_red_pos[:2] == state.blue_coin_pos, axis=-1
+                red_pos[:2] == state.blue_coin_pos, axis=-1
             )
-
             blue_red_matches = jnp.all(
-                new_blue_pos[:2] == state.red_coin_pos, axis=-1
+                blue_pos[:2] == state.red_coin_pos, axis=-1
             )
             blue_blue_matches = jnp.all(
-                new_blue_pos[:2] == state.blue_coin_pos, axis=-1
+                blue_pos[:2] == state.blue_coin_pos, axis=-1
             )
 
             ### [[1, 1, -2],[1, 1, -2]]
@@ -211,69 +274,57 @@ class RunningWithScissors(environment.Environment):
             )
 
             key, subkey = jax.random.split(key)
-            new_random_coin_poses = jax.random.randint(
-                subkey, shape=(2, 2), minval=0, maxval=3
+            new_object_pos = jax.random.choice(
+                subkey,
+                pos_choice,
+                shape=(2,),
+                replace=False,
             )
+
             new_red_coin_pos = jnp.where(
                 jnp.logical_or(red_red_matches, blue_red_matches),
-                new_random_coin_poses[0],
+                new_object_pos[0],
                 state.red_coin_pos,
             )
             new_blue_coin_pos = jnp.where(
                 jnp.logical_or(red_blue_matches, blue_blue_matches),
-                new_random_coin_poses[1],
+                new_object_pos[1],
                 state.blue_coin_pos,
             )
 
-            next_state = EnvState(
-                red_pos=new_red_pos,
-                blue_pos=new_blue_pos,
+            state_nxt = EnvState(
+                red_pos=red_pos,
+                blue_pos=blue_pos,
                 red_coin_pos=new_red_coin_pos,
                 blue_coin_pos=new_blue_coin_pos,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
             )
 
-            obs1, obs2 = _state_to_obs(next_state)
+            obs1, obs2 = _state_to_obs(state_nxt)
 
             # now calculate if done for inner or outer episode
-            inner_t = next_state.inner_t
-            outer_t = next_state.outer_t
+            inner_t = state_nxt.inner_t
+            outer_t = state_nxt.outer_t
             reset_inner = inner_t == num_inner_steps
 
             # if inner episode is done, return start state for next game
-            reset_obs, reset_state = _reset(key, params)
-            next_state = EnvState(
-                red_pos=jnp.where(
-                    reset_inner, reset_state.red_pos, next_state.red_pos
-                ),
-                blue_pos=jnp.where(
-                    reset_inner, reset_state.blue_pos, next_state.blue_pos
-                ),
-                red_coin_pos=jnp.where(
-                    reset_inner,
-                    reset_state.red_coin_pos,
-                    next_state.red_coin_pos,
-                ),
-                blue_coin_pos=jnp.where(
-                    reset_inner,
-                    reset_state.blue_coin_pos,
-                    next_state.blue_coin_pos,
-                ),
-                inner_t=jnp.where(
-                    reset_inner, jnp.zeros_like(inner_t), next_state.inner_t
-                ),
-                outer_t=jnp.where(reset_inner, outer_t + 1, outer_t),
+            reset_obs, state_re = _reset(key, params)
+            state_re = state_re.replace(outer_t=outer_t + 1)
+            state = jax.tree_map(
+                lambda x, y: jax.lax.select(reset_inner, x, y),
+                state_re,
+                state_nxt,
             )
 
             obs1 = jnp.where(reset_inner, reset_obs[0], obs1)
             obs2 = jnp.where(reset_inner, reset_obs[1], obs2)
 
-            blue_reward = jnp.where(reset_inner, 0.0, blue_reward)
-            red_reward = jnp.where(reset_inner, 0.0, red_reward)
+            blue_reward = jnp.where(reset_inner, 0, blue_reward)
+            red_reward = jnp.where(reset_inner, 0, red_reward)
             return (
                 (obs1, obs2),
-                next_state,
+                state,
                 (red_reward, blue_reward),
                 reset_inner,
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
@@ -283,20 +334,23 @@ class RunningWithScissors(environment.Environment):
             key: jnp.ndarray, params: EnvParams
         ) -> Tuple[jnp.ndarray, EnvState]:
             key, subkey = jax.random.split(key)
-            player_pos = jax.random.randint(
-                subkey, shape=(2, 3), minval=0, maxval=GRID_SIZE
-            )
-            # clip orientation
-            player_pos = player_pos % jnp.array([GRID_SIZE, GRID_SIZE, 3])
 
-            item_pos = jax.random.randint(
-                subkey, shape=(2, 2), minval=0, maxval=10
+            object_pos = jax.random.choice(
+                subkey, pos_choice, shape=(4,), replace=False
             )
+            player_rot = jax.random.randint(
+                subkey, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
+            )
+            player_pos = jnp.array(
+                [object_pos[:2, 0], object_pos[:2, 1], player_rot]
+            ).T
+            coin_pos = object_pos[2:]
+
             state = EnvState(
                 red_pos=player_pos[0, :],
                 blue_pos=player_pos[1, :],
-                red_coin_pos=item_pos[0, :],
-                blue_coin_pos=item_pos[1, :],
+                red_coin_pos=coin_pos[0, :],
+                blue_coin_pos=coin_pos[1, :],
                 inner_t=0,
                 outer_t=0,
             )
@@ -329,12 +383,20 @@ class RunningWithScissors(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        _shape = (OBS_SIZE, OBS_SIZE, 4) if self.cnn else (100,)
+        _shape = (
+            (OBS_SIZE, OBS_SIZE, NUM_TYPES + 4)
+            if self.cnn
+            else (OBS_SIZE**2 * (NUM_TYPES + 4),)
+        )
         return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
 
     def state_space(self, params: EnvParams) -> spaces.Dict:
         """State space of the environment."""
-        _shape = (GRID_SIZE, GRID_SIZE, 4) if self.cnn else (400,)
+        _shape = (
+            (GRID_SIZE, GRID_SIZE, NUM_TYPES + 4)
+            if self.cnn
+            else (GRID_SIZE**2 * (NUM_TYPES + 4),)
+        )
         return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
 
     def render(self, state: EnvState):
@@ -350,7 +412,7 @@ class RunningWithScissors(environment.Environment):
         canvas = FigureCanvas(fig)
         ax = fig.add_subplot(121)
         ax.imshow(
-            np.zeros((3, 3)),
+            np.zeros((GRID_SIZE, GRID_SIZE)),
             cmap="Greys",
             vmin=0,
             vmax=1,

@@ -17,8 +17,8 @@ def test_rws_shapes():
     obs, state = env.reset(rng, params)
     action = jnp.ones((), dtype=int)
 
-    assert obs[0].shape == (10, 10, 4)
-    assert obs[1].shape == (10, 10, 4)
+    assert obs[0].shape == (5, 5, 9)
+    assert obs[1].shape == (5, 5, 9)
 
     obs, new_state, rewards, done, info = env.step(
         rng, state, (action, action), params
@@ -35,10 +35,10 @@ def test_rws_turns():
     _, state = env.reset(rng, params)
 
     state = EnvState(
-        red_pos=jnp.array([0, 0, 0]),
-        blue_pos=jnp.array([9, 9, 0]),
-        red_coin_pos=jnp.array([0, 2]),
-        blue_coin_pos=jnp.array([1, 2]),
+        red_pos=jnp.array([0, 0, 0], dtype=jnp.int8),
+        blue_pos=jnp.array([9, 9, 0], dtype=jnp.int8),
+        red_coin_pos=jnp.array([0, 2], dtype=jnp.int8),
+        blue_coin_pos=jnp.array([1, 2], dtype=jnp.int8),
         inner_t=state.inner_t,
         outer_t=state.outer_t,
     )
@@ -50,10 +50,9 @@ def test_rws_turns():
         assert (new_state.red_pos == jnp.array([0, 0, i + 1])).all()
         assert (new_state.blue_pos == jnp.array([9, 9, i + 1])).all()
         assert new_state.inner_t != state.inner_t
-
         state = new_state
 
-    _, state, rewards, _, _ = env.step(rng, state, (action, action), params)
+    _, state, _, _, _ = env.step(rng, state, (action, action), params)
     assert (jnp.array([0, 0, 0]) == state.red_pos).all()
     assert (jnp.array([9, 9, 0]) == state.blue_pos).all()
 
@@ -114,10 +113,10 @@ def test_rws_steps():
     )
 
     state = EnvState(
-        red_pos=jnp.array([0, 0, 2]),
-        blue_pos=jnp.array([9, 9, 2]),
-        red_coin_pos=jnp.array([0, 2]),
-        blue_coin_pos=jnp.array([1, 2]),
+        red_pos=jnp.array([0, 0, 2], dtype=jnp.int8),
+        blue_pos=jnp.array([9, 9, 2], dtype=jnp.int8),
+        red_coin_pos=jnp.array([0, 2], dtype=jnp.int8),
+        blue_coin_pos=jnp.array([1, 2], dtype=jnp.int8),
         inner_t=state.inner_t,
         outer_t=state.outer_t,
     )
@@ -129,10 +128,10 @@ def test_rws_steps():
     assert (jnp.array([9, 8, 2]) == state.blue_pos).all()
 
     state = EnvState(
-        red_pos=jnp.array([0, 0, 3]),
-        blue_pos=jnp.array([9, 9, 3]),
-        red_coin_pos=jnp.array([0, 2]),
-        blue_coin_pos=jnp.array([1, 2]),
+        red_pos=jnp.array([0, 0, 3], dtype=jnp.int8),
+        blue_pos=jnp.array([9, 9, 3], dtype=jnp.int8),
+        red_coin_pos=jnp.array([0, 2], dtype=jnp.int8),
+        blue_coin_pos=jnp.array([1, 2], dtype=jnp.int8),
         inner_t=state.inner_t,
         outer_t=state.outer_t,
     )
@@ -144,51 +143,52 @@ def test_rws_steps():
     assert (jnp.array([8, 9, 3]) == state.blue_pos).all()
 
 
-# def test_coingame_egocentric_colors():
-#     rng = jax.random.PRNGKey(0)
-#     env = CoinGame(8, 2, True, True)
-#     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
-#     _, state = env.reset(rng, params)
-#     action = 1
+def test_rws_obs():
+    rng = jax.random.PRNGKey(0)
+    env = RunningWithScissors(50, 2)
+    params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
-#     # importantly place agents on top of each other so that we can just check flips
-#     state = EnvState(
-#         red_pos=jnp.array([0, 0]),
-#         blue_pos=jnp.array([0, 0]),
-#         red_coin_pos=jnp.array([0, 2]),
-#         blue_coin_pos=jnp.array([0, 2]),
-#         inner_t=state.inner_t,
-#         outer_t=state.outer_t,
-#         red_coop=jnp.zeros(1),
-#         red_defect=jnp.zeros(1),
-#         blue_coop=jnp.zeros(1),
-#         blue_defect=jnp.zeros(1),
-#         counter=state.counter,
-#         coop1=state.coop1,
-#         coop2=state.coop2,
-#         last_state=state.last_state,
-#     )
+    _, state = env.reset(rng, params)
 
-#     for _ in range(7):
-#         obs, state, rewards, done, info = env.step(
-#             rng, state, (action, action), params
-#         )
-#         obs1, obs2 = obs[0], obs[1]
-#         # remove batch
-#         assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
-#         assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
-#         assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
-#         assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+    state = EnvState(
+        red_pos=jnp.array([1, 2, 0], dtype=jnp.int8),
+        blue_pos=jnp.array([5, 5, 0], dtype=jnp.int8),
+        red_coin_pos=jnp.array([6, 6], dtype=jnp.int8),
+        blue_coin_pos=jnp.array([0, 5], dtype=jnp.int8),
+        inner_t=state.inner_t,
+        outer_t=state.outer_t,
+    )
 
-#     # here we reset the environment so expect these to break
-#     obs, state, rewards, done, info = env.step(
-#         rng, state, (action, action), params
-#     )
-#     obs1, obs2 = obs[0], obs[1]
-#     assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
-#     assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
-#     assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
-#     assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
+    action = 5
+    obs, state, rewards, done, info = env.step(
+        rng, state, (action, action), params
+    )
+
+    obs1, obs2 = obs[0], obs[1]
+
+    assert (obs1[:, :, 0] == obs2[:, :, 1]).all()
+    assert (obs1[:, :, 1] == obs2[:, :, 0]).all()
+    assert (obs1[:, :, 2] == obs2[:, :, 3]).all()
+    assert (obs1[:, :, 3] == obs2[:, :, 2]).all()
+
+    # here we reset the environment so expect these to break
+    obs, state = env.reset(jax.random.split(rng)[0], params)
+
+    obs1, obs2 = obs[0], obs[1]
+
+    # expected_obs1 = jnp.array(
+    #     [
+    #         [[0, 0, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 0, 0]],  # agent
+    #         [[0, 0, 0], [0, 0, 0], [0, 1, 0]],  # other agent
+    #         [[0, 0, 0], [0, 0, 0], [0, 0, 1]],  # agent coin
+    #         [[1, 0, 0], [0, 0, 0], [0, 0, 0]],  # other coin
+    #     ],
+    #     dtype=jnp.int8,
+    # )
+    # assert (obs1[:, :, 0] != obs2[:, :, 1]).any()
+    # assert (obs1[:, :, 1] != obs2[:, :, 0]).any()
+    # assert (obs1[:, :, 2] != obs2[:, :, 3]).any()
+    # assert (obs1[:, :, 3] != obs2[:, :, 2]).any()
 
 
 # def test_coingame_egocentric_pos():
