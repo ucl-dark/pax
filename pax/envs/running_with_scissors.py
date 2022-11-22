@@ -113,11 +113,13 @@ class RunningWithScissors(environment.Environment):
             obs = obs.at[:, GRID_SIZE + PADDING].set(5)
 
             angle = jnp.zeros(
-                (GRID_SIZE, GRID_SIZE + 2 * PADDING), dtype=jnp.int8
+                (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
+                dtype=jnp.int8,
             )
             angle = angle.at[
                 state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
             ].set(state.red_pos[2])
+
             angle = angle.at[
                 state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING
             ].set(state.blue_pos[2])
@@ -186,9 +188,9 @@ class RunningWithScissors(environment.Environment):
             )
 
             # moving red
-            red_step = action_0 == 2
+            red_move = action_0 == 2
             new_red_pos = jnp.where(
-                red_step, red_pos + STEP[state.red_pos[2]], red_pos
+                red_move, red_pos + STEP[state.red_pos[2]], red_pos
             )
 
             # grid boundaries
@@ -207,9 +209,9 @@ class RunningWithScissors(environment.Environment):
             )
 
             # moving blue
-            blue_step = action_1 == 2
+            blue_move = action_1 == 2
             new_blue_pos = jnp.where(
-                blue_step, blue_pos + STEP[state.blue_pos[2]], blue_pos
+                blue_move, blue_pos + STEP[state.blue_pos[2]], blue_pos
             )
             new_blue_pos = jnp.clip(
                 new_blue_pos,
@@ -219,11 +221,21 @@ class RunningWithScissors(environment.Environment):
                 ),
             )
 
-            # if collision, randomly choose who gets square
+            # if collision, priority to whoever didn't move
             collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
+            red_pos = jnp.where(
+                collision * red_move * (1 - blue_move), red_pos, new_red_pos
+            )
+            blue_pos = jnp.where(
+                collision * (1 - red_move) * blue_move, blue_pos, new_blue_pos
+            )
+
+            # if both moved, then randomise
             red_takes_square = jax.random.choice(key, jnp.array([0, 1]))
             red_pos = jnp.where(
-                collision * red_takes_square, new_red_pos, red_pos
+                collision * blue_move * red_move * red_takes_square,
+                new_red_pos,
+                red_pos,
             )
             blue_pos = jnp.where(
                 collision * (1 - red_takes_square), new_blue_pos, blue_pos
@@ -408,11 +420,11 @@ class RunningWithScissors(environment.Environment):
         from PIL import Image
 
         """Small utility for plotting the agent's state."""
-        fig = Figure((5, 2))
+        fig = Figure((15, 6))
         canvas = FigureCanvas(fig)
         ax = fig.add_subplot(121)
         ax.imshow(
-            np.zeros((GRID_SIZE, GRID_SIZE)),
+            np.zeros((GRID_SIZE + 1, GRID_SIZE + 1)),
             cmap="Greys",
             vmin=0,
             vmax=1,
@@ -421,44 +433,48 @@ class RunningWithScissors(environment.Environment):
             origin="lower",
             extent=[0, 3, 0, 3],
         )
+
         ax.set_aspect("equal")
 
         # ax.margins(0)
-        ax.set_xticks(jnp.arange(1, 4))
-        ax.set_yticks(jnp.arange(1, 4))
+        ax.set_xticks(jnp.arange(1, GRID_SIZE + 1))
+        ax.set_yticks(jnp.arange(1, GRID_SIZE + 1))
         ax.grid()
-        red_pos = jnp.squeeze(state.red_pos)
-        blue_pos = jnp.squeeze(state.blue_pos)
+        red_pos = jnp.squeeze(state.red_pos[:2])
+        blue_pos = jnp.squeeze(state.blue_pos[:2])
         red_coin_pos = jnp.squeeze(state.red_coin_pos)
         blue_coin_pos = jnp.squeeze(state.blue_coin_pos)
+
         ax.annotate(
-            "R",
-            fontsize=20,
+            "▲",
+            fontsize=14,
             color="red",
             xy=(red_pos[0], red_pos[1]),
             xycoords="data",
             xytext=(red_pos[0] + 0.5, red_pos[1] + 0.5),
+            rotation=float(-90 * state.red_pos[2]),
         )
         ax.annotate(
-            "B",
-            fontsize=20,
+            "▲",
+            fontsize=14,
             color="blue",
             xy=(blue_pos[0], blue_pos[1]),
             xycoords="data",
             xytext=(blue_pos[0] + 0.5, blue_pos[1] + 0.5),
+            rotation=float(-90 * state.blue_pos[2]),
         )
         ax.annotate(
-            "Rc",
-            fontsize=20,
+            "C",
+            fontsize=14,
             color="red",
             xy=(red_coin_pos[0], red_coin_pos[1]),
             xycoords="data",
             xytext=(red_coin_pos[0] + 0.3, red_coin_pos[1] + 0.3),
         )
         ax.annotate(
-            "Bc",
+            "C",
             color="blue",
-            fontsize=20,
+            fontsize=14,
             xy=(blue_coin_pos[0], blue_coin_pos[1]),
             xycoords="data",
             xytext=(
@@ -470,40 +486,40 @@ class RunningWithScissors(environment.Environment):
         ax2 = fig.add_subplot(122)
         ax2.text(0.0, 0.95, "Timestep: %s" % (state.inner_t))
         ax2.text(0.0, 0.75, "Episode: %s" % (state.outer_t))
-        ax2.text(
-            0.0, 0.45, "Red Coop: %s" % (state.red_coop[state.outer_t].sum())
-        )
-        ax2.text(
-            0.6,
-            0.45,
-            "Red Defects : %s" % (state.red_defect[state.outer_t].sum()),
-        )
-        ax2.text(
-            0.0, 0.25, "Blue Coop: %s" % (state.blue_coop[state.outer_t].sum())
-        )
-        ax2.text(
-            0.6,
-            0.25,
-            "Blue Defects : %s" % (state.blue_defect[state.outer_t].sum()),
-        )
-        ax2.text(
-            0.0,
-            0.05,
-            "Red Total: %s"
-            % (
-                state.red_defect[state.outer_t].sum()
-                + state.red_coop[state.outer_t].sum()
-            ),
-        )
-        ax2.text(
-            0.6,
-            0.05,
-            "Blue Total: %s"
-            % (
-                state.blue_defect[state.outer_t].sum()
-                + state.blue_coop[state.outer_t].sum()
-            ),
-        )
+        # ax2.text(
+        #     0.0, 0.45, "Red Coop: %s" % (state.red_coop[state.outer_t].sum())
+        # )
+        # ax2.text(
+        #     0.6,
+        #     0.45,
+        #     "Red Defects : %s" % (state.red_defect[state.outer_t].sum()),
+        # )
+        # ax2.text(
+        #     0.0, 0.25, "Blue Coop: %s" % (state.blue_coop[state.outer_t].sum())
+        # )
+        # ax2.text(
+        #     0.6,
+        #     0.25,
+        #     "Blue Defects : %s" % (state.blue_defect[state.outer_t].sum()),
+        # )
+        # ax2.text(
+        #     0.0,
+        #     0.05,
+        #     "Red Total: %s"
+        #     % (
+        #         state.red_defect[state.outer_t].sum()
+        #         + state.red_coop[state.outer_t].sum()
+        #     ),
+        # )
+        # ax2.text(
+        #     0.6,
+        #     0.05,
+        #     "Blue Total: %s"
+        #     % (
+        #         state.blue_defect[state.outer_t].sum()
+        #         + state.blue_coop[state.outer_t].sum()
+        #     ),
+        # )
         ax2.axis("off")
         canvas.draw()
         image = Image.frombytes(
@@ -517,16 +533,16 @@ class RunningWithScissors(environment.Environment):
 if __name__ == "__main__":
     action = 1
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(8, 16, True, False)
+    env = RunningWithScissors(100, 100)
 
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
     obs, state = env.reset(rng, params)
     pics = []
 
-    for _ in range(16):
+    for _ in range(100):
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        a1 = jax.random.randint(rng1, (), minval=0, maxval=4)
-        a2 = jax.random.randint(rng2, (), minval=0, maxval=4)
+        a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
+        a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
