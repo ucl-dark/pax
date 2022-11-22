@@ -1,20 +1,24 @@
 import os
 import time
 from typing import Any, NamedTuple
+import sys
 
 import jax
 import jax.numpy as jnp
 import wandb
 
 from gymnax.visualize import Visualizer
-from gymnax.environments.classic_control.cartpole import EnvState
+from gymnax.environments.classic_control.cartpole import (
+    EnvState as EnvStateCartPole,
+)
+from gymnax.environments.classic_control.acrobot import (
+    EnvState as EnvStateAcrobot,
+)
 
 from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save, load
 
 from jax.config import config
-
-config.update("jax_disable_jit", True)
 
 MAX_WANDB_CALLS = 1000000
 
@@ -193,6 +197,7 @@ class SARLEvalRunner:
         """Run training of agent in environment"""
         print("Training")
         print("-----------------------")
+        config.update("jax_disable_jit", True)
         agent = agent
         rng, _ = jax.random.split(self.random_key)
 
@@ -221,22 +226,33 @@ class SARLEvalRunner:
                 a1_mem,
                 a1_metrics,
             ), traj = self.rollout(rng_run, a1_state, a1_mem, env_params)
+            if self.args.env_id == "CartPole-v1":
+                obs_traj = [
+                    EnvStateCartPole(
+                        x=traj.env_state.x[i],
+                        x_dot=traj.env_state.x_dot[i],
+                        theta=traj.env_state.theta[i],
+                        theta_dot=traj.env_state.theta_dot[i],
+                        time=i,
+                    )
+                    for i in range(self.args.num_steps)
+                ]
+            elif self.args.env_id == "Acrobot-v1":
+                obs_traj = [
+                    EnvStateAcrobot(
+                        joint_angle1=traj.env_state.joint_angle1[i],
+                        joint_angle2=traj.env_state.joint_angle2[i],
+                        velocity_1=traj.env_state.velocity_1[i],
+                        velocity_2=traj.env_state.velocity_2[i],
+                        time=i,
+                    )
+                    for i in range(self.args.num_steps)
+                ]
 
-            obs_traj = [
-                EnvState(
-                    x=traj.env_state.x[i],
-                    x_dot=traj.env_state.x_dot[i],
-                    theta=traj.env_state.theta[i],
-                    theta_dot=traj.env_state.theta_dot[i],
-                    time=i,
-                )
-                for i in range(self.args.num_steps)
-            ]
-            # import pdb; pdb.set_trace()
             vis = Visualizer(
                 env, env_params, obs_traj, jnp.cumsum(traj.rewards)
             )
-            vis.animate(f"vis/{self.args.env_id}.gif")
+            vis.animate(f"pax/vis/{self.args.env_id}.gif")
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
@@ -244,6 +260,7 @@ class SARLEvalRunner:
                 if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
                     wandb.save(log_savepath)
+
                 else:
                     print(f"Saving iteration {i} locally")
 
@@ -274,6 +291,15 @@ class SARLEvalRunner:
                             ),
                         }
                         | env_stats,
+                    )
+                    wandb.log(
+                        {
+                            "video": wandb.Video(
+                                f"pax/vis/{self.args.env_id}.gif",
+                                fps=4,
+                                format="gif",
+                            )
+                        }
                     )
 
         agent._state = a1_state
