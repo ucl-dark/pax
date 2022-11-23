@@ -14,10 +14,10 @@ runner: rl
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 250
+num_envs: 100
 num_opps: 1
-num_steps: 16 
-num_inner_steps: 16 
+num_steps: 100 
+num_inner_steps: 100 
 total_timesteps: 1e7
 save_interval: 100 
 
@@ -52,7 +52,7 @@ ppo:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cg
+  project: cg2
   group: 'sanity-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
