@@ -36,6 +36,10 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.running_with_scissors import RunningWithScissors
+from pax.envs.running_with_scissors import (
+    EnvParams as RunningWithScissorsParams,
+)
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
@@ -133,6 +137,17 @@ def env_setup(args, logger=None):
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
+            )
+    elif args.env_id == "RunningWithScissors":
+        payoff = jnp.array(args.payoff)
+        env_params = RunningWithScissorsParams(payoff_matrix=payoff)
+        env = RunningWithScissors(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_steps // args.num_inner_steps,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: RunningWithScissors | Episode Length: {args.num_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)

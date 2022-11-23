@@ -226,6 +226,37 @@ class CNNSeparate(hk.Module):
         return (logits, val)
 
 
+def make_ipd_network(num_actions: int, tabular: bool, args):
+    """Creates a hk network using the baseline hyperparameters from OpenAI"""
+
+    def forward_fn(inputs):
+        layers = []
+        if tabular:
+            layers.extend(
+                [
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
+        else:
+            layers.extend(
+                [
+                    hk.nets.MLP(
+                        [args.ppo.hidden_size, args.ppo.hidden_size],
+                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                        b_init=hk.initializers.Constant(0),
+                        activate_final=True,
+                        activation=jnp.tanh,
+                    ),
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
 def make_coingame_network(num_actions: int, tabular: bool, args):
     def forward_fn(inputs):
         layers = []
@@ -248,37 +279,6 @@ def make_coingame_network(num_actions: int, tabular: bool, args):
                 [
                     hk.nets.MLP(
                         [args.ppo.hidden_size],
-                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                        b_init=hk.initializers.Constant(0),
-                        activate_final=True,
-                        activation=jnp.tanh,
-                    ),
-                    CategoricalValueHead(num_values=num_actions),
-                ]
-            )
-        policy_value_network = hk.Sequential(layers)
-        return policy_value_network(inputs)
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network
-
-
-def make_ipd_network(num_actions: int, tabular: bool, args):
-    """Creates a hk network using the baseline hyperparameters from OpenAI"""
-
-    def forward_fn(inputs):
-        layers = []
-        if tabular:
-            layers.extend(
-                [
-                    CategoricalValueHead(num_values=num_actions),
-                ]
-            )
-        else:
-            layers.extend(
-                [
-                    hk.nets.MLP(
-                        [args.ppo.hidden_size, args.ppo.hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
@@ -323,6 +323,37 @@ def make_sarl_network(num_actions: int):
     def forward_fn(inputs):
         layers = []
         layers.extend([CategoricalValueHeadSeparate(num_values=num_actions)])
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
+def make_rws_network(num_actions: int, args):
+    def forward_fn(inputs):
+        layers = []
+
+        if args.ppo.separate:
+            cnn = CNNSeparate(args)
+            cvh = CategoricalValueHeadSeparate(num_values=num_actions)
+        else:
+            cnn = CNN(args)
+            cvh = CategoricalValueHead(num_values=num_actions)
+        layers.extend([cnn, cvh])
+
+        layers.extend(
+            [
+                hk.nets.MLP(
+                    [args.ppo.hidden_size],
+                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                    b_init=hk.initializers.Constant(0),
+                    activate_final=True,
+                    activation=jnp.tanh,
+                ),
+                CategoricalValueHead(num_values=num_actions),
+            ]
+        )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -395,6 +426,31 @@ def make_GRU_coingame_network(num_actions: int, args):
         embedding, state = gru(embedding, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
 
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
+def make_GRU_rws_network(num_actions: int, args):
+    hidden_size = 256
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        """forward function"""
+        torso = CNN(args)
+        if args.ppo.separate:
+            cvh = CategoricalValueHeadSeparate(num_values=num_actions)
+        else:
+
+            cvh = CategoricalValueHead(num_values=num_actions)
+
+        gru = hk.GRU(hidden_size)
+        embedding = torso(inputs)
+        embedding, state = gru(embedding, state)
+        logits, values = cvh(embedding)
         return (logits, values), state
 
     network = hk.without_apply_rng(hk.transform(forward_fn))

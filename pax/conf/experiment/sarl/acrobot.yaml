@@ -4,12 +4,12 @@
 agent1: 'PPO'
 
 # Environment
-env_id: Acrobot-v1
+env_id: RunningWithScissors
 env_type: sequential
 egocentric: True
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
-runner: sarl
+runner: marl
 
 # Training hyperparameters
 

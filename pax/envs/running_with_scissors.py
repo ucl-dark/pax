@@ -129,8 +129,11 @@ class RunningWithScissors(environment.Environment):
             # crop
             startx = (state.red_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
             starty = (state.red_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
-            obs1 = obs[startx : startx + OBS_SIZE, starty : starty + OBS_SIZE]
-
+            obs1 = jax.lax.dynamic_slice(
+                obs,
+                start_indices=(startx, starty, jnp.int8(0)),
+                slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
+            )
             # rotate
             obs1 = jnp.where(
                 state.red_pos[2] == 1, jnp.rot90(obs1, k=1, axes=(0, 1)), obs1
@@ -143,15 +146,17 @@ class RunningWithScissors(environment.Environment):
             )
 
             # one-hot (drop first channel as its empty blocks)
-            obs1 = jax.nn.one_hot(
-                obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
-            )[:, :, 1:]
-            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4, dtype=jnp.int8)
+            obs1 = jax.nn.one_hot(obs1[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
+            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
             startx = (state.blue_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
             starty = (state.blue_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
-            obs2 = obs[startx : startx + OBS_SIZE, starty : starty + OBS_SIZE]
+            obs2 = jax.lax.dynamic_slice(
+                obs,
+                start_indices=(startx, starty, jnp.int8(0)),
+                slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
+            )
 
             obs2 = jnp.where(
                 state.red_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
@@ -162,10 +167,8 @@ class RunningWithScissors(environment.Environment):
             obs2 = jnp.where(
                 state.red_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
-            obs2 = jax.nn.one_hot(
-                obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
-            )[:, :, 1:]
-            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4, dtype=jnp.int8)
+            obs2 = jax.nn.one_hot(obs2[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
+            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
             obs2 = jnp.concatenate([obs2, angle2], axis=-1)
 
             _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
@@ -242,7 +245,7 @@ class RunningWithScissors(environment.Environment):
             )
 
             # rewards
-            red_reward, blue_reward = 0, 0
+            red_reward, blue_reward = 0.0, 0.0
 
             red_red_matches = jnp.all(
                 red_pos[:2] == state.red_coin_pos, axis=-1
@@ -375,6 +378,7 @@ class RunningWithScissors(environment.Environment):
 
         self.step = _step
         self.reset = _reset
+        self.cnn = True
 
     @property
     def name(self) -> str:
