@@ -40,7 +40,8 @@ ppo:
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: True
-
+  rnn_type: gru
+  
 # Naive Learner parameters 
 naive:
   num_minibatches: 1

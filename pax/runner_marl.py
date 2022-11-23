@@ -4,6 +4,7 @@ from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
+from haiku import LSTMState
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
@@ -146,14 +147,35 @@ class RLRunner:
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            if args.ppo.rnn_type == "lstm" and args.agent1 == "PPO_memory":
+                print("hello")
+                hidden = jnp.tile(agent1._mem.hidden[0], (args.num_opps, 1, 1))
+                cell = jnp.tile(agent1._mem.hidden[1], (args.num_opps, 1, 1))
+                init_hidden = LSTMState(hidden=hidden, cell=cell)
+            else:
+                print("hello2")
+                init_hidden = jnp.tile(
+                    agent1._mem.hidden, (args.num_opps, 1, 1)
+                )
+
+            # import pdb; pdb.set_trace()
             agent1._state, agent1._mem = agent1.batch_init(
                 agent1._state.random_key, init_hidden
             )
 
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            if args.ppo.rnn_type == "lstm" and args.agent2 == "PPO_memory":
+                print("hello3")
+                hidden = jnp.tile(agent2._mem.hidden[0], (args.num_opps, 1, 1))
+                cell = jnp.tile(agent2._mem.hidden[1], (args.num_opps, 1, 1))
+                init_hidden = LSTMState(hidden=hidden, cell=cell)
+            else:
+                print("hello4")
+                init_hidden = jnp.tile(
+                    agent2._mem.hidden, (args.num_opps, 1, 1)
+                )
+            # import pdb; pdb.set_trace()
             agent2._state, agent2._mem = agent2.batch_init(
                 jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
@@ -279,6 +301,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
             )
+
             return (
                 rngs,
                 obs1,
@@ -326,6 +349,7 @@ class RLRunner:
                 _a2_state, _a2_mem = agent2.batch_init(
                     jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
                 )
+
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,

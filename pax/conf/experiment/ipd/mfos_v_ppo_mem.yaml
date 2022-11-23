@@ -44,7 +44,7 @@ ppo:
   with_memory: False
   with_cnn: False
   hidden_size: 16
-
+  rnn_type: gru
 # Naive Learner parameters 
 naive:
   num_minibatches: 1

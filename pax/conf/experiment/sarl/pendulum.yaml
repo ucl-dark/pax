@@ -1,25 +1,22 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'PPO_memory'
+agent1: 'PPO'
 
 # Environment
-env_id: coin_game
+env_id: MountainCar-v0
 env_type: sequential
 egocentric: True
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
-runner: rl
+runner: sarl
 
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 250
-num_opps: 1
-num_steps: 16 
-num_inner_steps: 16 
-total_timesteps: 1e7
+num_envs: 16
+num_steps: 400 # 500 Cartpole 
+total_timesteps: 5e6
 save_interval: 100 
 
 # Evaluation 
@@ -28,33 +25,45 @@ model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_
 
 # PPO agent parameters
 ppo:
-  num_minibatches: 8
-  num_epochs: 2 
-  gamma: 0.96
+  num_minibatches: 4
+  num_epochs: 4 
+  gamma: 0.99 
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: False
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.05
-  lr_scheduling: False
-  learning_rate: 0.005 #0.05
+  anneal_entropy: True
+  entropy_coeff_start: 0.01
+  entropy_coeff_horizon: 1000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: True
+  learning_rate: 5e-4 #5e-4
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: True # only works with CNN
-  hidden_size: 16 #50
+  separate: True
+  hidden_size: 16
   rnn_type: gru
+
+# naive:
+#   num_minibatches: 1
+#   num_epochs: 1
+#   gamma: 0.96
+#   gae_lambda: 0.95
+#   max_gradient_norm: 1.0
+#   learning_rate: 1.0
+#   adam_epsilon: 1e-5
+#   entropy_coeff: 0
+  
+
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cg
+  project: sarl
   group: 'sanity-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
-  log: True
+  log: False

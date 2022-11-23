@@ -50,6 +50,7 @@ ppo:
   separate: True # only works with CNN
   with_cnn: False
   hidden_size: 16 #50
+  rnn_type: gru
 
 # Logging setup
 wandb:

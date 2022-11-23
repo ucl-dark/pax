@@ -16,6 +16,7 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
+from pax.agents.ppo.ppo_lstm import make_lstm_agent
 from pax.agents.strategies import (
     Altruistic,
     Defect,
@@ -253,13 +254,22 @@ def agent_setup(args, env, env_params, logger):
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
-        ppo_memory_agent = make_gru_agent(
-            args,
-            obs_spec=obs_shape,
-            action_spec=num_actions,
-            seed=seed,
-            player_id=player_id,
-        )
+        if args.ppo.rnn_type == "lstm":
+            ppo_memory_agent = make_lstm_agent(
+                args,
+                obs_spec=obs_shape,
+                action_spec=num_actions,
+                seed=seed,
+                player_id=player_id,
+            )
+        else:
+            ppo_memory_agent = make_gru_agent(
+                args,
+                obs_spec=obs_shape,
+                action_spec=num_actions,
+                seed=seed,
+                player_id=player_id,
+            )
         return ppo_memory_agent
 
     def get_PPO_agent(seed, player_id):

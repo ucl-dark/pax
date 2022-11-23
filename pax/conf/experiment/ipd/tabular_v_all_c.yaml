@@ -42,7 +42,8 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: False
   with_cnn: False
-
+  rnn_type: gru
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"

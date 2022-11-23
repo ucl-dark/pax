@@ -41,7 +41,8 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: True
   hidden_size: 16
-
+  rnn_type: gru
+  
 # Naive Learner parameters 
 naive:
   num_minibatches: 1

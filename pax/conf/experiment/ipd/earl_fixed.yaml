@@ -49,7 +49,8 @@ ppo:
   with_cnn: False
   separate: False
   hidden_size: 16
-
+  rnn_type: gru
+  
 # Naive Learner parameters 
 naive:
   num_minibatches: 1

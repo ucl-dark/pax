@@ -68,6 +68,7 @@ ppo:
   kernel_shape: [3, 3]
   separate: True
   hidden_size: 16
+  rnn_type: gru
 
 # Logging setup
 wandb:

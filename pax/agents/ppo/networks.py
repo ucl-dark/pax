@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, NamedTuple
 
 import distrax
 import haiku as hk
@@ -44,24 +44,24 @@ class CategoricalValueHeadSeparate(hk.Module):
     ):
         super().__init__(name=name)
         self._action_body = hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jnp.tanh,
-                    )
+            [64, 64],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
         self._logit_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(1.0),
             b_init=hk.initializers.Constant(0),
         )
         self._value_body = hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jnp.tanh,
-                    )
+            [64, 64],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
         self._value_layer = hk.Linear(
             1,
             w_init=hk.initializers.Orthogonal(0.01),
@@ -316,16 +316,13 @@ def make_cartpole_network(num_actions: int):
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network
 
+
 def make_sarl_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
         layers = []
-        layers.extend(
-            [
-                CategoricalValueHeadSeparate(num_values=num_actions)
-            ]
-        )
+        layers.extend([CategoricalValueHeadSeparate(num_values=num_actions)])
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -342,6 +339,27 @@ def make_GRU_ipd_network(num_actions: int, args):
         """forward function"""
         gru = hk.GRU(args.ppo.hidden_size)
         embedding, state = gru(inputs, state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+
+    return network, hidden_state
+
+
+def make_LSTM_ipd_network(num_actions: int, args):
+    hidden = jnp.zeros((1, args.ppo.hidden_size))
+    cell = jnp.zeros((1, args.ppo.hidden_size))
+    hidden_state = hk.LSTMState(hidden=hidden, cell=cell)
+    # hidden_state = hidden_state_lstm.initial_state()
+    # hidden_state = jnp.zeros((1, args.ppo.hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: NamedTuple
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], NamedTuple]:
+        """forward function"""
+        lstm = hk.LSTM(args.ppo.hidden_size)
+        embedding, state = lstm(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
 

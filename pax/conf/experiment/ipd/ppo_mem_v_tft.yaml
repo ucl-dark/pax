@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: iterated_matrix_game
@@ -46,6 +46,7 @@ ppo:
   with_memory: True
   with_cnn: False
   hidden_size: 4
+  rnn_type: lstm
 
 # Logging setup
 wandb:
