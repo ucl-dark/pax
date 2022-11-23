@@ -102,7 +102,6 @@ class RLRunner:
                 env.step, (0, 0, 0, None), 0  # rng, state, actions, params
             )
         )
-
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         num_outer_steps = (
             1
@@ -142,7 +141,7 @@ class RLRunner:
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
-        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0)))
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
@@ -160,11 +159,12 @@ class RLRunner:
             )
 
         if args.agent2 != "NaiveEx":
+            keys = jnp.concatenate(
+                [jax.random.split(agent2._state.random_key, args.num_opps)]
+            ).reshape((args.num_opps, -1))
+
             # NaiveEx requires env first step to init.
             if args.ppo.rnn_type == "lstm" and args.agent2 == "PPO_memory":
-                rngs = jnp.concatenate(
-                    [jax.random.split(agent2._state.random_key, args.num_opps)]
-                ).reshape((args.num_opps, -1))
                 hidden = jnp.tile(agent2._mem.hidden[0], (args.num_opps, 1, 1))
                 cell = jnp.tile(agent2._mem.hidden[1], (args.num_opps, 1, 1))
                 init_hidden = LSTMState(hidden=hidden, cell=cell)
@@ -172,11 +172,9 @@ class RLRunner:
                 init_hidden = jnp.tile(
                     agent2._mem.hidden, (args.num_opps, 1, 1)
                 )
-            rngs = jnp.concatenate(
-                [jax.random.split(agent2._state.random_key, args.num_opps)]
-            ).reshape((args.num_opps, -1))
+
             agent2._state, agent2._mem = agent2.batch_init(
-                rngs,
+                keys,
                 init_hidden,
             )
 
@@ -419,7 +417,6 @@ class RLRunner:
                 env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
-
             return (
                 env_stats,
                 rewards_1,

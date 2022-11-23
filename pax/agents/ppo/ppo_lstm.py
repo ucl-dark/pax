@@ -10,13 +10,9 @@ import optax
 from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
-    make_GRU_cartpole_network,
-    make_GRU_coingame_network,
     make_LSTM_ipd_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
-
-# from dm_env import TimeStep
 
 
 class Batch(NamedTuple):
@@ -502,15 +498,9 @@ def make_lstm_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
-        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
+        raise ValueError("CartPole-v1 not supported")
     elif args.env_id == "coin_game":
-        if args.ppo.with_cnn:
-            print(f"Making network for {args.env_id} with CNN")
-        else:
-            print(f"Making network for {args.env_id} without CNN")
-        network, initial_hidden_state = make_GRU_coingame_network(
-            action_spec, args
-        )
+        raise ValueError("CoinGame not supported")
     else:
         network, _ = make_LSTM_ipd_network(action_spec, args)
 
