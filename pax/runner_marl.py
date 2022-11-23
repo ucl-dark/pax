@@ -136,9 +136,8 @@ class RLRunner:
             # special case where NaiveEx has a different call signature
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
-            agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0
-            )
+            agent2.batch_init = jax.vmap(agent2.make_initial_state)
+
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
@@ -148,17 +147,14 @@ class RLRunner:
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
             if args.ppo.rnn_type == "lstm" and args.agent1 == "PPO_memory":
-                print("hello")
                 hidden = jnp.tile(agent1._mem.hidden[0], (args.num_opps, 1, 1))
                 cell = jnp.tile(agent1._mem.hidden[1], (args.num_opps, 1, 1))
                 init_hidden = LSTMState(hidden=hidden, cell=cell)
             else:
-                print("hello2")
                 init_hidden = jnp.tile(
                     agent1._mem.hidden, (args.num_opps, 1, 1)
                 )
 
-            # import pdb; pdb.set_trace()
             agent1._state, agent1._mem = agent1.batch_init(
                 agent1._state.random_key, init_hidden
             )
@@ -166,18 +162,21 @@ class RLRunner:
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
             if args.ppo.rnn_type == "lstm" and args.agent2 == "PPO_memory":
-                print("hello3")
+                rngs = jnp.concatenate(
+                    [jax.random.split(agent2._state.random_key, args.num_opps)]
+                ).reshape((args.num_opps, -1))
                 hidden = jnp.tile(agent2._mem.hidden[0], (args.num_opps, 1, 1))
                 cell = jnp.tile(agent2._mem.hidden[1], (args.num_opps, 1, 1))
                 init_hidden = LSTMState(hidden=hidden, cell=cell)
             else:
-                print("hello4")
                 init_hidden = jnp.tile(
                     agent2._mem.hidden, (args.num_opps, 1, 1)
                 )
-            # import pdb; pdb.set_trace()
+            rngs = jnp.concatenate(
+                [jax.random.split(agent2._state.random_key, args.num_opps)]
+            ).reshape((args.num_opps, -1))
             agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opps),
+                rngs,
                 init_hidden,
             )
 

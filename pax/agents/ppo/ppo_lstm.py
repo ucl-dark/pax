@@ -12,7 +12,6 @@ from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
     make_GRU_cartpole_network,
     make_GRU_coingame_network,
-    make_GRU_ipd_network,
     make_LSTM_ipd_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
@@ -350,7 +349,10 @@ class PPO(AgentInterface):
             )
 
             new_memory = MemoryState(
-                hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
+                hidden=hk.LSTMState(
+                    hidden=jnp.zeros((self._num_envs, self._gru_dim)),
+                    cell=jnp.zeros((self._num_envs, self._gru_dim)),
+                ),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
@@ -363,17 +365,17 @@ class PPO(AgentInterface):
             key: Any, initial_hidden_state: NamedTuple
         ) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
-
             # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec)
-            dummy_obs = utils.add_batch_dim(dummy_obs)
             # import pdb; pdb.set_trace()
+            dummy_obs = jnp.zeros(shape=obs_spec)
+
+            # if len(initial_hidden_state[0].shape) > 2:
+            dummy_obs = utils.add_batch_dim(dummy_obs)
             dummy_obs = dummy_obs.repeat(
                 initial_hidden_state[0].shape[-2], axis=0
             )
-            # if len(initial_hidden_state[0].shape) > 2:
-            #     dummy_obs = utils.add_batch_dim(dummy_obs)
+
             initial_params = network.init(
                 subkey, dummy_obs, initial_hidden_state
             )
@@ -476,7 +478,6 @@ class PPO(AgentInterface):
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-
         _, _, mem = self._policy(state, obs, mem)
         traj_batch = self._prepare_batch(
             traj_batch, traj_batch.dones[-1, ...], mem.extras
