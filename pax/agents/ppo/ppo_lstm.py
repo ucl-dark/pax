@@ -10,6 +10,7 @@ import optax
 from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
+    make_LSTM_cartpole_network,
     make_LSTM_ipd_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
@@ -498,7 +499,7 @@ def make_lstm_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     """Make PPO agent"""
     # Network
     if args.env_id == "CartPole-v1":
-        raise ValueError("CartPole-v1 not supported")
+        network, _ = make_LSTM_cartpole_network(action_spec, args)
     elif args.env_id == "coin_game":
         raise ValueError("CoinGame not supported")
     else:

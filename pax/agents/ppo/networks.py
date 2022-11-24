@@ -351,8 +351,6 @@ def make_LSTM_ipd_network(num_actions: int, args):
     hidden = jnp.zeros((1, args.ppo.hidden_size))
     cell = jnp.zeros((1, args.ppo.hidden_size))
     hidden_state = hk.LSTMState(hidden=hidden, cell=cell)
-    # hidden_state = hidden_state_lstm.initial_state()
-    # hidden_state = jnp.zeros((1, args.ppo.hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: NamedTuple
@@ -376,15 +374,27 @@ def make_GRU_cartpole_network(num_actions: int):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = hk.nets.MLP(
-            [hidden_size, hidden_size],
-            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-            b_init=hk.initializers.Constant(0),
-            activate_final=True,
-        )
         gru = hk.GRU(hidden_size)
-        embedding = torso(inputs)
-        embedding, state = gru(embedding, state)
+        embedding, state = gru(inputs, state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+
+    return network, hidden_state
+
+
+def make_LSTM_cartpole_network(num_actions: int, args):
+    hidden = jnp.zeros((1, args.ppo.hidden_size))
+    cell = jnp.zeros((1, args.ppo.hidden_size))
+    hidden_state = hk.LSTMState(hidden=hidden, cell=cell)
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        """forward function"""
+        lstm = hk.LSTM(args.ppo.hidden_size)
+        embedding, state = lstm(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
 
