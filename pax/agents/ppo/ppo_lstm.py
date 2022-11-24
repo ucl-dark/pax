@@ -497,7 +497,7 @@ class PPO(AgentInterface):
 
 # TODO: seed, and player_id not used in CartPole
 def make_lstm_agent(args, obs_spec, action_spec, seed: int, player_id: int):
-    """Make PPO agent"""
+    """Make PPO LSTM agent"""
     # Network
     if args.env_id == "CartPole-v1":
         network, _ = make_LSTM_cartpole_network(action_spec, args)
