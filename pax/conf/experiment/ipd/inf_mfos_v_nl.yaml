@@ -41,7 +41,7 @@ ppo:
   adam_epsilon: 1e-5
   with_memory: False
   hidden_size: 16
-
+  rnn_type: gru
 # Naive Learner parameters
 naive:
   lr: 1.0

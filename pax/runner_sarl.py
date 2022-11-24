@@ -6,13 +6,13 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save
+from haiku import LSTMState
 
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
-MAX_WANDB_CALLS = 1000000
+MAX_WANDB_CALLS = 10000
 
 
 class Sample(NamedTuple):
@@ -49,22 +49,21 @@ class SARLRunner:
         self.split = jax.vmap(jax.random.split, (0, None))
         # set up agent
         if args.agent1 == "NaiveEx":
-            # special case where NaiveEx has a different call signature
-            agent.batch_init = jax.jit(jax.vmap(agent.make_initial_state))
-        else:
-            # batch MemoryState not TrainingState
-            agent.batch_init = jax.jit(agent.make_initial_state)
+            raise ValueError("NaiveEx not supported in SARL")
 
+        agent.batch_init = jax.jit(agent.make_initial_state)
         agent.batch_reset = jax.jit(agent.reset_memory, static_argnums=1)
-
         agent.batch_policy = jax.jit(agent._policy)
 
-        if args.agent1 != "NaiveEx":
-            # NaiveEx requires env first step to init.
+        if args.ppo.rnn_type == "lstm" and args.agent1 == "PPO_memory":
+            hidden = jnp.tile(agent._mem.hidden[0], (1))
+            cell = jnp.tile(agent._mem.hidden[1], (1))
+            init_hidden = LSTMState(hidden=hidden, cell=cell)
+        else:
             init_hidden = jnp.tile(agent._mem.hidden, (1))
-            agent._state, agent._mem = agent.batch_init(
-                agent._state.random_key, init_hidden
-            )
+        agent._state, agent._mem = agent.batch_init(
+            agent._state.random_key, init_hidden
+        )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -134,7 +133,7 @@ class SARLRunner:
             # run trials
             vals, traj = jax.lax.scan(
                 _inner_rollout,
-                (   
+                (
                     rngs,
                     obs,
                     _a1_state,
@@ -167,7 +166,7 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = jnp.sum(traj.rewards)/(jnp.sum(traj.dones)+1e-8)
+            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
 
             return (
@@ -218,7 +217,7 @@ class SARLRunner:
 
             # logging
             self.train_episodes += 1
-            if num_iters % log_interval == 0:
+            if i % log_interval == 0:
                 print(f"Episode {i}")
 
                 print(f"Env Stats: {env_stats}")

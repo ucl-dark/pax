@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import wandb
 from pax.utils import load
 from pax.watchers import cg_visitation, ipd_visitation
+from haiku import LSTMState
 
 MAX_WANDB_CALLS = 10000
 
@@ -91,9 +92,7 @@ class EvalRunner:
             # special case where NaiveEx has a different call signature
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
-            agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0
-            )
+            agent2.batch_init = jax.vmap(agent2.make_initial_state)
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
@@ -102,7 +101,14 @@ class EvalRunner:
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            if args.ppo.rnn_type == "lstm" and args.agent1 == "PPO_memory":
+                hidden = jnp.tile(agent1._mem.hidden[0], (args.num_opps, 1, 1))
+                cell = jnp.tile(agent1._mem.hidden[1], (args.num_opps, 1, 1))
+                init_hidden = LSTMState(hidden=hidden, cell=cell)
+            else:
+                init_hidden = jnp.tile(
+                    agent1._mem.hidden, (args.num_opps, 1, 1)
+                )
             agent1._state, agent1._mem = agent1.batch_init(
                 agent1._state.random_key, init_hidden
             )
@@ -268,6 +274,7 @@ class EvalRunner:
         ).reshape((self.args.num_opps, self.args.num_envs, -1))
         # run actual loop
         for i in range(num_episodes):
+            rngs = jax.random.split(rngs, 1)
             obs, env_state = env.reset(rngs, env_params)
             rewards = [
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),

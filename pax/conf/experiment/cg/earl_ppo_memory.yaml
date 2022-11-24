@@ -50,6 +50,7 @@ ppo:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
+  rnn_type: gru
   
 # ES parameters 
 es: 

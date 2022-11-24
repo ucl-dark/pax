@@ -9,6 +9,7 @@ from evosax import FitnessShaper
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
+from haiku import LSTMState
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -141,13 +142,11 @@ class EvoRunner:
         else:
             agent2.batch_init = jax.jit(
                 jax.vmap(
-                    jax.vmap(agent2.make_initial_state, (0, None), 0),
-                    (0, None),
-                    0,
+                    jax.vmap(agent2.make_initial_state),
                 )
             )
 
-        agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy, 0, 0)))
+        agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy)))
         agent2.batch_reset = jax.jit(
             jax.vmap(
                 jax.vmap(agent2.reset_memory, (0, None), 0), (0, None), 0
@@ -163,11 +162,21 @@ class EvoRunner:
         )
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
-
             key = jax.random.split(
                 agent2._state.random_key, args.popsize * args.num_opps
             ).reshape(args.popsize, args.num_opps, -1)
+            if args.ppo.rnn_type == "lstm" and args.agent2 == "PPO_memory":
+                hidden = jnp.tile(
+                    agent2._mem.hidden[0], (args.popsize, args.num_opps, 1, 1)
+                )
+                cell = jnp.tile(
+                    agent2._mem.hidden[1], (args.popsize, args.num_opps, 1, 1)
+                )
+                init_hidden = LSTMState(hidden=hidden, cell=cell)
+            else:
+                init_hidden = jnp.tile(
+                    agent2._mem.hidden, (args.popsize, args.num_opps, 1, 1)
+                )
 
             agent2._state, agent2._mem = agent2.batch_init(
                 key,
@@ -379,7 +388,8 @@ class EvoRunner:
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
             elif args.env_id in [
-                "matrix_game",
+                "infinite_matrix_game",
+                "iterated_matrix_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -389,6 +399,10 @@ class EvoRunner:
                         obs1,
                     ),
                 )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
             return (
@@ -446,15 +460,19 @@ class EvoRunner:
         num_devices = self.args.num_devices
 
         # Reshape a single agent's params before vmapping
-        init_hidden = jnp.tile(
-            agent1._mem.hidden,
-            (popsize, num_opps, 1, 1),
-        )
+        if self.args.ppo.rnn_type == "lstm":
+            hidden = jnp.tile(agent1._mem.hidden[0], (popsize, num_opps, 1, 1))
+            cell = jnp.tile(agent1._mem.hidden[1], (popsize, num_opps, 1, 1))
+            init_hidden = LSTMState(hidden=hidden, cell=cell)
+        else:
+            init_hidden = jnp.tile(
+                agent1._mem.hidden,
+                (popsize, num_opps, 1, 1),
+            )
         agent1._state, agent1._mem = agent1.batch_init(
             jax.random.split(agent1._state.random_key, popsize),
             init_hidden,
         )
-
         a1_state, a1_mem = agent1._state, agent1._mem
 
         for gen in range(num_gens):

@@ -40,7 +40,8 @@ ppo:
   learning_rate: 2.5e-3
   adam_epsilon: 1e-5
   with_memory: False
-
+  rnn_type: gru
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"

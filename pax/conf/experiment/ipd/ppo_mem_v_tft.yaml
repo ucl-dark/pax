@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: iterated_matrix_game
@@ -18,7 +18,7 @@ evo: False
 eval: False
 # Training hyperparameters
 num_envs: 100
-num_opps: 1
+num_opps: 5
 num_steps: 150 # number of steps per episode
 total_timesteps: 2e7
 
@@ -46,6 +46,7 @@ ppo:
   with_memory: True
   with_cnn: False
   hidden_size: 4
+  rnn_type: lstm
 
 # Logging setup
 wandb:
