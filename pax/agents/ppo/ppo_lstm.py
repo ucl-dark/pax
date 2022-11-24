@@ -11,6 +11,7 @@ from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
     make_LSTM_cartpole_network,
+    make_LSTM_coingame_network,
     make_LSTM_ipd_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
@@ -501,10 +502,13 @@ def make_lstm_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     if args.env_id == "CartPole-v1":
         network, _ = make_LSTM_cartpole_network(action_spec, args)
     elif args.env_id == "coin_game":
-        raise ValueError("CoinGame not supported")
-    else:
+        network, _ = make_LSTM_coingame_network(action_spec, args)
+    elif args.env_id in ["iterated_matrix_game", "infinite_matrix_game"]:
         network, _ = make_LSTM_ipd_network(action_spec, args)
-
+    else:
+        raise ValueError(
+            f"PPO LSTM Agent {player_id}: not implemented for {args.env_id} environment"
+        )
     hidden = jnp.zeros((args.num_envs, args.ppo.hidden_size))
     cell = jnp.zeros((args.num_envs, args.ppo.hidden_size))
     initial_hidden_state = hk.LSTMState(hidden=hidden, cell=cell)

@@ -432,6 +432,37 @@ def make_GRU_coingame_network(num_actions: int, args):
     return network, hidden_state
 
 
+def make_LSTM_coingame_network(num_actions: int, args):
+    hidden = jnp.zeros((1, args.ppo.hidden_size))
+    cell = jnp.zeros((1, args.ppo.hidden_size))
+    hidden_state = hk.LSTMState(hidden=hidden, cell=cell)
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+
+        if args.ppo.with_cnn:
+            torso = CNN(args)(inputs)
+
+        else:
+            torso = hk.nets.MLP(
+                [args.ppo.hidden_size],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+                activation=jnp.tanh,
+            )
+        lstm = hk.LSTM(args.ppo.hidden_size)
+        embedding = torso(inputs)
+        embedding, state = lstm(embedding, state)
+        logits, values = CategoricalValueHead(num_actions)(embedding)
+
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
 def test_GRU():
     key = jax.random.PRNGKey(seed=0)
     num_actions = 2
