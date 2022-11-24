@@ -46,15 +46,20 @@ STEP = jnp.array(
 
 GRID_SIZE = 10
 OBS_SIZE = 5
-NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
 PADDING = OBS_SIZE - 1
+NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
+
+GRID = jnp.zeros(
+    (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
+    dtype=jnp.int8,
+)
 
 
-# POS = [x, y, theta]
-# right turn = 0  -> [x, y, theta + 1]
-# left turn = 1 -> [x, y, theta - 1]
-# theta 1 -> [1, 0, 0], theta 2 -> [0, 1, 0], theta 3 -> [-1, 0, 0], theta 4 -> [0, -1, 0]
-# forward = POS + theta_n
+# First layer of Padding is walls
+GRID = GRID.at[PADDING, :].set(5)
+GRID = GRID.at[:, PADDING].set(5)
+GRID = GRID.at[GRID_SIZE + PADDING, :].set(5)
+GRID = GRID.at[:, GRID_SIZE + PADDING].set(5)
 
 
 class RunningWithScissors(environment.Environment):
@@ -80,18 +85,10 @@ class RunningWithScissors(environment.Environment):
             dtype=jnp.int8,
         ).reshape(-1, 2)
 
-        # grid = jnp.zeros(
-        #         (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
-        #         dtype=jnp.int8,
-        #     )
-
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
             # create state
-            obs = jnp.zeros(
-                (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
-                dtype=jnp.int8,
-            )
+            obs = GRID
             obs = obs.at[
                 state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
             ].set(1)
@@ -106,11 +103,6 @@ class RunningWithScissors(environment.Environment):
                 state.blue_coin_pos[0] + PADDING,
                 state.blue_coin_pos[1] + PADDING,
             ].set(4)
-
-            obs = obs.at[PADDING, :].set(5)
-            obs = obs.at[:, PADDING].set(5)
-            obs = obs.at[GRID_SIZE + PADDING, :].set(5)
-            obs = obs.at[:, GRID_SIZE + PADDING].set(5)
 
             angle = jnp.zeros(
                 (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
@@ -128,7 +120,7 @@ class RunningWithScissors(environment.Environment):
 
             # crop
             startx = (state.red_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
-            starty = (state.red_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
+            starty = state.red_pos[1] + PADDING
             obs1 = jax.lax.dynamic_slice(
                 obs,
                 start_indices=(startx, starty, jnp.int8(0)),
@@ -151,7 +143,7 @@ class RunningWithScissors(environment.Environment):
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
             startx = (state.blue_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
-            starty = (state.blue_pos[1] + PADDING) // 2 - (OBS_SIZE // 2)
+            starty = state.blue_pos[1] + PADDING
             obs2 = jax.lax.dynamic_slice(
                 obs,
                 start_indices=(startx, starty, jnp.int8(0)),
@@ -195,10 +187,9 @@ class RunningWithScissors(environment.Environment):
             new_red_pos = jnp.where(
                 red_move, red_pos + STEP[state.red_pos[2]], red_pos
             )
-
             # grid boundaries
             new_red_pos = jnp.clip(
-                red_pos,
+                new_red_pos,
                 a_min=jnp.array([0, 0, 0], dtype=jnp.int8),
                 a_max=jnp.array(
                     [GRID_SIZE - 1, GRID_SIZE - 1, 3], dtype=jnp.int8
@@ -316,15 +307,13 @@ class RunningWithScissors(environment.Environment):
                 outer_t=state.outer_t,
             )
 
-            obs1, obs2 = _state_to_obs(state_nxt)
-
             # now calculate if done for inner or outer episode
             inner_t = state_nxt.inner_t
             outer_t = state_nxt.outer_t
             reset_inner = inner_t == num_inner_steps
 
             # if inner episode is done, return start state for next game
-            reset_obs, state_re = _reset(key, params)
+            state_re = _reset_state(key, params)
             state_re = state_re.replace(outer_t=outer_t + 1)
             state = jax.tree_map(
                 lambda x, y: jax.lax.select(reset_inner, x, y),
@@ -332,20 +321,18 @@ class RunningWithScissors(environment.Environment):
                 state_nxt,
             )
 
-            obs1 = jnp.where(reset_inner, reset_obs[0], obs1)
-            obs2 = jnp.where(reset_inner, reset_obs[1], obs2)
-
+            obs = _state_to_obs(state)
             blue_reward = jnp.where(reset_inner, 0, blue_reward)
             red_reward = jnp.where(reset_inner, 0, red_reward)
             return (
-                (obs1, obs2),
+                obs,
                 state,
                 (red_reward, blue_reward),
                 reset_inner,
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
             )
 
-        def _reset(
+        def _reset_state(
             key: jnp.ndarray, params: EnvParams
         ) -> Tuple[jnp.ndarray, EnvState]:
             key, subkey = jax.random.split(key)
@@ -361,7 +348,7 @@ class RunningWithScissors(environment.Environment):
             ).T
             coin_pos = object_pos[2:]
 
-            state = EnvState(
+            return EnvState(
                 red_pos=player_pos[0, :],
                 blue_pos=player_pos[1, :],
                 red_coin_pos=coin_pos[0, :],
@@ -369,15 +356,21 @@ class RunningWithScissors(environment.Environment):
                 inner_t=0,
                 outer_t=0,
             )
-            obs1, obs2 = _state_to_obs(state)
-            return (obs1, obs2), state
+
+        def reset(
+            key: jnp.ndarray, params: EnvParams
+        ) -> Tuple[jnp.ndarray, EnvState]:
+            state = _reset_state(key, params)
+            obs = _state_to_obs(state)
+            return obs, state
 
         # overwrite Gymnax as it makes single-agent assumptions
         self.step = jax.jit(_step)
-        self.reset = jax.jit(_reset)
+        self.reset = jax.jit(reset)
 
+        # for debugging
         self.step = _step
-        self.reset = _reset
+        self.reset = reset
         self.cnn = True
 
     @property
