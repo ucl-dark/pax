@@ -8,6 +8,13 @@ import jax.numpy as jnp
 from gymnax.environments import environment, spaces
 
 
+GRID_SIZE = 5
+OBS_SIZE = 4
+PADDING = OBS_SIZE - 1
+NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
+NUM_OBJECTS = 4  # red, blue, red coin, blue coin
+
+
 @chex.dataclass
 class EnvState:
     red_pos: jnp.ndarray
@@ -44,11 +51,6 @@ STEP = jnp.array(
     dtype=jnp.int8,
 )
 
-GRID_SIZE = 10
-OBS_SIZE = 5
-PADDING = OBS_SIZE - 1
-NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
-
 GRID = jnp.zeros(
     (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
     dtype=jnp.int8,
@@ -80,8 +82,8 @@ class RunningWithScissors(environment.Environment):
 
         super().__init__()
 
-        pos_choice = jnp.array(
-            [[(i, j) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
+        COORDS = jnp.array(
+            [[(j, i) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
             dtype=jnp.int8,
         ).reshape(-1, 2)
 
@@ -187,7 +189,6 @@ class RunningWithScissors(environment.Environment):
             new_red_pos = jnp.where(
                 red_move, red_pos + STEP[state.red_pos[2]], red_pos
             )
-            # grid boundaries
             new_red_pos = jnp.clip(
                 new_red_pos,
                 a_min=jnp.array([0, 0, 0], dtype=jnp.int8),
@@ -279,22 +280,44 @@ class RunningWithScissors(environment.Environment):
                 red_blue_matches, blue_reward + _b_penalty, blue_reward
             )
 
+            # respawn coins
+
+            # find free space
+            red_idx = jnp.array([GRID_SIZE * red_pos[0] + red_pos[1]])
+            blue_idx = jnp.array([GRID_SIZE * blue_pos[0] + blue_pos[1]])
+            rc_idx = jnp.array(
+                [GRID_SIZE * state.red_coin_pos[0] + state.red_coin_pos[1]]
+            )
+            bc_idx = jnp.array(
+                [GRID_SIZE * state.blue_coin_pos[0] + state.blue_coin_pos[1]]
+            )
+
+            free_space = jnp.zeros((GRID_SIZE * GRID_SIZE,), dtype=jnp.int8)
+            free_space = free_space.at[red_idx].set(1)
+            free_space = free_space.at[blue_idx].set(1)
+            free_space = free_space.at[rc_idx].set(1)
+            free_space = free_space.at[bc_idx].set(1)
+            free_space = jnp.logical_not(free_space)
+            empty_idx = free_space.nonzero(size=GRID_SIZE**2 - NUM_OBJECTS)[
+                0
+            ]
+
             key, subkey = jax.random.split(key)
             new_object_pos = jax.random.choice(
                 subkey,
-                pos_choice,
+                empty_idx,
                 shape=(2,),
                 replace=False,
             )
-
+            # both new coins guaranteed to be different locations and not on existing coins!
             new_red_coin_pos = jnp.where(
                 jnp.logical_or(red_red_matches, blue_red_matches),
-                new_object_pos[0],
+                COORDS[new_object_pos[0]],
                 state.red_coin_pos,
             )
             new_blue_coin_pos = jnp.where(
                 jnp.logical_or(red_blue_matches, blue_blue_matches),
-                new_object_pos[1],
+                COORDS[new_object_pos[1]],
                 state.blue_coin_pos,
             )
 
@@ -338,7 +361,7 @@ class RunningWithScissors(environment.Environment):
             key, subkey = jax.random.split(key)
 
             object_pos = jax.random.choice(
-                subkey, pos_choice, shape=(4,), replace=False
+                subkey, COORDS, shape=(4,), replace=False
             )
             player_rot = jax.random.randint(
                 subkey, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
@@ -420,6 +443,7 @@ class RunningWithScissors(environment.Environment):
         fig = Figure((15, 6))
         canvas = FigureCanvas(fig)
         ax = fig.add_subplot(121)
+
         ax.imshow(
             np.zeros((GRID_SIZE + 1, GRID_SIZE + 1)),
             cmap="Greys",
