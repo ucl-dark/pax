@@ -607,10 +607,8 @@ if __name__ == "__main__":
 
     for _ in range(100):
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        # a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
-        # a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
-        a1 = 0
-        a2 = 2
+        a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
+        a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
