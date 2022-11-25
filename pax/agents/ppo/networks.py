@@ -187,7 +187,11 @@ class CNNSeparate(hk.Module):
             stride=1,
             padding="SAME",
         )
-        self.linear_a_0 = hk.Linear(output_channels)
+        self.linear_a_0 = hk.Linear(
+            output_channels,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
 
         self.conv_v_0 = hk.Conv2D(
             output_channels=output_channels,
@@ -201,7 +205,9 @@ class CNNSeparate(hk.Module):
             stride=1,
             padding="SAME",
         )
-        self.linear_v_0 = hk.Linear(output_channels)
+        self.linear_v_0 = hk.Linear(
+            1, w_init=hk.initializers.Constant(0.5), with_bias=False
+        )
 
         self.flatten = hk.Flatten()
 
@@ -222,8 +228,8 @@ class CNNSeparate(hk.Module):
         x = jax.nn.relu(x)
         x = self.flatten(x)
         x = self.linear_v_0(x)
-        val = jax.nn.relu(x)
-        return (logits, val)
+        val = jnp.squeeze(jax.nn.relu(x), axis=-1)
+        return (distrax.Categorical(logits=logits), val)
 
 
 def make_ipd_network(num_actions: int, tabular: bool, args):
@@ -269,11 +275,11 @@ def make_coingame_network(num_actions: int, tabular: bool, args):
         elif args.ppo.with_cnn:
             if args.ppo.separate:
                 cnn = CNNSeparate(args)
-                cvh = CategoricalValueHeadSeparate(num_values=num_actions)
+                layers.extend([cnn])
             else:
                 cnn = CNN(args)
                 cvh = CategoricalValueHead(num_values=num_actions)
-            layers.extend([cnn, cvh])
+                layers.extend([cnn, cvh])
         else:
             layers.extend(
                 [
@@ -336,24 +342,12 @@ def make_rws_network(num_actions: int, args):
 
         if args.ppo.separate:
             cnn = CNNSeparate(args)
-            cvh = CategoricalValueHeadSeparate(num_values=num_actions)
+            layers.extend([cnn])
         else:
             cnn = CNN(args)
             cvh = CategoricalValueHead(num_values=num_actions)
-        layers.extend([cnn, cvh])
+            layers.extend([cnn, cvh])
 
-        layers.extend(
-            [
-                hk.nets.MLP(
-                    [args.ppo.hidden_size],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jnp.tanh,
-                ),
-                CategoricalValueHead(num_values=num_actions),
-            ]
-        )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 

@@ -1,5 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
+from dbm import dumb
 from typing import Any, Dict, NamedTuple, Tuple
 
 import haiku as hk
@@ -340,6 +341,7 @@ class PPO(AgentInterface):
         def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
+            print(obs_spec)
             if not tabular:
                 dummy_obs = jnp.zeros(shape=obs_spec)
             else:

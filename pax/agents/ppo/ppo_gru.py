@@ -448,7 +448,7 @@ class PPO(AgentInterface):
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
-    def reset_memory(self, memory, eval=False) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> MemoryState:
         num_envs = 1 if eval else self._num_envs
         memory = memory._replace(
             extras={
