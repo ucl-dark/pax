@@ -459,7 +459,7 @@ def make_agent(
     tabular=False,
 ):
     """Make PPO agent"""
-    if args.runner == "sarl":
+    if args.runner in ["sarl", "sarl_eval"]:
         network = make_sarl_network(action_spec)
     elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id}")

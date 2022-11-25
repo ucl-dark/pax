@@ -41,6 +41,7 @@ from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
+from pax.runner_sarl_eval import SARLEvalRunner
 from pax.runner_act import ActRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -136,7 +137,7 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
-    elif args.runner == "sarl":
+    elif args.runner in ["sarl", "sarl_eval"]:
         env, env_params = gymnax.make(args.env_id)
     elif args.runner == "act":
         env, env_params = gymnax.make("CartPole-v1")
@@ -233,12 +234,24 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info(f"Evolution Strategy: {algo}")
         if args.runner == "evo":
             return EvoRunner(
-                agents, env, strategy, es_params, param_reshaper, save_dir, args
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
             )
         elif args.runner == "act":
             return ActRunner(
-                agents, env, strategy, es_params, param_reshaper, save_dir, args
-            )            
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -246,6 +259,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
+    elif args.runner == "sarl_eval":
+        logger.info("Evaluating with SARLEval Runner")
+        return SARLEvalRunner(agents, env, save_dir, args)
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -376,7 +392,7 @@ def agent_setup(args, env, env_params, logger):
         "ACT": get_ACT_agent,
     }
 
-    if args.runner == "sarl":
+    if args.runner in ["sarl", "sarl_eval"]:
         assert args.agent1 in strategies
         num_agents = 1
         seeds = [args.seed]
@@ -389,9 +405,9 @@ def agent_setup(args, env, env_params, logger):
         logger.info(f"Agent Pair: {args.agent1}")
         logger.info(f"Agent seeds: {seeds[0]}")
 
-        if args.runner in ["eval", "sarl"]:
+        if args.runner in ["eval", "sarl", "sarl_eval"]:
             logger.info("Using Independent Learners")
-            return agent_1       
+            return agent_1
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
@@ -407,8 +423,10 @@ def agent_setup(args, env, env_params, logger):
         ]
         if args.runner == "act":
             agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-            agent_1 = strategies[args.agent2](seeds[1], pids[1], obs_shape=(obs_shape[0]+2,))  # player 2
-        else:            
+            agent_1 = strategies[args.agent2](
+                seeds[1], pids[1], obs_shape=(obs_shape[0] + 2,)
+            )  # player 2
+        else:
             agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
             agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
@@ -504,7 +522,7 @@ def watcher_setup(args, logger):
         "ACT": dumb_log,
     }
 
-    if args.runner == "sarl":
+    if args.runner in ["sarl", "sarl_eval"]:
         assert args.agent1 in strategies
 
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
@@ -561,7 +579,7 @@ def main(args):
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "eval":
+    elif args.runner == "sarl_eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
@@ -578,7 +596,7 @@ def main(args):
     elif args.runner == "act":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)        
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     wandb.finish()
 
