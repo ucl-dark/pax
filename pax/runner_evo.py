@@ -369,7 +369,8 @@ class EvoRunner:
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
             # Stats
-            if args.env_id == "coin_game":
+
+            if args.env_id in ["coin_game"]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
                     self.cg_stats(env_state),
@@ -391,6 +392,10 @@ class EvoRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()                
             return (
                 fitness,
                 other_fitness,
