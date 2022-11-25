@@ -1,15 +1,27 @@
 from ast import Num
+import math
 from turtle import st
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as onp
 from gymnax.environments import environment, spaces
 
+from pax.envs.rendering import (
+    downsample,
+    fill_coords,
+    highlight_img,
+    point_in_circle,
+    point_in_rect,
+    point_in_triangle,
+    rotate_fn,
+)
 
-GRID_SIZE = 5
-OBS_SIZE = 4
+
+GRID_SIZE = 10
+OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
 NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
 NUM_OBJECTS = 4  # red, blue, red coin, blue coin
@@ -57,11 +69,16 @@ GRID = jnp.zeros(
 )
 
 
-# First layer of Padding is walls
-GRID = GRID.at[PADDING, :].set(5)
-GRID = GRID.at[:, PADDING].set(5)
+# First layer of Padding is Wall
+GRID = GRID.at[PADDING - 1, :].set(5)
 GRID = GRID.at[GRID_SIZE + PADDING, :].set(5)
+GRID = GRID.at[:, PADDING - 1].set(5)
 GRID = GRID.at[:, GRID_SIZE + PADDING].set(5)
+
+COORDS = jnp.array(
+    [[(j, i) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
+    dtype=jnp.int8,
+).reshape(-1, 2)
 
 
 class RunningWithScissors(environment.Environment):
@@ -74,6 +91,8 @@ class RunningWithScissors(environment.Environment):
     3. Then we add variable number of coins
     """
 
+    tile_cache: dict[tuple[Any, ...], Any] = {}
+
     def __init__(
         self,
         num_inner_steps: int,
@@ -81,11 +100,6 @@ class RunningWithScissors(environment.Environment):
     ):
 
         super().__init__()
-
-        COORDS = jnp.array(
-            [[(j, i) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
-            dtype=jnp.int8,
-        ).reshape(-1, 2)
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -106,10 +120,7 @@ class RunningWithScissors(environment.Environment):
                 state.blue_coin_pos[1] + PADDING,
             ].set(4)
 
-            angle = jnp.zeros(
-                (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
-                dtype=jnp.int8,
-            )
+            angle = jnp.copy(GRID)
             angle = angle.at[
                 state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
             ].set(state.red_pos[2])
@@ -120,9 +131,8 @@ class RunningWithScissors(environment.Environment):
 
             obs = jnp.stack([obs, angle], axis=-1)
 
-            # crop
-            startx = (state.red_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
-            starty = state.red_pos[1] + PADDING
+            startx = (state.red_pos[0] + PADDING) - (OBS_SIZE // 2)
+            starty = (state.red_pos[1] + PADDING) - (OBS_SIZE // 2)
             obs1 = jax.lax.dynamic_slice(
                 obs,
                 start_indices=(startx, starty, jnp.int8(0)),
@@ -144,8 +154,8 @@ class RunningWithScissors(environment.Environment):
             angle1 = jax.nn.one_hot(obs1[:, :, 1], 4)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
-            startx = (state.blue_pos[0] + PADDING) // 2 - (OBS_SIZE // 2)
-            starty = state.blue_pos[1] + PADDING
+            startx = (state.blue_pos[0] + PADDING) - (OBS_SIZE // 2)
+            starty = (state.blue_pos[1] + PADDING) - (OBS_SIZE // 2)
             obs2 = jax.lax.dynamic_slice(
                 obs,
                 start_indices=(startx, starty, jnp.int8(0)),
@@ -199,7 +209,7 @@ class RunningWithScissors(environment.Environment):
 
             # turning blue
             blue_pos = jnp.int8(
-                (state.blue_pos + ROTATIONS[action_0])
+                (state.blue_pos + ROTATIONS[action_1])
                 % jnp.array([GRID_SIZE + 1, GRID_SIZE + 1, 4], dtype=jnp.int8)
             )
 
@@ -233,7 +243,9 @@ class RunningWithScissors(environment.Environment):
                 red_pos,
             )
             blue_pos = jnp.where(
-                collision * (1 - red_takes_square), new_blue_pos, blue_pos
+                collision * blue_move * red_move * (1 - red_takes_square),
+                new_blue_pos,
+                blue_pos,
             )
 
             # rewards
@@ -302,6 +314,7 @@ class RunningWithScissors(environment.Environment):
                 0
             ]
 
+            # sample new coins
             key, subkey = jax.random.split(key)
             new_object_pos = jax.random.choice(
                 subkey,
@@ -404,7 +417,7 @@ class RunningWithScissors(environment.Environment):
     @property
     def num_actions(self) -> int:
         """Number of actions possible in environment."""
-        return 5
+        return 3
 
     def action_space(
         self, params: Optional[EnvParams] = None
@@ -431,127 +444,159 @@ class RunningWithScissors(environment.Environment):
         )
         return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
 
-    def render(self, state: EnvState):
-        import numpy as np
-        from matplotlib.backends.backend_agg import (
-            FigureCanvasAgg as FigureCanvas,
-        )
-        from matplotlib.figure import Figure
-        from PIL import Image
+    @classmethod
+    def render_tile(
+        cls,
+        obj: int,
+        agent_dir: Union[int, None] = None,
+        highlight: bool = False,
+        tile_size: int = 32,
+        subdivs: int = 3,
+    ) -> onp.ndarray:
+        """
+        Render a tile and cache the result
+        """
 
-        """Small utility for plotting the agent's state."""
-        fig = Figure((15, 6))
-        canvas = FigureCanvas(fig)
-        ax = fig.add_subplot(121)
+        # Hash map lookup key for the cache
+        key: tuple[Any, ...] = (agent_dir, highlight, tile_size)
+        if obj:
+            key = (obj, 0, 0) + key if obj else key
 
-        ax.imshow(
-            np.zeros((GRID_SIZE + 1, GRID_SIZE + 1)),
-            cmap="Greys",
-            vmin=0,
-            vmax=1,
-            aspect="equal",
-            interpolation="none",
-            origin="lower",
-            extent=[0, 3, 0, 3],
-        )
+        if key in cls.tile_cache:
+            return cls.tile_cache[key]
 
-        ax.set_aspect("equal")
-
-        # ax.margins(0)
-        ax.set_xticks(jnp.arange(1, GRID_SIZE + 1))
-        ax.set_yticks(jnp.arange(1, GRID_SIZE + 1))
-        ax.grid()
-        red_pos = jnp.squeeze(state.red_pos[:2])
-        blue_pos = jnp.squeeze(state.blue_pos[:2])
-        red_coin_pos = jnp.squeeze(state.red_coin_pos)
-        blue_coin_pos = jnp.squeeze(state.blue_coin_pos)
-
-        ax.annotate(
-            "▲",
-            fontsize=14,
-            color="red",
-            xy=(red_pos[0], red_pos[1]),
-            xycoords="data",
-            xytext=(red_pos[0] + 0.5, red_pos[1] + 0.5),
-            rotation=float(-90 * state.red_pos[2]),
-        )
-        ax.annotate(
-            "▲",
-            fontsize=14,
-            color="blue",
-            xy=(blue_pos[0], blue_pos[1]),
-            xycoords="data",
-            xytext=(blue_pos[0] + 0.5, blue_pos[1] + 0.5),
-            rotation=float(-90 * state.blue_pos[2]),
-        )
-        ax.annotate(
-            "C",
-            fontsize=14,
-            color="red",
-            xy=(red_coin_pos[0], red_coin_pos[1]),
-            xycoords="data",
-            xytext=(red_coin_pos[0] + 0.3, red_coin_pos[1] + 0.3),
-        )
-        ax.annotate(
-            "C",
-            color="blue",
-            fontsize=14,
-            xy=(blue_coin_pos[0], blue_coin_pos[1]),
-            xycoords="data",
-            xytext=(
-                blue_coin_pos[0] + 0.3,
-                blue_coin_pos[1] + 0.3,
-            ),
+        img = onp.zeros(
+            shape=(tile_size * subdivs, tile_size * subdivs, 3),
+            dtype=onp.uint8,
         )
 
-        ax2 = fig.add_subplot(122)
-        ax2.text(0.0, 0.95, "Timestep: %s" % (state.inner_t))
-        ax2.text(0.0, 0.75, "Episode: %s" % (state.outer_t))
-        # ax2.text(
-        #     0.0, 0.45, "Red Coop: %s" % (state.red_coop[state.outer_t].sum())
-        # )
-        # ax2.text(
-        #     0.6,
-        #     0.45,
-        #     "Red Defects : %s" % (state.red_defect[state.outer_t].sum()),
-        # )
-        # ax2.text(
-        #     0.0, 0.25, "Blue Coop: %s" % (state.blue_coop[state.outer_t].sum())
-        # )
-        # ax2.text(
-        #     0.6,
-        #     0.25,
-        #     "Blue Defects : %s" % (state.blue_defect[state.outer_t].sum()),
-        # )
-        # ax2.text(
-        #     0.0,
-        #     0.05,
-        #     "Red Total: %s"
-        #     % (
-        #         state.red_defect[state.outer_t].sum()
-        #         + state.red_coop[state.outer_t].sum()
-        #     ),
-        # )
-        # ax2.text(
-        #     0.6,
-        #     0.05,
-        #     "Blue Total: %s"
-        #     % (
-        #         state.blue_defect[state.outer_t].sum()
-        #         + state.blue_coop[state.outer_t].sum()
-        #     ),
-        # )
-        ax2.axis("off")
-        canvas.draw()
-        image = Image.frombytes(
-            "RGB",
-            fig.canvas.get_width_height(),
-            fig.canvas.tostring_rgb(),
-        )
-        return image
+        # Draw the grid lines (top and left edges)
+        fill_coords(img, point_in_rect(0, 0.031, 0, 1), (100, 100, 100))
+        fill_coords(img, point_in_rect(0, 1, 0, 0.031), (100, 100, 100))
+
+        if obj == 1:
+            # Draw the agent 1
+            agent_color = (255, 0, 0)
+        elif obj == 2:
+            # Draw agent 2
+            agent_color = (0, 0, 255)
+        elif obj == 3:
+            # Draw the red coin
+            fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (255, 0, 0))
+        elif obj == 4:
+            # Draw the blue coin
+            fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (0, 0, 255))
+        elif obj == 5:
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (225, 193, 110))
+
+        # Overlay the agent on top
+        if agent_dir is not None:
+            tri_fn = point_in_triangle(
+                (0.12, 0.19),
+                (0.87, 0.50),
+                (0.12, 0.81),
+            )
+
+            # Rotate the agent based on its direction
+            tri_fn = rotate_fn(
+                tri_fn, cx=0.5, cy=0.5, theta=0.5 * math.pi * (1 - agent_dir)
+            )
+            fill_coords(img, tri_fn, agent_color)
+
+        # Highlight the cell if needed
+        if highlight:
+            highlight_img(img)
+
+        # Downsample the image to perform supersampling/anti-aliasing
+        img = downsample(img, subdivs)
+
+        # Cache the rendered tile
+        cls.tile_cache[key] = img
+
+        return img
+
+    def render(
+        self,
+        state: EnvState,
+    ) -> onp.ndarray:
+        """
+        Render this grid at a given scale
+        :param r: target renderer object
+        :param tile_size: tile size in pixels
+        """
+        tile_size = 32
+        highlight_mask = onp.zeros_like(onp.array(GRID))
+
+        x = state.red_pos[0] + PADDING
+        y = state.red_pos[1] + PADDING
+
+        startx = x - (OBS_SIZE // 2)
+        starty = y - (OBS_SIZE // 2)
+        highlight_mask[
+            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
+        ] = True
+
+        x = state.blue_pos[0] + PADDING
+        y = state.blue_pos[1] + PADDING
+
+        startx = x - (OBS_SIZE // 2)
+        starty = y - (OBS_SIZE // 2)
+        highlight_mask[
+            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
+        ] = True
+
+        print(state.blue_pos)
+        # Compute the total grid size
+
+        width_px = GRID.shape[0] * tile_size
+        height_px = GRID.shape[0] * tile_size
+
+        img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
+        grid = onp.array(GRID)
+        grid[state.red_pos[0] + PADDING, state.red_pos[1] + PADDING] = 1
+        grid[state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING] = 2
+        grid[
+            state.red_coin_pos[0] + PADDING, state.red_coin_pos[1] + PADDING
+        ] = 3
+        grid[
+            state.blue_coin_pos[0] + PADDING, state.blue_coin_pos[1] + PADDING
+        ] = 4
+
+        # Render the grid
+        for j in range(0, grid.shape[1]):
+            for i in range(0, grid.shape[0]):
+                cell = grid[i, j]
+                if cell == 0:
+                    cell = None
+                red_agent_here = cell == 1
+                blue_agent_here = cell == 2
+
+                agent_dir = None
+                agent_dir = (
+                    state.red_pos[2].item() if red_agent_here else agent_dir
+                )
+                agent_dir = (
+                    state.blue_pos[2].item() if blue_agent_here else agent_dir
+                )
+
+                tile_img = RunningWithScissors.render_tile(
+                    cell,
+                    agent_dir=agent_dir,
+                    highlight=highlight_mask[i, j],
+                    tile_size=tile_size,
+                )
+
+                ymin = j * tile_size
+                ymax = (j + 1) * tile_size
+                xmin = i * tile_size
+                xmax = (i + 1) * tile_size
+                img[ymin:ymax, xmin:xmax, :] = tile_img
+        return img
 
 
 if __name__ == "__main__":
+    from PIL import Image
+
     action = 1
     rng = jax.random.PRNGKey(0)
     env = RunningWithScissors(100, 100)
@@ -562,13 +607,16 @@ if __name__ == "__main__":
 
     for _ in range(100):
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
-        a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
+        # a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
+        # a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
+        a1 = 0
+        a2 = 2
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
         img = env.render(state)
         pics.append(img)
+    pics = [Image.fromarray(img) for img in pics]
 
     pics[0].save(
         "test1.gif",
