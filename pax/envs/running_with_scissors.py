@@ -20,7 +20,7 @@ from pax.envs.rendering import (
 )
 
 
-GRID_SIZE = 10
+GRID_SIZE = 3
 OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
 NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
@@ -545,7 +545,6 @@ class RunningWithScissors(environment.Environment):
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
 
-        print(state.blue_pos)
         # Compute the total grid size
 
         width_px = GRID.shape[0] * tile_size
@@ -561,7 +560,6 @@ class RunningWithScissors(environment.Environment):
         grid[
             state.blue_coin_pos[0] + PADDING, state.blue_coin_pos[1] + PADDING
         ] = 4
-
         # Render the grid
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
@@ -591,7 +589,11 @@ class RunningWithScissors(environment.Environment):
                 xmin = i * tile_size
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
-        return img
+        return img[
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            :,
+        ]
 
 
 if __name__ == "__main__":
