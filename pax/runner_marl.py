@@ -372,7 +372,10 @@ class RLRunner:
             a2_mem = agent2.batch_reset(a2_mem, False)
 
             # Stats
-            if args.env_id == "coin_game":
+            if (
+                args.env_id == "coin_game"
+                or args.env_id == "RunningWithScissors"
+            ):
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
                     self.cg_stats(env_state),

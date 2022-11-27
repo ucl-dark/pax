@@ -1,5 +1,7 @@
 from ast import Num
 import math
+from re import S
+from turtle import st
 from typing import Any, Optional, Tuple, Union
 
 import chex
@@ -34,6 +36,15 @@ class EnvState:
     blue_coin_pos: jnp.ndarray
     inner_t: int
     outer_t: int
+    # stats
+    red_coop: jnp.ndarray
+    red_defect: jnp.ndarray
+    blue_coop: jnp.ndarray
+    blue_defect: jnp.ndarray
+    counter: jnp.ndarray  # 9
+    coop1: jnp.ndarray  # 9
+    coop2: jnp.ndarray  # 9
+    last_state: jnp.ndarray  # 2
 
 
 @chex.dataclass
@@ -99,6 +110,52 @@ class RunningWithScissors(environment.Environment):
     ):
 
         super().__init__()
+
+        # helper functions
+        def _update_stats(
+            state: EnvState,
+            rr: jnp.ndarray,
+            rb: jnp.ndarray,
+            br: jnp.ndarray,
+            bb: jnp.ndarray,
+        ):
+            def state2idx(s: jnp.ndarray) -> int:
+                idx = 0
+                idx = jnp.where((s == jnp.array([1, 1])).all(), 1, idx)
+                idx = jnp.where((s == jnp.array([1, 2])).all(), 2, idx)
+                idx = jnp.where((s == jnp.array([2, 1])).all(), 3, idx)
+                idx = jnp.where((s == jnp.array([2, 2])).all(), 4, idx)
+                idx = jnp.where((s == jnp.array([0, 1])).all(), 5, idx)
+                idx = jnp.where((s == jnp.array([0, 2])).all(), 6, idx)
+                idx = jnp.where((s == jnp.array([2, 0])).all(), 7, idx)
+                idx = jnp.where((s == jnp.array([1, 0])).all(), 8, idx)
+                return idx
+
+            # actions are X, C, D
+            a1 = 0
+            a1 = jnp.where(rr, 1, a1)
+            a1 = jnp.where(rb, 2, a1)
+
+            a2 = 0
+            a2 = jnp.where(bb, 1, a2)
+            a2 = jnp.where(br, 2, a2)
+
+            # if we didn't get a coin this turn, use the last convention
+            convention_1 = jnp.where(a1 > 0, a1, state.last_state[0])
+            convention_2 = jnp.where(a2 > 0, a2, state.last_state[1])
+
+            idx = state2idx(state.last_state)
+            counter = state.counter + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(1)
+            coop1 = state.coop1 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(rr)
+            coop2 = state.coop2 + jnp.zeros_like(
+                state.counter, dtype=jnp.int16
+            ).at[idx].set(bb)
+            convention = jnp.stack([convention_1, convention_2]).reshape(2)
+            return counter, coop1, coop2, convention
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             """Assume canonical agent is red player"""
@@ -291,6 +348,14 @@ class RunningWithScissors(environment.Environment):
                 red_blue_matches, blue_reward + _b_penalty, blue_reward
             )
 
+            (counter, coop1, coop2, last_state) = _update_stats(
+                state,
+                red_red_matches,
+                red_blue_matches,
+                blue_red_matches,
+                blue_blue_matches,
+            )
+
             # respawn coins
 
             # find free space
@@ -333,6 +398,19 @@ class RunningWithScissors(environment.Environment):
                 state.blue_coin_pos,
             )
 
+            next_red_coop = state.red_coop + jnp.zeros(
+                num_outer_steps, dtype=jnp.int8
+            ).at[state.outer_t].set(red_red_matches)
+            next_red_defect = state.red_defect + jnp.zeros(
+                num_outer_steps, dtype=jnp.int8
+            ).at[state.outer_t].set(red_blue_matches)
+            next_blue_coop = state.blue_coop + jnp.zeros(
+                num_outer_steps, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_blue_matches)
+            next_blue_defect = state.blue_defect + jnp.zeros(
+                num_outer_steps, dtype=jnp.int8
+            ).at[state.outer_t].set(blue_red_matches)
+
             state_nxt = EnvState(
                 red_pos=red_pos,
                 blue_pos=blue_pos,
@@ -340,6 +418,14 @@ class RunningWithScissors(environment.Environment):
                 blue_coin_pos=new_blue_coin_pos,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
+                red_coop=next_red_coop,
+                red_defect=next_red_defect,
+                blue_coop=next_blue_coop,
+                blue_defect=next_blue_defect,
+                counter=counter,
+                coop1=coop1,
+                coop2=coop2,
+                last_state=last_state,
             )
 
             # now calculate if done for inner or outer episode
@@ -355,6 +441,15 @@ class RunningWithScissors(environment.Environment):
                 state_re,
                 state_nxt,
             )
+
+            # make sure stats move forward
+            state.red_coop = state_nxt.red_coop
+            state.red_defect = state_nxt.red_defect
+            state.blue_coop = state_nxt.blue_coop
+            state.blue_defect = state_nxt.blue_defect
+            state.counter = state_nxt.counter
+            state.coop1 = state_nxt.coop1
+            state.coop2 = state_nxt.coop2
 
             obs = _state_to_obs(state)
             blue_reward = jnp.where(reset_inner, 0, blue_reward)
@@ -382,6 +477,8 @@ class RunningWithScissors(environment.Environment):
                 [object_pos[:2, 0], object_pos[:2, 1], player_rot]
             ).T
             coin_pos = object_pos[2:]
+            empty_stats = jnp.zeros((num_outer_steps), dtype=jnp.int8)
+            state_stats = jnp.zeros(9)
 
             return EnvState(
                 red_pos=player_pos[0, :],
@@ -390,6 +487,14 @@ class RunningWithScissors(environment.Environment):
                 blue_coin_pos=coin_pos[1, :],
                 inner_t=0,
                 outer_t=0,
+                red_coop=empty_stats,
+                red_defect=empty_stats,
+                blue_coop=empty_stats,
+                blue_defect=empty_stats,
+                counter=state_stats,
+                coop1=state_stats,
+                coop2=state_stats,
+                last_state=jnp.zeros(2),
             )
 
         def reset(
