@@ -5,7 +5,8 @@
 Pax provides a number of fixed opponents and learning agents to train and train against. 
 
 ## Specifying an Agent
-
+<!-- TODO: This isn't how Pax works atm. However, taken from Github README, so 
+assuming it is on the TODOs to add later. -->
 Pax comes installed with an `Agent` class and several predefined agents. To specify an agent, import the `Agent` class and specify the agent parameters. 
 
 ```
@@ -82,8 +83,6 @@ Coin Game
 | **`PPO`**  | Learning agent parameterised by a multilayer perceptron that learns via PPO. |
 | **`PPO_memory`** | Learning agent parameterised by a multilayer perceptron with a memory component that learns via PPO. |
 | **`Tabular`** | Learning agent parameterised by a single layer perceptron that learns via PPO. |
-
-
 
 ```{note}
 `PPO_memory` serves as the core learning algorithm for both **Good Shepherd (GS)** and **Context and History Aware Other Shaping (CHAOS)** when the training with meta-learning.

@@ -62,6 +62,7 @@ payoff: [[1, 1, -2], [1, 1, -2]]
 |*bool*| If `True`, sets an agent in the Coin Game environment to an egocentric view, empirically found to be more appropriate for other shaping. Else, sets an agent in  to a non-egocentric view, in line with the original version. |
 
 ### env_discount 
+<!-- TODO: Possibly deprecate. -->
 |       Name | Description   | 
 | :----------- | :----------- |
 |*Numeric*| Meta-learning discount factor. Between 0 and 1. |     
