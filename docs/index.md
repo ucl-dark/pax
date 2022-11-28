@@ -1,7 +1,7 @@
 # Pax
 
 ````{note}
-We are under construction at this time. Please check back soon! 
+We are under construction at this time. Please check back later. 
 ````
 
 Pax is an experiment platform for multi-agent shaping research built on top of JAX. It provides support for other-agent shaping and single/multi-agent reinforcement learning experiments with matrix/2D **environments**, regular/meta-learning **agents**, and evolutionary/RL-based optimisation **runners**. 

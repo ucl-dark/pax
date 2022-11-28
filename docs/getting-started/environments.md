@@ -40,7 +40,7 @@ payoff: [[1, 1, -2], [1, 1, -2]]
 ...
 ```
 
-## List of Environments
+## List of Environment Parameters
 
 ### env_id 
 |       Name | Description   | 
@@ -64,12 +64,12 @@ payoff: [[1, 1, -2], [1, 1, -2]]
 ### env_discount 
 |       Name | Description   | 
 | :----------- | :----------- |
-|*Numeric*| Meta-learning discount factor. |     
+|*Numeric*| Meta-learning discount factor. Between 0 and 1. |     
 
 ### payoff 
 |       Name | Description   | 
 | :----------- | :----------- |
-|*Array*| Custom payoff for game. Between 0 and 1. |                       
+|*Array*| Custom payoff for game. |                       
 
 Example: 
 
