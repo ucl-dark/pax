@@ -45,9 +45,11 @@ agent2: 'Altruistic'
 Fixed agents are game-specific, while learning agents like PPO can be used in both games. 
 ```
 
-### Fixed
+### agent1, agent2
 
-Matrix games:
+#### Fixed
+
+Matrix games
 
 |  Agent      |  Description   | 
 | ----------- | ----------- |
@@ -61,7 +63,7 @@ Matrix games:
 | **`TitForTat`**    | Chooses the C action on the first turn and reciprocates the opponent's last action.|
 
 
-Coin Game:
+Coin Game
 
 |   Agent      |    Description| 
 | ----------- | ----------- |
@@ -70,7 +72,7 @@ Coin Game:
 | **`RandomGreedy`**  | Attempts to pick up the closest coin. If equidistant to two colored coins, then it randomly chooses a color coin. |
 | **`Stay`**     | Agent does not move.|
 
-### Learning
+#### Learning
 
 |  Agent      |   Description | 
 | ----------- | ----------- |

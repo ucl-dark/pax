@@ -6,7 +6,7 @@ Pax provides a number of experiment runners useful for different use cases of tr
 
 ## Specifying a Runner
 
-Pax centers around its runners, pieces of custom experiment logic that leverage the speed of JAX. Below is an example of that logic: 
+Pax centers around its runners, pieces of custom experiment logic that leverage the speed of JAX. After specifying the environment and agents, a runner carries out the experiment. The code below shows a portion of a runner that carries out a rollout and updates the agent:  
 
 ```
 def _rollout(carry, unused):
@@ -85,6 +85,8 @@ runner: evo
 ```
 
 ## Runners 
+
+### runner 
 |   Runner      |    Description| 
 | ----------- | ----------- |
 | **`eval`**   | Evaluation runner, where a single, pre-trained agent is evaluated. |

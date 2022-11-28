@@ -27,18 +27,65 @@ while not done:
     )
 ```
 
+To specify the parameters for the environment: 
+
+```
+...
+# Environment  
+env_id: coin_game
+env_type: meta
+egocentric: True
+env_discount: 0.96
+payoff: [[1, 1, -2], [1, 1, -2]]
+...
+```
+
 ## List of Environments
+
+### env_id 
+|       Name | Description   | 
+| :----------- | :----------- |
+|`iterated_matrix_game`| Classic normal form game with a 2x2 payoff matrix repeatedly played over `n` steps. |                       
+|`infinite_matrix_game` | Special case of the classic normal form game that calculates an exact value, simulating an infinite game. 
+|`coin_game`    | Classic grid-world social dilemma environment.          |               
+
+### env_type
 
 |       Name | Description   | 
 | :----------- | :----------- |
-|`IteratedMatrixGame`(num_inner_steps)| Classic normal form game with a 2x2 payoff matrix repeatedly played over `n` steps. |                       
-|`InfiniteMatrixGame`(num_steps) | Special case of the classic normal form game that calculates an exact value, simulating an infinite game. 
-|`CoinGame`(num_inner_steps, num_outer_steps, cnn, egocentric)           | Classic grid-world social dilemma environment.          |                                                 
+|`sequential`| Classic normal form game with a 2x2 payoff matrix repeatedly played over `n` steps. |                       
+|`meta`| Meta-learning regime, where an agent learns via meta-learning.     |
+
+### egocentric 
+|       Name | Description   | 
+| :----------- | :----------- |
+|*bool*| If `True`, sets an agent in the Coin Game environment to an egocentric view, empirically found to be more appropriate for other shaping. Else, sets an agent in  to a non-egocentric view, in line with the original version. |
+
+### env_discount 
+|       Name | Description   | 
+| :----------- | :----------- |
+|*Numeric*| Meta-learning discount factor. |     
+
+### payoff 
+|       Name | Description   | 
+| :----------- | :----------- |
+|*Array*| Custom payoff for game. Between 0 and 1. |                       
+
+Example: 
+
+```
+# if playing Coin Game 
+payoff: [[1, 1, -2], [1, 1, -2]]
+```
+
+```
+# if playing Matrix Games
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+```
 
 ```{note}
 Docstrings are under constuction. Please check back later. 
 ```
-
 
 
 
