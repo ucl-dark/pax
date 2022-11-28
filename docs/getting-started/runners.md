@@ -4,18 +4,21 @@
 
 Pax provides a number of experiment runners useful for different use cases of training and evaluating reinforcement learning agents. 
 
-## Single-Agent Reinforcement Learning (SARL)
+## Specifying a Runner
 
-This runner uses Single-Agent Reinforcement Learning. In this regime, a single agent is trained. 
+To specify the runner in an experiment, use a pre-made `.yaml` file located in `conf/...` or create your own, and specify the runner with `runner`. In the below example, the `evo` flag and the `EvoRunner` used.
 
-## Multi-Agent Reinforcement Learning (MARL)
+```
+...
+# Runner 
+runner: evo 
+...
+```
 
-This runner uses Multi-Agent Reinforcement Learning. In this regime, two independent agents are trained. 
-
-## Evolutionary Strategies (ES)
-
-This runner uses Evolutionary Strategies. In this regime, two independent agents are trained. 
-
-## Evaluation 
-
-This runner is used for evaluation. In this regime, a single, pre-trained agent is evaluated. 
+## Runners 
+|   Runner      |    Description| 
+| ----------- | ----------- |
+| **`eval`**   | Evaluation runner, where a single, pre-trained agent is evaluated. |
+| **`evo`** | Evolution runner, where two independent agents are trained via Evolutionary Strategies (ES). |
+| **`rl`** | Multi-agent runner, where two independent agents are trained via reinforcement learning.  |
+| **`sarl`**  | Single-agent runner, where a single agent is trained via reinforcement learning.  |
