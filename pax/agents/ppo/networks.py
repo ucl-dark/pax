@@ -339,15 +339,27 @@ def make_sarl_network(num_actions: int):
 def make_rws_network(num_actions: int, args):
     def forward_fn(inputs):
         layers = []
-
         if args.ppo.separate:
             cnn = CNNSeparate(args)
             layers.extend([cnn])
-        else:
+
+        elif args.ppo.with_cnn:
             cnn = CNN(args)
             cvh = CategoricalValueHead(num_values=num_actions)
             layers.extend([cnn, cvh])
-
+        else:
+            layers.extend(
+                [
+                    hk.nets.MLP(
+                        [args.ppo.hidden_size],
+                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                        b_init=hk.initializers.Constant(0),
+                        activate_final=True,
+                        activation=jnp.tanh,
+                    ),
+                    CategoricalValueHead(num_values=num_actions),
+                ]
+            )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -434,7 +446,18 @@ def make_GRU_rws_network(num_actions: int, args):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = CNN(args)
+
+        if args.ppo.with_cnn:
+            torso = CNN(args)(inputs)
+
+        else:
+            torso = hk.nets.MLP(
+                [args.ppo.hidden_size],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+                activation=jnp.tanh,
+            )
         if args.ppo.separate:
             cvh = CategoricalValueHeadSeparate(num_values=num_actions)
         else:

@@ -144,6 +144,7 @@ def env_setup(args, logger=None):
         env = RunningWithScissors(
             num_inner_steps=args.num_inner_steps,
             num_outer_steps=args.num_steps // args.num_inner_steps,
+            cnn=args.ppo.with_cnn,
         )
         if logger:
             logger.info(
