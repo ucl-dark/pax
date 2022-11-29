@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, load
 from pax.watchers import cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 1000
@@ -50,7 +50,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class RLRunner:
+class RWSTestRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to
@@ -360,7 +360,7 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
+            _, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
                 a1_state,
@@ -424,6 +424,13 @@ class RLRunner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
+
+        if watchers:
+            wandb.restore(
+                name=self.args.model_path1, run_path=self.args.run_path, root=os.getcwd()
+            )
+        pretrained_params = load(self.args.model_path1)
+        a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1

@@ -44,6 +44,8 @@ from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
+from pax.runner_rws_eval import RWSEvalRunner
+from pax.runner_rws_test_agent1 import RWSTestRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -160,8 +162,14 @@ def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
+    elif args.runner == "rws_eval":
+        logger.info("Evaluating with RWSEvalRunner")
+        return RWSEvalRunner(agents, env, save_dir, args)
+    elif args.runner == "rws_test":
+        logger.info("Evaluating with RWSTestRunner")
+        return RWSTestRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo":
+    elif args.runner == "evo":
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -407,7 +415,7 @@ def agent_setup(args, env, env_params, logger):
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-        if args.runner in ["eval", "rl"]:
+        if args.runner in ["eval", "rl", "rws_eval", "rws_test"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
         if args.runner == "evo":
@@ -557,12 +565,19 @@ def main(args):
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "eval":
+    elif args.runner == "rws_eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "rws_test":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     wandb.finish()
 

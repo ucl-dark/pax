@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'PPO'
 agent2: 'PPO'
 
 # Environment
@@ -9,21 +9,30 @@ env_id: RunningWithScissors
 env_type: sequential
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
-runner: rl
+runner: rws_eval
 
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 2000
+num_envs: 1
 num_opps: 1
-num_steps: 100 
-num_inner_steps: 100 
-total_timesteps: 5e7
+num_steps: 104 
+num_inner_steps: 104 
+total_timesteps: 104
 save_interval: 100 
 
-# Evaluation 
-run_path: ucl-dark/cg/3sp0y2cy
-model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
+# Evaluation
+# run_path: ucl-dark/cg2/35ui53od
+# model_path1: exp/sanity-PPO_memory-vs-PPO-parity/run-seed-1/2022-11-29_12.01.21.735099/agent1_iteration_200
+# model_path2: exp/sanity-PPO_memory-vs-PPO-parity/run-seed-1/2022-11-29_12.01.21.735099/agent2_iteration_200
+
+# run_path: ucl-dark/cg2/23int3gw
+# model_path1: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-11-29_11.11.04.552075/agent1_iteration_900
+# model_path2: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-11-29_11.11.04.552075/agent2_iteration_900
+
+# run_path: ucl-dark/cg2/1gbriqoc
+# model_path1: exp/sanity-PPO-vs-PPO-parity/run-seed-1/2022-11-29_10.47.05.584904/agent1_iteration_900
+# model_path2: exp/sanity-PPO-vs-PPO-parity/run-seed-1/2022-11-29_10.47.05.584904/agent2_iteration_900
 
 # PPO agent parameters
 ppo:
