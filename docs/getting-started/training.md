@@ -36,7 +36,7 @@ num_generations: 2000
 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric*  | Number of generations to train the agent.| 
+|*Numeric*  | Number of generations to train the agent when training with evolution.| 
 
 ### num_inner_steps 
 |       Name | Description   | 
