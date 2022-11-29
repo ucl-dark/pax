@@ -163,13 +163,13 @@ class RunningWithScissors(environment.Environment):
             )
 
             obs2 = jnp.where(
-                state.red_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
+                state.blue_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
             )
             obs2 = jnp.where(
-                state.red_pos[2] == 2, jnp.rot90(obs2, k=2, axes=(0, 1)), obs2
+                state.blue_pos[2] == 2, jnp.rot90(obs2, k=2, axes=(0, 1)), obs2
             )
             obs2 = jnp.where(
-                state.red_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
+                state.blue_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
             obs2 = jax.nn.one_hot(obs2[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
             angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
