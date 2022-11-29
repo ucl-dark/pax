@@ -21,4 +21,5 @@ getting-started/installation
 getting-started/environments
 getting-started/agents
 getting-started/runners
+getting-start/training
 ```
