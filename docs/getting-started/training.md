@@ -25,12 +25,23 @@ num_generations: 2000
 ### num_devices 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric* | Number of devices used to train the agent. Requires access to multiple GPUs.|
+|*Numeric* | Number of devices used to train the agent. Values greater than `1` require multiple GPUs.|
+
+```{note}
+The following piece of code can used to debug multi-devices on CPU if run at the top of `experiment.py`. 
+```
+
+```
+import os
+from jax.config import config
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+config.update('jax_disable_jit', True)
+```
 
 ### num_envs 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric* | Number of environments to train the agent.| 
+|*Numeric* | Number of environments used to train the agent.| 
 
 ### num_generations 
 
@@ -41,17 +52,25 @@ num_generations: 2000
 ### num_inner_steps 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric* | Number of inner steps within an episode. | 
+|*Numeric* | Number of inner steps within an episode. Set equal to `num_steps` when running `env: sequential`| 
 
 ### num_opps 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric* | Number of opponents in each environment. | 
+|*Numeric* | Number of opponents in each environment. Typically set to `1`.  | 
 
 ### num_steps 
 |       Name | Description   | 
 | :----------- | :----------- |                 
-|*Numeric* | Number of outer steps in a meta episode. | 
+|*Numeric* | Number of steps in a meta episode. |
+
+Example: 
+```
+num_inner_steps: 16 # Episode length
+num_steps: 9600     # Steps in a meta-episode
+```
+
+Following the formula `number of episodes = num_steps / num_inner_steps`, we can calculate the number of episodes. In this example, each rollout will contain 600 episodes of length 16 (`600 episodes = 9600 steps / 16 steps per episode`). 
 
 ### popsize
 |       Name | Description   | 
