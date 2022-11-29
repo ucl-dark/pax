@@ -102,11 +102,7 @@ class RunningWithScissors(environment.Environment):
 
     tile_cache: dict[tuple[Any, ...], Any] = {}
 
-    def __init__(
-        self,
-        num_inner_steps: int,
-        num_outer_steps: int,
-    ):
+    def __init__(self, num_inner_steps: int, num_outer_steps: int, cnn: bool):
 
         super().__init__()
 
@@ -218,13 +214,13 @@ class RunningWithScissors(environment.Environment):
             )
 
             obs2 = jnp.where(
-                state.red_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
+                state.blue_pos[2] == 1, jnp.rot90(obs2, k=1, axes=(0, 1)), obs2
             )
             obs2 = jnp.where(
-                state.red_pos[2] == 2, jnp.rot90(obs2, k=2, axes=(0, 1)), obs2
+                state.blue_pos[2] == 2, jnp.rot90(obs2, k=2, axes=(0, 1)), obs2
             )
             obs2 = jnp.where(
-                state.red_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
+                state.blue_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
             obs2 = jax.nn.one_hot(obs2[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
             angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
@@ -234,6 +230,10 @@ class RunningWithScissors(environment.Environment):
             _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
             _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
             _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
+
+            if not self.cnn:
+                obs1 = obs1.flatten()
+                _obs2 = _obs2.flatten()
             return obs1, _obs2
 
         def _step(
@@ -510,7 +510,7 @@ class RunningWithScissors(environment.Environment):
         # for debugging
         self.step = _step
         self.reset = reset
-        self.cnn = True
+        self.cnn = cnn
 
     @property
     def name(self) -> str:
