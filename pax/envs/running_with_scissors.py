@@ -201,8 +201,10 @@ class RunningWithScissors(environment.Environment):
             )
 
             # one-hot (drop first channel as its empty blocks)
-            obs1 = jax.nn.one_hot(obs1[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
-            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4)
+            obs1 = jax.nn.one_hot(
+                obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
+            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4, dtype=jnp.int8)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
             startx = (state.blue_pos[0] + PADDING) - (OBS_SIZE // 2)
@@ -222,8 +224,10 @@ class RunningWithScissors(environment.Environment):
             obs2 = jnp.where(
                 state.blue_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
-            obs2 = jax.nn.one_hot(obs2[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
-            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
+            obs2 = jax.nn.one_hot(
+                obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
+            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4, dtype=jnp.int8)
             obs2 = jnp.concatenate([obs2, angle2], axis=-1)
 
             _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
