@@ -15,8 +15,13 @@ TODO:
 - with_cnn is possibly deprecated. 
 - kernel_shape is possibly deprecated. 
 - separate is possibly deprecated. 
-- possibly make this like the other .md files without a table. 
+- decide if we should remove the table and write out parameters with a ####. 
   -->
+
+<!-- #### num_minibatches
+|  Type | Description   | 
+| :----------- | :----------- |
+| *int*| Number of minibatches.  |    -->
 
 |       Name | Type | Description   | 
 | :----------- | :----------- | :----------- |
