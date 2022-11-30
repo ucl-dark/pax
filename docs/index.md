@@ -1,10 +1,14 @@
-# Pax - Multi-Agent Learning in JAX
+# Pax
 
-Pax is an experiment runner for multi-agent research built on top of JAX. It supports "other agent shaping", "multi agent RL" and "single agent RL" experiments. It supports regular and meta agents, and evolutionary and RL-based optimisation. 
+````{note}
+We are under construction at this time. Please check back later. 
+````
+
+Pax is an experiment platform for multi-agent shaping research built on top of JAX. It provides support for other-agent shaping and single/multi-agent reinforcement learning experiments with matrix/2D **environments**, regular/meta-learning **agents**, and evolutionary/RL-based optimisation **runners**. 
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-Pax is composed of 3 components: Environments, Agents and Runners.
+<!-- Pax is composed of 3 components: Environments, Agents and Runners. -->
 
 
 ```{toctree}
@@ -17,4 +21,6 @@ getting-started/installation
 getting-started/environments
 getting-started/agents
 getting-started/runners
+getting-started/training
+getting-started/evaluation
 ```
