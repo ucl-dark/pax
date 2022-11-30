@@ -82,7 +82,96 @@ Following the formula `number of episodes = num_steps / num_inner_steps`, we can
 | :----------- | :----------- |
 | *Numeric*    | Number of agents to show when training with evolution.  |   
 
+## List of Algorithm Parameters
 
+```{note}
+The parameters below configure the algorithm used for training agents. 
+```
 
+### ppo
+<!-- 
+TODO: 
+- with_memory is possibly deprecated.
+- with_cnn is possibly deprecated. 
+- kernel_shape is possibly deprecated. 
+- separate is possibly deprecated. 
+  -->
 
+|       Name | Type | Description   | 
+| :----------- | :----------- | :----------- |
+| `num_minibatches`   | *int*| Number of minibatches.  |   
+| `num_epochs`   | *int* | Number of epochs.   |   
+| `gamma`   | *Numeric*| Discount factor $\gamma$.  |   
+| `gae_lambda`   | *Numeric*| Generalized advantage estimate $\lambda$ factor.  |   
+| `ppo_clipping_epsilon`   | *Numeric*| Clipping factor $\epsilon$.   |   
+| `value_coeff`   | *Numeric*| Value coefficient.   |   
+| `clip_value`   | *Numeric*| Clip value.   |   
+| `max_gradient_norm`   | *Numeric*| Max gradient norm.   |   
+| `anneal_entropy`   | *bool* | Whether to anneal the entropy term.   |   
+| `entropy_coeff_start`   | *Numeric*| Starting entropy annealing coefficient.  |   
+| `entropy_coeff_horizon`   |*Numeric*|  Number of iterations before entropy coefficient reaches `entropy_coeff_end`   |   
+| `entropy_coeff_end`   | *Numeric*| Ending entropy annealing coefficient.  |   
+| `lr_scheduling`   | *bool* | Whether to annealing the learning rate.   |   
+| `learning_rate`   | *Numeric*| Learning rate.   |   
+| `adam_epsilon`   | *Numeric*| Adam epsilon.   |   
+| `with_memory`   | *bool*| Whether to use memory.  |   
+| `with_cnn`   |*bool* | Whether to use a CNN in Coin Game.  |   
+| `output_channels`   | *int*| Number of output channels.   |   
+| `kernel_shape`   | *Array*|  Size of kernel shape.   |   
+| `separate`   | *bool*| Whether to use separate networks in CNN.  |   
+| `hidden_size`   | *Numeric*| Hidden size of memory layer.  |   
 
+Example
+```
+# config.yaml
+ppo:
+  num_minibatches: 8
+  num_epochs: 2 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  ...  
+```
+
+### es 
+
+|       Name | Type | Description   | 
+| :----------- | :----------- | :----------- |
+| `algo`   | *String*| Algorithm to use. Currently supports `[OpenES, CMA_ES, SimpleGA]`|   
+| `sigma_init`   | *Numeric* | Initial scale of isotropic Gaussian noise   |   
+| `sigma_decay`   | *Numeric*| Multiplicative decay factor  |   
+| `sigma_limit`   | *Numeric*| Smallest possible scale  |   
+| `init_min`   | *Numeric*| Range of parameter mean initialization - Min  |   
+| `init_max`   | *Numeric*| Range of parameter mean initialization - Max  |   
+| `clip_min`   | *Numeric*| Range of parameter proposals - Min  |   
+| `clip_max`   | *Numeric*| Range of parameter proposals - Max  |   
+| `lrate_init`   | *Numeric* | Initial learning rate   |   
+| `lrate_decay`   | *Numeric*| Multiplicative decay factor |   
+| `lrate_limit`   |*Numeric*|  Smallest possible lrate |   
+| `beta_1`   | *Numeric*| Adam - beta_1 |   
+| `beta_2`   | *Numeric* | Adam - beta_2 |   
+| `eps`   | *Numeric*| eps constant,  |   
+| `elite_ratio`   | *Numeric*| Percentage of elites to keep.  |   
+
+Example
+```
+# config.yaml 
+es: 
+  algo: OpenES        
+  sigma_init: 0.04   
+  sigma_decay: 0.999  
+  sigma_limit: 0.01  
+  init_min: 0.0       
+  init_max: 0.0       
+  clip_min: -1e10     
+  clip_max: 1e10     
+  lrate_init: 0.1    
+  lrate_decay: 0.9999 
+  lrate_limit: 0.001  
+  beta_1: 0.99        
+  beta_2: 0.999       
+  eps: 1e-8           
+  elite_ratio: 0.1
+```
