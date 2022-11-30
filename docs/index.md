@@ -22,4 +22,5 @@ getting-started/environments
 getting-started/agents
 getting-started/runners
 getting-started/training
+getting-started/evaluation
 ```
