@@ -1,5 +1,6 @@
 from ast import Num
 import math
+from tkinter import Y
 from turtle import st
 from typing import Any, Optional, Tuple, Union
 
@@ -47,8 +48,8 @@ ROTATIONS = jnp.array(
         [0, 0, 1],  # turn left
         [0, 0, -1],  # turn right
         [0, 0, 0],  # forward
+        [0, 0, 0],  # pickup
         [0, 0, 0],  # stay
-        [0, 0, 0],  # fire
     ],
     dtype=jnp.int8,
 )
@@ -101,8 +102,18 @@ class RunningWithScissors(environment.Environment):
 
         super().__init__()
 
+        def _get_obs_point(x: int, y: int, dir: int) -> jnp.ndarray:
+            x, y = x + PADDING, y + PADDING
+            x = jnp.where(dir == 0, x - (OBS_SIZE // 2), x)
+            x = jnp.where(dir == 2, x - (OBS_SIZE // 2), x)
+            x = jnp.where(dir == 3, x - (OBS_SIZE - 1), x)
+
+            y = jnp.where(dir == 1, y - (OBS_SIZE // 2), y)
+            y = jnp.where(dir == 2, y - (OBS_SIZE - 1), y)
+            y = jnp.where(dir == 3, y - (OBS_SIZE // 2), y)
+            return x, y
+
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
-            """Assume canonical agent is red player"""
             # create state
             obs = GRID
             obs = obs.at[
@@ -131,11 +142,13 @@ class RunningWithScissors(environment.Environment):
 
             obs = jnp.stack([obs, angle], axis=-1)
 
-            startx = (state.red_pos[0] + PADDING) - (OBS_SIZE // 2)
-            starty = (state.red_pos[1] + PADDING) - (OBS_SIZE // 2)
+            x, y = _get_obs_point(
+                state.red_pos[0], state.red_pos[1], state.red_pos[2]
+            )
+
             obs1 = jax.lax.dynamic_slice(
                 obs,
-                start_indices=(startx, starty, jnp.int8(0)),
+                start_indices=(x, y, jnp.int8(0)),
                 slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
             )
             # rotate
@@ -150,15 +163,19 @@ class RunningWithScissors(environment.Environment):
             )
 
             # one-hot (drop first channel as its empty blocks)
-            obs1 = jax.nn.one_hot(obs1[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
+            obs1 = jax.nn.one_hot(
+                obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
             angle1 = jax.nn.one_hot(obs1[:, :, 1], 4)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
-            startx = (state.blue_pos[0] + PADDING) - (OBS_SIZE // 2)
-            starty = (state.blue_pos[1] + PADDING) - (OBS_SIZE // 2)
+            x, y = _get_obs_point(
+                state.blue_pos[0], state.blue_pos[1], state.blue_pos[2]
+            )
+
             obs2 = jax.lax.dynamic_slice(
                 obs,
-                start_indices=(startx, starty, jnp.int8(0)),
+                start_indices=(x, y, jnp.int8(0)),
                 slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
             )
 
@@ -171,7 +188,9 @@ class RunningWithScissors(environment.Environment):
             obs2 = jnp.where(
                 state.blue_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
-            obs2 = jax.nn.one_hot(obs2[:, :, 0], NUM_TYPES + 1)[:, :, 1:]
+            obs2 = jax.nn.one_hot(
+                obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
+            )[:, :, 1:]
             angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
             obs2 = jnp.concatenate([obs2, angle2], axis=-1)
 
@@ -376,11 +395,11 @@ class RunningWithScissors(environment.Environment):
             object_pos = jax.random.choice(
                 subkey, COORDS, shape=(4,), replace=False
             )
-            player_rot = jax.random.randint(
+            player_dir = jax.random.randint(
                 subkey, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
             )
             player_pos = jnp.array(
-                [object_pos[:2, 0], object_pos[:2, 1], player_rot]
+                [object_pos[:2, 0], object_pos[:2, 1], player_dir]
             ).T
             coin_pos = object_pos[2:]
 
@@ -403,6 +422,7 @@ class RunningWithScissors(environment.Environment):
         # overwrite Gymnax as it makes single-agent assumptions
         self.step = jax.jit(_step)
         self.reset = jax.jit(reset)
+        self.get_obs_point = _get_obs_point
 
         # for debugging
         self.step = _step
@@ -527,27 +547,21 @@ class RunningWithScissors(environment.Environment):
         tile_size = 32
         highlight_mask = onp.zeros_like(onp.array(GRID))
 
-        x = state.red_pos[0] + PADDING
-        y = state.red_pos[1] + PADDING
-
-        startx = x - (OBS_SIZE // 2)
-        starty = y - (OBS_SIZE // 2)
+        startx, starty = self.get_obs_point(
+            state.red_pos[0], state.red_pos[1], state.red_pos[2]
+        )
         highlight_mask[
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
 
-        x = state.blue_pos[0] + PADDING
-        y = state.blue_pos[1] + PADDING
-
-        startx = x - (OBS_SIZE // 2)
-        starty = y - (OBS_SIZE // 2)
+        startx, starty = self.get_obs_point(
+            state.blue_pos[0], state.blue_pos[1], state.blue_pos[2]
+        )
         highlight_mask[
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
 
-        print(state.blue_pos)
         # Compute the total grid size
-
         width_px = GRID.shape[0] * tile_size
         height_px = GRID.shape[0] * tile_size
 
@@ -591,7 +605,12 @@ class RunningWithScissors(environment.Environment):
                 xmin = i * tile_size
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
-        return img
+
+        return img[
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            :,
+        ]
 
 
 if __name__ == "__main__":
@@ -617,7 +636,7 @@ if __name__ == "__main__":
     pics = [Image.fromarray(img) for img in pics]
 
     pics[0].save(
-        "test1.gif",
+        "test.gif",
         format="gif",
         save_all=True,
         append_images=pics[1:],
