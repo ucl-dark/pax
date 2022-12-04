@@ -101,6 +101,15 @@ class TrainingState(NamedTuple):
     random_key: jnp.ndarray
     timesteps: int
 
+class TrainingStateSynq(NamedTuple):
+    """Training state consists of network parameters, optimiser state, random key, timesteps"""
+
+    params: hk.Params
+    params_synq: hk.Params
+    opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
+    timesteps: int
+
 
 class MemoryState(NamedTuple):
     """State consists of network extras (to be batched)"""
