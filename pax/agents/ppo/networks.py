@@ -339,7 +339,7 @@ def make_sarl_network(num_actions: int):
 def make_rws_network(num_actions: int, args):
     def forward_fn(inputs):
         layers = []
-        if args.ppo.separate:
+        if args.ppo.separate and args.ppo.with_cnn:
             cnn = CNNSeparate(args)
             layers.extend([cnn])
 
@@ -417,7 +417,7 @@ def make_GRU_coingame_network(num_actions: int, args):
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
 
         if args.ppo.with_cnn:
-            torso = CNN(args)(inputs)
+            torso = CNN(args)
 
         else:
             torso = hk.nets.MLP(
