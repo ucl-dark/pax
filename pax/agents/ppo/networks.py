@@ -448,7 +448,7 @@ def make_GRU_rws_network(num_actions: int, args):
         """forward function"""
 
         if args.ppo.with_cnn:
-            torso = CNN(args)(inputs)
+            torso = CNN(args)
 
         else:
             torso = hk.nets.MLP(
