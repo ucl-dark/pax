@@ -132,7 +132,7 @@ class RunningWithScissors(environment.Environment):
             y = jnp.where(dir == 3, y - (OBS_SIZE // 2), y)
             return x, y
 
-        def _state_to_obs(state: EnvState) -> jnp.ndarray:
+        def _get_obs(state: EnvState) -> jnp.ndarray:
             # create state
             obs = jnp.pad(
                 state.grid,
@@ -206,7 +206,10 @@ class RunningWithScissors(environment.Environment):
             _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
             _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
             _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
-            return (obs1, state.red_inventory), (_obs2, state.blue_inventory)
+            return {"observation": obs1, "inventory": state.red_inventory}, {
+                "observation": _obs2,
+                "inventory": state.blue_inventory,
+            }
 
         def _get_reward(state: EnvState, params: EnvParams) -> jnp.ndarray:
             inv1 = state.red_inventory / state.red_inventory.sum()
@@ -363,7 +366,7 @@ class RunningWithScissors(environment.Environment):
                 state_nxt,
             )
 
-            obs = _state_to_obs(state)
+            obs = _get_obs(state)
             blue_reward = jnp.where(reset_inner, 0, blue_reward)
             red_reward = jnp.where(reset_inner, 0, red_reward)
             return (
@@ -413,7 +416,7 @@ class RunningWithScissors(environment.Environment):
             key: jnp.ndarray, params: EnvParams
         ) -> Tuple[jnp.ndarray, EnvState]:
             state = _reset_state(key, params)
-            obs = _state_to_obs(state)
+            obs = _get_obs(state)
             return obs, state
 
         # overwrite Gymnax as it makes single-agent assumptions
@@ -424,7 +427,7 @@ class RunningWithScissors(environment.Environment):
         # for debugging
         self.step = _step
         self.reset = reset
-        self.cnn = True
+        self.get_obs = _get_obs
 
     @property
     def name(self) -> str:
@@ -456,7 +459,7 @@ class RunningWithScissors(environment.Environment):
                 low=0, high=1, shape=_shape, dtype=jnp.uint8
             ),
             "inventory": spaces.Box(
-                low=0, high=1, shape=NUM_COIN_TYPES, dtype=jnp.uint8
+                low=0, high=NUM_COINS, shape=NUM_COIN_TYPES, dtype=jnp.uint8
             ),
         }
 
@@ -539,6 +542,72 @@ class RunningWithScissors(environment.Environment):
         cls.tile_cache[key] = img
 
         return img
+
+    def render_agent_view(self, state: EnvState) -> Tuple[onp.ndarray]:
+        """
+        Render the observation for each agent"""
+
+        tile_size = 32
+        highlight_mask = onp.zeros_like(onp.array(GRID))
+
+        startx, starty = self.get_obs_point(
+            state.red_pos[0], state.red_pos[1], state.red_pos[2]
+        )
+        highlight_mask[
+            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
+        ] = True
+
+        startx, starty = self.get_obs_point(
+            state.blue_pos[0], state.blue_pos[1], state.blue_pos[2]
+        )
+        highlight_mask[
+            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
+        ] = True
+
+        # Compute the total grid size
+        width_px = GRID.shape[0] * tile_size
+        height_px = GRID.shape[0] * tile_size
+
+        img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
+        grid = onp.array(state.grid)
+        grid = onp.pad(
+            grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
+        )
+        # Render the grid
+        for j in range(0, grid.shape[1]):
+            for i in range(0, grid.shape[0]):
+                cell = grid[i, j]
+                if cell == 0:
+                    cell = None
+                red_agent_here = cell == 1
+                blue_agent_here = cell == 2
+
+                agent_dir = None
+                agent_dir = (
+                    state.red_pos[2].item() if red_agent_here else agent_dir
+                )
+                agent_dir = (
+                    state.blue_pos[2].item() if blue_agent_here else agent_dir
+                )
+
+                tile_img = RunningWithScissors.render_tile(
+                    cell,
+                    agent_dir=agent_dir,
+                    highlight=highlight_mask[i, j],
+                    tile_size=tile_size,
+                )
+
+                ymin = j * tile_size
+                ymax = (j + 1) * tile_size
+                xmin = i * tile_size
+                xmax = (i + 1) * tile_size
+                img[ymin:ymax, xmin:xmax, :] = tile_img
+
+        return img[
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+            :,
+        ]
 
     def render(
         self,
@@ -640,10 +709,10 @@ if __name__ == "__main__":
             rng, state, (a1 * action, a2 * action), params
         )
         print(t, int_action[a1.item()], int_action[a2.item()])
-        print(obs[0][0].shape, obs[1][1].shape)
+        print(obs[0]["observation"].shape, obs[0]["inventory"].shape)
         print(reward[0], reward[1])
 
-        img = env.render(state)
+        img = env.render_agent_view(state)
         pics.append(img)
     pics = [Image.fromarray(img) for img in pics]
 
