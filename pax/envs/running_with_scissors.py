@@ -229,10 +229,11 @@ class RunningWithScissors(environment.Environment):
             a0, a1 = actions
             red_zap = a0 == Actions.interact
             blue_zap = a1 == Actions.interact
+            interact_idx = jnp.int8(Items.interact)
 
             # remove old interacts
             state.grid = jnp.where(
-                state.grid == Items.interact, Items.empty, state.grid
+                state.grid == interact_idx, jnp.int8(Items.empty), state.grid
             )
 
             # check 1 ahead
@@ -299,14 +300,14 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[red_target[0], red_target[1]],
                 state.grid[red_target[0], red_target[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[red_target[0], red_target[1]].set(item)
 
             item = jnp.where(
                 state.grid[red_target_ahead[0], red_target_ahead[1]],
                 state.grid[red_target_ahead[0], red_target_ahead[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[
                 red_target_ahead[0], red_target_ahead[1]
@@ -315,7 +316,7 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[red_target_right[0], red_target_right[1]],
                 state.grid[red_target_right[0], red_target_right[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[
                 red_target_right[0], red_target_right[1]
@@ -324,7 +325,7 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[red_target_left[0], red_target_left[1]],
                 state.grid[red_target_left[0], red_target_left[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[red_target_left[0], red_target_left[1]].set(
                 item
@@ -345,14 +346,14 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[blue_target[0], blue_target[1]],
                 state.grid[blue_target[0], blue_target[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[blue_target[0], blue_target[1]].set(item)
 
             item = jnp.where(
                 state.grid[blue_target_ahead[0], blue_target_ahead[1]],
                 state.grid[blue_target_ahead[0], blue_target_ahead[1]],
-                Items.interact,
+                interact_idx,
             )
             aux_grid = aux_grid.at[
                 blue_target_ahead[0], blue_target_ahead[1]
@@ -361,7 +362,7 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[blue_target_right[0], blue_target_right[1]],
                 state.grid[blue_target_right[0], blue_target_right[1]],
-                Items.interact,
+                interact_idx,
             )
             state.grid = aux_grid.at[
                 blue_target_right[0], blue_target_right[1]
@@ -370,7 +371,7 @@ class RunningWithScissors(environment.Environment):
             item = jnp.where(
                 state.grid[blue_target_left[0], blue_target_left[1]],
                 state.grid[blue_target_left[0], blue_target_left[1]],
-                Items.interact,
+                interact_idx,
             )
             state.grid = state.grid.at[
                 blue_target_left[0], blue_target_left[1]
@@ -857,6 +858,7 @@ if __name__ == "__main__":
         3: "interact",
         4: "stay",
     }
+    env.step = jax.jit(env.step)
     for t in range(20):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
