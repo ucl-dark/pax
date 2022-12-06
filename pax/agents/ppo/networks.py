@@ -203,7 +203,7 @@ class CNNSeparate(hk.Module):
             padding="SAME",
         )
         self.linear_v_0 = hk.Linear(output_channels)
-        self.linear_v_1 = hk.Linear(output_channels)
+        self.linear_v_1 = hk.Linear(1)
 
         self.flatten = hk.Flatten()
 
@@ -234,7 +234,7 @@ class CNNSeparate(hk.Module):
         x = self.linear_v_1(x)
         val = jax.nn.relu(x)
 
-        return (distrax.Categorical(logits=logits), val)
+        return (distrax.Categorical(logits=logits), jnp.squeeze(val, axis=-1))
 
 
 def make_ipd_network(num_actions: int, tabular: bool, args):
