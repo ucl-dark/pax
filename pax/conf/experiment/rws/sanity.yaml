@@ -8,7 +8,7 @@ agent2: 'Stay'
 env_id: RunningWithScissors
 env_type: sequential
 env_discount: 0.96
-payoff: [[1, 1, -2], [1, 1, -2]]
+payoff: [[3, 0], [5, 1]]
 runner: rl
 
 # Training hyperparameters
@@ -16,8 +16,8 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 100
 num_opps: 1
-num_steps: 100 
-num_inner_steps: 100 
+num_steps: 300 
+num_inner_steps: 300 
 total_timesteps: 1e7
 save_interval: 100 
 

@@ -42,8 +42,8 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     """Used to collapse lax.scan outputs dims"""
     # x: [outer_loop, inner_loop, num_opps, num_envs ...]
     # x: [timestep, batch_size, ...]
-    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+    num_envs = traj.rewards.shape[2] * traj.rewards.shape[3]
+    num_timesteps = traj.rewards.shape[0] * traj.rewards.shape[1]
     return jax.tree_util.tree_map(
         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
         traj,
