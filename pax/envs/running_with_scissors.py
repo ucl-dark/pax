@@ -658,21 +658,25 @@ class RunningWithScissors(environment.Environment):
 
         if obj == Items.red_agent:
             # Draw the agent 1
-            agent_color = (255, 0, 0)
+            agent_color = (31.0, 119.0, 180.0)
         elif obj == Items.blue_agent:
             # Draw agent 2
-            agent_color = (0, 0, 255)
+            agent_color = (255.0, 127.0, 14.0)
         elif obj == Items.red_coin:
             # Draw the red coin
-            fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (255, 0, 0))
+            fill_coords(
+                img, point_in_circle(0.5, 0.5, 0.31), (44.0, 160.0, 44.0)
+            )
         elif obj == Items.blue_coin:
             # Draw the blue coin
-            fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (0, 0, 255))
+            fill_coords(
+                img, point_in_circle(0.5, 0.5, 0.31), (214.0, 39.0, 40.0)
+            )
         elif obj == Items.wall:
-            fill_coords(img, point_in_rect(0, 1, 0, 1), (225, 193, 110))
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (127.0, 127.0, 127.0))
 
         elif obj == Items.interact:
-            fill_coords(img, point_in_rect(0, 1, 0, 1), (241, 235, 156))
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (188.0, 189.0, 34.0))
 
         # Overlay the agent on top
         if agent_dir is not None:
