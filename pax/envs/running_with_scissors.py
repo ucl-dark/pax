@@ -435,6 +435,7 @@ class RunningWithScissors(environment.Environment):
         self.step = _step
         self.reset = reset
         self.get_obs = _get_obs
+        self.cnn = True
 
     @property
     def name(self) -> str:
