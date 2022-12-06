@@ -160,6 +160,9 @@ class RunningWithScissors(environment.Environment):
                 slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
             )
             # rotate
+            # print(state.grid)
+            # print(state.red_pos[2])
+            # print(obs1.transpose((2, 0, 1)))
             obs1 = jnp.where(
                 state.red_pos[2] == 1, jnp.rot90(obs1, k=1, axes=(0, 1)), obs1
             )
@@ -169,12 +172,15 @@ class RunningWithScissors(environment.Environment):
             obs1 = jnp.where(
                 state.red_pos[2] == 3, jnp.rot90(obs1, k=3, axes=(0, 1)), obs1
             )
+            # print("rotated")
+            # print(obs1.transpose((2, 0, 1)))
 
             # one-hot (drop first channel as its empty blocks)
             obs1 = jax.nn.one_hot(
                 obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
             )[:, :, 1:]
-            angle1 = jax.nn.one_hot(obs1[:, :, 1], 4)
+            angle1 = (obs1[:, :, 1] - state.red_pos[3]) % 4
+            angle1 = jax.nn.one_hot(angle1, 4)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
 
             x, y = _get_obs_point(
@@ -199,7 +205,8 @@ class RunningWithScissors(environment.Environment):
             obs2 = jax.nn.one_hot(
                 obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
             )[:, :, 1:]
-            angle2 = jax.nn.one_hot(obs2[:, :, 1], 4)
+            angle2 = (obs2[:, :, 1] - state.blue_pos[3]) % 4
+            angle2 = jax.nn.one_hot(angle2, 4)
             obs2 = jnp.concatenate([obs2, angle2], axis=-1)
 
             _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
@@ -543,36 +550,30 @@ class RunningWithScissors(environment.Environment):
 
         return img
 
-    def render_agent_view(self, state: EnvState) -> Tuple[onp.ndarray]:
+    def render_agent_view(
+        self, state: EnvState, agent: int
+    ) -> Tuple[onp.ndarray]:
         """
         Render the observation for each agent"""
 
         tile_size = 32
-        highlight_mask = onp.zeros_like(onp.array(GRID))
+        obs = self.get_obs(state)
 
-        startx, starty = self.get_obs_point(
-            state.red_pos[0], state.red_pos[1], state.red_pos[2]
-        )
-        highlight_mask[
-            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
-        ] = True
-
-        startx, starty = self.get_obs_point(
-            state.blue_pos[0], state.blue_pos[1], state.blue_pos[2]
-        )
-        highlight_mask[
-            startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
-        ] = True
+        grid = onp.array(obs[agent]["observation"])
+        empty_space_channel = onp.zeros((OBS_SIZE, OBS_SIZE, 1))
+        grid = onp.concatenate((empty_space_channel, grid), axis=-1)
+        grid = onp.argmax(grid.reshape(-1, grid.shape[-1]), axis=1)
+        grid = grid.reshape(OBS_SIZE, OBS_SIZE)
 
         # Compute the total grid size
-        width_px = GRID.shape[0] * tile_size
-        height_px = GRID.shape[0] * tile_size
+        width_px = grid.shape[0] * tile_size
+        height_px = grid.shape[0] * tile_size
 
         img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
-        grid = onp.array(state.grid)
-        grid = onp.pad(
-            grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
-        )
+
+        red_dir = state.red_pos[2].item() if agent == 1 else 0
+        blue_dir = state.blue_pos[2].item() if agent == 0 else 0
+
         # Render the grid
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
@@ -583,17 +584,14 @@ class RunningWithScissors(environment.Environment):
                 blue_agent_here = cell == 2
 
                 agent_dir = None
-                agent_dir = (
-                    state.red_pos[2].item() if red_agent_here else agent_dir
-                )
-                agent_dir = (
-                    state.blue_pos[2].item() if blue_agent_here else agent_dir
-                )
+
+                agent_dir = red_dir if red_agent_here else agent_dir
+                agent_dir = blue_dir if blue_agent_here else agent_dir
 
                 tile_img = RunningWithScissors.render_tile(
                     cell,
                     agent_dir=agent_dir,
-                    highlight=highlight_mask[i, j],
+                    highlight=None,
                     tile_size=tile_size,
                 )
 
@@ -603,11 +601,7 @@ class RunningWithScissors(environment.Environment):
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
 
-        return img[
-            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
-            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
-            :,
-        ]
+        return onp.rot90(img, 2, axes=(0, 1))
 
     def render(
         self,
@@ -691,7 +685,12 @@ if __name__ == "__main__":
     params = EnvParams(payoff_matrix=jnp.array([[3, 0], [5, 1]]))
     obs, state = env.reset(rng, params)
     pics = []
+    pics1 = []
+    pics2 = []
+
     img = env.render(state)
+    img1 = env.render_agent_view(state, agent=0)
+    img2 = env.render_agent_view(state, agent=1)
     pics.append(img)
 
     int_action = {
@@ -703,6 +702,8 @@ if __name__ == "__main__":
     }
     for t in range(20):
         rng, rng1, rng2 = jax.random.split(rng, 3)
+        # a1 = jnp.array(2)
+        # a2 = jnp.array(2)
         a1 = jax.random.randint(rng1, (), minval=0, maxval=num_actions)
         a2 = jax.random.randint(rng2, (), minval=0, maxval=num_actions)
         obs, state, reward, done, info = env.step(
@@ -712,15 +713,40 @@ if __name__ == "__main__":
         print(obs[0]["observation"].shape, obs[0]["inventory"].shape)
         print(reward[0], reward[1])
 
-        img = env.render_agent_view(state)
+        img = env.render(state)
+        img1 = env.render_agent_view(state, agent=0)
+        img2 = env.render_agent_view(state, agent=1)
+
         pics.append(img)
+        pics1.append(img1)
+        pics2.append(img2)
+
     pics = [Image.fromarray(img) for img in pics]
+    pics1 = [Image.fromarray(img) for img in pics1]
+    pics2 = [Image.fromarray(img) for img in pics2]
 
     pics[0].save(
-        "test.gif",
+        "state.gif",
         format="gif",
         save_all=True,
         append_images=pics[1:],
+        duration=300,
+        loop=0,
+    )
+
+    pics1[0].save(
+        "agent1.gif",
+        format="gif",
+        save_all=True,
+        append_images=pics1[1:],
+        duration=300,
+        loop=0,
+    )
+    pics2[0].save(
+        "agent2.gif",
+        format="gif",
+        save_all=True,
+        append_images=pics2[1:],
         duration=300,
         loop=0,
     )
