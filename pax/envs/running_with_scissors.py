@@ -1,7 +1,5 @@
-from ast import Num
+from enum import IntEnum
 import math
-from tkinter import Y
-from turtle import st
 from typing import Any, Optional, Tuple, Union
 
 import chex
@@ -21,21 +19,23 @@ from pax.envs.rendering import (
 )
 
 
-GRID_SIZE = 10
+GRID_SIZE = 8
 OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
-NUM_TYPES = 5  # red, blue, red coin, blue coin, wall
-NUM_OBJECTS = 4  # red, blue, red coin, blue coin
+NUM_TYPES = 5  # empty (0), red (1), blue, red coin, blue coin, wall
+NUM_COINS = 8  # per type
+NUM_OBJECTS = 2 + 2 * NUM_COINS  # red, blue, 2 red coin, 2 blue coin
 
 
 @chex.dataclass
 class EnvState:
     red_pos: jnp.ndarray
     blue_pos: jnp.ndarray
-    red_coin_pos: jnp.ndarray
-    blue_coin_pos: jnp.ndarray
     inner_t: int
     outer_t: int
+    grid: jnp.ndarray
+    red_inventory: jnp.ndarray
+    blue_inventory: jnp.ndarray
 
 
 @chex.dataclass
@@ -43,12 +43,29 @@ class EnvParams:
     payoff_matrix: chex.ArrayDevice
 
 
+class Actions(IntEnum):
+    left = 0
+    right = 1
+    forward = 2
+    interact = 3
+    stay = 4
+
+
+class Items(IntEnum):
+    empty = 0
+    red_agent = 1
+    blue_agent = 2
+    red_coin = 3
+    blue_coin = 4
+    wall = 5
+
+
 ROTATIONS = jnp.array(
     [
         [0, 0, 1],  # turn left
         [0, 0, -1],  # turn right
         [0, 0, 0],  # forward
-        [0, 0, 0],  # pickup
+        [0, 0, 0],  # zap
         [0, 0, 0],  # stay
     ],
     dtype=jnp.int8,
@@ -68,7 +85,6 @@ GRID = jnp.zeros(
     (GRID_SIZE + 2 * PADDING, GRID_SIZE + 2 * PADDING),
     dtype=jnp.int8,
 )
-
 
 # First layer of Padding is Wall
 GRID = GRID.at[PADDING - 1, :].set(5)
@@ -115,23 +131,12 @@ class RunningWithScissors(environment.Environment):
 
         def _state_to_obs(state: EnvState) -> jnp.ndarray:
             # create state
-            obs = GRID
-            obs = obs.at[
-                state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
-            ].set(1)
-            obs = obs.at[
-                state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING
-            ].set(2)
-            obs = obs.at[
-                state.red_coin_pos[0] + PADDING,
-                state.red_coin_pos[1] + PADDING,
-            ].set(3)
-            obs = obs.at[
-                state.blue_coin_pos[0] + PADDING,
-                state.blue_coin_pos[1] + PADDING,
-            ].set(4)
-
-            angle = jnp.copy(GRID)
+            obs = jnp.pad(
+                state.grid,
+                ((PADDING, PADDING), (PADDING, PADDING)),
+                constant_values=5,
+            )
+            angle = jnp.copy(obs)
             angle = angle.at[
                 state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
             ].set(state.red_pos[2])
@@ -198,7 +203,14 @@ class RunningWithScissors(environment.Environment):
             _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
             _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
             _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
-            return obs1, _obs2
+            return (obs1, state.red_inventory), (_obs2, state.blue_inventory)
+
+        def _get_reward(state: EnvState, params: EnvParams) -> jnp.ndarray:
+            inv1 = state.red_inventory / state.red_inventory.sum()
+            inv2 = state.blue_inventory / state.blue_inventory.sum()
+            r1 = inv1 @ params.payoff_matrix @ inv2.T
+            r2 = inv1 @ params.payoff_matrix.T @ inv2.T
+            return r1, r2
 
         def _step(
             key: chex.PRNGKey,
@@ -207,6 +219,7 @@ class RunningWithScissors(environment.Environment):
             params: EnvParams,
         ):
             action_0, action_1 = actions
+
             # turning red
             red_pos = jnp.int8(
                 (state.red_pos + ROTATIONS[action_0])
@@ -214,7 +227,7 @@ class RunningWithScissors(environment.Environment):
             )
 
             # moving red
-            red_move = action_0 == 2
+            red_move = action_0 == Actions.forward
             new_red_pos = jnp.where(
                 red_move, red_pos + STEP[state.red_pos[2]], red_pos
             )
@@ -233,7 +246,7 @@ class RunningWithScissors(environment.Environment):
             )
 
             # moving blue
-            blue_move = action_1 == 2
+            blue_move = action_1 == Actions.forward
             new_blue_pos = jnp.where(
                 blue_move, blue_pos + STEP[state.blue_pos[2]], blue_pos
             )
@@ -267,99 +280,70 @@ class RunningWithScissors(environment.Environment):
                 blue_pos,
             )
 
+            # update inventories
+            red_red_matches = (
+                state.grid[red_pos[0], red_pos[1]] == Items.red_coin
+            )
+            red_blue_matches = (
+                state.grid[red_pos[0], red_pos[1]] == Items.blue_coin
+            )
+            blue_red_matches = (
+                state.grid[blue_pos[0], blue_pos[1]] == Items.red_coin
+            )
+            blue_blue_matches = (
+                state.grid[blue_pos[0], blue_pos[1]] == Items.blue_coin
+            )
+
+            state.red_inventory = state.red_inventory + jnp.array(
+                [red_red_matches, red_blue_matches]
+            )
+            state.blue_inventory = state.blue_inventory + jnp.array(
+                [blue_blue_matches, blue_red_matches]
+            )
+
+            # update grid
+            state.grid = state.grid.at[
+                (state.red_pos[0], state.red_pos[1])
+            ].set(0)
+            state.grid = state.grid.at[
+                (state.blue_pos[0], state.blue_pos[1])
+            ].set(0)
+            state.grid = state.grid.at[(red_pos[0], red_pos[1])].set(1)
+            state.grid = state.grid.at[(blue_pos[0], blue_pos[1])].set(2)
+
+            # if interact
+            red_zap = action_0 == Actions.interact
+            blue_zap = action_1 == Actions.interact
+
+            red_target = red_pos + STEP[state.red_pos[2]]
+            blue_target = blue_pos + STEP[state.blue_pos[2]]
+
+            red_interact = (
+                state.grid[red_target[0], red_target[1]] == Items.blue_agent
+            )
+            blue_interact = (
+                state.grid[blue_target[0], blue_target[1]] == Items.red_agent
+            )
+
             # rewards
             red_reward, blue_reward = 0.0, 0.0
-
-            red_red_matches = jnp.all(
-                red_pos[:2] == state.red_coin_pos, axis=-1
-            )
-            red_blue_matches = jnp.all(
-                red_pos[:2] == state.blue_coin_pos, axis=-1
-            )
-            blue_red_matches = jnp.all(
-                blue_pos[:2] == state.red_coin_pos, axis=-1
-            )
-            blue_blue_matches = jnp.all(
-                blue_pos[:2] == state.blue_coin_pos, axis=-1
-            )
-
-            ### [[1, 1, -2],[1, 1, -2]]
-            _rr_reward = params.payoff_matrix[0][0]
-            _rb_reward = params.payoff_matrix[0][1]
-            _r_penalty = params.payoff_matrix[0][2]
-            _br_reward = params.payoff_matrix[1][0]
-            _bb_reward = params.payoff_matrix[1][1]
-            _b_penalty = params.payoff_matrix[1][2]
+            _r_reward, _b_reward = _get_reward(state, params)
 
             red_reward = jnp.where(
-                red_red_matches, red_reward + _rr_reward, red_reward
-            )
-            red_reward = jnp.where(
-                red_blue_matches, red_reward + _rb_reward, red_reward
-            )
-            red_reward = jnp.where(
-                blue_red_matches, red_reward + _r_penalty, red_reward
-            )
-
-            blue_reward = jnp.where(
-                blue_red_matches, blue_reward + _br_reward, blue_reward
+                red_zap * red_interact, red_reward + _r_reward, red_reward
             )
             blue_reward = jnp.where(
-                blue_blue_matches, blue_reward + _bb_reward, blue_reward
-            )
-            blue_reward = jnp.where(
-                red_blue_matches, blue_reward + _b_penalty, blue_reward
-            )
-
-            # respawn coins
-
-            # find free space
-            red_idx = jnp.array([GRID_SIZE * red_pos[0] + red_pos[1]])
-            blue_idx = jnp.array([GRID_SIZE * blue_pos[0] + blue_pos[1]])
-            rc_idx = jnp.array(
-                [GRID_SIZE * state.red_coin_pos[0] + state.red_coin_pos[1]]
-            )
-            bc_idx = jnp.array(
-                [GRID_SIZE * state.blue_coin_pos[0] + state.blue_coin_pos[1]]
-            )
-
-            free_space = jnp.zeros((GRID_SIZE * GRID_SIZE,), dtype=jnp.int8)
-            free_space = free_space.at[red_idx].set(1)
-            free_space = free_space.at[blue_idx].set(1)
-            free_space = free_space.at[rc_idx].set(1)
-            free_space = free_space.at[bc_idx].set(1)
-            free_space = jnp.logical_not(free_space)
-            empty_idx = free_space.nonzero(size=GRID_SIZE**2 - NUM_OBJECTS)[
-                0
-            ]
-
-            # sample new coins
-            key, subkey = jax.random.split(key)
-            new_object_pos = jax.random.choice(
-                subkey,
-                empty_idx,
-                shape=(2,),
-                replace=False,
-            )
-            # both new coins guaranteed to be different locations and not on existing coins!
-            new_red_coin_pos = jnp.where(
-                jnp.logical_or(red_red_matches, blue_red_matches),
-                COORDS[new_object_pos[0]],
-                state.red_coin_pos,
-            )
-            new_blue_coin_pos = jnp.where(
-                jnp.logical_or(red_blue_matches, blue_blue_matches),
-                COORDS[new_object_pos[1]],
-                state.blue_coin_pos,
+                blue_zap * blue_interact, blue_reward + _b_reward, blue_reward
             )
 
             state_nxt = EnvState(
                 red_pos=red_pos,
                 blue_pos=blue_pos,
-                red_coin_pos=new_red_coin_pos,
-                blue_coin_pos=new_blue_coin_pos,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
+                grid=state.grid,
+                red_inventory=state.red_inventory,
+                blue_inventory=state.blue_inventory,
             )
 
             # now calculate if done for inner or outer episode
@@ -393,7 +377,7 @@ class RunningWithScissors(environment.Environment):
             key, subkey = jax.random.split(key)
 
             object_pos = jax.random.choice(
-                subkey, COORDS, shape=(4,), replace=False
+                subkey, COORDS, shape=(NUM_OBJECTS,), replace=False
             )
             player_dir = jax.random.randint(
                 subkey, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
@@ -402,14 +386,24 @@ class RunningWithScissors(environment.Environment):
                 [object_pos[:2, 0], object_pos[:2, 1], player_dir]
             ).T
             coin_pos = object_pos[2:]
+            grid = jnp.zeros((GRID_SIZE, GRID_SIZE), jnp.int8)
+            grid = grid.at[player_pos[0, 0], player_pos[0, 1]].set(1)
+            grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(2)
+            for i in range(NUM_COINS):
+                grid = grid.at[coin_pos[i, 0], coin_pos[i, 1]].set(3)
 
+            for i in range(NUM_COINS):
+                grid = grid.at[coin_pos[NUM_COINS + i, 0], coin_pos[i, 1]].set(
+                    4
+                )
             return EnvState(
                 red_pos=player_pos[0, :],
                 blue_pos=player_pos[1, :],
-                red_coin_pos=coin_pos[0, :],
-                blue_coin_pos=coin_pos[1, :],
                 inner_t=0,
                 outer_t=0,
+                grid=grid,
+                red_inventory=jnp.ones(2),
+                blue_inventory=jnp.ones(2),
             )
 
         def reset(
@@ -444,7 +438,7 @@ class RunningWithScissors(environment.Environment):
     ) -> spaces.Discrete:
         """Action space of the environment."""
         # TODO: add zap bitches!
-        return spaces.Discrete(4)
+        return spaces.Discrete(5)
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
@@ -566,16 +560,10 @@ class RunningWithScissors(environment.Environment):
         height_px = GRID.shape[0] * tile_size
 
         img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
-        grid = onp.array(GRID)
-        grid[state.red_pos[0] + PADDING, state.red_pos[1] + PADDING] = 1
-        grid[state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING] = 2
-        grid[
-            state.red_coin_pos[0] + PADDING, state.red_coin_pos[1] + PADDING
-        ] = 3
-        grid[
-            state.blue_coin_pos[0] + PADDING, state.blue_coin_pos[1] + PADDING
-        ] = 4
-
+        grid = onp.array(state.grid)
+        grid = onp.pad(
+            grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
+        )
         # Render the grid
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
@@ -619,18 +607,31 @@ if __name__ == "__main__":
     action = 1
     rng = jax.random.PRNGKey(0)
     env = RunningWithScissors(100, 100)
-
-    params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
+    num_actions = env.action_space().n
+    params = EnvParams(payoff_matrix=jnp.array([[3, 0], [5, 1]]))
     obs, state = env.reset(rng, params)
     pics = []
+    img = env.render(state)
+    pics.append(img)
 
-    for _ in range(100):
+    int_action = {
+        0: "left",
+        1: "right",
+        2: "forward",
+        3: "interact",
+        4: "stay",
+    }
+    for t in range(20):
         rng, rng1, rng2 = jax.random.split(rng, 3)
-        a1 = jax.random.randint(rng1, (), minval=0, maxval=3)
-        a2 = jax.random.randint(rng2, (), minval=0, maxval=3)
+        a1 = jax.random.randint(rng1, (), minval=0, maxval=num_actions)
+        a2 = jax.random.randint(rng2, (), minval=0, maxval=num_actions)
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
+        print(t, int_action[a1.item()], int_action[a2.item()])
+        print(obs[0][0].shape, obs[1][1].shape)
+        print(reward[0], reward[1])
+
         img = env.render(state)
         pics.append(img)
     pics = [Image.fromarray(img) for img in pics]

@@ -10,7 +10,7 @@ from pax.envs.running_with_scissors import (
 
 def test_rws_shapes():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(num_inner_steps=8, num_outer_steps=2)
+    env = RunningWithScissors(num_inner_steps=8, num_outer_steps=2, cnn=True)
 
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
@@ -29,7 +29,7 @@ def test_rws_shapes():
 
 def test_rws_turns():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(50, 2)
+    env = RunningWithScissors(50, 2, True)
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
     _, state = env.reset(rng, params)
@@ -70,7 +70,7 @@ def test_rws_turns():
 
 def test_rws_steps():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(50, 2)
+    env = RunningWithScissors(50, 2, True)
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
     _, state = env.reset(rng, params)
