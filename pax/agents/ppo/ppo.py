@@ -340,7 +340,15 @@ class PPO(AgentInterface):
         def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
-            if not tabular:
+
+            if isinstance(obs_spec, dict):
+                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
+                dummy_obs = {
+                    "inventory": jnp.zeros(obs_spec["inventory"]),
+                    "observation": jnp.zeros(obs_spec["observation"]),
+                }
+
+            elif not tabular:
                 dummy_obs = jnp.zeros(shape=obs_spec)
             else:
                 dummy_obs = jnp.zeros(shape=obs_spec)
@@ -349,6 +357,8 @@ class PPO(AgentInterface):
                 dummy_obs = dummy_obs.at[18].set(1)
                 dummy_obs = dummy_obs.at[27].set(1)
             dummy_obs = utils.add_batch_dim(dummy_obs)
+            # jax.debug.breakpoint()
+            # jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(

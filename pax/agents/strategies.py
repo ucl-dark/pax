@@ -497,8 +497,7 @@ class Stay(AgentInterface):
         ) -> jnp.ndarray:
             # state is [batch x time_step x num_players]
             # return [batch]
-            batch_size = obs.shape[0]
-            action = 4 * jnp.ones((batch_size,), dtype=int)
+            action = 4 * jnp.ones((num_envs,), dtype=int)
             return action, state, mem
 
         self._policy = jax.jit(_policy)

@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
 import gymnax
+import jax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
@@ -263,8 +264,13 @@ def agent_setup(args, env, env_params, logger):
 
     if args.env_id == "iterated_matrix_game":
         obs_shape = env.observation_space(env_params).n
+    elif args.env_id == "RunningWithScissors":
+        obs_shape = jax.tree_map(
+            lambda x: x.shape, env.observation_space(env_params)
+        )
     else:
         obs_shape = env.observation_space(env_params).shape
+
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
