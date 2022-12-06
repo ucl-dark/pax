@@ -24,7 +24,10 @@ OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
 NUM_TYPES = 5  # empty (0), red (1), blue, red coin, blue coin, wall
 NUM_COINS = 8  # per type
-NUM_OBJECTS = 2 + 2 * NUM_COINS  # red, blue, 2 red coin, 2 blue coin
+NUM_COIN_TYPES = 2
+NUM_OBJECTS = (
+    2 + NUM_COIN_TYPES * NUM_COINS
+)  # red, blue, 2 red coin, 2 blue coin
 
 
 @chex.dataclass
@@ -440,14 +443,22 @@ class RunningWithScissors(environment.Environment):
         # TODO: add zap bitches!
         return spaces.Discrete(5)
 
-    def observation_space(self, params: EnvParams) -> spaces.Box:
+    def observation_space(self, params: EnvParams) -> spaces.Dict:
         """Observation space of the environment."""
         _shape = (
             (OBS_SIZE, OBS_SIZE, NUM_TYPES + 4)
             if self.cnn
             else (OBS_SIZE**2 * (NUM_TYPES + 4),)
         )
-        return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
+
+        return {
+            "observation": spaces.Box(
+                low=0, high=1, shape=_shape, dtype=jnp.uint8
+            ),
+            "inventory": spaces.Box(
+                low=0, high=1, shape=NUM_COIN_TYPES, dtype=jnp.uint8
+            ),
+        }
 
     def state_space(self, params: EnvParams) -> spaces.Dict:
         """State space of the environment."""
