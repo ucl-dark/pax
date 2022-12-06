@@ -1,5 +1,6 @@
 from enum import IntEnum
 import math
+from turtle import st
 from typing import Any, Optional, Tuple, Union
 
 import chex
@@ -22,11 +23,11 @@ from pax.envs.rendering import (
 GRID_SIZE = 8
 OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
-NUM_TYPES = 5  # empty (0), red (1), blue, red coin, blue coin, wall
+NUM_TYPES = 5  # empty (0), red (1), blue, red coin, blue coin, wall, interact
 NUM_COINS = 8  # per type
 NUM_COIN_TYPES = 2
 NUM_OBJECTS = (
-    2 + NUM_COIN_TYPES * NUM_COINS
+    2 + NUM_COIN_TYPES * NUM_COINS + 1
 )  # red, blue, 2 red coin, 2 blue coin
 
 
@@ -61,6 +62,7 @@ class Items(IntEnum):
     red_coin = 3
     blue_coin = 4
     wall = 5
+    interact = 6
 
 
 ROTATIONS = jnp.array(
@@ -137,7 +139,7 @@ class RunningWithScissors(environment.Environment):
             obs = jnp.pad(
                 state.grid,
                 ((PADDING, PADDING), (PADDING, PADDING)),
-                constant_values=5,
+                constant_values=Items.wall,
             )
             angle = jnp.copy(obs)
             angle = angle.at[
@@ -160,9 +162,6 @@ class RunningWithScissors(environment.Environment):
                 slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
             )
             # rotate
-            # print(state.grid)
-            # print(state.red_pos[2])
-            # print(obs1.transpose((2, 0, 1)))
             obs1 = jnp.where(
                 state.red_pos[2] == 1, jnp.rot90(obs1, k=1, axes=(0, 1)), obs1
             )
@@ -172,13 +171,11 @@ class RunningWithScissors(environment.Environment):
             obs1 = jnp.where(
                 state.red_pos[2] == 3, jnp.rot90(obs1, k=3, axes=(0, 1)), obs1
             )
-            # print("rotated")
-            # print(obs1.transpose((2, 0, 1)))
 
             # one-hot (drop first channel as its empty blocks)
-            obs1 = jax.nn.one_hot(
-                obs1[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
-            )[:, :, 1:]
+            obs1 = jax.nn.one_hot(obs1[:, :, 0], len(Items), dtype=jnp.int8)[
+                :, :, 1:
+            ]
             angle1 = (obs1[:, :, 1] - state.red_pos[3]) % 4
             angle1 = jax.nn.one_hot(angle1, 4)
             obs1 = jnp.concatenate([obs1, angle1], axis=-1)
@@ -202,9 +199,9 @@ class RunningWithScissors(environment.Environment):
             obs2 = jnp.where(
                 state.blue_pos[2] == 3, jnp.rot90(obs2, k=3, axes=(0, 1)), obs2
             )
-            obs2 = jax.nn.one_hot(
-                obs2[:, :, 0], NUM_TYPES + 1, dtype=jnp.int8
-            )[:, :, 1:]
+            obs2 = jax.nn.one_hot(obs2[:, :, 0], len(Items), dtype=jnp.int8)[
+                :, :, 1:
+            ]
             angle2 = (obs2[:, :, 1] - state.blue_pos[3]) % 4
             angle2 = jax.nn.one_hot(angle2, 4)
             obs2 = jnp.concatenate([obs2, angle2], axis=-1)
@@ -225,6 +222,172 @@ class RunningWithScissors(environment.Environment):
             r2 = inv1 @ params.payoff_matrix.T @ inv2.T
             return r1, r2
 
+        def _interact(
+            state: EnvState, actions: Tuple[int, int], params: EnvParams
+        ) -> Tuple[float, float, EnvState]:
+            # if interact
+            a0, a1 = actions
+            red_zap = a0 == Actions.interact
+            blue_zap = a1 == Actions.interact
+
+            # remove old interacts
+            state.grid = jnp.where(
+                state.grid == Items.interact, Items.empty, state.grid
+            )
+
+            # check 1 ahead
+            red_target = state.red_pos + STEP[state.red_pos[2]]
+            blue_target = state.blue_pos + STEP[state.blue_pos[2]]
+
+            red_interact = (
+                state.grid[red_target[0], red_target[1]] == Items.blue_agent
+            )
+            blue_interact = (
+                state.grid[blue_target[0], blue_target[1]] == Items.red_agent
+            )
+
+            # check 2 ahead
+            red_target_ahead = state.red_pos + 2 * STEP[state.red_pos[2]]
+            blue_target_ahead = state.blue_pos + 2 * STEP[state.blue_pos[2]]
+
+            red_interact_ahead = (
+                state.grid[red_target_ahead[0], red_target_ahead[1]]
+                == Items.blue_agent
+            )
+            blue_interact_ahead = (
+                state.grid[blue_target_ahead[0], blue_target_ahead[1]]
+                == Items.red_agent
+            )
+
+            # check to your right
+            red_target_right = red_target + STEP[(state.red_pos[2] + 1) % 4]
+            blue_target_right = blue_target + STEP[(state.blue_pos[2] + 1) % 4]
+
+            red_interact_right = (
+                state.grid[red_target_right[0], red_target_right[1]]
+                == Items.blue_agent
+            )
+            blue_interact_right = (
+                state.grid[blue_target_right[0], blue_target_right[1]]
+                == Items.red_agent
+            )
+
+            # check to your left
+            red_target_left = red_target + STEP[(state.red_pos[2] - 1) % 4]
+            blue_target_left = blue_target + STEP[(state.blue_pos[2] - 1) % 4]
+
+            red_interact_left = (
+                state.grid[red_target_left[0], red_target_left[1]]
+                == Items.blue_agent
+            )
+            blue_interact_left = (
+                state.grid[blue_target_left[0], blue_target_left[1]]
+                == Items.red_agent
+            )
+
+            red_interact = jnp.logical_or(
+                red_interact,
+                jnp.logical_or(
+                    red_interact_ahead,
+                    jnp.logical_or(red_interact_right, red_interact_left),
+                ),
+            )
+
+            # update grid with red zaps
+            aux_grid = jnp.copy(state.grid)
+
+            item = jnp.where(
+                state.grid[red_target[0], red_target[1]],
+                state.grid[red_target[0], red_target[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[red_target[0], red_target[1]].set(item)
+
+            item = jnp.where(
+                state.grid[red_target_ahead[0], red_target_ahead[1]],
+                state.grid[red_target_ahead[0], red_target_ahead[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[
+                red_target_ahead[0], red_target_ahead[1]
+            ].set(item)
+
+            item = jnp.where(
+                state.grid[red_target_right[0], red_target_right[1]],
+                state.grid[red_target_right[0], red_target_right[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[
+                red_target_right[0], red_target_right[1]
+            ].set(item)
+
+            item = jnp.where(
+                state.grid[red_target_left[0], red_target_left[1]],
+                state.grid[red_target_left[0], red_target_left[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[red_target_left[0], red_target_left[1]].set(
+                item
+            )
+
+            state.grid = jnp.where(red_zap, aux_grid, state.grid)
+
+            # update grid with blue zaps
+            aux_grid = jnp.copy(state.grid)
+            blue_interact = jnp.logical_or(
+                blue_interact,
+                jnp.logical_or(
+                    blue_interact_ahead,
+                    jnp.logical_or(blue_interact_right, blue_interact_left),
+                ),
+            )
+
+            item = jnp.where(
+                state.grid[blue_target[0], blue_target[1]],
+                state.grid[blue_target[0], blue_target[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[blue_target[0], blue_target[1]].set(item)
+
+            item = jnp.where(
+                state.grid[blue_target_ahead[0], blue_target_ahead[1]],
+                state.grid[blue_target_ahead[0], blue_target_ahead[1]],
+                Items.interact,
+            )
+            aux_grid = aux_grid.at[
+                blue_target_ahead[0], blue_target_ahead[1]
+            ].set(item)
+
+            item = jnp.where(
+                state.grid[blue_target_right[0], blue_target_right[1]],
+                state.grid[blue_target_right[0], blue_target_right[1]],
+                Items.interact,
+            )
+            state.grid = aux_grid.at[
+                blue_target_right[0], blue_target_right[1]
+            ].set(item)
+
+            item = jnp.where(
+                state.grid[blue_target_left[0], blue_target_left[1]],
+                state.grid[blue_target_left[0], blue_target_left[1]],
+                Items.interact,
+            )
+            state.grid = state.grid.at[
+                blue_target_left[0], blue_target_left[1]
+            ].set(item)
+
+            # rewards
+            red_reward, blue_reward = 0.0, 0.0
+            _r_reward, _b_reward = _get_reward(state, params)
+
+            red_reward = jnp.where(
+                red_zap * red_interact, red_reward + _r_reward, red_reward
+            )
+            blue_reward = jnp.where(
+                blue_zap * blue_interact, blue_reward + _b_reward, blue_reward
+            )
+            return red_reward, blue_reward, state
+
         def _step(
             key: chex.PRNGKey,
             state: EnvState,
@@ -232,9 +395,8 @@ class RunningWithScissors(environment.Environment):
             params: EnvParams,
         ):
             action_0, action_1 = actions
-
             # turning red
-            red_pos = jnp.int8(
+            new_red_pos = jnp.int8(
                 (state.red_pos + ROTATIONS[action_0])
                 % jnp.array([GRID_SIZE + 1, GRID_SIZE + 1, 4])
             )
@@ -242,7 +404,7 @@ class RunningWithScissors(environment.Environment):
             # moving red
             red_move = action_0 == Actions.forward
             new_red_pos = jnp.where(
-                red_move, red_pos + STEP[state.red_pos[2]], red_pos
+                red_move, new_red_pos + STEP[state.red_pos[2]], new_red_pos
             )
             new_red_pos = jnp.clip(
                 new_red_pos,
@@ -253,7 +415,7 @@ class RunningWithScissors(environment.Environment):
             )
 
             # turning blue
-            blue_pos = jnp.int8(
+            new_blue_pos = jnp.int8(
                 (state.blue_pos + ROTATIONS[action_1])
                 % jnp.array([GRID_SIZE + 1, GRID_SIZE + 1, 4], dtype=jnp.int8)
             )
@@ -261,7 +423,7 @@ class RunningWithScissors(environment.Environment):
             # moving blue
             blue_move = action_1 == Actions.forward
             new_blue_pos = jnp.where(
-                blue_move, blue_pos + STEP[state.blue_pos[2]], blue_pos
+                blue_move, new_blue_pos + STEP[state.blue_pos[2]], new_blue_pos
             )
             new_blue_pos = jnp.clip(
                 new_blue_pos,
@@ -273,38 +435,41 @@ class RunningWithScissors(environment.Environment):
 
             # if collision, priority to whoever didn't move
             collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
-            red_pos = jnp.where(
-                collision * red_move * (1 - blue_move), red_pos, new_red_pos
+            new_red_pos = jnp.where(
+                collision * red_move * (1 - blue_move),
+                new_red_pos,
+                new_red_pos,
             )
-            blue_pos = jnp.where(
-                collision * (1 - red_move) * blue_move, blue_pos, new_blue_pos
+            new_blue_pos = jnp.where(
+                collision * (1 - red_move) * blue_move,
+                new_blue_pos,
+                new_blue_pos,
             )
 
             # if both moved, then randomise
             red_takes_square = jax.random.choice(key, jnp.array([0, 1]))
-            red_pos = jnp.where(
+            new_red_pos = jnp.where(
                 collision * blue_move * red_move * red_takes_square,
                 new_red_pos,
-                red_pos,
+                new_red_pos,
             )
-            blue_pos = jnp.where(
+            new_blue_pos = jnp.where(
                 collision * blue_move * red_move * (1 - red_takes_square),
                 new_blue_pos,
-                blue_pos,
+                new_blue_pos,
             )
-
             # update inventories
             red_red_matches = (
-                state.grid[red_pos[0], red_pos[1]] == Items.red_coin
+                state.grid[new_red_pos[0], new_red_pos[1]] == Items.red_coin
             )
             red_blue_matches = (
-                state.grid[red_pos[0], red_pos[1]] == Items.blue_coin
+                state.grid[new_red_pos[0], new_red_pos[1]] == Items.blue_coin
             )
             blue_red_matches = (
-                state.grid[blue_pos[0], blue_pos[1]] == Items.red_coin
+                state.grid[new_blue_pos[0], new_blue_pos[1]] == Items.red_coin
             )
             blue_blue_matches = (
-                state.grid[blue_pos[0], blue_pos[1]] == Items.blue_coin
+                state.grid[new_blue_pos[0], new_blue_pos[1]] == Items.blue_coin
             )
 
             state.red_inventory = state.red_inventory + jnp.array(
@@ -321,37 +486,19 @@ class RunningWithScissors(environment.Environment):
             state.grid = state.grid.at[
                 (state.blue_pos[0], state.blue_pos[1])
             ].set(0)
-            state.grid = state.grid.at[(red_pos[0], red_pos[1])].set(1)
-            state.grid = state.grid.at[(blue_pos[0], blue_pos[1])].set(2)
+            state.grid = state.grid.at[(new_red_pos[0], new_red_pos[1])].set(1)
+            state.grid = state.grid.at[(new_blue_pos[0], new_blue_pos[1])].set(
+                2
+            )
+            state.red_pos = new_red_pos
+            state.blue_pos = new_blue_pos
 
             # if interact
-            red_zap = action_0 == Actions.interact
-            blue_zap = action_1 == Actions.interact
-
-            red_target = red_pos + STEP[state.red_pos[2]]
-            blue_target = blue_pos + STEP[state.blue_pos[2]]
-
-            red_interact = (
-                state.grid[red_target[0], red_target[1]] == Items.blue_agent
-            )
-            blue_interact = (
-                state.grid[blue_target[0], blue_target[1]] == Items.red_agent
-            )
-
-            # rewards
-            red_reward, blue_reward = 0.0, 0.0
-            _r_reward, _b_reward = _get_reward(state, params)
-
-            red_reward = jnp.where(
-                red_zap * red_interact, red_reward + _r_reward, red_reward
-            )
-            blue_reward = jnp.where(
-                blue_zap * blue_interact, blue_reward + _b_reward, blue_reward
-            )
+            red_reward, blue_reward, state = _interact(state, actions, params)
 
             state_nxt = EnvState(
-                red_pos=red_pos,
-                blue_pos=blue_pos,
+                red_pos=state.red_pos,
+                blue_pos=state.blue_pos,
                 inner_t=state.inner_t + 1,
                 outer_t=state.outer_t,
                 grid=state.grid,
@@ -451,8 +598,7 @@ class RunningWithScissors(environment.Environment):
         self, params: Optional[EnvParams] = None
     ) -> spaces.Discrete:
         """Action space of the environment."""
-        # TODO: add zap bitches!
-        return spaces.Discrete(5)
+        return spaces.Discrete(len(Actions))
 
     def observation_space(self, params: EnvParams) -> spaces.Dict:
         """Observation space of the environment."""
@@ -510,20 +656,23 @@ class RunningWithScissors(environment.Environment):
         fill_coords(img, point_in_rect(0, 0.031, 0, 1), (100, 100, 100))
         fill_coords(img, point_in_rect(0, 1, 0, 0.031), (100, 100, 100))
 
-        if obj == 1:
+        if obj == Items.red_agent:
             # Draw the agent 1
             agent_color = (255, 0, 0)
-        elif obj == 2:
+        elif obj == Items.blue_agent:
             # Draw agent 2
             agent_color = (0, 0, 255)
-        elif obj == 3:
+        elif obj == Items.red_coin:
             # Draw the red coin
             fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (255, 0, 0))
-        elif obj == 4:
+        elif obj == Items.blue_coin:
             # Draw the blue coin
             fill_coords(img, point_in_circle(0.5, 0.5, 0.31), (0, 0, 255))
-        elif obj == 5:
+        elif obj == Items.wall:
             fill_coords(img, point_in_rect(0, 1, 0, 1), (225, 193, 110))
+
+        elif obj == Items.interact:
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (241, 235, 156))
 
         # Overlay the agent on top
         if agent_dir is not None:
@@ -669,11 +818,14 @@ class RunningWithScissors(environment.Environment):
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
 
-        return img[
-            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
-            (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
-            :,
-        ]
+        return onp.rot90(
+            img[
+                (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+                (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
+                :,
+            ],
+            2,
+        )
 
 
 if __name__ == "__main__":
@@ -705,13 +857,16 @@ if __name__ == "__main__":
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
         # a2 = jnp.array(2)
-        a1 = jax.random.randint(rng1, (), minval=0, maxval=num_actions)
-        a2 = jax.random.randint(rng2, (), minval=0, maxval=num_actions)
+        a1 = jax.random.choice(
+            rng1, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
+        )
+        a2 = jax.random.choice(
+            rng2, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
+        )
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
         print(t, int_action[a1.item()], int_action[a2.item()])
-        print(obs[0]["observation"].shape, obs[0]["inventory"].shape)
         print(reward[0], reward[1])
 
         img = env.render(state)
