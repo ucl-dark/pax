@@ -366,7 +366,15 @@ class PPO(AgentInterface):
 
             # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            dummy_obs = jnp.zeros(shape=obs_spec)
+
+            if isinstance(obs_spec, dict):
+                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
+                dummy_obs = {
+                    "inventory": jnp.zeros(obs_spec["inventory"]),
+                    "observation": jnp.zeros(obs_spec["observation"]),
+                }
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(
                 subkey, dummy_obs, initial_hidden_state

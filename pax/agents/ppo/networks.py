@@ -170,6 +170,46 @@ class CNN(hk.Module):
         return x
 
 
+class CNN_rws(hk.Module):
+    def __init__(self, args):
+        super().__init__(name="CNN")
+        output_channels = args.ppo.output_channels
+        kernel_shape = args.ppo.kernel_shape
+        self.conv_a_0 = hk.Conv2D(
+            output_channels=output_channels,
+            kernel_shape=kernel_shape,
+            stride=1,
+            padding="SAME",
+        )
+        self.conv_a_1 = hk.Conv2D(
+            output_channels=output_channels,
+            kernel_shape=kernel_shape,
+            stride=1,
+            padding="SAME",
+        )
+        self.linear_a_0 = hk.Linear(output_channels)
+        self.linear_a_1 = hk.Linear(output_channels)
+
+        self.flatten = hk.Flatten()
+
+    def __call__(self, inputs: jnp.ndarray):
+        obs = inputs["observation"]
+        inventory = inputs["inventory"]
+        # Actor and Critic
+        x = self.conv_a_0(obs)
+        x = jax.nn.relu(x)
+        x = self.conv_a_1(x)
+        x = jax.nn.relu(x)
+        x = self.flatten(x)
+        x = jnp.concatenate([x, inventory], axis=-1)
+        x = self.linear_a_0(x)
+        x = jax.nn.relu(x)
+        x = self.linear_a_1(x)
+        x = jax.nn.relu(x)
+
+        return x
+
+
 class CNNSeparate(hk.Module):
     def __init__(self, args):
         super().__init__(name="CNN")
@@ -509,7 +549,7 @@ def make_GRU_rws_network(num_actions: int, args):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = CNN(args)
+        torso = CNN_rws(args)
         if args.ppo.separate:
             cvh = CategoricalValueHeadSeparate(num_values=num_actions)
         else:
