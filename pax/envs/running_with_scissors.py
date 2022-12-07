@@ -247,8 +247,12 @@ class RunningWithScissors(environment.Environment):
             )
 
             # check 2 ahead
-            red_target_ahead = state.red_pos + 2 * STEP[state.red_pos[2]]
-            blue_target_ahead = state.blue_pos + 2 * STEP[state.blue_pos[2]]
+            red_target_ahead = jnp.clip(
+                state.red_pos + 2 * STEP[state.red_pos[2]], 0, GRID_SIZE
+            )
+            blue_target_ahead = jnp.clip(
+                state.blue_pos + 2 * STEP[state.blue_pos[2]], 0, GRID_SIZE
+            )
 
             red_interact_ahead = (
                 state.grid[red_target_ahead[0], red_target_ahead[1]]

@@ -438,6 +438,12 @@ class RWSEvalRunner:
                 run_path=self.args.run_path,
                 root=os.getcwd(),
             )
+
+            wandb.restore(
+                name=self.args.model_path2,
+                run_path=self.args.run_path,
+                root=os.getcwd(),
+            )
         pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
 
@@ -527,7 +533,6 @@ class RWSEvalRunner:
                         }
                         | env_stats,
                     )
-        rng = jax.random.PRNGKey(0)
         env = RunningWithScissors(100, 100)
         env_state = traj.env_state
         pics = []
@@ -547,13 +552,17 @@ class RWSEvalRunner:
             for i in range(self.args.num_inner_steps)
         ]
 
-        for state in env_states:
+        for i, state in enumerate(env_states):
             img = env.render(state)
             img1 = env.render_agent_view(state, agent=0)
             img2 = env.render_agent_view(state, agent=1)
             pics.append(img)
             pics1.append(img1)
             pics2.append(img2)
+
+            print(traj.actions[0, i].reshape(-1))
+            print(state.red_pos, state.blue_pos)
+            print(state.red_inventory, state.blue_inventory)
 
         pics = [Image.fromarray(img) for img in pics]
         pics1 = [Image.fromarray(img) for img in pics1]
