@@ -367,7 +367,7 @@ class RunningWithScissors(environment.Environment):
                 state.grid[blue_target_right[0], blue_target_right[1]],
                 interact_idx,
             )
-            state.grid = aux_grid.at[
+            aux_grid = aux_grid.at[
                 blue_target_right[0], blue_target_right[1]
             ].set(item)
 
@@ -376,9 +376,10 @@ class RunningWithScissors(environment.Environment):
                 state.grid[blue_target_left[0], blue_target_left[1]],
                 interact_idx,
             )
-            state.grid = state.grid.at[
+            aux_grid = aux_grid.at[
                 blue_target_left[0], blue_target_left[1]
             ].set(item)
+            state.grid = jnp.where(blue_zap, aux_grid, state.grid)
 
             # rewards
             red_reward, blue_reward = 0.0, 0.0
