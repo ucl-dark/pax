@@ -1,13 +1,19 @@
 import os
 import time
 from typing import Any, NamedTuple
+from PIL import Image
 
 import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, load
 from pax.watchers import cg_visitation, ipd_visitation
+from pax.envs.running_with_scissors import (
+    RunningWithScissors,
+    EnvParams,
+    EnvState,
+)
 
 MAX_WANDB_CALLS = 1000
 
@@ -22,6 +28,7 @@ class Sample(NamedTuple):
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
     hiddens: jnp.ndarray
+    env_state: jnp.ndarray
 
 
 class MFOSSample(NamedTuple):
@@ -50,7 +57,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class RLRunner:
+class RWSEvalRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to
@@ -187,6 +194,7 @@ class RLRunner:
                 obs1,
                 a1_mem,
             )
+
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
                 obs2,
@@ -219,6 +227,7 @@ class RLRunner:
                     new_a1_mem.extras["values"],
                     done,
                     a1_mem.hidden,
+                    env_state,
                 )
             traj2 = Sample(
                 obs2,
@@ -228,6 +237,7 @@ class RLRunner:
                 new_a2_mem.extras["values"],
                 done,
                 a2_mem.hidden,
+                env_state,
             )
             return (
                 rngs,
@@ -407,6 +417,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
                 a2_metrics,
+                traj_1,
             )
 
         # self.rollout = _rollout
@@ -418,9 +429,20 @@ class RLRunner:
         print("-----------------------")
         agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
-
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
+
+        if watchers:
+            wandb.restore(
+                name=self.args.model_path1,
+                run_path=self.args.run_path,
+                root=os.getcwd(),
+            )
+        pretrained_params = load(self.args.model_path1)
+        a1_state = a1_state._replace(params=pretrained_params)
+
+        pretrained_params = load(self.args.model_path2)
+        a2_state = a2_state._replace(params=pretrained_params)
 
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
@@ -443,6 +465,7 @@ class RLRunner:
                 a2_state,
                 a2_mem,
                 a2_metrics,
+                traj,
             ) = self.rollout(
                 rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
             )
@@ -504,7 +527,93 @@ class RLRunner:
                         }
                         | env_stats,
                     )
+        rng = jax.random.PRNGKey(0)
+        env = RunningWithScissors(100, 100)
+        env_state = traj.env_state
+        pics = []
+        pics1 = []
+        pics2 = []
 
+        env_states = [
+            EnvState(
+                red_pos=env_state.red_pos[0, i].reshape(-1),
+                blue_pos=env_state.blue_pos[0, i].reshape(-1),
+                inner_t=env_state.inner_t[0, i].reshape(-1),
+                outer_t=env_state.outer_t[0, i].reshape(-1),
+                grid=env_state.grid[0, i].reshape(8, 8),
+                red_inventory=env_state.red_inventory[0, i].reshape(-1),
+                blue_inventory=env_state.blue_inventory[0, i].reshape(-1),
+            )
+            for i in range(self.args.num_inner_steps)
+        ]
+
+        for state in env_states:
+            img = env.render(state)
+            img1 = env.render_agent_view(state, agent=0)
+            img2 = env.render_agent_view(state, agent=1)
+            pics.append(img)
+            pics1.append(img1)
+            pics2.append(img2)
+
+        pics = [Image.fromarray(img) for img in pics]
+        pics1 = [Image.fromarray(img) for img in pics1]
+        pics2 = [Image.fromarray(img) for img in pics2]
+
+        pics[0].save(
+            f"{self.args.wandb.group}.gif",
+            format="gif",
+            save_all=True,
+            append_images=pics[1:],
+            duration=300,
+            loop=0,
+        )
+
+        pics1[0].save(
+            f"{self.args.wandb.group}_agent1.gif",
+            format="gif",
+            save_all=True,
+            append_images=pics1[1:],
+            duration=300,
+            loop=0,
+        )
+
+        pics2[0].save(
+            f"{self.args.wandb.group}_agent2.gif",
+            format="gif",
+            save_all=True,
+            append_images=pics2[1:],
+            duration=300,
+            loop=0,
+        )
+        if watchers:
+            wandb.log(
+                {
+                    "video": wandb.Video(
+                        f"{self.args.wandb.group}.gif",
+                        fps=4,
+                        format="gif",
+                    )
+                }
+            )
+
+            wandb.log(
+                {
+                    "video": wandb.Video(
+                        f"{self.args.wandb.group}_agent1.gif",
+                        fps=4,
+                        format="gif",
+                    )
+                }
+            )
+            wandb.log(
+                {
+                    "video": wandb.Video(
+                        f"{self.args.wandb.group}_agent2.gif",
+                        fps=4,
+                        format="gif",
+                    )
+                }
+            )
         agents[0]._state = a1_state
         agents[1]._state = a2_state
         return agents
