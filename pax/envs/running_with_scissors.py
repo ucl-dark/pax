@@ -1,6 +1,5 @@
 from enum import IntEnum
 import math
-from turtle import st
 from typing import Any, Optional, Tuple, Union
 
 import chex
@@ -604,9 +603,9 @@ class RunningWithScissors(environment.Environment):
     def observation_space(self, params: EnvParams) -> spaces.Dict:
         """Observation space of the environment."""
         _shape = (
-            (OBS_SIZE, OBS_SIZE, NUM_TYPES + 4)
+            (OBS_SIZE, OBS_SIZE, len(Items) - 1 + 4)
             if self.cnn
-            else (OBS_SIZE**2 * (NUM_TYPES + 4),)
+            else (OBS_SIZE**2 * (len(Items) - 1 + 4),)
         )
 
         return {
