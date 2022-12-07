@@ -264,8 +264,12 @@ class RunningWithScissors(environment.Environment):
             )
 
             # check to your right
-            red_target_right = red_target + STEP[(state.red_pos[2] + 1) % 4]
-            blue_target_right = blue_target + STEP[(state.blue_pos[2] + 1) % 4]
+            red_target_right = jnp.clip(
+                red_target + STEP[(state.red_pos[2] + 1) % 4], 0, GRID_SIZE
+            )
+            blue_target_right = jnp.clip(
+                blue_target + STEP[(state.blue_pos[2] + 1) % 4], 0, GRID_SIZE
+            )
 
             red_interact_right = (
                 state.grid[red_target_right[0], red_target_right[1]]
@@ -277,8 +281,12 @@ class RunningWithScissors(environment.Environment):
             )
 
             # check to your left
-            red_target_left = red_target + STEP[(state.red_pos[2] - 1) % 4]
-            blue_target_left = blue_target + STEP[(state.blue_pos[2] - 1) % 4]
+            red_target_left = jnp.clip(
+                red_target + STEP[(state.red_pos[2] - 1) % 4], 0, GRID_SIZE
+            )
+            blue_target_left = jnp.clip(
+                blue_target + STEP[(state.blue_pos[2] - 1) % 4], 0, GRID_SIZE
+            )
 
             red_interact_left = (
                 state.grid[red_target_left[0], red_target_left[1]]
