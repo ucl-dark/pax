@@ -560,9 +560,9 @@ class RWSEvalRunner:
             pics1.append(img1)
             pics2.append(img2)
 
-            print(traj.actions[0, i].reshape(-1))
-            print(state.red_pos, state.blue_pos)
-            print(state.red_inventory, state.blue_inventory)
+            print(f"Action: {traj.actions[0, i].reshape(-1)}")
+            print(f"Positions: {state.red_pos, state.blue_pos}")
+            print(f"Inventories: {state.red_inventory, state.blue_inventory}")
 
         pics = [Image.fromarray(img) for img in pics]
         pics1 = [Image.fromarray(img) for img in pics1]

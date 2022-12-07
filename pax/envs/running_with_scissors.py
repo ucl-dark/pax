@@ -596,7 +596,7 @@ class RunningWithScissors(environment.Environment):
     @property
     def num_actions(self) -> int:
         """Number of actions possible in environment."""
-        return 3
+        return len(Actions)
 
     def action_space(
         self, params: Optional[EnvParams] = None
@@ -731,6 +731,8 @@ class RunningWithScissors(environment.Environment):
 
         red_dir = state.red_pos[2].item() if agent == 1 else 0
         blue_dir = state.blue_pos[2].item() if agent == 0 else 0
+
+        print(env.action_space().n)
 
         # Render the grid
         for j in range(0, grid.shape[1]):
