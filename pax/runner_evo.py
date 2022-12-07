@@ -379,7 +379,7 @@ class EvoRunner:
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
             elif args.env_id in [
-                "matrix_game",
+                "iterated_matrix_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -391,6 +391,11 @@ class EvoRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+
             return (
                 fitness,
                 other_fitness,

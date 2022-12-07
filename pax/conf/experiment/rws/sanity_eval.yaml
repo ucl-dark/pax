@@ -26,9 +26,9 @@ save_interval: 100
 # model_path1: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-12-07_14.29.47.717911/agent1_iteration_300
 # model_path2: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-12-07_14.29.47.717911/agent2_iteration_300 
 
-run_path: ucl-dark/cg2/1cg5nb4r
-model_path1: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-12-07_15.22.16.539162/agent1_iteration_300
-model_path2: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-12-07_15.22.16.539162/agent2_iteration_300 
+run_path: ucl-dark/cg2/3ghj86af
+model_path1: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-12-07_16.58.18.077111/agent1_iteration_300
+model_path2: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-12-07_16.58.18.077111/agent2_iteration_300 
 
 # PPO agent parameters
 ppo:
@@ -57,7 +57,7 @@ ppo:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cg2
+  project: ipditm
   group: 'sanity-eval-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

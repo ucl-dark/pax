@@ -52,7 +52,7 @@ ppo:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cg2
+  project: ipditm
   group: 'sanity-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
