@@ -553,9 +553,7 @@ def make_GRU_rws_network(num_actions: int, args):
         if args.ppo.separate:
             cvh = CategoricalValueHeadSeparate(num_values=num_actions)
         else:
-
             cvh = CategoricalValueHead(num_values=num_actions)
-
         gru = hk.GRU(hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)

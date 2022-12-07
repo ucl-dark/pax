@@ -440,13 +440,17 @@ class RunningWithScissors(environment.Environment):
             # if collision, priority to whoever didn't move
             collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
             new_red_pos = jnp.where(
-                collision * red_move * (1 - blue_move),
-                new_red_pos,
+                collision
+                * red_move
+                * (1 - blue_move),  # red moved, blue didn't
+                state.red_pos,
                 new_red_pos,
             )
             new_blue_pos = jnp.where(
-                collision * (1 - red_move) * blue_move,
-                new_blue_pos,
+                collision
+                * (1 - red_move)
+                * blue_move,  # blue moved, red didn't
+                state.blue_pos,
                 new_blue_pos,
             )
 
@@ -731,9 +735,6 @@ class RunningWithScissors(environment.Environment):
 
         red_dir = state.red_pos[2].item() if agent == 1 else 0
         blue_dir = state.blue_pos[2].item() if agent == 0 else 0
-
-        print(env.action_space().n)
-
         # Render the grid
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):

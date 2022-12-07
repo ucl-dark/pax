@@ -560,6 +560,11 @@ class RWSEvalRunner:
             pics1.append(img1)
             pics2.append(img2)
 
+            if (state.red_pos == state.blue_pos).all():
+                print("Collision!")
+                print(f"Step: {i}")
+                print(f"Action: {traj.actions[0, i].reshape(-1)}")
+                print(f"Grid: {state.grid}")
             print(f"Action: {traj.actions[0, i].reshape(-1)}")
             print(f"Positions: {state.red_pos, state.blue_pos}")
             print(f"Inventories: {state.red_inventory, state.blue_inventory}")
