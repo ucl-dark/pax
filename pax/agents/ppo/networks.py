@@ -211,7 +211,7 @@ class CNN_rws(hk.Module):
 
 
 class CNNSeparate(hk.Module):
-    def __init__(self, args):
+    def __init__(self, args, num_actions: int):
         super().__init__(name="CNN")
         output_channels = args.ppo.output_channels
         kernel_shape = args.ppo.kernel_shape
@@ -228,7 +228,7 @@ class CNNSeparate(hk.Module):
             padding="SAME",
         )
         self.linear_a_0 = hk.Linear(output_channels)
-        self.linear_a_1 = hk.Linear(output_channels)
+        self.linear_a_1 = hk.Linear(num_actions)
 
         self.conv_v_0 = hk.Conv2D(
             output_channels=output_channels,
@@ -386,7 +386,7 @@ def make_rws_network(num_actions: int, args):
         layers = []
 
         if args.ppo.separate and args.ppo.with_cnn:
-            cnn = CNNSeparate(args)
+            cnn = CNNSeparate(args, num_actions=num_actions)
             layers.extend([cnn])
         elif args.ppo.with_cnn:
             cnn = CNN(args)
