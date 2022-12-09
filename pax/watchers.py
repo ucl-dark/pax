@@ -11,6 +11,8 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
+from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
+from pax.envs.running_with_scissors import RunningWithScissors
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -478,4 +480,32 @@ def cg_visitation(state: NamedTuple) -> dict:
         "state_visitation/SD": count[6],
         "state_visitation/CS": count[7],
         "state_visitation/DS": count[8],
+    }
+
+
+def ipditm_stats(
+    state: EnvState, traj1: NamedTuple, traj2: NamedTuple
+) -> dict:
+    from pax.envs.running_with_scissors import Actions
+
+    """Compute statistics for IPDITM."""
+    interacts1 = jnp.count_nonzero(traj1.actions == Actions.interact)
+    interacts2 = jnp.count_nonzero(traj2.actions == Actions.interact)
+
+    coops1 = state.red_inventory[0].sum()
+    defect1 = state.red_inventory[1].sum()
+    coops2 = state.blue_inventory[0].sum()
+    defect2 = state.blue_inventory[1].sum()
+
+    return {
+        "interactions/1": interacts1,
+        "interactions/2": interacts2,
+        "coop_coin/1": coops1,
+        "coop_coin/2": coops2,
+        "defect_coin/1": defect1,
+        "defect_coin/2": defect2,
+        "total_coin/1": coops1 + defect1,
+        "total_coin/2": coops2 + defect2,
+        "ratio/1": coops1 / (coops1 + defect1),
+        "ratio/2": coops2 / (coops2 + defect2),
     }

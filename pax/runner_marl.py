@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -88,6 +88,7 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.rws_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -388,6 +389,17 @@ class RLRunner:
                         traj_1.observations,
                         traj_1.actions,
                         obs1,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "RunningWithScissors":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.rws_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
                     ),
                 )
                 rewards_1 = traj_1.rewards.mean()

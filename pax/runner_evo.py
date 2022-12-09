@@ -12,7 +12,7 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, cg_visitation, ipd_visitation
+from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -74,6 +74,7 @@ class EvoRunner:
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(jax.vmap(cg_visitation))
+        self.rws_stats = jax.jit(ipditm_stats)
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
