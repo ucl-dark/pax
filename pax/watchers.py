@@ -484,18 +484,22 @@ def cg_visitation(state: NamedTuple) -> dict:
 
 
 def ipditm_stats(
-    state: EnvState, traj1: NamedTuple, traj2: NamedTuple
+    state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
 ) -> dict:
     from pax.envs.running_with_scissors import Actions
 
     """Compute statistics for IPDITM."""
-    interacts1 = jnp.count_nonzero(traj1.actions == Actions.interact)
-    interacts2 = jnp.count_nonzero(traj2.actions == Actions.interact)
+    interacts1 = (
+        jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
+    )
+    interacts2 = (
+        jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
+    )
 
-    coops1 = state.red_inventory[0].sum()
-    defect1 = state.red_inventory[1].sum()
-    coops2 = state.blue_inventory[0].sum()
-    defect2 = state.blue_inventory[1].sum()
+    coops1 = state.red_inventory[..., 0].sum() / num_envs
+    defect1 = state.red_inventory[..., 1].sum() / num_envs
+    coops2 = state.blue_inventory[..., 0].sum() / num_envs
+    defect2 = state.blue_inventory[..., 1].sum() / num_envs
 
     return {
         "interactions/1": interacts1,

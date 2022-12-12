@@ -88,6 +88,7 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        # VMAP for num_envs
         self.rws_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
@@ -400,6 +401,7 @@ class RLRunner:
                         env_state,
                         traj_1,
                         traj_2,
+                        args.num_envs,
                     ),
                 )
                 rewards_1 = traj_1.rewards.mean()

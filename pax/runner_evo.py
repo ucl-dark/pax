@@ -392,6 +392,19 @@ class EvoRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
+
+            elif args.env_id == "RunningWithScissors":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.rws_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
+                        args.num_envs,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
             else:
                 env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
