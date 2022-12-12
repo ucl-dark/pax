@@ -439,10 +439,10 @@ class RLRunner:
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
 
         print(f"Log Interval {log_interval}")
-
+        print(log_interval)
         # run actual loop
         for i in range(num_iters):
             rng, rng_run = jax.random.split(rng, 2)
