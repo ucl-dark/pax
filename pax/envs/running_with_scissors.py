@@ -352,7 +352,6 @@ class RunningWithScissors(environment.Environment):
                     jnp.logical_or(blue_interact_right, blue_interact_left),
                 ),
             )
-
             item = jnp.where(
                 state.grid[blue_target[0], blue_target[1]],
                 state.grid[blue_target[0], blue_target[1]],
@@ -392,11 +391,13 @@ class RunningWithScissors(environment.Environment):
             red_reward, blue_reward = 0.0, 0.0
             _r_reward, _b_reward = _get_reward(state, params)
 
+            interact = jnp.logical_or(red_interact, blue_interact)
+
             red_reward = jnp.where(
-                red_zap * red_interact, red_reward + _r_reward, red_reward
+                interact, red_reward + _r_reward, red_reward
             )
             blue_reward = jnp.where(
-                blue_zap * blue_interact, blue_reward + _b_reward, blue_reward
+                interact, blue_reward + _b_reward, blue_reward
             )
             return red_reward, blue_reward, state
 
