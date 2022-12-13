@@ -272,7 +272,7 @@ class CNNSeparate(hk.Module):
         x = self.linear_v_0(x)
         x = jax.nn.relu(x)
         x = self.linear_v_1(x)
-        val = jax.nn.relu(x)
+        val = x
 
         return (distrax.Categorical(logits=logits), jnp.squeeze(val, axis=-1))
 
