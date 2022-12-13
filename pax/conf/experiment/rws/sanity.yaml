@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
+agent1: 'PPO_memory' #PPO_memory vs Stay takes like 2000 episodes
 agent2: 'Stay'
 
 # Environment
@@ -14,11 +14,11 @@ runner: rl
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 100
+num_envs: 50
 num_opps: 1
 num_steps: 300 
-num_inner_steps: 300 
-total_timesteps: 1e7
+num_inner_steps: 152 
+total_timesteps: 1e8
 save_interval: 1e6 
 
 # Evaluation 
@@ -40,7 +40,7 @@ ppo:
   entropy_coeff_horizon: 0.6e8
   entropy_coeff_end: 0.05
   lr_scheduling: False
-  learning_rate: 0.005 #0.05
+  learning_rate: 0.0001 #0.05
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: True
