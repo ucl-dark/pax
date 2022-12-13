@@ -19,7 +19,7 @@ num_opps: 1
 num_steps: 300 
 num_inner_steps: 300 
 total_timesteps: 1e7
-save_interval: 100 
+save_interval: 1e6 
 
 # Evaluation 
 run_path: ucl-dark/cg/3sp0y2cy

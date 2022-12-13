@@ -69,8 +69,8 @@ ROTATIONS = jnp.array(
         [0, 0, 1],  # turn left
         [0, 0, -1],  # turn right
         [0, 0, 0],  # forward
-        [0, 0, 0],  # zap
         [0, 0, 0],  # stay
+        [0, 0, 0],  # zap`
     ],
     dtype=jnp.int8,
 )
@@ -95,7 +95,6 @@ GRID = GRID.at[PADDING - 1, :].set(5)
 GRID = GRID.at[GRID_SIZE + PADDING, :].set(5)
 GRID = GRID.at[:, PADDING - 1].set(5)
 GRID = GRID.at[:, GRID_SIZE + PADDING].set(5)
-
 COORDS = jnp.array(
     [[(j, i) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
     dtype=jnp.int8,
@@ -448,6 +447,7 @@ class RunningWithScissors(environment.Environment):
 
             # if collision, priority to whoever didn't move
             collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
+
             new_red_pos = jnp.where(
                 collision
                 * red_move
@@ -466,13 +466,23 @@ class RunningWithScissors(environment.Environment):
             # if both moved, then randomise
             red_takes_square = jax.random.choice(key, jnp.array([0, 1]))
             new_red_pos = jnp.where(
-                collision * blue_move * red_move * red_takes_square,
-                new_red_pos,
+                collision
+                * blue_move
+                * red_move
+                * (
+                    1 - red_takes_square
+                ),  # if both collide and red doesn't take square
+                state.red_pos,
                 new_red_pos,
             )
             new_blue_pos = jnp.where(
-                collision * blue_move * red_move * (1 - red_takes_square),
-                new_blue_pos,
+                collision
+                * blue_move
+                * red_move
+                * (
+                    red_takes_square
+                ),  # if both collide and blue doesn't take square
+                state.blue_pos,
                 new_blue_pos,
             )
             # update inventories
@@ -493,25 +503,35 @@ class RunningWithScissors(environment.Environment):
                 [red_red_matches, red_blue_matches]
             )
             state.blue_inventory = state.blue_inventory + jnp.array(
-                [blue_blue_matches, blue_red_matches]
+                [blue_red_matches, blue_blue_matches]
             )
 
             # update grid
             state.grid = state.grid.at[
                 (state.red_pos[0], state.red_pos[1])
-            ].set(0)
+            ].set(jnp.int8(Items.empty))
             state.grid = state.grid.at[
                 (state.blue_pos[0], state.blue_pos[1])
-            ].set(0)
-            state.grid = state.grid.at[(new_red_pos[0], new_red_pos[1])].set(1)
+            ].set(jnp.int8(Items.empty))
+            state.grid = state.grid.at[(new_red_pos[0], new_red_pos[1])].set(
+                jnp.int8(Items.red_agent)
+            )
             state.grid = state.grid.at[(new_blue_pos[0], new_blue_pos[1])].set(
-                2
+                jnp.int8(Items.blue_agent)
             )
             state.red_pos = new_red_pos
             state.blue_pos = new_blue_pos
 
-            # if interact
-            red_reward, blue_reward, state = _interact(state, actions, params)
+            red_reward, blue_reward = 0, 0
+            red_reward += red_red_matches + red_blue_matches
+            blue_reward += blue_red_matches + blue_blue_matches
+
+            red_interact_reward, blue_interact_reward, state = _interact(
+                state, actions, params
+            )
+
+            red_reward += red_interact_reward
+            blue_reward += blue_interact_reward
 
             state_nxt = EnvState(
                 red_pos=state.red_pos,
@@ -564,15 +584,21 @@ class RunningWithScissors(environment.Environment):
             ).T
             coin_pos = object_pos[2:]
             grid = jnp.zeros((GRID_SIZE, GRID_SIZE), jnp.int8)
-            grid = grid.at[player_pos[0, 0], player_pos[0, 1]].set(1)
-            grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(2)
+            grid = grid.at[player_pos[0, 0], player_pos[0, 1]].set(
+                jnp.int8(Items.red_agent)
+            )
+            grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
+                jnp.int8(Items.blue_agent)
+            )
             for i in range(NUM_COINS):
-                grid = grid.at[coin_pos[i, 0], coin_pos[i, 1]].set(3)
+                grid = grid.at[coin_pos[i, 0], coin_pos[i, 1]].set(
+                    jnp.int8(Items.red_coin)
+                )
 
             for i in range(NUM_COINS):
-                grid = grid.at[coin_pos[NUM_COINS + i, 0], coin_pos[i, 1]].set(
-                    4
-                )
+                grid = grid.at[
+                    coin_pos[NUM_COINS + i, 0], coin_pos[NUM_COINS + i, 1]
+                ].set(jnp.int8(Items.blue_coin))
             return EnvState(
                 red_pos=player_pos[0, :],
                 blue_pos=player_pos[1, :],
@@ -874,10 +900,11 @@ if __name__ == "__main__":
         4: "stay",
     }
     env.step = jax.jit(env.step)
-    for t in range(20):
+
+    for t in range(100):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
-        # a2 = jnp.array(2)
+        # a2 = jnp.array(4)
         a1 = jax.random.choice(
             rng1, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
         )
@@ -887,8 +914,14 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
-        print(t, int_action[a1.item()], int_action[a2.item()])
+        print(
+            f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
+        )
         print(reward[0], reward[1])
+
+        if (state.red_pos[:2] == state.blue_pos[:2]).all():
+            print("collision")
+        print(state.red_pos, state.blue_pos)
 
         img = env.render(state)
         img1 = env.render_agent_view(state, agent=0)
@@ -901,11 +934,11 @@ if __name__ == "__main__":
     pics = [Image.fromarray(img) for img in pics]
     pics1 = [Image.fromarray(img) for img in pics1]
     pics2 = [Image.fromarray(img) for img in pics2]
-
     pics[0].save(
         "state.gif",
-        format="gif",
+        format="GIF",
         save_all=True,
+        optimize=False,
         append_images=pics[1:],
         duration=300,
         loop=0,
@@ -913,16 +946,18 @@ if __name__ == "__main__":
 
     pics1[0].save(
         "agent1.gif",
-        format="gif",
+        format="GIF",
         save_all=True,
+        optimize=False,
         append_images=pics1[1:],
         duration=300,
         loop=0,
     )
     pics2[0].save(
         "agent2.gif",
-        format="gif",
+        format="GIF",
         save_all=True,
+        optimize=False,
         append_images=pics2[1:],
         duration=300,
         loop=0,
