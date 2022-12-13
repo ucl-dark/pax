@@ -28,6 +28,7 @@ NUM_COIN_TYPES = 2
 NUM_OBJECTS = (
     2 + NUM_COIN_TYPES * NUM_COINS + 1
 )  # red, blue, 2 red coin, 2 blue coin
+FREEZE_PENALTY = 5
 
 
 @chex.dataclass
@@ -39,6 +40,9 @@ class EnvState:
     grid: jnp.ndarray
     red_inventory: jnp.ndarray
     blue_inventory: jnp.ndarray
+    red_coins: jnp.ndarray
+    blue_coins: jnp.ndarray
+    freeze: int
 
 
 @chex.dataclass
@@ -222,9 +226,10 @@ class RunningWithScissors(environment.Environment):
 
         def _interact(
             state: EnvState, actions: Tuple[int, int], params: EnvParams
-        ) -> Tuple[float, float, EnvState]:
+        ) -> Tuple[bool, float, float, EnvState]:
             # if interact
             a0, a1 = actions
+
             red_zap = a0 == Actions.interact
             blue_zap = a1 == Actions.interact
             interact_idx = jnp.int8(Items.interact)
@@ -235,8 +240,12 @@ class RunningWithScissors(environment.Environment):
             )
 
             # check 1 ahead
-            red_target = state.red_pos + STEP[state.red_pos[2]]
-            blue_target = state.blue_pos + STEP[state.blue_pos[2]]
+            red_target = jnp.clip(
+                state.red_pos + STEP[state.red_pos[2]], 0, GRID_SIZE - 1
+            )
+            blue_target = jnp.clip(
+                state.blue_pos + STEP[state.blue_pos[2]], 0, GRID_SIZE - 1
+            )
 
             red_interact = (
                 state.grid[red_target[0], red_target[1]] == Items.blue_agent
@@ -247,10 +256,10 @@ class RunningWithScissors(environment.Environment):
 
             # check 2 ahead
             red_target_ahead = jnp.clip(
-                state.red_pos + 2 * STEP[state.red_pos[2]], 0, GRID_SIZE
+                state.red_pos + 2 * STEP[state.red_pos[2]], 0, GRID_SIZE - 1
             )
             blue_target_ahead = jnp.clip(
-                state.blue_pos + 2 * STEP[state.blue_pos[2]], 0, GRID_SIZE
+                state.blue_pos + 2 * STEP[state.blue_pos[2]], 0, GRID_SIZE - 1
             )
 
             red_interact_ahead = (
@@ -262,12 +271,29 @@ class RunningWithScissors(environment.Environment):
                 == Items.red_agent
             )
 
-            # check to your right
-            red_target_right = jnp.clip(
-                red_target + STEP[(state.red_pos[2] + 1) % 4], 0, GRID_SIZE
+            # check to your right  - clip can't be used here as it will wrap down
+            red_target_right = (
+                state.red_pos
+                + STEP[state.red_pos[2]]
+                + STEP[(state.red_pos[2] + 1) % 4]
             )
-            blue_target_right = jnp.clip(
-                blue_target + STEP[(state.blue_pos[2] + 1) % 4], 0, GRID_SIZE
+            oob_red = jnp.logical_or(
+                (red_target_right > GRID_SIZE - 1).any(),
+                (red_target_right < 0).any(),
+            )
+            red_target_right = jnp.where(oob_red, red_target, red_target_right)
+
+            blue_target_right = (
+                state.blue_pos
+                + STEP[state.blue_pos[2]]
+                + STEP[(state.blue_pos[2] + 1) % 4]
+            )
+            oob_blue = jnp.logical_or(
+                (blue_target_right > GRID_SIZE - 1).any(),
+                (blue_target_right < 0).any(),
+            )
+            blue_target_right = jnp.where(
+                oob_blue, blue_target, blue_target_right
             )
 
             red_interact_right = (
@@ -280,11 +306,28 @@ class RunningWithScissors(environment.Environment):
             )
 
             # check to your left
-            red_target_left = jnp.clip(
-                red_target + STEP[(state.red_pos[2] - 1) % 4], 0, GRID_SIZE
+            red_target_left = (
+                state.red_pos
+                + STEP[state.red_pos[2]]
+                + STEP[(state.red_pos[2] - 1) % 4]
             )
-            blue_target_left = jnp.clip(
-                blue_target + STEP[(state.blue_pos[2] - 1) % 4], 0, GRID_SIZE
+            oob_red = jnp.logical_or(
+                (red_target_left > GRID_SIZE - 1).any(),
+                (red_target_left < 0).any(),
+            )
+            red_target_left = jnp.where(oob_red, red_target, red_target_left)
+
+            blue_target_left = (
+                state.blue_pos
+                + STEP[state.blue_pos[2]]
+                + STEP[(state.blue_pos[2] - 1) % 4]
+            )
+            oob_blue = jnp.logical_or(
+                (blue_target_left > GRID_SIZE - 1).any(),
+                (blue_target_left < 0).any(),
+            )
+            blue_target_left = jnp.where(
+                oob_blue, blue_target, blue_target_left
             )
 
             red_interact_left = (
@@ -391,7 +434,9 @@ class RunningWithScissors(environment.Environment):
             red_reward, blue_reward = 0.0, 0.0
             _r_reward, _b_reward = _get_reward(state, params)
 
-            interact = jnp.logical_or(red_interact, blue_interact)
+            interact = jnp.logical_or(
+                red_zap * red_interact, blue_zap * blue_interact
+            )
 
             red_reward = jnp.where(
                 interact, red_reward + _r_reward, red_reward
@@ -399,7 +444,7 @@ class RunningWithScissors(environment.Environment):
             blue_reward = jnp.where(
                 interact, blue_reward + _b_reward, blue_reward
             )
-            return red_reward, blue_reward, state
+            return interact, red_reward, blue_reward, state
 
         def _step(
             key: chex.PRNGKey,
@@ -407,7 +452,14 @@ class RunningWithScissors(environment.Environment):
             actions: Tuple[int, int],
             params: EnvParams,
         ):
+
+            """Step the environment."""
+
+            # freeze check
             action_0, action_1 = actions
+            action_0 = jnp.where(state.freeze > 0, Actions.stay, action_0)
+            action_1 = jnp.where(state.freeze > 0, Actions.stay, action_1)
+
             # turning red
             new_red_pos = jnp.int8(
                 (state.red_pos + ROTATIONS[action_0])
@@ -524,16 +576,28 @@ class RunningWithScissors(environment.Environment):
             state.blue_pos = new_blue_pos
 
             red_reward, blue_reward = 0, 0
-            red_reward += red_red_matches + red_blue_matches
-            blue_reward += blue_red_matches + blue_blue_matches
-
-            red_interact_reward, blue_interact_reward, state = _interact(
-                state, actions, params
-            )
-
+            (
+                interact,
+                red_interact_reward,
+                blue_interact_reward,
+                state,
+            ) = _interact(state, (action_0, action_1), params)
             red_reward += red_interact_reward
             blue_reward += blue_interact_reward
 
+            # if we interacted, then we set freeze
+            state.freeze = jnp.where(interact, FREEZE_PENALTY, state.freeze)
+
+            # if we didn't interact, then we decrement freeze
+            state.freeze = jnp.where(
+                state.freeze > 0, state.freeze - 1, state.freeze
+            )
+            state_sft_re = _soft_reset_state(key, state)
+            state = jax.tree_map(
+                lambda x, y: jnp.where(state.freeze == 0, x, y),
+                state_sft_re,
+                state,
+            )
             state_nxt = EnvState(
                 red_pos=state.red_pos,
                 blue_pos=state.blue_pos,
@@ -542,6 +606,9 @@ class RunningWithScissors(environment.Environment):
                 grid=state.grid,
                 red_inventory=state.red_inventory,
                 blue_inventory=state.blue_inventory,
+                red_coins=state.red_coins,
+                blue_coins=state.blue_coins,
+                freeze=jnp.where(interact, FREEZE_PENALTY, state.freeze),
             )
 
             # now calculate if done for inner or outer episode
@@ -569,6 +636,61 @@ class RunningWithScissors(environment.Environment):
                 {"discount": jnp.zeros((), dtype=jnp.int8)},
             )
 
+        def _soft_reset_state(key: jnp.ndarray, state: EnvState) -> EnvState:
+            """Reset the grid to original state and"""
+            # Find the free spaces in the grid
+            grid = jnp.zeros((GRID_SIZE, GRID_SIZE), jnp.int8)
+            for i in range(NUM_COINS):
+                grid = grid.at[
+                    state.red_coins[i, 0], state.red_coins[i, 1]
+                ].set(jnp.int8(Items.red_coin))
+
+            for i in range(NUM_COINS):
+                grid = grid.at[
+                    state.blue_coins[i, 0], state.blue_coins[i, 1]
+                ].set(jnp.int8(Items.blue_coin))
+
+            occupied_grid = grid == Items.empty
+            free_xs, free_ys = jnp.nonzero(
+                occupied_grid, size=GRID_SIZE * GRID_SIZE - 2 * NUM_COINS
+            )
+            # Sample the free spaces
+            idxs = jax.random.choice(
+                key, free_xs.shape[0], shape=(2,), replace=False
+            )
+            dirs = jax.random.randint(
+                key,
+                (2,),
+                0,
+                4,
+            )
+
+            red_pos = jnp.array(
+                [free_xs[idxs[0]], free_ys[idxs[0]], dirs[0]], dtype=jnp.int8
+            )
+            blue_pos = jnp.array(
+                [free_xs[idxs[1]], free_ys[idxs[1]], dirs[1]], dtype=jnp.int8
+            )
+            grid = grid.at[red_pos[0], red_pos[1]].set(
+                jnp.int8(Items.red_agent)
+            )
+            grid = grid.at[blue_pos[0], blue_pos[1]].set(
+                jnp.int8(Items.blue_agent)
+            )
+
+            return EnvState(
+                red_pos=red_pos,
+                blue_pos=blue_pos,
+                inner_t=state.inner_t,
+                outer_t=state.outer_t,
+                grid=grid,
+                red_inventory=jnp.ones(2),
+                blue_inventory=jnp.ones(2),
+                red_coins=state.red_coins,
+                blue_coins=state.blue_coins,
+                freeze=jnp.int8(-1),
+            )
+
         def _reset_state(
             key: jnp.ndarray, params: EnvParams
         ) -> Tuple[jnp.ndarray, EnvState]:
@@ -591,15 +713,18 @@ class RunningWithScissors(environment.Environment):
             grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
                 jnp.int8(Items.blue_agent)
             )
+            red_coins = coin_pos[:NUM_COINS, :]
+            blue_coins = coin_pos[NUM_COINS:, :]
             for i in range(NUM_COINS):
-                grid = grid.at[coin_pos[i, 0], coin_pos[i, 1]].set(
+                grid = grid.at[red_coins[i, 0], red_coins[i, 1]].set(
                     jnp.int8(Items.red_coin)
                 )
 
             for i in range(NUM_COINS):
-                grid = grid.at[
-                    coin_pos[NUM_COINS + i, 0], coin_pos[NUM_COINS + i, 1]
-                ].set(jnp.int8(Items.blue_coin))
+                grid = grid.at[blue_coins[i, 0], blue_coins[i, 1]].set(
+                    jnp.int8(Items.blue_coin)
+                )
+
             return EnvState(
                 red_pos=player_pos[0, :],
                 blue_pos=player_pos[1, :],
@@ -608,6 +733,9 @@ class RunningWithScissors(environment.Environment):
                 grid=grid,
                 red_inventory=jnp.ones(2),
                 blue_inventory=jnp.ones(2),
+                red_coins=red_coins,
+                blue_coins=blue_coins,
+                freeze=jnp.int8(-1),
             )
 
         def reset(
@@ -880,7 +1008,8 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(100, 100)
+    episode_length = 300
+    env = RunningWithScissors(episode_length, episode_length)
     num_actions = env.action_space().n
     params = EnvParams(payoff_matrix=jnp.array([[3, 0], [5, 1]]))
     obs, state = env.reset(rng, params)
@@ -902,7 +1031,7 @@ if __name__ == "__main__":
     }
     env.step = jax.jit(env.step)
 
-    for t in range(100):
+    for t in range(episode_length):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
         # a2 = jnp.array(4)
@@ -918,7 +1047,6 @@ if __name__ == "__main__":
         print(
             f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
         )
-        print(reward[0], reward[1])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")
