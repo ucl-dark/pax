@@ -204,12 +204,13 @@ class RunningWithScissors(environment.Environment):
             obs2 = jax.nn.one_hot(obs2[:, :, 0], len(Items), dtype=jnp.int8)[
                 :, :, 1:
             ]
-            angle2 = (obs2[:, :, 1] - state.blue_pos[3]) % 4
-            angle2 = jax.nn.one_hot(angle2, 4)
-            obs2 = jnp.concatenate([obs2, angle2], axis=-1)
 
             _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
-            _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
+            _obs2 = _obs2.at[:, :, 1].set(obs2[:, :, 0])
+
+            angle2 = (_obs2[:, :, 1] - state.blue_pos[3]) % 4
+            angle2 = jax.nn.one_hot(angle2, 4)
+            _obs2 = jnp.concatenate([_obs2, angle2], axis=-1)
 
             red_pickup = jnp.sum(state.red_inventory) > 2
             blue_pickup = jnp.sum(state.blue_inventory) > 2
@@ -943,13 +944,22 @@ class RunningWithScissors(environment.Environment):
 
         img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
 
-        red_dir = state.red_pos[2].item() if agent == 1 else 0
-        blue_dir = state.blue_pos[2].item() if agent == 0 else 0
+        # agent direction
+        pricipal_dir = 0
 
-        red_hat = bool(state.red_inventory.sum() > 2) if agent == 1 else False
-        blue_hat = (
-            bool(state.blue_inventory.sum() > 2) if agent == 0 else False
-        )
+        if agent == 0:
+            other_dir = (
+                state.blue_pos[2].item() - state.red_pos[2].item()
+            ) % 4
+            principal_hat = bool(state.red_inventory.sum() > 2)
+            other_hat = bool(state.blue_inventory.sum() > 2)
+
+        else:
+            other_dir = (
+                state.red_pos[2].item() - state.blue_pos[2].item()
+            ) % 4
+            principal_hat = bool(state.blue_inventory.sum() > 2)
+            other_hat = bool(state.red_inventory.sum() > 2)
 
         # Render the grid
         for j in range(0, grid.shape[1]):
@@ -957,17 +967,23 @@ class RunningWithScissors(environment.Environment):
                 cell = grid[i, j]
                 if cell == 0:
                     cell = None
-                red_agent_here = cell == 1
-                blue_agent_here = cell == 2
+
+                principal_agent_here = cell == 1
+                other_agent_here = cell == 2
 
                 agent_dir = None
 
-                agent_dir = red_dir if red_agent_here else agent_dir
-                agent_dir = blue_dir if blue_agent_here else agent_dir
+                if principal_agent_here:
+                    agent_dir = pricipal_dir
+                    agent_hat = principal_hat
 
-                agent_hat = False
-                agent_hat = red_hat if red_agent_here else agent_hat
-                agent_hat = blue_hat if blue_agent_here else agent_hat
+                elif other_agent_here:
+                    agent_dir = other_dir
+                    agent_hat = other_hat
+
+                else:
+                    agent_dir = None
+                    agent_hat = None
 
                 tile_img = RunningWithScissors.render_tile(
                     cell,
@@ -1115,6 +1131,9 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, state, (a1 * action, a2 * action), params
         )
+
+        # import pdb ; pdb.set_trace()
+
         print(
             f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
         )
