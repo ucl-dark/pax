@@ -212,9 +212,30 @@ class RunningWithScissors(environment.Environment):
             _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
             _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
             _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
-            return {"observation": obs1, "inventory": state.red_inventory}, {
+
+            red_pickup = jnp.sum(state.red_inventory) > 2
+            blue_pickup = jnp.sum(state.blue_inventory) > 2
+
+            return {
+                "observation": obs1,
+                "inventory": jnp.array(
+                    [
+                        state.red_inventory[0],
+                        state.red_inventory[1],
+                        red_pickup,
+                        blue_pickup,
+                    ]
+                ),
+            }, {
                 "observation": _obs2,
-                "inventory": state.blue_inventory,
+                "inventory": jnp.array(
+                    [
+                        state.blue_inventory[0],
+                        state.blue_inventory[1],
+                        blue_pickup,
+                        red_pickup,
+                    ]
+                ),
             }
 
         def _get_reward(state: EnvState, params: EnvParams) -> jnp.ndarray:
@@ -436,6 +457,12 @@ class RunningWithScissors(environment.Environment):
 
             interact = jnp.logical_or(
                 red_zap * red_interact, blue_zap * blue_interact
+            )
+
+            red_pickup = state.red_inventory.sum() > 2
+            blue_pickup = state.blue_inventory.sum() > 2
+            interact = jnp.logical_and(
+                interact, jnp.logical_and(red_pickup, blue_pickup)
             )
 
             red_reward = jnp.where(
@@ -751,8 +778,6 @@ class RunningWithScissors(environment.Environment):
         self.get_obs_point = _get_obs_point
 
         # for debugging
-        self.step = _step
-        self.reset = reset
         self.get_obs = _get_obs
         self.cnn = True
 
@@ -803,6 +828,7 @@ class RunningWithScissors(environment.Environment):
         cls,
         obj: int,
         agent_dir: Union[int, None] = None,
+        agent_hat: bool = False,
         highlight: bool = False,
         tile_size: int = 32,
         subdivs: int = 3,
@@ -812,9 +838,9 @@ class RunningWithScissors(environment.Environment):
         """
 
         # Hash map lookup key for the cache
-        key: tuple[Any, ...] = (agent_dir, highlight, tile_size)
+        key: tuple[Any, ...] = (agent_dir, agent_hat, highlight, tile_size)
         if obj:
-            key = (obj, 0, 0) + key if obj else key
+            key = (obj, 0, 0, 0) + key if obj else key
 
         if key in cls.tile_cache:
             return cls.tile_cache[key]
@@ -831,6 +857,7 @@ class RunningWithScissors(environment.Environment):
         if obj == Items.red_agent:
             # Draw the agent 1
             agent_color = (31.0, 119.0, 180.0)
+
         elif obj == Items.blue_agent:
             # Draw agent 2
             agent_color = (255.0, 127.0, 14.0)
@@ -852,10 +879,28 @@ class RunningWithScissors(environment.Environment):
 
         # Overlay the agent on top
         if agent_dir is not None:
+            if agent_hat:
+                tri_fn = point_in_triangle(
+                    (0.12, 0.19),
+                    (0.87, 0.50),
+                    (0.12, 0.81),
+                    0.3,
+                )
+
+                # Rotate the agent based on its direction
+                tri_fn = rotate_fn(
+                    tri_fn,
+                    cx=0.5,
+                    cy=0.5,
+                    theta=0.5 * math.pi * (1 - agent_dir),
+                )
+                fill_coords(img, tri_fn, (255.0, 255.0, 255.0))
+
             tri_fn = point_in_triangle(
                 (0.12, 0.19),
                 (0.87, 0.50),
                 (0.12, 0.81),
+                0.0,
             )
 
             # Rotate the agent based on its direction
@@ -899,6 +944,10 @@ class RunningWithScissors(environment.Environment):
 
         red_dir = state.red_pos[2].item() if agent == 1 else 0
         blue_dir = state.blue_pos[2].item() if agent == 0 else 0
+
+        red_hat = state.red_inventory.sum() > 2 if agent == 1 else False
+        blue_hat = state.blue_inventory.sum() > 2 if agent == 0 else False
+
         # Render the grid
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
@@ -913,9 +962,14 @@ class RunningWithScissors(environment.Environment):
                 agent_dir = red_dir if red_agent_here else agent_dir
                 agent_dir = blue_dir if blue_agent_here else agent_dir
 
+                agent_hat = False
+                agent_hat = red_hat if red_agent_here else agent_hat
+                agent_hat = blue_hat if blue_agent_here else agent_hat
+
                 tile_img = RunningWithScissors.render_tile(
                     cell,
                     agent_dir=agent_dir,
+                    agent_hat=agent_hat,
                     highlight=None,
                     tile_size=tile_size,
                 )
@@ -979,10 +1033,22 @@ class RunningWithScissors(environment.Environment):
                 agent_dir = (
                     state.blue_pos[2].item() if blue_agent_here else agent_dir
                 )
+                agent_hat = False
+                agent_hat = (
+                    bool(state.red_inventory.sum() > 2)
+                    if red_agent_here
+                    else agent_hat
+                )
+                agent_hat = (
+                    bool(state.blue_inventory.sum() > 2)
+                    if blue_agent_here
+                    else agent_hat
+                )
 
                 tile_img = RunningWithScissors.render_tile(
                     cell,
                     agent_dir=agent_dir,
+                    agent_hat=agent_hat,
                     highlight=highlight_mask[i, j],
                     tile_size=tile_size,
                 )
@@ -1047,6 +1113,8 @@ if __name__ == "__main__":
         print(
             f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
         )
+
+        print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")

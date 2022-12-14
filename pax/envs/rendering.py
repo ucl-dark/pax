@@ -95,7 +95,7 @@ def point_in_rect(xmin, xmax, ymin, ymax):
     return fn
 
 
-def point_in_triangle(a, b, c):
+def point_in_triangle(a, b, c, border=0):
     a = np.array(a, dtype=np.float32)
     b = np.array(b, dtype=np.float32)
     c = np.array(c, dtype=np.float32)
@@ -117,8 +117,8 @@ def point_in_triangle(a, b, c):
         u = (dot11 * dot02 - dot01 * dot12) * inv_denom
         v = (dot00 * dot12 - dot01 * dot02) * inv_denom
 
-        # Check if point is in triangle
-        return (u >= 0) and (v >= 0) and (u + v) < 1
+        # Check if point is in triangle or on border
+        return (u >= 0 - border) and (v >= 0 - border) and (u + v) < 1 + border
 
     return fn
 
