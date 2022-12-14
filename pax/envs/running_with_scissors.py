@@ -890,6 +890,12 @@ class RunningWithScissors(environment.Environment):
         elif obj == Items.interact:
             fill_coords(img, point_in_rect(0, 1, 0, 1), (188.0, 189.0, 34.0))
 
+        elif obj == 99:
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (44.0, 160.0, 44.0))
+
+        elif obj == 100:
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (214.0, 39.0, 40.0))
+
         # Overlay the agent on top
         if agent_dir is not None:
             if agent_hat:
@@ -1010,8 +1016,12 @@ class RunningWithScissors(environment.Environment):
                 xmin = i * tile_size
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
-
-        return onp.rot90(img, 2, axes=(0, 1))
+        img = onp.rot90(img, 2, axes=(0, 1))
+        inv = self.render_inventory(
+            state.red_inventory if agent == 0 else state.blue_inventory,
+            OBS_SIZE,
+        )
+        return onp.concatenate((img, inv), axis=0)
 
     def render(
         self,
@@ -1050,7 +1060,6 @@ class RunningWithScissors(environment.Environment):
         )
 
         # Render the grid
-
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
                 cell = grid[i, j]
@@ -1092,7 +1101,7 @@ class RunningWithScissors(environment.Environment):
                 xmax = (i + 1) * tile_size
                 img[ymin:ymax, xmin:xmax, :] = tile_img
 
-        return onp.rot90(
+        img = onp.rot90(
             img[
                 (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
                 (PADDING - 1) * tile_size : -(PADDING - 1) * tile_size,
@@ -1100,6 +1109,39 @@ class RunningWithScissors(environment.Environment):
             ],
             2,
         )
+
+        # Render the inventory
+        red_inv = self.render_inventory(state.red_inventory, GRID_SIZE + 2)
+
+        blue_inv = self.render_inventory(state.blue_inventory, GRID_SIZE + 2)
+        img = onp.concatenate((img, red_inv, blue_inv), axis=0)
+        return img
+
+    def render_inventory(self, inventory, width) -> onp.array:
+        tile_size = 32
+        width_px = width * tile_size
+        height_px = NUM_COIN_TYPES * tile_size
+
+        img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
+
+        for j in range(0, NUM_COIN_TYPES):
+            num_coins = inventory[j]
+            for i in range(int(num_coins)):
+                if j == 0:
+                    tile_img = RunningWithScissors.render_tile(
+                        99, tile_size=tile_size
+                    )
+                elif j == 1:
+                    tile_img = RunningWithScissors.render_tile(
+                        100, tile_size=tile_size
+                    )
+                ymin = j * tile_size
+                ymax = (j + 1) * tile_size
+                xmin = i * tile_size
+                xmax = (i + 1) * tile_size
+                img[ymin:ymax, xmin:xmax, :] = tile_img
+
+        return img
 
 
 if __name__ == "__main__":
@@ -1128,6 +1170,8 @@ if __name__ == "__main__":
         3: "interact",
         4: "stay",
     }
+
+    key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
     env.step = jax.jit(env.step)
 
     for t in range(episode_length):
