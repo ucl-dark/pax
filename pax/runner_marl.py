@@ -481,10 +481,9 @@ class RLRunner:
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
-                # print("Env Stats: {}", env_stats)
-                # print(f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}")
-                for stat in env_stats.keys():
-                    print(stat + f": {env_stats[stat].item()}")
+                print(
+                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                )
                 print(
                     f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )

@@ -497,22 +497,21 @@ def ipditm_stats(
     )
 
     soft_reset_mask = jnp.where(traj1.rewards != 0, 1, 0)
-
-    coops1 = (
-        soft_reset_mask * traj1.observations["inventory"][..., 0]
-    ).sum() / num_envs
-    defect1 = (
-        soft_reset_mask * traj1.observations["inventory"][..., 1]
-    ).sum() / num_envs
-    coops2 = (
-        soft_reset_mask * traj2.observations["inventory"][..., 0]
-    ).sum() / num_envs
-    defect2 = (
-        soft_reset_mask * traj2.observations["inventory"][..., 1]
-    ).sum() / num_envs
-
     num_soft_resets = jnp.count_nonzero(traj1.rewards) / num_envs
 
+    num_sft_resets = jnp.maximum(1, num_soft_resets)
+    coops1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
+    defect1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
+    coops2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
+    defect2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
     return {
         "interactions/1": interacts1,
         "interactions/2": interacts2,
