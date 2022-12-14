@@ -948,8 +948,10 @@ class RunningWithScissors(environment.Environment):
         red_dir = state.red_pos[2].item() if agent == 1 else 0
         blue_dir = state.blue_pos[2].item() if agent == 0 else 0
 
-        red_hat = state.red_inventory.sum() > 2 if agent == 1 else False
-        blue_hat = state.blue_inventory.sum() > 2 if agent == 0 else False
+        red_hat = bool(state.red_inventory.sum() > 2) if agent == 1 else False
+        blue_hat = (
+            bool(state.blue_inventory.sum() > 2) if agent == 0 else False
+        )
 
         # Render the grid
         for j in range(0, grid.shape[1]):
@@ -1020,7 +1022,9 @@ class RunningWithScissors(environment.Environment):
         grid = onp.pad(
             grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
         )
+
         # Render the grid
+
         for j in range(0, grid.shape[1]):
             for i in range(0, grid.shape[0]):
                 cell = grid[i, j]
@@ -1116,8 +1120,9 @@ if __name__ == "__main__":
         print(
             f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
         )
+        print(f"reward: {reward}")
 
-        print(obs[0]["inventory"], obs[1]["inventory"])
+        # print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")
