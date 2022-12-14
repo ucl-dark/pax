@@ -496,10 +496,10 @@ def ipditm_stats(
         jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
     )
 
-    coops1 = state.red_inventory[..., 0].sum() / num_envs
-    defect1 = state.red_inventory[..., 1].sum() / num_envs
-    coops2 = state.blue_inventory[..., 0].sum() / num_envs
-    defect2 = state.blue_inventory[..., 1].sum() / num_envs
+    coops1 = traj1.observations["inventory"][..., 0].sum() / num_envs
+    defect1 = traj1.observations["inventory"][..., 1].sum() / num_envs
+    coops2 = traj2.observations["inventory"][..., 0].sum() / num_envs
+    defect2 = traj2.observations["inventory"][..., 1].sum() / num_envs
 
     return {
         "interactions/1": interacts1,

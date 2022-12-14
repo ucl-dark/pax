@@ -810,7 +810,10 @@ class RunningWithScissors(environment.Environment):
                 low=0, high=1, shape=_shape, dtype=jnp.uint8
             ),
             "inventory": spaces.Box(
-                low=0, high=NUM_COINS, shape=NUM_COIN_TYPES, dtype=jnp.uint8
+                low=0,
+                high=NUM_COINS,
+                shape=NUM_COIN_TYPES + 2,
+                dtype=jnp.uint8,
             ),
         }
 
