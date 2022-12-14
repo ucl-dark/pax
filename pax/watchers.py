@@ -496,10 +496,22 @@ def ipditm_stats(
         jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
     )
 
-    coops1 = traj1.observations["inventory"][..., 0].sum() / num_envs
-    defect1 = traj1.observations["inventory"][..., 1].sum() / num_envs
-    coops2 = traj2.observations["inventory"][..., 0].sum() / num_envs
-    defect2 = traj2.observations["inventory"][..., 1].sum() / num_envs
+    soft_reset_mask = jnp.where(traj1.rewards != 0, 1, 0)
+
+    coops1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 0]
+    ).sum() / num_envs
+    defect1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 1]
+    ).sum() / num_envs
+    coops2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 0]
+    ).sum() / num_envs
+    defect2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 1]
+    ).sum() / num_envs
+
+    num_soft_resets = jnp.count_nonzero(traj1.rewards) / num_envs
 
     return {
         "interactions/1": interacts1,
@@ -510,6 +522,7 @@ def ipditm_stats(
         "defect_coin/2": defect2,
         "total_coin/1": coops1 + defect1,
         "total_coin/2": coops2 + defect2,
-        "ratio/1": coops1 / (coops1 + defect1),
-        "ratio/2": coops2 / (coops2 + defect2),
+        "ratio/1": jnp.nan_to_num(coops1 / (coops1 + defect1), nan=0),
+        "ratio/2": jnp.nan_to_num(coops2 / (coops2 + defect2), nan=0),
+        "num_soft_resets": num_soft_resets,
     }

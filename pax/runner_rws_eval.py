@@ -585,7 +585,7 @@ class RWSEvalRunner:
             append_images=pics[1:],
             duration=300,
             loop=0,
-            optimize=False
+            optimize=False,
         )
 
         pics1[0].save(
@@ -595,7 +595,7 @@ class RWSEvalRunner:
             append_images=pics1[1:],
             duration=300,
             loop=0,
-            optimize=False
+            optimize=False,
         )
 
         pics2[0].save(
@@ -605,7 +605,7 @@ class RWSEvalRunner:
             append_images=pics2[1:],
             duration=300,
             loop=0,
-            optimize=False
+            optimize=False,
         )
         if watchers:
             wandb.log(
