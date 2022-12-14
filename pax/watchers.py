@@ -512,6 +512,10 @@ def ipditm_stats(
     defect2 = (
         soft_reset_mask * traj2.observations["inventory"][..., 1]
     ).sum() / (num_envs * num_sft_resets)
+
+    rewards1 = traj1.rewards.sum() / num_envs
+    rewards2 = traj2.rewards.sum() / num_envs
+
     return {
         "interactions/1": interacts1,
         "interactions/2": interacts2,
@@ -524,4 +528,6 @@ def ipditm_stats(
         "ratio/1": jnp.nan_to_num(coops1 / (coops1 + defect1), nan=0),
         "ratio/2": jnp.nan_to_num(coops2 / (coops2 + defect2), nan=0),
         "num_soft_resets": num_soft_resets,
+        "train/total_reward/player_1": rewards1,
+        "train/total_reward/player_2": rewards2,
     }
