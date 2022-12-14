@@ -538,7 +538,9 @@ class RWSEvalRunner:
         pics = []
         pics1 = []
         pics2 = []
+        from datetime import datetime
 
+        now = datetime.now()
         env_states = [
             EnvState(
                 red_pos=env_state.red_pos[0, i].reshape(-1),
@@ -548,6 +550,9 @@ class RWSEvalRunner:
                 grid=env_state.grid[0, i].reshape(8, 8),
                 red_inventory=env_state.red_inventory[0, i].reshape(-1),
                 blue_inventory=env_state.blue_inventory[0, i].reshape(-1),
+                red_coins=env_state.red_coins[0, i].reshape(-1),
+                blue_coins=env_state.blue_coins[0, i].reshape(-1),
+                freeze=env_state.freeze[0, i].reshape(-1),
             )
             for i in range(self.args.num_inner_steps)
         ]
@@ -574,36 +579,39 @@ class RWSEvalRunner:
         pics2 = [Image.fromarray(img) for img in pics2]
 
         pics[0].save(
-            f"{self.args.wandb.group}.gif",
+            f"{self.args.wandb.group}_{now}.gif",
             format="gif",
             save_all=True,
             append_images=pics[1:],
             duration=300,
             loop=0,
+            optimize=False
         )
 
         pics1[0].save(
-            f"{self.args.wandb.group}_agent1.gif",
+            f"{self.args.wandb.group}_agent1_{now}.gif",
             format="gif",
             save_all=True,
             append_images=pics1[1:],
             duration=300,
             loop=0,
+            optimize=False
         )
 
         pics2[0].save(
-            f"{self.args.wandb.group}_agent2.gif",
+            f"{self.args.wandb.group}_agent2_{now}.gif",
             format="gif",
             save_all=True,
             append_images=pics2[1:],
             duration=300,
             loop=0,
+            optimize=False
         )
         if watchers:
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}.gif",
+                        f"{self.args.wandb.group}_{now}.gif",
                         fps=4,
                         format="gif",
                     )
@@ -613,7 +621,7 @@ class RWSEvalRunner:
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent1.gif",
+                        f"{self.args.wandb.group}_agent1_{now}.gif",
                         fps=4,
                         format="gif",
                     )
@@ -622,7 +630,7 @@ class RWSEvalRunner:
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent2.gif",
+                        f"{self.args.wandb.group}_agent2_{now}.gif",
                         fps=4,
                         format="gif",
                     )
