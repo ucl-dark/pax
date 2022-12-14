@@ -210,8 +210,6 @@ class RunningWithScissors(environment.Environment):
 
             _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
             _obs2 = obs2.at[:, :, 1].set(obs2[:, :, 0])
-            _obs2 = obs2.at[:, :, 2].set(obs2[:, :, 3])
-            _obs2 = obs2.at[:, :, 3].set(obs2[:, :, 2])
 
             red_pickup = jnp.sum(state.red_inventory) > 2
             blue_pickup = jnp.sum(state.blue_inventory) > 2

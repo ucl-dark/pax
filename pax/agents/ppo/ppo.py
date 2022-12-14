@@ -357,8 +357,6 @@ class PPO(AgentInterface):
                 dummy_obs = dummy_obs.at[18].set(1)
                 dummy_obs = dummy_obs.at[27].set(1)
             dummy_obs = utils.add_batch_dim(dummy_obs)
-            # jax.debug.breakpoint()
-            # jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
