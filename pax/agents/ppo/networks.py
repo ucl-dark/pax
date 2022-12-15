@@ -78,7 +78,7 @@ class CategoricalValueHeadSeparate(hk.Module):
         return (distrax.Categorical(logits=logits), value)
 
 
-class CategoricalValueHeadSeparate_rws(hk.Module):
+class CategoricalValueHeadSeparate_ipditm(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
@@ -214,7 +214,7 @@ class CNN(hk.Module):
         return x
 
 
-class CNN_rws(hk.Module):
+class CNN_ipditm(hk.Module):
     def __init__(self, args):
         super().__init__(name="CNN")
         output_channels = args.ppo.output_channels
@@ -425,7 +425,7 @@ def make_sarl_network(num_actions: int):
     return network
 
 
-def make_rws_network(num_actions: int, args):
+def make_ipditm_network(num_actions: int, args):
     def forward_fn(inputs: dict):
         layers = []
 
@@ -457,7 +457,7 @@ def make_rws_network(num_actions: int, args):
     return network
 
 
-def old_make_rws_network(num_actions: int, args):
+def old_make_ipditm_network(num_actions: int, args):
     def forward_fn(inputs):
         layers = []
 
@@ -560,7 +560,7 @@ def make_GRU_coingame_network(num_actions: int, args):
     return network, hidden_state
 
 
-def old_make_GRU_rws_network(num_actions: int, args):
+def old_make_GRU_ipditm_network(num_actions: int, args):
     hidden_size = 256
     hidden_state = jnp.zeros((1, hidden_size))
 
@@ -585,7 +585,7 @@ def old_make_GRU_rws_network(num_actions: int, args):
     return network, hidden_state
 
 
-def make_GRU_rws_network(num_actions: int, args):
+def make_GRU_ipditm_network(num_actions: int, args):
     hidden_size = 256
     hidden_state = jnp.zeros((1, hidden_size))
 
@@ -593,9 +593,9 @@ def make_GRU_rws_network(num_actions: int, args):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = CNN_rws(args)
+        torso = CNN_ipditm(args)
         if args.ppo.separate:
-            cvh = CategoricalValueHeadSeparate_rws(num_values=num_actions)
+            cvh = CategoricalValueHeadSeparate_ipditm(num_values=num_actions)
         else:
             cvh = CategoricalValueHead(num_values=num_actions)
         gru = hk.GRU(hidden_size)

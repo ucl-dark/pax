@@ -13,7 +13,7 @@ from pax.agents.ppo.networks import (
     make_GRU_cartpole_network,
     make_GRU_coingame_network,
     make_GRU_ipd_network,
-    make_GRU_rws_network,
+    make_GRU_ipditm_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
 
@@ -514,7 +514,9 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
         network, initial_hidden_state = make_GRU_ipd_network(action_spec, args)
 
     elif args.env_id == "IPDInTheMatrix":
-        network, initial_hidden_state = make_GRU_rws_network(action_spec, args)
+        network, initial_hidden_state = make_GRU_ipditm_network(
+            action_spec, args
+        )
 
     gru_dim = initial_hidden_state.shape[1]
 

@@ -57,7 +57,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class RWSEvalRunner:
+class IPDITMEvalRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to

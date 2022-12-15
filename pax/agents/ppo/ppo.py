@@ -10,7 +10,7 @@ import optax
 from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
-    make_rws_network,
+    make_ipditm_network,
     make_sarl_network,
     make_coingame_network,
     make_ipd_network,
@@ -474,7 +474,7 @@ def make_agent(
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)
     elif args.env_id == "IPDInTheMatrix":
-        network = make_rws_network(action_spec, args)
+        network = make_ipditm_network(action_spec, args)
     else:
         network = make_ipd_network(action_spec, tabular, args)
 

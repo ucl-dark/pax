@@ -89,7 +89,7 @@ class RLRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num_envs
-        self.rws_stats = jax.jit(ipditm_stats)
+        self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -397,7 +397,7 @@ class RLRunner:
             elif args.env_id == "IPDInTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.rws_stats(
+                    self.ipditm_stats(
                         env_state,
                         traj_1,
                         traj_2,

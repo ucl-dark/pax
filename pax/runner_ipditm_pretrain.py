@@ -57,7 +57,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class RWSPretrainRunner:
+class IPDITMPretrainRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to
@@ -100,7 +100,7 @@ class RWSPretrainRunner:
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
-        self.rws_stats = jax.jit(ipditm_stats)
+        self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num opps: we vmap over the rng but not params
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
@@ -405,7 +405,7 @@ class RWSPretrainRunner:
             elif args.env_id == "IPDInTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.rws_stats(
+                    self.ipditm_stats(
                         env_state,
                         traj_1,
                         traj_2,

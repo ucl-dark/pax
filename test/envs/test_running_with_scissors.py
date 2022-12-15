@@ -1,16 +1,16 @@
 import jax
 import jax.numpy as jnp
 
-from pax.envs.running_with_scissors import (
-    RunningWithScissors,
+from pax.envs.ipd_in_the_matrix import (
+    IPDInTheMatrix,
     EnvParams,
     EnvState,
 )
 
 
-def test_rws_shapes():
+def test_ipditm_shapes():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(num_inner_steps=8, num_outer_steps=2, cnn=True)
+    env = IPDInTheMatrix(num_inner_steps=8, num_outer_steps=2, cnn=True)
 
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
@@ -27,9 +27,9 @@ def test_rws_shapes():
     assert rewards[1].shape == ()
 
 
-def test_rws_turns():
+def test_ipditm_turns():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(50, 2, True)
+    env = IPDInTheMatrix(50, 2, True)
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
     _, state = env.reset(rng, params)
@@ -68,9 +68,9 @@ def test_rws_turns():
         state = new_state
 
 
-def test_rws_steps():
+def test_ipditm_steps():
     rng = jax.random.PRNGKey(0)
-    env = RunningWithScissors(50, 2, True)
+    env = IPDInTheMatrix(50, 2, True)
     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
     _, state = env.reset(rng, params)
@@ -142,9 +142,9 @@ def test_rws_steps():
     assert (jnp.array([8, 9, 3]) == state.blue_pos).all()
 
 
-# def test_rws_obs():
+# def test_ipditm_obs():
 #     rng = jax.random.PRNGKey(0)
-#     env = RunningWithScissors(50, 2)
+#     env = IPDInTheMatrix(50, 2)
 #     params = EnvParams(payoff_matrix=[[1, 1, -2], [1, 1, -2]])
 
 #     _, state = env.reset(rng, params)
