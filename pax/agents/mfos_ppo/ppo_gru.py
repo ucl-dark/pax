@@ -9,7 +9,10 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.mfos_ppo.networks import make_mfos_network
+from pax.agents.mfos_ppo.networks import (
+    make_mfos_ipditm_network,
+    make_mfos_network,
+)
 from pax.utils import TrainingState, get_advantages
 
 
@@ -384,9 +387,18 @@ class PPO(AgentInterface):
 
             # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            hidden_size = initial_hidden_state.shape[-1]
-            dummy_obs = jnp.zeros(shape=obs_spec)
+
+            if isinstance(obs_spec, dict):
+                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
+                dummy_obs = {
+                    "inventory": jnp.zeros(obs_spec["inventory"]),
+                    "observation": jnp.zeros(obs_spec["observation"]),
+                }
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+
             dummy_obs = utils.add_batch_dim(dummy_obs)
+            hidden_size = initial_hidden_state.shape[-1]
 
             dummy_meta = jnp.zeros(shape=hidden_size // 3)
             dummy_meta = utils.add_batch_dim(dummy_meta)
@@ -539,10 +551,18 @@ def make_gru_agent(
 ):
     """Make PPO agent"""
     # Network
-    network, initial_hidden_state = make_mfos_network(
-        action_spec,
-        args.ppo.hidden_size,
-    )
+
+    if args.env_id == "coin_game":
+        network, initial_hidden_state = make_mfos_network(
+            action_spec,
+            args.ppo.hidden_size,
+        )
+    elif args.env_id == "IPDInTheMatrix":
+        network, initial_hidden_state = make_mfos_ipditm_network(
+            action_spec, args
+        )
+    else:
+        raise ValueError("Unsupported environment")
 
     gru_dim = initial_hidden_state.shape[1]
 
