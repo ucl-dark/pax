@@ -4,7 +4,7 @@
 agent1: 'PPO'
 
 # Environment
-env_id: RunningWithScissors
+env_id: IPDInTheMatrix
 env_type: sequential
 egocentric: True
 env_discount: 0.96

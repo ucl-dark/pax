@@ -473,7 +473,7 @@ def make_agent(
     elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id}")
         network = make_coingame_network(action_spec, tabular, args)
-    elif args.env_id == "RunningWithScissors":
+    elif args.env_id == "IPDInTheMatrix":
         network = make_rws_network(action_spec, args)
     else:
         network = make_ipd_network(action_spec, tabular, args)

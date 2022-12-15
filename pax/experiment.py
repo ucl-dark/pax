@@ -37,16 +37,16 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
-from pax.envs.running_with_scissors import RunningWithScissors
-from pax.envs.running_with_scissors import (
+from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
+from pax.envs.ipd_in_the_matrix import (
     EnvParams as RunningWithScissorsParams,
 )
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
-from pax.runner_rws_eval import RWSEvalRunner
-from pax.runner_rws_pretrain import RWSPretrainRunner
+from pax.runner_ipditm_eval import RWSEvalRunner
+from pax.runner_ipditm_pretrain import RWSPretrainRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -141,18 +141,18 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
             )
-    elif args.env_id == "RunningWithScissors":
+    elif args.env_id == "IPDInTheMatrix":
         payoff = jnp.array(args.payoff)
         env_params = RunningWithScissorsParams(
             payoff_matrix=payoff, freeze_penalty=args.freeze
         )
-        env = RunningWithScissors(
+        env = IPDInTheMatrix(
             num_inner_steps=args.num_inner_steps,
             num_outer_steps=args.num_steps // args.num_inner_steps,
         )
         if logger:
             logger.info(
-                f"Env Type: RunningWithScissors | Episode Length: {args.num_steps}"
+                f"Env Type: IPDInTheMatrix | Episode Length: {args.num_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
@@ -274,7 +274,7 @@ def agent_setup(args, env, env_params, logger):
 
     if args.env_id == "iterated_matrix_game":
         obs_shape = env.observation_space(env_params).n
-    elif args.env_id == "RunningWithScissors":
+    elif args.env_id == "IPDInTheMatrix":
         obs_shape = jax.tree_map(
             lambda x: x.shape, env.observation_space(env_params)
         )
@@ -436,7 +436,7 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "RunningWithScissors"]:
+        if args.env_id not in ["coin_game", "IPDInTheMatrix"]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -445,7 +445,7 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "RunningWithScissors"]:
+        if args.env_id not in ["coin_game", "IPDInTheMatrix"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)

@@ -394,7 +394,7 @@ class RLRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
-            elif args.env_id == "RunningWithScissors":
+            elif args.env_id == "IPDInTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.rws_stats(

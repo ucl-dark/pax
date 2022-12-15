@@ -513,7 +513,7 @@ def make_gru_agent(args, obs_spec, action_spec, seed: int, player_id: int):
     elif args.env_id == "iterated_matrix_game":
         network, initial_hidden_state = make_GRU_ipd_network(action_spec, args)
 
-    elif args.env_id == "RunningWithScissors":
+    elif args.env_id == "IPDInTheMatrix":
         network, initial_hidden_state = make_GRU_rws_network(action_spec, args)
 
     gru_dim = initial_hidden_state.shape[1]

@@ -145,7 +145,7 @@ AGENT_SPAWNS = jnp.array(
 ).reshape(-1, 2, 2)
 
 
-class RunningWithScissors(environment.Environment):
+class IPDInTheMatrix(environment.Environment):
     """
     JAX Compatible version of coin game environment.
     0. Make the environment larger (10x10)
@@ -1050,7 +1050,7 @@ class RunningWithScissors(environment.Environment):
                     agent_dir = None
                     agent_hat = None
 
-                tile_img = RunningWithScissors.render_tile(
+                tile_img = IPDInTheMatrix.render_tile(
                     cell,
                     agent_dir=agent_dir,
                     agent_hat=agent_hat,
@@ -1134,7 +1134,7 @@ class RunningWithScissors(environment.Environment):
                     else agent_hat
                 )
 
-                tile_img = RunningWithScissors.render_tile(
+                tile_img = IPDInTheMatrix.render_tile(
                     cell,
                     agent_dir=agent_dir,
                     agent_hat=agent_hat,
@@ -1176,7 +1176,7 @@ class RunningWithScissors(environment.Environment):
                     cell = 99
                 elif j == 1:
                     cell = 100
-                tile_img = RunningWithScissors.render_tile(
+                tile_img = IPDInTheMatrix.render_tile(
                     cell, tile_size=tile_height
                 )
                 ymin = j * tile_height
@@ -1195,7 +1195,7 @@ if __name__ == "__main__":
     action = 1
     rng = jax.random.PRNGKey(0)
     episode_length = 1000
-    env = RunningWithScissors(200, episode_length)
+    env = IPDInTheMatrix(200, episode_length)
     num_actions = env.action_space().n
     params = EnvParams(
         payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
