@@ -78,6 +78,50 @@ class CategoricalValueHeadSeparate(hk.Module):
         return (distrax.Categorical(logits=logits), value)
 
 
+class CategoricalValueHeadSeparate_rws(hk.Module):
+    """Network head that produces a categorical distribution and value."""
+
+    def __init__(
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+    ):
+        super().__init__(name=name)
+        self._action_body = hk.nets.MLP(
+            [16],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Orthogonal(1.0),
+            b_init=hk.initializers.Constant(0),
+        )
+        self._value_body = hk.nets.MLP(
+            [16],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Orthogonal(0.01),
+            b_init=hk.initializers.Constant(0),
+        )
+
+    def __call__(self, inputs: jnp.ndarray):
+        # action_output, value_output = inputs
+        logits = self._action_body(inputs)
+        logits = self._logit_layer(logits)
+
+        value = self._value_body(inputs)
+        value = jnp.squeeze(self._value_layer(value), axis=-1)
+        return (distrax.Categorical(logits=logits), value)
+
+
 class ContinuousValueHead(hk.Module):
     """Network head that produces a continuous distribution and value."""
 
@@ -551,7 +595,7 @@ def make_GRU_rws_network(num_actions: int, args):
         """forward function"""
         torso = CNN_rws(args)
         if args.ppo.separate:
-            cvh = CategoricalValueHeadSeparate(num_values=num_actions)
+            cvh = CategoricalValueHeadSeparate_rws(num_values=num_actions)
         else:
             cvh = CategoricalValueHead(num_values=num_actions)
         gru = hk.GRU(hidden_size)
