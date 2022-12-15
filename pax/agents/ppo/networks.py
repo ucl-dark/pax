@@ -84,11 +84,12 @@ class CategoricalValueHeadSeparate_ipditm(hk.Module):
     def __init__(
         self,
         num_values: int,
+        hidden_size: int,
         name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._action_body = hk.nets.MLP(
-            [16],
+            [hidden_size],
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
@@ -100,7 +101,7 @@ class CategoricalValueHeadSeparate_ipditm(hk.Module):
             b_init=hk.initializers.Constant(0),
         )
         self._value_body = hk.nets.MLP(
-            [16],
+            [hidden_size],
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
@@ -595,7 +596,7 @@ def make_GRU_ipditm_network(num_actions: int, args):
         """forward function"""
         torso = CNN_ipditm(args)
         if args.ppo.separate:
-            cvh = CategoricalValueHeadSeparate_ipditm(num_values=num_actions)
+            cvh = CategoricalValueHeadSeparate_ipditm(num_values=num_actions, hidden_size=hidden_size)
         else:
             cvh = CategoricalValueHead(num_values=num_actions)
         gru = hk.GRU(hidden_size)
