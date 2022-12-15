@@ -104,27 +104,42 @@ COORDS = jnp.array(
     dtype=jnp.int8,
 ).reshape(-1, 2)
 
-# COINS SPAWN IN THE INNER GRID
+
+AGENT_SPAWNS = [
+    [0, 0],
+    [0, 1],
+    [1, 0],
+    [1, 1],
+    [0, GRID_SIZE - 1],
+    [0, GRID_SIZE - 2],
+    [1, GRID_SIZE - 1],
+    [1, GRID_SIZE - 2],
+    [GRID_SIZE - 1, 0],
+    [GRID_SIZE - 1, 1],
+    [GRID_SIZE - 2, 0],
+    [GRID_SIZE - 2, 1],
+    [GRID_SIZE - 1, GRID_SIZE - 1],
+    [GRID_SIZE - 1, GRID_SIZE - 2],
+    [GRID_SIZE - 2, GRID_SIZE - 1],
+    [GRID_SIZE - 2, GRID_SIZE - 2],
+]
+
+COIN_SPAWNS = [
+    (j, i)
+    for i in range(0, GRID_SIZE)
+    for j in range(0, GRID_SIZE)
+    if [j, i] not in AGENT_SPAWNS
+]
+
 COIN_SPAWNS = jnp.array(
-    [
-        [(j, i) for i in range(1, GRID_SIZE - 1)]
-        for j in range(1, GRID_SIZE - 1)
-    ],
+    COIN_SPAWNS,
     dtype=jnp.int8,
 ).reshape(-1, 2)
 
-print(COIN_SPAWNS)
-# range for outer circle of grid
-OUTER_GRID = (
-    [(0, i) for i in range(GRID_SIZE)]
-    + [(i, GRID_SIZE - 1) for i in range(GRID_SIZE)]
-    + [(GRID_SIZE - 1, i) for i in range(GRID_SIZE)]
-    + [(i, 0) for i in range(GRID_SIZE)]
-)
 AGENT_SPAWNS = jnp.array(
     [
         [(j, i), (GRID_SIZE - 1 - j, GRID_SIZE - 1 - i)]
-        for (i, j) in OUTER_GRID
+        for (i, j) in AGENT_SPAWNS
     ],
     dtype=jnp.int8,
 ).reshape(-1, 2, 2)
@@ -1179,8 +1194,8 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    episode_length = 300
-    env = RunningWithScissors(episode_length, episode_length)
+    episode_length = 1000
+    env = RunningWithScissors(200, episode_length)
     num_actions = env.action_space().n
     params = EnvParams(
         payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
@@ -1248,7 +1263,7 @@ if __name__ == "__main__":
         save_all=True,
         optimize=False,
         append_images=pics[1:],
-        duration=300,
+        duration=100,
         loop=0,
     )
 
@@ -1258,7 +1273,7 @@ if __name__ == "__main__":
         save_all=True,
         optimize=False,
         append_images=pics1[1:],
-        duration=300,
+        duration=100,
         loop=0,
     )
     pics2[0].save(
@@ -1267,6 +1282,6 @@ if __name__ == "__main__":
         save_all=True,
         optimize=False,
         append_images=pics2[1:],
-        duration=300,
+        duration=100,
         loop=0,
     )
