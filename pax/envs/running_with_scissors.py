@@ -28,7 +28,6 @@ NUM_COIN_TYPES = 2
 NUM_OBJECTS = (
     2 + NUM_COIN_TYPES * NUM_COINS + 1
 )  # red, blue, 2 red coin, 2 blue coin
-FREEZE_PENALTY = 5
 
 
 @chex.dataclass
@@ -48,6 +47,7 @@ class EnvState:
 @chex.dataclass
 class EnvParams:
     payoff_matrix: chex.ArrayDevice
+    freeze_penalty: int
 
 
 class Actions(IntEnum):
@@ -623,7 +623,9 @@ class RunningWithScissors(environment.Environment):
             blue_reward += blue_interact_reward
 
             # if we interacted, then we set freeze
-            state.freeze = jnp.where(interact, FREEZE_PENALTY, state.freeze)
+            state.freeze = jnp.where(
+                interact, params.freeze_penalty, state.freeze
+            )
 
             # if we didn't interact, then we decrement freeze
             state.freeze = jnp.where(
@@ -645,7 +647,9 @@ class RunningWithScissors(environment.Environment):
                 blue_inventory=state.blue_inventory,
                 red_coins=state.red_coins,
                 blue_coins=state.blue_coins,
-                freeze=jnp.where(interact, FREEZE_PENALTY, state.freeze),
+                freeze=jnp.where(
+                    interact, params.freeze_penalty, state.freeze
+                ),
             )
 
             # now calculate if done for inner or outer episode
@@ -1152,7 +1156,9 @@ if __name__ == "__main__":
     episode_length = 300
     env = RunningWithScissors(episode_length, episode_length)
     num_actions = env.action_space().n
-    params = EnvParams(payoff_matrix=jnp.array([[3, 0], [5, 1]]))
+    params = EnvParams(
+        payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
+    )
     obs, state = env.reset(rng, params)
     pics = []
     pics1 = []

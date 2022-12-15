@@ -142,7 +142,9 @@ def env_setup(args, logger=None):
             )
     elif args.env_id == "RunningWithScissors":
         payoff = jnp.array(args.payoff)
-        env_params = RunningWithScissorsParams(payoff_matrix=payoff)
+        env_params = RunningWithScissorsParams(
+            payoff_matrix=payoff, freeze_penalty=args.freeze
+        )
         env = RunningWithScissors(
             num_inner_steps=args.num_inner_steps,
             num_outer_steps=args.num_steps // args.num_inner_steps,
