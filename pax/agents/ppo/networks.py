@@ -439,6 +439,7 @@ def make_ipditm_network(num_actions: int, args):
             layers.extend([cnn, cvh])
 
         else:
+            raise ValueError("IPDITM network must have a CNN")
             layers.extend(
                 [
                     hk.nets.MLP(
@@ -596,7 +597,9 @@ def make_GRU_ipditm_network(num_actions: int, args):
         """forward function"""
         torso = CNN_ipditm(args)
         if args.ppo.separate:
-            cvh = CategoricalValueHeadSeparate_ipditm(num_values=num_actions, hidden_size=hidden_size)
+            cvh = CategoricalValueHeadSeparate_ipditm(
+                num_values=num_actions, hidden_size=hidden_size
+            )
         else:
             cvh = CategoricalValueHead(num_values=num_actions)
         gru = hk.GRU(hidden_size)
