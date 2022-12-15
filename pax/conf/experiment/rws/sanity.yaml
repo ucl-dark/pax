@@ -9,6 +9,7 @@ env_id: RunningWithScissors
 env_type: sequential
 env_discount: 0.96
 payoff: [[3, 0], [5, 1]]
+freeze: 5
 runner: rl
 
 # Training hyperparameters
@@ -16,7 +17,6 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
 num_opps: 1
-num_steps: 300 
 num_inner_steps: 152 
 total_timesteps: 1e8
 save_interval: 1e6 
