@@ -755,7 +755,7 @@ class RunningWithScissors(environment.Environment):
                 blue_inventory=jnp.ones(2),
                 red_coins=state.red_coins,
                 blue_coins=state.blue_coins,
-                freeze=jnp.int8(-1),
+                freeze=jnp.int16(-1),
             )
 
         def _reset_state(
@@ -805,7 +805,7 @@ class RunningWithScissors(environment.Environment):
                 blue_inventory=jnp.ones(2),
                 red_coins=red_coins,
                 blue_coins=blue_coins,
-                freeze=jnp.int8(-1),
+                freeze=jnp.int16(-1),
             )
 
         def reset(
