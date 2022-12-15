@@ -104,6 +104,31 @@ COORDS = jnp.array(
     dtype=jnp.int8,
 ).reshape(-1, 2)
 
+# COINS SPAWN IN THE INNER GRID
+COIN_SPAWNS = jnp.array(
+    [
+        [(j, i) for i in range(1, GRID_SIZE - 1)]
+        for j in range(1, GRID_SIZE - 1)
+    ],
+    dtype=jnp.int8,
+).reshape(-1, 2)
+
+print(COIN_SPAWNS)
+# range for outer circle of grid
+OUTER_GRID = (
+    [(0, i) for i in range(GRID_SIZE)]
+    + [(i, GRID_SIZE - 1) for i in range(GRID_SIZE)]
+    + [(GRID_SIZE - 1, i) for i in range(GRID_SIZE)]
+    + [(i, 0) for i in range(GRID_SIZE)]
+)
+AGENT_SPAWNS = jnp.array(
+    [
+        [(j, i), (GRID_SIZE - 1 - j, GRID_SIZE - 1 - i)]
+        for (i, j) in OUTER_GRID
+    ],
+    dtype=jnp.int8,
+).reshape(-1, 2, 2)
+
 
 class RunningWithScissors(environment.Environment):
     """
@@ -691,27 +716,28 @@ class RunningWithScissors(environment.Environment):
                     state.blue_coins[i, 0], state.blue_coins[i, 1]
                 ].set(jnp.int8(Items.blue_coin))
 
-            occupied_grid = grid == Items.empty
-            free_xs, free_ys = jnp.nonzero(
-                occupied_grid, size=GRID_SIZE * GRID_SIZE - 2 * NUM_COINS
-            )
-            # Sample the free spaces
-            idxs = jax.random.choice(
-                key, free_xs.shape[0], shape=(2,), replace=False
-            )
-            dirs = jax.random.randint(
-                key,
-                (2,),
-                0,
-                4,
+            agent_pos = jax.random.choice(
+                key, AGENT_SPAWNS, shape=(), replace=False
             )
 
-            red_pos = jnp.array(
-                [free_xs[idxs[0]], free_ys[idxs[0]], dirs[0]], dtype=jnp.int8
+            # Sample the free spaces
+            # occupied_grid = grid == Items.empty
+            # free_xs, free_ys = jnp.nonzero(
+            #     occupied_grid, size=GRID_SIZE * GRID_SIZE - 2 * NUM_COINS
+            # )
+            # idxs = jax.random.choice(
+            #     key, free_xs.shape[0], shape=(2,), replace=False
+            # )
+            player_dir = jax.random.randint(
+                key, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
             )
-            blue_pos = jnp.array(
-                [free_xs[idxs[1]], free_ys[idxs[1]], dirs[1]], dtype=jnp.int8
-            )
+            player_pos = jnp.array(
+                [agent_pos[:2, 0], agent_pos[:2, 1], player_dir]
+            ).T
+
+            red_pos = player_pos[0, :]
+            blue_pos = player_pos[1, :]
+
             grid = grid.at[red_pos[0], red_pos[1]].set(
                 jnp.int8(Items.red_agent)
             )
@@ -737,16 +763,19 @@ class RunningWithScissors(environment.Environment):
         ) -> Tuple[jnp.ndarray, EnvState]:
             key, subkey = jax.random.split(key)
 
-            object_pos = jax.random.choice(
-                subkey, COORDS, shape=(NUM_OBJECTS,), replace=False
+            coin_pos = jax.random.choice(
+                subkey, COIN_SPAWNS, shape=(NUM_OBJECTS,), replace=False
+            )
+
+            agent_pos = jax.random.choice(
+                subkey, AGENT_SPAWNS, shape=(), replace=False
             )
             player_dir = jax.random.randint(
                 subkey, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
             )
             player_pos = jnp.array(
-                [object_pos[:2, 0], object_pos[:2, 1], player_dir]
+                [agent_pos[:2, 0], agent_pos[:2, 1], player_dir]
             ).T
-            coin_pos = object_pos[2:]
             grid = jnp.zeros((GRID_SIZE, GRID_SIZE), jnp.int8)
             grid = grid.at[player_pos[0, 0], player_pos[0, 1]].set(
                 jnp.int8(Items.red_agent)
@@ -941,7 +970,6 @@ class RunningWithScissors(environment.Environment):
 
         # Cache the rendered tile
         cls.tile_cache[key] = img
-
         return img
 
     def render_agent_view(
@@ -1023,7 +1051,7 @@ class RunningWithScissors(environment.Environment):
         img = onp.rot90(img, 2, axes=(0, 1))
         inv = self.render_inventory(
             state.red_inventory if agent == 0 else state.blue_inventory,
-            OBS_SIZE,
+            width_px,
         )
         return onp.concatenate((img, inv), axis=0)
 
@@ -1115,36 +1143,34 @@ class RunningWithScissors(environment.Environment):
         )
 
         # Render the inventory
-        red_inv = self.render_inventory(state.red_inventory, GRID_SIZE + 2)
-
-        blue_inv = self.render_inventory(state.blue_inventory, GRID_SIZE + 2)
+        red_inv = self.render_inventory(state.red_inventory, img.shape[1])
+        blue_inv = self.render_inventory(state.blue_inventory, img.shape[1])
         img = onp.concatenate((img, red_inv, blue_inv), axis=0)
         return img
 
-    def render_inventory(self, inventory, width) -> onp.array:
-        tile_size = 32
-        width_px = width * tile_size
-        height_px = NUM_COIN_TYPES * tile_size
-
+    def render_inventory(self, inventory, width_px) -> onp.array:
+        tile_height = 32
+        height_px = NUM_COIN_TYPES * tile_height
         img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
-
+        tile_width = width_px // NUM_COINS
         for j in range(0, NUM_COIN_TYPES):
             num_coins = inventory[j]
             for i in range(int(num_coins)):
+                cell = None
                 if j == 0:
-                    tile_img = RunningWithScissors.render_tile(
-                        99, tile_size=tile_size
-                    )
+                    cell = 99
                 elif j == 1:
-                    tile_img = RunningWithScissors.render_tile(
-                        100, tile_size=tile_size
-                    )
-                ymin = j * tile_size
-                ymax = (j + 1) * tile_size
-                xmin = i * tile_size
-                xmax = (i + 1) * tile_size
-                img[ymin:ymax, xmin:xmax, :] = tile_img
-
+                    cell = 100
+                tile_img = RunningWithScissors.render_tile(
+                    cell, tile_size=tile_height
+                )
+                ymin = j * tile_height
+                ymax = (j + 1) * tile_height
+                xmin = i * tile_width
+                xmax = (i + 1) * tile_width
+                img[ymin:ymax, xmin:xmax, :] = onp.resize(
+                    tile_img, (tile_height, tile_width, 3)
+                )
         return img
 
 
@@ -1203,7 +1229,7 @@ if __name__ == "__main__":
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")
-        print(state.red_pos, state.blue_pos)
+            print(state.red_pos, state.blue_pos)
 
         img = env.render(state)
         img1 = env.render_agent_view(state, agent=0)
