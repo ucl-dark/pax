@@ -8,7 +8,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save, load
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 from pax.envs.running_with_scissors import (
     RunningWithScissors,
     EnvParams,
@@ -57,7 +57,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class RWSEvalRunner:
+class RWSPretrainRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to
@@ -100,7 +100,7 @@ class RWSEvalRunner:
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
-
+        self.rws_stats = jax.jit(ipditm_stats)
         # VMAP for num opps: we vmap over the rng but not params
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
@@ -402,6 +402,18 @@ class RWSEvalRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "RunningWithScissors":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.rws_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
+                        args.num_envs,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
             else:
                 env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
@@ -439,16 +451,8 @@ class RWSEvalRunner:
                 root=os.getcwd(),
             )
 
-            wandb.restore(
-                name=self.args.model_path2,
-                run_path=self.args.run_path,
-                root=os.getcwd(),
-            )
         pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
-
-        pretrained_params = load(self.args.model_path2)
-        a2_state = a2_state._replace(params=pretrained_params)
 
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
@@ -475,6 +479,7 @@ class RWSEvalRunner:
             ) = self.rollout(
                 rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
             )
+            a1_state = a1_state._replace(params=pretrained_params)
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath1 = os.path.join(
@@ -497,7 +502,8 @@ class RWSEvalRunner:
             if i % log_interval == 0:
                 print(f"Episode {i}")
 
-                print(f"Env Stats: {env_stats}")
+                for stat in env_stats.keys():
+                    print(stat + f": {env_stats[stat].item()}")
                 print(
                     f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
