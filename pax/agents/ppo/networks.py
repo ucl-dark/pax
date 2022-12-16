@@ -235,6 +235,8 @@ class CNN_ipditm(hk.Module):
         self.linear_a_0 = hk.Linear(output_channels)
         self.linear_a_1 = hk.Linear(output_channels)
 
+        # akbir suggested fix
+        # self.linear = hk.Linear(args.ppo.hidden_size)
         self.flatten = hk.Flatten()
 
     def __call__(self, inputs: jnp.ndarray):
@@ -247,11 +249,12 @@ class CNN_ipditm(hk.Module):
         x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
+        # akbir suggested fix
+        # return self.linear(x)
         x = self.linear_a_0(x)
         x = jax.nn.relu(x)
         x = self.linear_a_1(x)
         x = jax.nn.relu(x)
-
         return x
 
 

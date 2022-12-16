@@ -3,6 +3,12 @@ import os
 from datetime import datetime
 from functools import partial
 
+# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
+# uncomment to debug multi-devices on CPU
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
+
 import hydra
 import jax.numpy as jnp
 import omegaconf
@@ -58,11 +64,6 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_ppo,
 )
-
-# uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
 
 
 def global_setup(args):

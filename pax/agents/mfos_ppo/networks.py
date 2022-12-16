@@ -57,6 +57,89 @@ class ActorCriticMFOS(hk.Module):
         return (distrax.Categorical(logits=logits), value, state)
 
 
+class CNNFusion(hk.Module):
+    def __init__(self, args):
+        super().__init__(name="CNN")
+        output_channels = args.ppo.output_channels
+        kernel_shape = args.ppo.kernel_shape
+        self.conv_0 = hk.Conv2D(
+            output_channels=output_channels,
+            kernel_shape=kernel_shape,
+            stride=1,
+            padding="SAME",
+        )
+        self.conv_1 = hk.Conv2D(
+            output_channels=output_channels,
+            kernel_shape=kernel_shape,
+            stride=1,
+            padding="SAME",
+        )
+        self.linear = hk.Linear(output_channels)
+        self.flatten = hk.Flatten()
+
+    def __call__(self, inputs):
+        obs = inputs["observation"]
+        inventory = inputs["inventory"]
+        # Actor
+        x = self.conv_0(obs)
+        x = jax.nn.relu(x)
+        x = self.conv_1(x)
+        x = jax.nn.relu(x)
+        x = self.flatten(x)
+        x = jnp.concatenate([x, inventory], axis=-1)
+        x = self.linear(x)
+        return x
+
+
+class CNNMFOS(hk.Module):
+    def __init__(self, num_values, args):
+        super().__init__(name="CNNMFOS")
+        self.t_network = CNNFusion(args)
+        self.a_network = CNNFusion(args)
+        self.v_network = CNNFusion(args)
+
+        self._meta = hk.GRU(args.ppo.hidden_size)
+        self._actor = hk.GRU(args.ppo.hidden_size)
+        self._critic = hk.GRU(args.ppo.hidden_size)
+
+        self._meta_layer = hk.Linear(args.ppo.hidden_size)
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Orthogonal(0.01),  # baseline
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Orthogonal(1.0),  # baseline
+            with_bias=False,
+        )
+
+    def __call__(self, inputs: Tuple[dict, jnp.array], state: jnp.ndarray):
+        input, th = inputs
+        hidden_t, hidden_a, hidden_v = jnp.split(state, 3, axis=-1)
+
+        # x is simple input
+        meta_input = self.t_network(input)
+        action_input = self.a_network(input)
+        value_input = self.v_network(input)
+
+        # Actor
+        action_output, hidden_a = self._actor(action_input, hidden_a)
+        logits = self._logit_layer(th * action_output)
+
+        # Critic
+        value_output, hidden_v = self._critic(value_input, hidden_v)
+        value = jnp.squeeze(self._value_layer(th * value_output), axis=-1)
+
+        # MFOS
+        mfos_output, hidden_t = self._meta(meta_input, hidden_t)
+        _current_th = jax.nn.sigmoid(self._meta_layer(mfos_output))
+
+        hidden = jnp.concatenate([hidden_t, hidden_a, hidden_v], axis=-1)
+        state = (_current_th, hidden)
+        return (distrax.Categorical(logits=logits), value, state)
+
+
 def make_mfos_network(num_actions: int, hidden_size: int):
     hidden_state = jnp.zeros((1, 3 * hidden_size))
 
@@ -65,6 +148,22 @@ def make_mfos_network(num_actions: int, hidden_size: int):
         state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         mfos = ActorCriticMFOS(num_actions, hidden_size)
+        logits, values, state = mfos(inputs, state)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
+def make_mfos_ipditm_network(num_actions: int, args: dict):
+    hidden_size = args.ppo.hidden_size
+    hidden_state = jnp.zeros((1, 3 * hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray,
+        state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        mfos = CNNMFOS(num_actions, args)
         logits, values, state = mfos(inputs, state)
         return (logits, values), state
 
