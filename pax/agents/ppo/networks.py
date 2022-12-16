@@ -588,7 +588,7 @@ def old_make_GRU_ipditm_network(num_actions: int, args):
 
 
 def make_GRU_ipditm_network(num_actions: int, args):
-    hidden_size = 256
+    hidden_size = args.ppo.hidden_size
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
