@@ -266,6 +266,11 @@ class IPDInTheMatrix(environment.Environment):
             red_pickup = jnp.sum(state.red_inventory) > 2
             blue_pickup = jnp.sum(state.blue_inventory) > 2
 
+            blue_to_show = jnp.where(
+                state.freeze >= 0, state.blue_inventory, 0
+            )
+            red_to_show = jnp.where(state.freeze >= 0, state.red_inventory, 0)
+
             return {
                 "observation": obs1,
                 "inventory": jnp.array(
@@ -274,6 +279,8 @@ class IPDInTheMatrix(environment.Environment):
                         state.red_inventory[1],
                         red_pickup,
                         blue_pickup,
+                        blue_to_show[0],
+                        blue_to_show[1],
                     ]
                 ),
             }, {
@@ -284,6 +291,8 @@ class IPDInTheMatrix(environment.Environment):
                         state.blue_inventory[1],
                         blue_pickup,
                         red_pickup,
+                        red_to_show[0],
+                        red_to_show[1],
                     ]
                 ),
             }
@@ -870,7 +879,7 @@ class IPDInTheMatrix(environment.Environment):
             "inventory": spaces.Box(
                 low=0,
                 high=NUM_COINS,
-                shape=NUM_COIN_TYPES + 2,
+                shape=NUM_COIN_TYPES + 4,
                 dtype=jnp.uint8,
             ),
         }
@@ -1194,8 +1203,8 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    episode_length = 1000
-    env = IPDInTheMatrix(200, episode_length)
+    episode_length = 400
+    env = IPDInTheMatrix(400, episode_length)
     num_actions = env.action_space().n
     params = EnvParams(
         payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
@@ -1238,9 +1247,9 @@ if __name__ == "__main__":
         print(
             f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
         )
-        print(f"reward: {reward}")
+        print(f"reward1 : {reward[0].item()}, reward2: {reward[1].item()}")
 
-        # print(obs[0]["inventory"], obs[1]["inventory"])
+        print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")
