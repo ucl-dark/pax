@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory' #PPO_memory vs Stay takes like 2000 episodes
-agent2: 'Stay'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: IPDInTheMatrix
@@ -45,7 +45,7 @@ ppo:
   with_memory: True
   with_cnn: True
   output_channels: 16
-  kernel_shape: [5, 5]
+  kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16 #50
 
