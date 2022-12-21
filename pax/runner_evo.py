@@ -429,6 +429,10 @@ class EvoRunner:
             in_axes=(0, None, None, None, None),
         )
 
+        print(
+            f"Time to Compile Jax Methods: {time.time() - self.start_time} Seconds"
+        )
+
     def run_loop(
         self,
         env_params,
@@ -467,7 +471,6 @@ class EvoRunner:
             maximize=True,
         )
         log = es_logging.initialize()
-        num_devices = self.args.num_devices
 
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
@@ -485,12 +488,15 @@ class EvoRunner:
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
 
             # Ask
+            start = time.time()
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
-            if num_devices == 1:
+            if self.args.num_devices == 1:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
+            print(f"Ask Time: {time.time() - start} Seconds")
+            start = time.time()
             # Evo Rollout
             (
                 fitness,
@@ -500,25 +506,30 @@ class EvoRunner:
                 rewards_2,
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
+            fitness.block_until_ready()
+            rollout_time = time.time() - start
+            print(f"Rollout Time: {rollout_time} Seconds")
+            start = time.time()
 
             # Reshape over devices
-            fitness = jnp.reshape(fitness, popsize * num_devices)
+            fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
-
             # Maximize fitness
-            fitness_re = fit_shaper.apply(x, fitness)
+            fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
 
             # Tell
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
+            evo_state.mean.block_until_ready()
+            print(f"Tell Time: {time.time() - start} Seconds")
             # Logging
             log = es_logging.update(log, x, fitness)
 
             # Saving
             if self.args.save and gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                if num_devices > 1:
+                if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
                         log["top_gen_params"][0 : self.args.num_devices]
                     )
