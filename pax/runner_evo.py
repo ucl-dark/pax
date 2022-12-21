@@ -175,6 +175,11 @@ class EvoRunner:
                 init_hidden,
             )
 
+        # jit evo
+        strategy.ask = jax.jit(strategy.ask)
+        strategy.tell = jax.jit(strategy.tell)
+        param_reshaper.reshape = jax.jit(param_reshaper.reshape)
+
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
