@@ -58,10 +58,10 @@ class ActorCriticMFOS(hk.Module):
 
 
 class CNNFusion(hk.Module):
-    def __init__(self, args):
+    def __init__(self, output_channels, kernel_shape):
         super().__init__(name="CNN")
-        output_channels = args.ppo.output_channels
-        kernel_shape = args.ppo.kernel_shape
+        output_channels = output_channels
+        kernel_shape = kernel_shape
         self.conv_0 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
@@ -92,17 +92,17 @@ class CNNFusion(hk.Module):
 
 
 class CNNMFOS(hk.Module):
-    def __init__(self, num_values, args):
+    def __init__(self, num_values, hidden_size, output_channels, kernel_shape):
         super().__init__(name="CNNMFOS")
-        self.t_network = CNNFusion(args)
-        self.a_network = CNNFusion(args)
-        self.v_network = CNNFusion(args)
+        self.t_network = CNNFusion(output_channels, kernel_shape)
+        self.a_network = CNNFusion(output_channels, kernel_shape)
+        self.v_network = CNNFusion(output_channels, kernel_shape)
 
-        self._meta = hk.GRU(args.ppo.hidden_size)
-        self._actor = hk.GRU(args.ppo.hidden_size)
-        self._critic = hk.GRU(args.ppo.hidden_size)
+        self._meta = hk.GRU(hidden_size)
+        self._actor = hk.GRU(hidden_size)
+        self._critic = hk.GRU(hidden_size)
 
-        self._meta_layer = hk.Linear(args.ppo.hidden_size)
+        self._meta_layer = hk.Linear(hidden_size)
         self._logit_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),  # baseline
@@ -155,15 +155,16 @@ def make_mfos_network(num_actions: int, hidden_size: int):
     return network, hidden_state
 
 
-def make_mfos_ipditm_network(num_actions: int, args: dict):
-    hidden_size = args.ppo.hidden_size
+def make_mfos_ipditm_network(
+    num_actions: int, hidden_size: int, output_channels, kernel_shape
+):
     hidden_state = jnp.zeros((1, 3 * hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray,
         state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
-        mfos = CNNMFOS(num_actions, args)
+        mfos = CNNMFOS(num_actions, hidden_size, output_channels, kernel_shape)
         logits, values, state = mfos(inputs, state)
         return (logits, values), state
 

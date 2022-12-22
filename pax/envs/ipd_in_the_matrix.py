@@ -281,7 +281,8 @@ class IPDInTheMatrix(environment.Environment):
                         blue_pickup,
                         blue_to_show[0],
                         blue_to_show[1],
-                    ], dtype=jnp.int8
+                    ],
+                    dtype=jnp.int8,
                 ),
             }, {
                 "observation": _obs2,
@@ -293,7 +294,8 @@ class IPDInTheMatrix(environment.Environment):
                         red_pickup,
                         red_to_show[0],
                         red_to_show[1],
-                    ], dtype=jnp.int8
+                    ],
+                    dtype=jnp.int8,
                 ),
             }
 

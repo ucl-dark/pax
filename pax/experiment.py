@@ -5,7 +5,7 @@ from functools import partial
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
@@ -18,7 +18,7 @@ import jax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
-from pax.agents.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
+from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
 from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
@@ -272,7 +272,6 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-
     if args.env_id == "iterated_matrix_game":
         obs_shape = env.observation_space(env_params).n
     elif args.env_id == "IPDInTheMatrix":
@@ -285,18 +284,21 @@ def agent_setup(args, env, env_params, logger):
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
-        ppo_memory_agent = make_gru_agent(
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        return make_gru_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
-        return ppo_memory_agent
 
     def get_PPO_agent(seed, player_id):
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
         ppo_agent = make_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -305,8 +307,10 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_PPO_tabular_agent(seed, player_id):
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
         ppo_agent = make_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -316,8 +320,10 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
+        agent_args = args.ppo1
         ppo_agent = make_mfos_agent(
             args,
+            agent_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -419,8 +425,8 @@ def agent_setup(args, env, env_params, logger):
         agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
         agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        if args.agent1 in ["PPO", "PPO_memory"]:
+            logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 

@@ -182,10 +182,8 @@ class Tabular(hk.Module):
 
 
 class CNN(hk.Module):
-    def __init__(self, args):
+    def __init__(self, output_channels, kernel_shape):
         super().__init__(name="CNN")
-        output_channels = args.ppo.output_channels
-        kernel_shape = args.ppo.kernel_shape
         self.conv_a_0 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
@@ -216,10 +214,8 @@ class CNN(hk.Module):
 
 
 class CNN_ipditm(hk.Module):
-    def __init__(self, args):
+    def __init__(self, output_channels, kernel_shape):
         super().__init__(name="CNN")
-        output_channels = args.ppo.output_channels
-        kernel_shape = args.ppo.kernel_shape
         self.conv_a_0 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
@@ -236,7 +232,6 @@ class CNN_ipditm(hk.Module):
         self.linear_a_1 = hk.Linear(output_channels)
 
         # akbir suggested fix
-        # self.linear = hk.Linear(args.ppo.hidden_size)
         self.flatten = hk.Flatten()
 
     def __call__(self, inputs: jnp.ndarray):
@@ -259,10 +254,8 @@ class CNN_ipditm(hk.Module):
 
 
 class CNNSeparate(hk.Module):
-    def __init__(self, args, num_actions: int):
+    def __init__(self, output_channels, kernel_shape, num_actions: int):
         super().__init__(name="CNN")
-        output_channels = args.ppo.output_channels
-        kernel_shape = args.ppo.kernel_shape
         self.conv_a_0 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
@@ -325,7 +318,7 @@ class CNNSeparate(hk.Module):
         return (distrax.Categorical(logits=logits), jnp.squeeze(val, axis=-1))
 
 
-def make_ipd_network(num_actions: int, tabular: bool, args):
+def make_ipd_network(num_actions: int, tabular: bool, hidden_size: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
@@ -340,7 +333,7 @@ def make_ipd_network(num_actions: int, tabular: bool, args):
             layers.extend(
                 [
                     hk.nets.MLP(
-                        [args.ppo.hidden_size, args.ppo.hidden_size],
+                        [hidden_size, hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
@@ -356,7 +349,15 @@ def make_ipd_network(num_actions: int, tabular: bool, args):
     return network
 
 
-def make_coingame_network(num_actions: int, tabular: bool, args):
+def make_coingame_network(
+    num_actions: int,
+    tabular: bool,
+    with_cnn: bool,
+    separate: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: int,
+):
     def forward_fn(inputs):
         layers = []
         if tabular:
@@ -365,19 +366,19 @@ def make_coingame_network(num_actions: int, tabular: bool, args):
                     Tabular(num_values=num_actions),
                 ]
             )
-        elif args.ppo.with_cnn:
-            if args.ppo.separate:
-                cnn = CNNSeparate(args)
+        elif with_cnn:
+            if separate:
+                cnn = CNNSeparate(output_channels, kernel_shape, num_actions)
                 cvh = CategoricalValueHeadSeparate(num_values=num_actions)
             else:
-                cnn = CNN(args)
+                cnn = CNN(output_channels, kernel_shape)
                 cvh = CategoricalValueHead(num_values=num_actions)
             layers.extend([cnn, cvh])
         else:
             layers.extend(
                 [
                     hk.nets.MLP(
-                        [args.ppo.hidden_size],
+                        [hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
@@ -429,15 +430,24 @@ def make_sarl_network(num_actions: int):
     return network
 
 
-def make_ipditm_network(num_actions: int, args):
+def make_ipditm_network(
+    num_actions: int,
+    separate: bool,
+    with_cnn: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: int,
+):
     def forward_fn(inputs: dict):
         layers = []
 
-        if args.ppo.separate and args.ppo.with_cnn:
-            cnn = CNNSeparate(args, num_actions=num_actions)
+        if separate and with_cnn:
+            cnn = CNNSeparate(
+                output_channels, kernel_shape, num_actions=num_actions
+            )
             layers.extend([cnn])
-        elif args.ppo.with_cnn:
-            cnn = CNN(args)
+        elif with_cnn:
+            cnn = CNN(output_channels, kernel_shape)
             cvh = CategoricalValueHead(num_values=num_actions)
             layers.extend([cnn, cvh])
 
@@ -446,7 +456,7 @@ def make_ipditm_network(num_actions: int, args):
             layers.extend(
                 [
                     hk.nets.MLP(
-                        [args.ppo.hidden_size],
+                        [hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
@@ -462,15 +472,22 @@ def make_ipditm_network(num_actions: int, args):
     return network
 
 
-def old_make_ipditm_network(num_actions: int, args):
+def old_make_ipditm_network(
+    num_actions: int,
+    separate: bool,
+    with_cnn: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: Tuple[int],
+):
     def forward_fn(inputs):
         layers = []
 
-        if args.ppo.separate and args.ppo.with_cnn:
-            cnn = CNNSeparate(args)
+        if separate and with_cnn:
+            cnn = CNNSeparate(output_channels, kernel_shape)
             layers.extend([cnn])
-        elif args.ppo.with_cnn:
-            cnn = CNN(args)
+        elif with_cnn:
+            cnn = CNN(output_channels, kernel_shape)
             cvh = CategoricalValueHead(num_values=num_actions)
             layers.extend([cnn, cvh])
 
@@ -478,7 +495,7 @@ def old_make_ipditm_network(num_actions: int, args):
             layers.extend(
                 [
                     hk.nets.MLP(
-                        [args.ppo.hidden_size],
+                        [hidden_size],
                         w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                         b_init=hk.initializers.Constant(0),
                         activate_final=True,
@@ -494,14 +511,14 @@ def old_make_ipditm_network(num_actions: int, args):
     return network
 
 
-def make_GRU_ipd_network(num_actions: int, args):
-    hidden_state = jnp.zeros((1, args.ppo.hidden_size))
+def make_GRU_ipd_network(num_actions: int, hidden_size: int):
+    hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        gru = hk.GRU(args.ppo.hidden_size)
+        gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
         return (logits, values), state
@@ -536,25 +553,31 @@ def make_GRU_cartpole_network(num_actions: int):
     return network, hidden_state
 
 
-def make_GRU_coingame_network(num_actions: int, args):
-    hidden_state = jnp.zeros((1, args.ppo.hidden_size))
+def make_GRU_coingame_network(
+    num_actions: int,
+    with_cnn: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: Tuple[int],
+):
+    hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
 
-        if args.ppo.with_cnn:
-            torso = CNN(args)(inputs)
+        if with_cnn:
+            torso = CNN(output_channels, kernel_shape)(inputs)
 
         else:
             torso = hk.nets.MLP(
-                [args.ppo.hidden_size],
+                [hidden_size],
                 w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
                 activation=jnp.tanh,
             )
-        gru = hk.GRU(args.ppo.hidden_size)
+        gru = hk.GRU(hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
@@ -565,21 +588,24 @@ def make_GRU_coingame_network(num_actions: int, args):
     return network, hidden_state
 
 
-def old_make_GRU_ipditm_network(num_actions: int, args):
-    hidden_size = 256
+def old_make_GRU_ipditm_network(
+    num_actions: int,
+    hidden_size: int,
+    separate: bool,
+    output_channels: int,
+    kernel_shape: Tuple[int],
+):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = CNN(args)
-        if args.ppo.separate:
+        torso = CNN(output_channels, kernel_shape)
+        if separate:
             cvh = CategoricalValueHeadSeparate(num_values=num_actions)
         else:
-
             cvh = CategoricalValueHead(num_values=num_actions)
-
         gru = hk.GRU(hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
@@ -590,16 +616,21 @@ def old_make_GRU_ipditm_network(num_actions: int, args):
     return network, hidden_state
 
 
-def make_GRU_ipditm_network(num_actions: int, args):
-    hidden_size = args.ppo.hidden_size
+def make_GRU_ipditm_network(
+    num_actions: int,
+    hidden_size: int,
+    separate: bool,
+    output_channels: int,
+    kernel_shape: Tuple[int],
+):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        torso = CNN_ipditm(args)
-        if args.ppo.separate:
+        torso = CNN_ipditm(output_channels, kernel_shape)
+        if separate:
             cvh = CategoricalValueHeadSeparate_ipditm(
                 num_values=num_actions, hidden_size=hidden_size
             )
