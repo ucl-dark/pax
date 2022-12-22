@@ -180,6 +180,11 @@ class EvoRunner:
         strategy.tell = jax.jit(strategy.tell)
         param_reshaper.reshape = jax.jit(param_reshaper.reshape)
 
+        if args.benchmark:
+            self.ask_time = []
+            self.rollout_time = []
+            self.tell_time = []
+
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -495,8 +500,9 @@ class EvoRunner:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
-            print(f"Ask Time: {time.time() - start} Seconds")
-            start = time.time()
+            if self.args.benchmark:
+                self.ask_time.append(time.time() - start)
+                start = time.time()
             # Evo Rollout
             (
                 fitness,
@@ -506,10 +512,11 @@ class EvoRunner:
                 rewards_2,
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
-            fitness.block_until_ready()
-            rollout_time = time.time() - start
-            print(f"Rollout Time: {rollout_time} Seconds")
-            start = time.time()
+
+            if self.args.benchmark:
+                fitness.block_until_ready()
+                self.rollout_time.append(time.time() - start)
+                start = time.time()
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
@@ -521,8 +528,9 @@ class EvoRunner:
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
             )
-            evo_state.mean.block_until_ready()
-            print(f"Tell Time: {time.time() - start} Seconds")
+            if self.args.benchmark:
+                evo_state.mean.block_until_ready()
+                self.tell_time.append(time.time() - start)
             # Logging
             log = es_logging.update(log, x, fitness)
 
@@ -621,4 +629,12 @@ class EvoRunner:
                     watcher(agent)
                 wandb.log(wandb_log)
 
+        if self.args.benchmark:
+            print(f"Ask Time: {sum(self.ask_time)/self.args.num_generations}")
+            print(
+                f"Rollout Time: {sum(self.rollout_time)/self.args.num_generations}"
+            )
+            print(
+                f"Tell Time: {sum(self.tell_time)/self.args.num_generations}"
+            )
         return agents
