@@ -630,11 +630,7 @@ class EvoRunner:
                 wandb.log(wandb_log)
 
         if self.args.benchmark:
-            print(f"Ask Time: {sum(self.ask_time)/self.args.num_generations}")
-            print(
-                f"Rollout Time: {sum(self.rollout_time)/self.args.num_generations}"
-            )
-            print(
-                f"Tell Time: {sum(self.tell_time)/self.args.num_generations}"
-            )
+            print(f"Ask Time: {sum(self.ask_time)/len(self.ask_time)}")
+            print(f"Rollout Time: {sum(self.rollout_time)/len(self.ask_time)}")
+            print(f"Tell Time: {sum(self.tell_time)/len(self.ask_time)}")
         return agents
