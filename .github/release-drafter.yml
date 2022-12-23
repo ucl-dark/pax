@@ -1,0 +1,30 @@
+---
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+categories:
+  - title: '🚀 New Features'
+    label: 'enhancement'
+  - title: '💣 Breaking Change'
+    label: 'breaking change'
+  - title: '🐛 Bug Fixes'
+    label: 'bug'
+  - title: '📝 Documentation'
+    label: 'docs'
+  - title: '🔨 Maintenance'
+    label: 'core'
+  - title: '🤖 Agents'
+    label: 'agents'
+  - title: '🎡 Environment'
+    label: 'envs'
+  - title: '⚙️  Configurations'
+    label: 'conf'
+  - title: '🧪 Test'
+    label: 'test'
+exclude-labels:
+  - 'skip changelog'
+change-template: '- $TITLE (#$NUMBER, @$AUTHOR)'
+template: |
+  # New in Pax v$NEXT_PATCH_VERSION
+
+  $CHANGES
+...

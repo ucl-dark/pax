@@ -1,0 +1,6 @@
+docs: "docs/*"
+envs: "pax/envs/*"
+agent: "pax/agents/*"
+conf: "pax/conf/*"
+test: "test/*"
+core: "pax/*.py"

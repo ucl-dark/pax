@@ -111,3 +111,7 @@ plots/
 # Sphinx documentation
 docs/_build/
 experiment.log
+
+# Pax
+pax/version.py
+experiment.log
