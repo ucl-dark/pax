@@ -847,6 +847,9 @@ class IPDInTheMatrix(environment.Environment):
         self.get_obs = _get_obs
         self.cnn = True
 
+        self.num_inner_steps = num_inner_steps
+        self.num_outer_steps = num_outer_steps
+
     @property
     def name(self) -> str:
         """Environment name."""
@@ -951,6 +954,10 @@ class IPDInTheMatrix(environment.Environment):
 
         elif obj == 100:
             fill_coords(img, point_in_rect(0, 1, 0, 1), (214.0, 39.0, 40.0))
+
+        elif obj == 101:
+            # white square
+            fill_coords(img, point_in_rect(0, 1, 0, 1), (255.0, 255.0, 255.0))
 
         # Overlay the agent on top
         if agent_dir is not None:
@@ -1114,7 +1121,6 @@ class IPDInTheMatrix(environment.Environment):
         highlight_mask[
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
-
         if state.freeze > 0:
             # check which agent won
             r1, r2 = self.get_reward(state, params)
@@ -1124,6 +1130,7 @@ class IPDInTheMatrix(environment.Environment):
             elif r2 > r1 > 0:
                 # blue won
                 img = onp.tile(BLUE_COLOUR, (img.shape[0], img.shape[1], 1))
+            img = img.astype(onp.uint8)
         else:
             # Render the grid
             for j in range(0, grid.shape[1]):
@@ -1179,12 +1186,12 @@ class IPDInTheMatrix(environment.Environment):
             ],
             2,
         )
-
         # Render the inventory
         red_inv = self.render_inventory(state.red_inventory, img.shape[1])
         blue_inv = self.render_inventory(state.blue_inventory, img.shape[1])
-        img = onp.concatenate((img, red_inv, blue_inv), axis=0)
 
+        time = self.render_time(state, img.shape[1])
+        img = onp.concatenate((img, red_inv, blue_inv, time), axis=0)
         return img
 
     def render_inventory(self, inventory, width_px) -> onp.array:
@@ -1212,13 +1219,36 @@ class IPDInTheMatrix(environment.Environment):
                 )
         return img
 
+    def render_time(self, state, width_px) -> onp.array:
+        inner_t = state.inner_t
+        outer_t = state.outer_t
+        tile_height = 32
+        img = onp.zeros(shape=(2 * tile_height, width_px, 3), dtype=onp.uint8)
+        tile_width = width_px // (self.num_inner_steps)
+        j = 0
+        for i in range(0, inner_t):
+            ymin = j * tile_height
+            ymax = (j + 1) * tile_height
+            xmin = i * tile_width
+            xmax = (i + 1) * tile_width
+            img[ymin:ymax, xmin:xmax, :] = onp.int8(255)
+        tile_width = width_px // (self.num_outer_steps)
+        j = 1
+        for i in range(0, outer_t):
+            ymin = j * tile_height
+            ymax = (j + 1) * tile_height
+            xmin = i * tile_width
+            xmax = (i + 1) * tile_width
+            img[ymin:ymax, xmin:xmax, :] = onp.int8(255)
+        return img
+
 
 if __name__ == "__main__":
     from PIL import Image
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    num_outer_steps = 400
+    num_outer_steps = 4
     num_inner_steps = 100
     env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
     num_actions = env.action_space().n
@@ -1247,7 +1277,7 @@ if __name__ == "__main__":
     env.step = jax.jit(env.step)
     env_rng = jax.random.PRNGKey(0)
 
-    for t in range(num_outer_steps):
+    for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
         # a2 = jnp.array(4)
