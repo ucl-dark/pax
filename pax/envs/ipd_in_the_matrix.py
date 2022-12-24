@@ -746,14 +746,6 @@ class IPDInTheMatrix(environment.Environment):
                 key, AGENT_SPAWNS, shape=(), replace=False
             )
 
-            # Sample the free spaces
-            # occupied_grid = grid == Items.empty
-            # free_xs, free_ys = jnp.nonzero(
-            #     occupied_grid, size=GRID_SIZE * GRID_SIZE - 2 * NUM_COINS
-            # )
-            # idxs = jax.random.choice(
-            #     key, free_xs.shape[0], shape=(2,), replace=False
-            # )
             player_dir = jax.random.randint(
                 key, shape=(2,), minval=0, maxval=3, dtype=jnp.int8
             )

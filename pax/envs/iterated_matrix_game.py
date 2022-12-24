@@ -3,7 +3,6 @@ from typing import Optional, Tuple
 import chex
 import jax
 import jax.numpy as jnp
-from flax import struct
 from gymnax.environments import environment, spaces
 
 

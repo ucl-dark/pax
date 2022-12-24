@@ -1,6 +1,5 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from tkinter import HIDDEN
 from typing import Any, Dict, NamedTuple, Tuple
 
 import haiku as hk
