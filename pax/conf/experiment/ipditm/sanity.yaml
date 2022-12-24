@@ -11,6 +11,7 @@ env_discount: 0.96
 payoff: [[3, 0], [5, 1]]
 freeze: 5
 runner: rl
+fixed_env: False
 
 # Training hyperparameters
 

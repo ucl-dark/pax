@@ -11,6 +11,7 @@ egocentric: True
 env_discount: 0.96
 freeze: 5
 payoff: [[3, 0], [5, 1]]
+fixed_env: False
 
 # Save
 save: True

@@ -5,7 +5,7 @@ from functools import partial
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
 
@@ -99,11 +99,16 @@ def env_setup(args, logger=None):
     if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
         if args.env_type == "sequential":
-            env = IteratedMatrixGame(num_inner_steps=args.num_steps)
+            env = IteratedMatrixGame(
+                num_inner_steps=args.num_steps, num_outer_steps=1
+            )
             env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
 
         elif args.env_type == "meta":
-            env = IteratedMatrixGame(num_inner_steps=args.num_inner_steps)
+            env = IteratedMatrixGame(
+                num_inner_steps=args.num_inner_steps,
+                num_outer_steps=args.num_outer_steps,
+            )
             env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
             if logger:
                 logger.info(

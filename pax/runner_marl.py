@@ -68,6 +68,7 @@ class RLRunner:
             A tuple of experiment arguments used (usually provided by HydraConfig).
     """
 
+    # flake8: noqa: C901
     def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
         self.train_episodes = 0
@@ -160,6 +161,12 @@ class RLRunner:
                 jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
             )
+        if args.fixed_env:
+            print("Made the env fixed")
+            fixed_env_rng = jnp.tile(
+                jax.random.PRNGKey(args.seed),
+                (args.num_opps, args.num_envs, 1),
+            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -179,7 +186,10 @@ class RLRunner:
 
             # unpack rngs
             rngs = self.split(rngs, 4)
-            env_rng = rngs[:, :, 0, :]
+            if args.fixed_env:
+                env_rng = fixed_env_rng
+            else:
+                env_rng = rngs[:, :, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
