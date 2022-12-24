@@ -331,7 +331,10 @@ class EvoRunner:
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
 
-            obs, env_state = env.reset(rngs, _env_params)
+            if args.fixed_env:
+                obs, env_state = env.reset(fixed_env_rng, _env_params)
+            else:
+                obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
