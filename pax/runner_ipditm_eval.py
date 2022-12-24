@@ -106,6 +106,7 @@ class IPDITMEvalRunner:
             if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
         )
+        self.num_outer_steps = num_outer_steps
 
         agent1, agent2 = agents
 
@@ -316,7 +317,10 @@ class IPDITMEvalRunner:
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
 
-            obs, env_state = env.reset(rngs, _env_params)
+            if args.fixed_env:
+                obs, env_state = env.reset(fixed_env_rng, _env_params)
+            else:
+                obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),
@@ -538,13 +542,18 @@ class IPDITMEvalRunner:
             for i in range(self.args.num_steps)
         ]
 
+        gif_every_n_eps = 5
+
+
         for i, state in enumerate(tqdm(env_states)):
-            img = env.render(state, env_params)
-            # img1 = env.render_agent_view(state, agent=0)
-            # img2 = env.render_agent_view(state, agent=1)
-            pics.append(img)
-            # pics1.append(img1)
-            # pics2.append(img2)
+            meta_episode = i // self.args.num_inner_steps
+            if (meta_episode % gif_every_n_eps) == 0 or meta_episode == (self.num_outer_steps-1):
+                img = env.render(state, env_params)
+                # img1 = env.render_agent_view(state, agent=0)
+                # img2 = env.render_agent_view(state, agent=1)
+                pics.append(img)
+                # pics1.append(img1)
+                # pics2.append(img2)
 
         pics = [Image.fromarray(img) for img in pics]
         # pics1 = [Image.fromarray(img) for img in pics1]
@@ -558,15 +567,25 @@ class IPDITMEvalRunner:
             append_images=pics[1:],
             duration=100,
             loop=0,
-            optimize=True,
+            optimize=False,
         )
+        pics[0].save(
+            f"akbir.gif",
+            format="gif",
+            save_all=True,
+            append_images=pics[1:],
+            duration=100,
+            loop=0,
+            optimize=False,
+        )
+
 
         # pics1[0].save(
         #     f"{self.args.wandb.group}_agent1_{now}.gif",
         #     format="gif",
         #     save_all=True,
         #     append_images=pics1[1:],
-        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     duration=300,
         #     loop=0,
         #     optimize=False,
         # )
@@ -576,7 +595,7 @@ class IPDITMEvalRunner:
         #     format="gif",
         #     save_all=True,
         #     append_images=pics2[1:],
-        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     duration=300,
         #     loop=0,
         #     optimize=False,
         # )
