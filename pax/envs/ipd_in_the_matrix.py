@@ -1197,8 +1197,9 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    episode_length = 400
-    env = IPDInTheMatrix(400, episode_length)
+    num_outer_steps = 400
+    num_inner_steps = 100
+    env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
     num_actions = env.action_space().n
     params = EnvParams(
         payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
@@ -1223,8 +1224,9 @@ if __name__ == "__main__":
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
     env.step = jax.jit(env.step)
+    env_rng = jax.random.PRNGKey(0)
 
-    for t in range(episode_length):
+    for t in range(num_outer_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
         # a1 = jnp.array(2)
         # a2 = jnp.array(4)
@@ -1235,7 +1237,7 @@ if __name__ == "__main__":
             rng2, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
         )
         obs, state, reward, done, info = env.step(
-            rng, state, (a1 * action, a2 * action), params
+            env_rng, state, (a1 * action, a2 * action), params
         )
 
         print(
