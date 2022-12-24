@@ -145,6 +145,10 @@ AGENT_SPAWNS = jnp.array(
 ).reshape(-1, 2, 2)
 
 
+RED_COLOUR = (255.0, 127.0, 14.0)
+BLUE_COLOUR = (31.0, 119.0, 180.0)
+
+
 class IPDInTheMatrix(environment.Environment):
     """
     JAX Compatible version of coin game environment.
@@ -837,6 +841,7 @@ class IPDInTheMatrix(environment.Environment):
         self.step = jax.jit(_step)
         self.reset = jax.jit(reset)
         self.get_obs_point = _get_obs_point
+        self.get_reward = _get_reward
 
         # for debugging
         self.get_obs = _get_obs
@@ -920,11 +925,11 @@ class IPDInTheMatrix(environment.Environment):
 
         if obj == Items.red_agent:
             # Draw the agent 1
-            agent_color = (31.0, 119.0, 180.0)
+            agent_color = RED_COLOUR
 
         elif obj == Items.blue_agent:
             # Draw agent 2
-            agent_color = (255.0, 127.0, 14.0)
+            agent_color = (31.0, 119.0, 180.0)
         elif obj == Items.red_coin:
             # Draw the red coin
             fill_coords(
@@ -1076,6 +1081,7 @@ class IPDInTheMatrix(environment.Environment):
     def render(
         self,
         state: EnvState,
+        params: EnvParams,
     ) -> onp.ndarray:
         """
         Render this grid at a given scale
@@ -1084,6 +1090,16 @@ class IPDInTheMatrix(environment.Environment):
         """
         tile_size = 32
         highlight_mask = onp.zeros_like(onp.array(GRID))
+
+        # Compute the total grid size
+        width_px = GRID.shape[0] * tile_size
+        height_px = GRID.shape[0] * tile_size
+
+        img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
+        grid = onp.array(state.grid)
+        grid = onp.pad(
+            grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
+        )
 
         startx, starty = self.get_obs_point(
             state.red_pos[0], state.red_pos[1], state.red_pos[2]
@@ -1099,57 +1115,61 @@ class IPDInTheMatrix(environment.Environment):
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
 
-        # Compute the total grid size
-        width_px = GRID.shape[0] * tile_size
-        height_px = GRID.shape[0] * tile_size
+        if state.freeze > 0:
+            # check which agent won
+            r1, r2 = self.get_reward(state, params)
+            if r1 > r2 > 0:
+                # red won
+                img = onp.tile(RED_COLOUR, (img.shape[0], img.shape[1], 1))
+            elif r2 > r1 > 0:
+                # blue won
+                img = onp.tile(BLUE_COLOUR, (img.shape[0], img.shape[1], 1))
+        else:
+            # Render the grid
+            for j in range(0, grid.shape[1]):
+                for i in range(0, grid.shape[0]):
+                    cell = grid[i, j]
+                    if cell == 0:
+                        cell = None
+                    red_agent_here = cell == 1
+                    blue_agent_here = cell == 2
 
-        img = onp.zeros(shape=(height_px, width_px, 3), dtype=onp.uint8)
-        grid = onp.array(state.grid)
-        grid = onp.pad(
-            grid, ((PADDING, PADDING), (PADDING, PADDING)), constant_values=5
-        )
+                    agent_dir = None
+                    agent_dir = (
+                        state.red_pos[2].item()
+                        if red_agent_here
+                        else agent_dir
+                    )
+                    agent_dir = (
+                        state.blue_pos[2].item()
+                        if blue_agent_here
+                        else agent_dir
+                    )
+                    agent_hat = False
+                    agent_hat = (
+                        bool(state.red_inventory.sum() > 2)
+                        if red_agent_here
+                        else agent_hat
+                    )
+                    agent_hat = (
+                        bool(state.blue_inventory.sum() > 2)
+                        if blue_agent_here
+                        else agent_hat
+                    )
 
-        # Render the grid
-        for j in range(0, grid.shape[1]):
-            for i in range(0, grid.shape[0]):
-                cell = grid[i, j]
-                if cell == 0:
-                    cell = None
-                red_agent_here = cell == 1
-                blue_agent_here = cell == 2
+                    tile_img = IPDInTheMatrix.render_tile(
+                        cell,
+                        agent_dir=agent_dir,
+                        agent_hat=agent_hat,
+                        highlight=highlight_mask[i, j],
+                        tile_size=tile_size,
+                    )
 
-                agent_dir = None
-                agent_dir = (
-                    state.red_pos[2].item() if red_agent_here else agent_dir
-                )
-                agent_dir = (
-                    state.blue_pos[2].item() if blue_agent_here else agent_dir
-                )
-                agent_hat = False
-                agent_hat = (
-                    bool(state.red_inventory.sum() > 2)
-                    if red_agent_here
-                    else agent_hat
-                )
-                agent_hat = (
-                    bool(state.blue_inventory.sum() > 2)
-                    if blue_agent_here
-                    else agent_hat
-                )
-
-                tile_img = IPDInTheMatrix.render_tile(
-                    cell,
-                    agent_dir=agent_dir,
-                    agent_hat=agent_hat,
-                    highlight=highlight_mask[i, j],
-                    tile_size=tile_size,
-                )
-
-                ymin = j * tile_size
-                ymax = (j + 1) * tile_size
-                xmin = i * tile_size
-                xmax = (i + 1) * tile_size
-                img[ymin:ymax, xmin:xmax, :] = tile_img
+                    ymin = j * tile_size
+                    ymax = (j + 1) * tile_size
+                    xmin = i * tile_size
+                    xmax = (i + 1) * tile_size
+                    img[ymin:ymax, xmin:xmax, :] = tile_img
 
         img = onp.rot90(
             img[
@@ -1164,6 +1184,7 @@ class IPDInTheMatrix(environment.Environment):
         red_inv = self.render_inventory(state.red_inventory, img.shape[1])
         blue_inv = self.render_inventory(state.blue_inventory, img.shape[1])
         img = onp.concatenate((img, red_inv, blue_inv), axis=0)
+
         return img
 
     def render_inventory(self, inventory, width_px) -> onp.array:
@@ -1209,7 +1230,7 @@ if __name__ == "__main__":
     pics1 = []
     pics2 = []
 
-    img = env.render(state)
+    img = env.render(state, params)
     img1 = env.render_agent_view(state, agent=0)
     img2 = env.render_agent_view(state, agent=1)
     pics.append(img)
@@ -1251,7 +1272,7 @@ if __name__ == "__main__":
             print("collision")
             print(state.red_pos, state.blue_pos)
 
-        img = env.render(state)
+        img = env.render(state, params)
         img1 = env.render_agent_view(state, agent=0)
         img2 = env.render_agent_view(state, agent=1)
 
