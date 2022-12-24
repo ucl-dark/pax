@@ -106,6 +106,7 @@ class IPDITMEvalRunner:
             if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
         )
+        self.num_outer_steps = num_outer_steps
 
         agent1, agent2 = agents
 
@@ -540,9 +541,10 @@ class IPDITMEvalRunner:
 
         gif_every_n_eps = 5
 
+
         for i, state in enumerate(tqdm(env_states)):
             meta_episode = i // self.args.num_inner_steps
-            if meta_episode % gif_every_n_eps:
+            if (meta_episode % gif_every_n_eps) == 0 or meta_episode == (self.num_outer_steps-1):
                 img = env.render(state, env_params)
                 # img1 = env.render_agent_view(state, agent=0)
                 # img2 = env.render_agent_view(state, agent=1)
@@ -550,7 +552,6 @@ class IPDITMEvalRunner:
                 # pics1.append(img1)
                 # pics2.append(img2)
 
-        print(len(pics))        
         pics = [Image.fromarray(img) for img in pics]
         # pics1 = [Image.fromarray(img) for img in pics1]
         # pics2 = [Image.fromarray(img) for img in pics2]
@@ -561,10 +562,20 @@ class IPDITMEvalRunner:
             format="gif",
             save_all=True,
             append_images=pics[1:],
-            duration=300,
+            duration=100,
             loop=0,
             optimize=False,
         )
+        pics[0].save(
+            f"akbir.gif",
+            format="gif",
+            save_all=True,
+            append_images=pics[1:],
+            duration=100,
+            loop=0,
+            optimize=False,
+        )
+
 
         # pics1[0].save(
         #     f"{self.args.wandb.group}_agent1_{now}.gif",

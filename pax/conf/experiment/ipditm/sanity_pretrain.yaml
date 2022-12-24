@@ -6,7 +6,7 @@ agent2: 'PPO_memory'
 
 # Environment
 env_id: IPDInTheMatrix
-env_type: sequential
+env_type: meta
 env_discount: 0.96
 payoff: [[3, 0], [5, 1]]
 runner: ipditm_eval
