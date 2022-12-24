@@ -1248,8 +1248,8 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    num_outer_steps = 4
-    num_inner_steps = 100
+    num_outer_steps = 10
+    num_inner_steps = 142
     env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
     num_actions = env.action_space().n
     params = EnvParams(
@@ -1291,28 +1291,32 @@ if __name__ == "__main__":
             env_rng, state, (a1 * action, a2 * action), params
         )
 
-        print(
-            f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
-        )
-        print(f"reward1 : {reward[0].item()}, reward2: {reward[1].item()}")
+        # print(
+        #     f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
+        # )
+        # print(f"reward1 : {reward[0].item()}, reward2: {reward[1].item()}")
 
-        print(obs[0]["inventory"], obs[1]["inventory"])
+        # print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             print("collision")
+            print(
+                f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
+            )
             print(state.red_pos, state.blue_pos)
 
         img = env.render(state, params)
-        img1 = env.render_agent_view(state, agent=0)
-        img2 = env.render_agent_view(state, agent=1)
+        # img1 = env.render_agent_view(state, agent=0)
+        # img2 = env.render_agent_view(state, agent=1)
 
         pics.append(img)
-        pics1.append(img1)
-        pics2.append(img2)
+        # pics1.append(img1)
+        # pics2.append(img2)
 
+    print("Saving GIF")
     pics = [Image.fromarray(img) for img in pics]
-    pics1 = [Image.fromarray(img) for img in pics1]
-    pics2 = [Image.fromarray(img) for img in pics2]
+    # pics1 = [Image.fromarray(img) for img in pics1]
+    # pics2 = [Image.fromarray(img) for img in pics2]
     pics[0].save(
         "state.gif",
         format="GIF",
@@ -1323,21 +1327,21 @@ if __name__ == "__main__":
         loop=0,
     )
 
-    pics1[0].save(
-        "agent1.gif",
-        format="GIF",
-        save_all=True,
-        optimize=False,
-        append_images=pics1[1:],
-        duration=100,
-        loop=0,
-    )
-    pics2[0].save(
-        "agent2.gif",
-        format="GIF",
-        save_all=True,
-        optimize=False,
-        append_images=pics2[1:],
-        duration=100,
-        loop=0,
-    )
+    # pics1[0].save(
+    #     "agent1.gif",
+    #     format="GIF",
+    #     save_all=True,
+    #     optimize=False,
+    #     append_images=pics1[1:],
+    #     duration=100,
+    #     loop=0,
+    # )
+    # pics2[0].save(
+    #     "agent2.gif",
+    #     format="GIF",
+    #     save_all=True,
+    #     optimize=False,
+    #     append_images=pics2[1:],
+    #     duration=100,
+    #     loop=0,
+    # )

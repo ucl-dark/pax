@@ -98,6 +98,6 @@ ppo2:
 wandb:
   entity: "ucl-dark"
   project: ipditm
-  group: 'sanity-eval-${agent1}-vs-${agent2}-parity'
+  group: 'eval-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True
