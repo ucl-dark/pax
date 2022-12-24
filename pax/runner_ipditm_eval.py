@@ -538,14 +538,19 @@ class IPDITMEvalRunner:
             for i in range(self.args.num_steps)
         ]
 
-        for i, state in enumerate(tqdm(env_states)):
-            img = env.render(state, env_params)
-            # img1 = env.render_agent_view(state, agent=0)
-            # img2 = env.render_agent_view(state, agent=1)
-            pics.append(img)
-            # pics1.append(img1)
-            # pics2.append(img2)
+        gif_every_n_eps = 5
 
+        for i, state in enumerate(tqdm(env_states)):
+            meta_episode = i // self.args.num_inner_steps
+            if meta_episode % gif_every_n_eps:
+                img = env.render(state, env_params)
+                # img1 = env.render_agent_view(state, agent=0)
+                # img2 = env.render_agent_view(state, agent=1)
+                pics.append(img)
+                # pics1.append(img1)
+                # pics2.append(img2)
+
+        print(len(pics))        
         pics = [Image.fromarray(img) for img in pics]
         # pics1 = [Image.fromarray(img) for img in pics1]
         # pics2 = [Image.fromarray(img) for img in pics2]
@@ -556,9 +561,9 @@ class IPDITMEvalRunner:
             format="gif",
             save_all=True,
             append_images=pics[1:],
-            duration=100,
+            duration=300,
             loop=0,
-            optimize=True,
+            optimize=False,
         )
 
         # pics1[0].save(
@@ -566,7 +571,7 @@ class IPDITMEvalRunner:
         #     format="gif",
         #     save_all=True,
         #     append_images=pics1[1:],
-        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     duration=300,
         #     loop=0,
         #     optimize=False,
         # )
@@ -576,7 +581,7 @@ class IPDITMEvalRunner:
         #     format="gif",
         #     save_all=True,
         #     append_images=pics2[1:],
-        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     duration=300,
         #     loop=0,
         #     optimize=False,
         # )
