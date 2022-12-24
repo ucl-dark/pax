@@ -2,18 +2,21 @@ import os
 import time
 from typing import Any, NamedTuple
 from PIL import Image
+from datetime import datetime
 
 import jax
 import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save, load
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 from pax.envs.ipd_in_the_matrix import (
     IPDInTheMatrix,
     EnvParams,
     EnvState,
 )
+
+from tqdm import tqdm
 
 MAX_WANDB_CALLS = 1000
 
@@ -42,19 +45,6 @@ class MFOSSample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
     meta_actions: jnp.ndarray
-
-
-@jax.jit
-def reduce_outer_traj(traj: Sample) -> Sample:
-    """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
-    # x: [timestep, batch_size, ...]
-    num_envs = traj.rewards.shape[2] * traj.rewards.shape[3]
-    num_timesteps = traj.rewards.shape[0] * traj.rewards.shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
-        traj,
-    )
 
 
 class IPDITMEvalRunner:
@@ -101,7 +91,7 @@ class IPDITMEvalRunner:
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
-
+        self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num opps: we vmap over the rng but not params
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
@@ -166,7 +156,6 @@ class IPDITMEvalRunner:
                 jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
             )
-
         if args.fixed_env:
             print("Made the env fixed")
             fixed_env_rng = jnp.tile(
@@ -380,14 +369,6 @@ class IPDITMEvalRunner:
             ) = vals
             traj_1, traj_2, a2_metrics = stack
 
-            # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(obs1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
-
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
@@ -413,6 +394,18 @@ class IPDITMEvalRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "IPDInTheMatrix":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipditm_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
+                        args.num_envs,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
             else:
                 env_stats = {}
                 rewards_1 = traj_1.rewards.mean()
@@ -424,7 +417,6 @@ class IPDITMEvalRunner:
                 rewards_2,
                 a1_state,
                 a1_mem,
-                a1_metrics,
                 a2_state,
                 a2_mem,
                 a2_metrics,
@@ -434,7 +426,7 @@ class IPDITMEvalRunner:
         # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
-    def run_loop(self, env_params, agents, num_iters, watchers):
+    def run_loop(self, env_params, agents, watchers):
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
@@ -443,181 +435,151 @@ class IPDITMEvalRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        if watchers:
-            wandb.restore(
-                name=self.args.model_path1,
-                run_path=self.args.run_path,
-                root=os.getcwd(),
-            )
+        wandb.restore(
+            name=self.args.model_path1,
+            run_path=self.args.run_path,
+            root=os.getcwd(),
+        )
+            
+        pretrained_params = load(self.args.model_path1)
+        a1_state = a1_state._replace(params=pretrained_params)
 
+        if self.args.model_path2:
+            print("Loading Second Agent")
             wandb.restore(
                 name=self.args.model_path2,
                 run_path=self.args.run_path,
                 root=os.getcwd(),
             )
-        pretrained_params = load(self.args.model_path1)
-        a1_state = a1_state._replace(params=pretrained_params)
-
-        pretrained_params = load(self.args.model_path2)
-        a2_state = a2_state._replace(params=pretrained_params)
-
-        num_iters = max(
-            int(num_iters / (self.args.num_envs * self.num_opps)), 1
-        )
-        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
-
-        print(f"Log Interval {log_interval}")
+            pretrained_params = load(self.args.model_path2)
+            a2_state = a2_state._replace(params=pretrained_params)
 
         # run actual loop
-        for i in range(num_iters):
-            rng, rng_run = jax.random.split(rng, 2)
-            # RL Rollout
-            (
-                env_stats,
-                rewards_1,
-                rewards_2,
-                a1_state,
-                a1_mem,
-                a1_metrics,
-                a2_state,
-                a2_mem,
-                a2_metrics,
-                traj,
-            ) = self.rollout(
-                rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
+        rng, rng_run = jax.random.split(rng, 2)
+        # RL Rollout
+        (
+            env_stats,
+            rewards_1,
+            rewards_2,
+            a1_state,
+            a1_mem,
+            a2_state,
+            a2_mem,
+            a2_metrics,
+            traj,
+        ) = self.rollout(
+            rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
+        )
+
+
+        for stat in env_stats.keys():
+            print(stat + f": {env_stats[stat].item()}")
+        print(
+            f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
+        )
+        print()
+
+        if watchers:
+            # metrics [outer_timesteps, num_opps]
+            flattened_metrics_2 = jax.tree_util.tree_map(
+                lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+            )
+            agent2._logger.metrics = (
+                agent2._logger.metrics | flattened_metrics_2
             )
 
-            if self.args.save and i % self.args.save_interval == 0:
-                log_savepath1 = os.path.join(
-                    self.save_dir, f"agent1_iteration_{i}"
-                )
-                save(a1_state.params, log_savepath1)
-                log_savepath2 = os.path.join(
-                    self.save_dir, f"agent2_iteration_{i}"
-                )
-                save(a2_state.params, log_savepath2)
-                if watchers:
-                    print(f"Saving iteration {i} locally and to WandB")
-                    wandb.save(log_savepath1)
-                    wandb.save(log_savepath2)
-                else:
-                    print(f"Saving iteration {i} locally")
+            for watcher, agent in zip(watchers, agents):
+                watcher(agent)
+            wandb.log(
+                {
+                    "episodes": self.train_episodes,
+                    "train/episode_reward/player_1": float(
+                        rewards_1.mean()
+                    ),
+                    "train/episode_reward/player_2": float(
+                        rewards_2.mean()
+                    ),
+                }
+                | env_stats,
+            )
 
-            # logging
-            self.train_episodes += 1
-            if i % log_interval == 0:
-                print(f"Episode {i}")
-
-                print(f"Env Stats: {env_stats}")
-                print(
-                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
-                )
-                print()
-
-                if watchers:
-                    # metrics [outer_timesteps]
-                    flattened_metrics_1 = jax.tree_util.tree_map(
-                        lambda x: jnp.mean(x), a1_metrics
-                    )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
-                    # metrics [outer_timesteps, num_opps]
-                    flattened_metrics_2 = jax.tree_util.tree_map(
-                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                    )
-                    agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics_2
-                    )
-
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
-                    wandb.log(
-                        {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
-                            ),
-                            "train/episode_reward/player_2": float(
-                                rewards_2.mean()
-                            ),
-                        }
-                        | env_stats,
-                    )
-        env = IPDInTheMatrix(100, 100)
+        print("Generating Gif")
+        env = IPDInTheMatrix(self.args.num_steps, self.args.num_inner_steps)
         env_state = traj.env_state
         pics = []
-        pics1 = []
-        pics2 = []
-        from datetime import datetime
-
+        # pics1 = []
+        # pics2 = []
         now = datetime.now()
+        
+        # reduce timesteps and pick a random env
+        env_state = jax.tree_util.tree_map(
+            lambda x: x.reshape(
+                (x.shape[0]*x.shape[1], *x.shape[2:])
+        ), env_state)
+        env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
+        opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
+
+        env_state = jax.tree_util.tree_map(
+            lambda x: x[:, opp_idx, env_idx, ...], env_state
+        )
         env_states = [
             EnvState(
-                red_pos=env_state.red_pos[0, i].reshape(-1),
-                blue_pos=env_state.blue_pos[0, i].reshape(-1),
-                inner_t=env_state.inner_t[0, i].reshape(-1),
-                outer_t=env_state.outer_t[0, i].reshape(-1),
-                grid=env_state.grid[0, i].reshape(8, 8),
-                red_inventory=env_state.red_inventory[0, i].reshape(-1),
-                blue_inventory=env_state.blue_inventory[0, i].reshape(-1),
-                red_coins=env_state.red_coins[0, i].reshape(-1),
-                blue_coins=env_state.blue_coins[0, i].reshape(-1),
-                freeze=env_state.freeze[0, i].reshape(-1),
+                red_pos=env_state.red_pos[i, ...],
+                blue_pos=env_state.blue_pos[i, ...],
+                inner_t=env_state.inner_t[i, ...],
+                outer_t=env_state.outer_t[i, ...],
+                grid=env_state.grid[i, ...],
+                red_inventory=env_state.red_inventory[i, ...],
+                blue_inventory=env_state.blue_inventory[i, ...],
+                red_coins=env_state.red_coins[i, ...],
+                blue_coins=env_state.blue_coins[i, ...],
+                freeze=env_state.freeze[i, ...],
             )
-            for i in range(self.args.num_inner_steps)
+            for i in range(self.args.num_steps)
         ]
 
-        for i, state in enumerate(env_states):
-            img = env.render(state)
-            img1 = env.render_agent_view(state, agent=0)
-            img2 = env.render_agent_view(state, agent=1)
+        for i, state in enumerate(tqdm(env_states)):
+            img = env.render(state, env_params)
+            # img1 = env.render_agent_view(state, agent=0)
+            # img2 = env.render_agent_view(state, agent=1)
             pics.append(img)
-            pics1.append(img1)
-            pics2.append(img2)
-
-            if (state.red_pos == state.blue_pos).all():
-                print("Collision!")
-                print(f"Step: {i}")
-                print(f"Action: {traj.actions[0, i].reshape(-1)}")
-                print(f"Grid: {state.grid}")
-            print(f"Action: {traj.actions[0, i].reshape(-1)}")
-            print(f"Positions: {state.red_pos, state.blue_pos}")
-            print(f"Inventories: {state.red_inventory, state.blue_inventory}")
+            # pics1.append(img1)
+            # pics2.append(img2)
 
         pics = [Image.fromarray(img) for img in pics]
-        pics1 = [Image.fromarray(img) for img in pics1]
-        pics2 = [Image.fromarray(img) for img in pics2]
+        # pics1 = [Image.fromarray(img) for img in pics1]
+        # pics2 = [Image.fromarray(img) for img in pics2]
 
+        print("Saving Gif")
         pics[0].save(
             f"{self.args.wandb.group}_{now}.gif",
             format="gif",
             save_all=True,
             append_images=pics[1:],
-            duration=300,
+            duration=100,
             loop=0,
-            optimize=False,
+            optimize=True,
         )
 
-        pics1[0].save(
-            f"{self.args.wandb.group}_agent1_{now}.gif",
-            format="gif",
-            save_all=True,
-            append_images=pics1[1:],
-            duration=300,
-            loop=0,
-            optimize=False,
-        )
+        # pics1[0].save(
+        #     f"{self.args.wandb.group}_agent1_{now}.gif",
+        #     format="gif",
+        #     save_all=True,
+        #     append_images=pics1[1:],
+        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     loop=0,
+        #     optimize=False,
+        # )
 
-        pics2[0].save(
-            f"{self.args.wandb.group}_agent2_{now}.gif",
-            format="gif",
-            save_all=True,
-            append_images=pics2[1:],
-            duration=300,
-            loop=0,
-            optimize=False,
-        )
+        # pics2[0].save(
+        #     f"{self.args.wandb.group}_agent2_{now}.gif",
+        #     format="gif",
+        #     save_all=True,
+        #     append_images=pics2[1:],
+        #     duration=300 * (self.args.num_steps/self.args.num_inner_steps),
+        #     loop=0,
+        #     optimize=False,
+        # )
         if watchers:
             wandb.log(
                 {
@@ -628,25 +590,4 @@ class IPDITMEvalRunner:
                     )
                 }
             )
-
-            wandb.log(
-                {
-                    "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent1_{now}.gif",
-                        fps=4,
-                        format="gif",
-                    )
-                }
-            )
-            wandb.log(
-                {
-                    "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent2_{now}.gif",
-                        fps=4,
-                        format="gif",
-                    )
-                }
-            )
-        agents[0]._state = a1_state
-        agents[1]._state = a2_state
         return agents
