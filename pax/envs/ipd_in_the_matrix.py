@@ -602,6 +602,9 @@ class IPDInTheMatrix(environment.Environment):
                 ),
             )
 
+            # if you bounced back to ur original space, we change your move to stay (for collision logic)
+            red_move = (new_red_pos[:2] != state.red_pos[:2]).any()
+
             # turning blue
             new_blue_pos = jnp.int8(
                 (state.blue_pos + ROTATIONS[action_1])
@@ -620,6 +623,7 @@ class IPDInTheMatrix(environment.Environment):
                     [GRID_SIZE - 1, GRID_SIZE - 1, 3], dtype=jnp.int8
                 ),
             )
+            blue_move = (new_blue_pos[:2] != state.blue_pos[:2]).any()
 
             # if collision, priority to whoever didn't move
             collision = jnp.all(new_red_pos[:2] == new_blue_pos[:2])
@@ -661,6 +665,7 @@ class IPDInTheMatrix(environment.Environment):
                 state.blue_pos,
                 new_blue_pos,
             )
+
             # update inventories
             red_red_matches = (
                 state.grid[new_red_pos[0], new_red_pos[1]] == Items.red_coin
@@ -876,7 +881,8 @@ class IPDInTheMatrix(environment.Environment):
             return obs, state
 
         # overwrite Gymnax as it makes single-agent assumptions
-        self.step = jax.jit(_step)
+        # self.step = jax.jit(_step)
+        self.step = _step
         self.reset = jax.jit(reset)
         self.get_obs_point = _get_obs_point
         self.get_reward = _get_reward
@@ -1293,14 +1299,14 @@ if __name__ == "__main__":
     params = EnvParams(
         payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
     )
-    obs, state = env.reset(rng, params)
+    obs, old_state = env.reset(rng, params)
     pics = []
     pics1 = []
     pics2 = []
 
-    img = env.render(state, params)
-    img1 = env.render_agent_view(state, agent=0)
-    img2 = env.render_agent_view(state, agent=1)
+    img = env.render(old_state, params)
+    img1 = env.render_agent_view(old_state, agent=0)
+    img2 = env.render_agent_view(old_state, agent=1)
     pics.append(img)
 
     int_action = {
@@ -1326,7 +1332,7 @@ if __name__ == "__main__":
             rng2, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
         )
         obs, state, reward, done, info = env.step(
-            rng, state, (a1 * action, a2 * action), params
+            rng, old_state, (a1 * action, a2 * action), params
         )
 
         # print(
@@ -1337,6 +1343,9 @@ if __name__ == "__main__":
         # print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
+            import pdb
+
+            pdb.set_trace()
             print("collision")
             print(
                 f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
@@ -1350,7 +1359,7 @@ if __name__ == "__main__":
         pics.append(img)
         # pics1.append(img1)
         # pics2.append(img2)
-
+        old_state = state
     print("Saving GIF")
     pics = [Image.fromarray(img) for img in pics]
     # pics1 = [Image.fromarray(img) for img in pics1]
