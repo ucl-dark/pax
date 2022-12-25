@@ -111,7 +111,6 @@ class RLRunner:
             if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
         )
-
         agent1, agent2 = agents
 
         # set up agents

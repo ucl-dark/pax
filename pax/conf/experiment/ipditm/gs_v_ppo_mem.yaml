@@ -106,6 +106,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: ipditm
-  group: 'chaos-${agent1}-vs-${agent2}'
+  group: 'gs-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: False
