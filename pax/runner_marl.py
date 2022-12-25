@@ -161,12 +161,6 @@ class RLRunner:
                 jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
             )
-        if args.fixed_env:
-            print("Made the env fixed")
-            fixed_env_rng = jnp.tile(
-                jax.random.PRNGKey(args.seed),
-                (args.num_opps, args.num_envs, 1),
-            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -186,10 +180,7 @@ class RLRunner:
 
             # unpack rngs
             rngs = self.split(rngs, 4)
-            if args.fixed_env:
-                env_rng = fixed_env_rng
-            else:
-                env_rng = rngs[:, :, 0, :]
+            env_rng = rngs[:, :, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
@@ -318,10 +309,7 @@ class RLRunner:
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
 
-            if args.fixed_env:
-                obs, env_state = env.reset(fixed_env_rng, _env_params)
-            else:
-                obs, env_state = env.reset(rngs, _env_params)
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),

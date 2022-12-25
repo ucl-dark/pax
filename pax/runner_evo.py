@@ -185,13 +185,6 @@ class EvoRunner:
             self.rollout_time = []
             self.tell_time = []
 
-        if args.fixed_env:
-            print("Using Fixed Environment")
-            fixed_env_rng = jnp.tile(
-                jax.random.PRNGKey(args.seed),
-                (args.popsize, args.num_opps, args.num_envs, 1),
-            )
-
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -210,10 +203,8 @@ class EvoRunner:
 
             # unpack rngs
             rngs = self.split(rngs, 4)
-            if args.fixed_env:
-                env_rng = fixed_env_rng
-            else:
-                env_rng = rngs[:, :, :, 0, :]
+            env_rng = rngs[:, :, :, 0, :]
+
             # a1_rng = rngs[:, :, :, 1, :]
             # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
@@ -331,10 +322,7 @@ class EvoRunner:
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
 
-            if args.fixed_env:
-                obs, env_state = env.reset(fixed_env_rng, _env_params)
-            else:
-                obs, env_state = env.reset(rngs, _env_params)
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),

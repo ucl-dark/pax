@@ -99,11 +99,54 @@ GRID = GRID.at[PADDING - 1, :].set(5)
 GRID = GRID.at[GRID_SIZE + PADDING, :].set(5)
 GRID = GRID.at[:, PADDING - 1].set(5)
 GRID = GRID.at[:, GRID_SIZE + PADDING].set(5)
-COORDS = jnp.array(
-    [[(j, i) for i in range(GRID_SIZE)] for j in range(GRID_SIZE)],
-    dtype=jnp.int8,
-).reshape(-1, 2)
 
+COIN_SPAWNS = [
+    [1, 1],
+    [1, 2],
+    [1, GRID_SIZE - 2],
+    [1, GRID_SIZE - 3],
+    [2, 1],
+    [2, 2],
+    [2, GRID_SIZE - 2],
+    [2, GRID_SIZE - 3],
+    [GRID_SIZE - 2, 1],
+    [GRID_SIZE - 2, 2],
+    [GRID_SIZE - 2, GRID_SIZE - 2],
+    [GRID_SIZE - 2, GRID_SIZE - 3],
+    [GRID_SIZE - 3, 1],
+    [GRID_SIZE - 3, 2],
+    [GRID_SIZE - 3, GRID_SIZE - 2],
+    [GRID_SIZE - 3, GRID_SIZE - 3],
+]
+
+
+RED_SPAWN = jnp.array(
+    [
+        [1, 1],
+        [2, 2],
+        [1, GRID_SIZE - 2],
+        [2, GRID_SIZE - 3],
+        [GRID_SIZE - 2, 1],
+        [GRID_SIZE - 3, 2],
+        [GRID_SIZE - 2, GRID_SIZE - 2],
+        [GRID_SIZE - 3, GRID_SIZE - 3],
+    ],
+    dtype=jnp.int8,
+)
+
+BLUE_SPAWN = jnp.array(
+    [
+        [1, 2],
+        [2, 1],
+        [1, GRID_SIZE - 3],
+        [2, GRID_SIZE - 2],
+        [GRID_SIZE - 2, 2],
+        [GRID_SIZE - 3, 1],
+        [GRID_SIZE - 2, GRID_SIZE - 3],
+        [GRID_SIZE - 3, GRID_SIZE - 2],
+    ],
+    dtype=jnp.int8,
+)
 
 AGENT_SPAWNS = [
     [0, 0],
@@ -123,18 +166,6 @@ AGENT_SPAWNS = [
     [GRID_SIZE - 2, GRID_SIZE - 1],
     [GRID_SIZE - 2, GRID_SIZE - 2],
 ]
-
-COIN_SPAWNS = [
-    (j, i)
-    for i in range(0, GRID_SIZE)
-    for j in range(0, GRID_SIZE)
-    if [j, i] not in AGENT_SPAWNS
-]
-
-COIN_SPAWNS = jnp.array(
-    COIN_SPAWNS,
-    dtype=jnp.int8,
-).reshape(-1, 2)
 
 AGENT_SPAWNS = jnp.array(
     [
@@ -736,6 +767,8 @@ class IPDInTheMatrix(environment.Environment):
             """Reset the grid to original state and"""
             # Find the free spaces in the grid
             grid = jnp.zeros((GRID_SIZE, GRID_SIZE), jnp.int8)
+
+            # if coin location can change, then we need to reset the coins
             for i in range(NUM_COINS):
                 grid = grid.at[
                     state.red_coins[i, 0], state.red_coins[i, 1]
@@ -785,9 +818,9 @@ class IPDInTheMatrix(environment.Environment):
         ) -> Tuple[jnp.ndarray, EnvState]:
             key, subkey = jax.random.split(key)
 
-            coin_pos = jax.random.choice(
-                subkey, COIN_SPAWNS, shape=(NUM_OBJECTS,), replace=False
-            )
+            # coin_pos = jax.random.choice(
+            #     subkey, COIN_SPAWNS, shape=(NUM_COIN_TYPES*NUM_COINS,), replace=False
+            # )
 
             agent_pos = jax.random.choice(
                 subkey, AGENT_SPAWNS, shape=(), replace=False
@@ -805,8 +838,13 @@ class IPDInTheMatrix(environment.Environment):
             grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
                 jnp.int8(Items.blue_agent)
             )
-            red_coins = coin_pos[:NUM_COINS, :]
-            blue_coins = coin_pos[NUM_COINS:, :]
+
+            random_idx = jax.random.randint(
+                subkey, shape=(), minval=0, maxval=1
+            )
+            red_coins = jnp.where(random_idx, RED_SPAWN, BLUE_SPAWN)
+            blue_coins = jnp.where(random_idx, BLUE_SPAWN, RED_SPAWN)
+
             for i in range(NUM_COINS):
                 grid = grid.at[red_coins[i, 0], red_coins[i, 1]].set(
                     jnp.int8(Items.red_coin)
@@ -932,14 +970,14 @@ class IPDInTheMatrix(environment.Environment):
 
         elif obj == Items.blue_agent:
             # Draw agent 2
-            agent_color = (31.0, 119.0, 180.0)
+            agent_color = BLUE_COLOUR
         elif obj == Items.red_coin:
-            # Draw the red coin
+            # Draw the red coin as GREEN COOPERATE
             fill_coords(
                 img, point_in_circle(0.5, 0.5, 0.31), (44.0, 160.0, 44.0)
             )
         elif obj == Items.blue_coin:
-            # Draw the blue coin
+            # Draw the blue coin as DEFECT
             fill_coords(
                 img, point_in_circle(0.5, 0.5, 0.31), (214.0, 39.0, 40.0)
             )
@@ -1275,7 +1313,7 @@ if __name__ == "__main__":
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
     env.step = jax.jit(env.step)
-    env_rng = jax.random.PRNGKey(0)
+    # import pdb; pdb.set_trace()
 
     for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -1288,7 +1326,7 @@ if __name__ == "__main__":
             rng2, a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
         )
         obs, state, reward, done, info = env.step(
-            env_rng, state, (a1 * action, a2 * action), params
+            rng, state, (a1 * action, a2 * action), params
         )
 
         # print(

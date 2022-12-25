@@ -11,7 +11,6 @@ env_discount: 0.96
 payoff: [[3, 0], [5, 1]]
 runner: ipditm_eval
 freeze: 5
-fixed_env: True
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
