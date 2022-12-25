@@ -449,7 +449,7 @@ class Altruistic(AgentInterface):
 
 
 class Random(AgentInterface):
-    def __init__(self, num_actions: int, num_envs: int):
+    def __init__(self, num_actions: int, num_envs: int, args):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -464,7 +464,10 @@ class Random(AgentInterface):
         ) -> jnp.ndarray:
             # state is [batch x time_step x num_players]
             # return [batch]
-            batch_size = obs.shape[0]
+            if args.env_id == "IPDInTheMatrix":
+                batch_size = obs["inventory"].shape[0]
+            else:
+                batch_size = obs.shape[0]
             new_key, _ = jax.random.split(state.random_key)
             action = jax.random.randint(new_key, (batch_size,), 0, num_actions)
             state = state._replace(random_key=new_key)

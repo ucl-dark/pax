@@ -507,14 +507,18 @@ class RLRunner:
 
                     for watcher, agent in zip(watchers, agents):
                         watcher(agent)
+
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), env_stats
+                    )
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
                             "train/episode_reward/player_1": float(
-                                rewards_1.mean()
+                                rewards_1.mean().item()
                             ),
                             "train/episode_reward/player_2": float(
-                                rewards_2.mean()
+                                rewards_2.mean().item()
                             ),
                         }
                         | env_stats,

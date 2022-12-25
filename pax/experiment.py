@@ -363,7 +363,7 @@ def agent_setup(args, env, env_params, logger):
         return agent
 
     def get_random_agent(seed, player_id):
-        random_agent = Random(num_actions, args.num_envs)
+        random_agent = Random(num_actions, args.num_envs, args)
         random_agent.player_id = player_id
         return random_agent
 
@@ -448,6 +448,9 @@ def watcher_setup(args, logger):
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
