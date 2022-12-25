@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: IPDInTheMatrix
@@ -16,19 +16,15 @@ freeze: 5
 # env_batch_size = num_envs * num_opponents
 num_envs: 1
 num_opps: 1
-num_steps: 304 
-num_inner_steps: 304 
+num_steps: 152 
+num_inner_steps: 152 
 total_timesteps: 304
 save_interval: 100 
 
 # # Evaluation
-# run_path: ucl-dark/cg2/atjxndwh
-# model_path1: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-12-07_14.29.47.717911/agent1_iteration_300
-# model_path2: exp/sanity-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-12-07_14.29.47.717911/agent2_iteration_300 
-
-run_path: ucl-dark/ipditm/7laz03ud
-model_path1: exp/chaos-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-24_11.05.16.230057/generation_40
-# model_path2: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-12-07_16.58.18.077111/agent2_iteration_300 
+run_path: ucl-dark/ipditm/38kbr6hp
+model_path1: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-25_18.26.02.795417/agent1_iteration_375
+model_path2: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-25_18.26.02.795417/agent2_iteration_375
 
 # PPO agent parameters
 ppo1:
@@ -50,7 +46,7 @@ ppo1:
   with_memory: True
   with_cnn: True
   output_channels: 16
-  kernel_shape: [5, 5]
+  kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16 #50
 
@@ -73,13 +69,13 @@ ppo2:
   with_memory: True
   with_cnn: True
   output_channels: 16
-  kernel_shape: [5, 5]
+  kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16 #50
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipditm
-  group: 'eval-${agent1}-vs-${agent2}'
+  group: 'eval-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

@@ -308,10 +308,8 @@ class IPDITMEvalRunner:
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
 
-            if args.fixed_env:
-                obs, env_state = env.reset(fixed_env_rng, _env_params)
-            else:
-                obs, env_state = env.reset(rngs, _env_params)
+
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),
@@ -435,7 +433,7 @@ class IPDITMEvalRunner:
             run_path=self.args.run_path,
             root=os.getcwd(),
         )
-
+            
         pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
 
@@ -466,6 +464,7 @@ class IPDITMEvalRunner:
             rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
         )
 
+
         for stat in env_stats.keys():
             print(stat + f": {env_stats[stat].item()}")
         print(
@@ -487,8 +486,12 @@ class IPDITMEvalRunner:
             wandb.log(
                 {
                     "episodes": self.train_episodes,
-                    "train/episode_reward/player_1": float(rewards_1.mean()),
-                    "train/episode_reward/player_2": float(rewards_2.mean()),
+                    "train/episode_reward/player_1": float(
+                        rewards_1.mean()
+                    ),
+                    "train/episode_reward/player_2": float(
+                        rewards_2.mean()
+                    ),
                 }
                 | env_stats,
             )
@@ -500,12 +503,12 @@ class IPDITMEvalRunner:
         # pics1 = []
         # pics2 = []
         now = datetime.now()
-
+        
         # reduce timesteps and pick a random env
         env_state = jax.tree_util.tree_map(
-            lambda x: x.reshape((x.shape[0] * x.shape[1], *x.shape[2:])),
-            env_state,
-        )
+            lambda x: x.reshape(
+                (x.shape[0]*x.shape[1], *x.shape[2:])
+        ), env_state)
         env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
         opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
 
@@ -530,11 +533,10 @@ class IPDITMEvalRunner:
 
         gif_every_n_eps = 5
 
+
         for i, state in enumerate(tqdm(env_states)):
             meta_episode = i // self.args.num_inner_steps
-            if (meta_episode % gif_every_n_eps) == 0 or meta_episode == (
-                self.num_outer_steps - 1
-            ):
+            if (meta_episode % gif_every_n_eps) == 0 or (meta_episode == self.num_outer_steps-1):
                 img = env.render(state, env_params)
                 # img1 = env.render_agent_view(state, agent=0)
                 # img2 = env.render_agent_view(state, agent=1)
@@ -565,6 +567,7 @@ class IPDITMEvalRunner:
             loop=0,
             optimize=False,
         )
+
 
         # pics1[0].save(
         #     f"{self.args.wandb.group}_agent1_{now}.gif",
