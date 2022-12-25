@@ -29,6 +29,8 @@ NUM_OBJECTS = (
     2 + NUM_COIN_TYPES * NUM_COINS + 1
 )  # red, blue, 2 red coin, 2 blue coin
 
+INTERACT_THRESHOLD = 0
+
 
 @chex.dataclass
 class EnvState:
@@ -298,8 +300,8 @@ class IPDInTheMatrix(environment.Environment):
             angle2 = jax.nn.one_hot(angle2, 4)
             _obs2 = jnp.concatenate([_obs2, angle2], axis=-1)
 
-            red_pickup = jnp.sum(state.red_inventory) > 2
-            blue_pickup = jnp.sum(state.blue_inventory) > 2
+            red_pickup = jnp.sum(state.red_inventory) > INTERACT_THRESHOLD
+            blue_pickup = jnp.sum(state.blue_inventory) > INTERACT_THRESHOLD
 
             blue_to_show = jnp.where(
                 state.freeze >= 0, state.blue_inventory, 0
@@ -555,8 +557,8 @@ class IPDInTheMatrix(environment.Environment):
                 red_zap * red_interact, blue_zap * blue_interact
             )
 
-            red_pickup = state.red_inventory.sum() > 2
-            blue_pickup = state.blue_inventory.sum() > 2
+            red_pickup = state.red_inventory.sum() > INTERACT_THRESHOLD
+            blue_pickup = state.blue_inventory.sum() > INTERACT_THRESHOLD
             interact = jnp.logical_and(
                 interact, jnp.logical_and(red_pickup, blue_pickup)
             )
@@ -811,8 +813,8 @@ class IPDInTheMatrix(environment.Environment):
                 inner_t=state.inner_t,
                 outer_t=state.outer_t,
                 grid=grid,
-                red_inventory=jnp.ones(2),
-                blue_inventory=jnp.ones(2),
+                red_inventory=jnp.zeros(2),
+                blue_inventory=jnp.zeros(2),
                 red_coins=state.red_coins,
                 blue_coins=state.blue_coins,
                 freeze=jnp.int16(-1),
@@ -866,8 +868,8 @@ class IPDInTheMatrix(environment.Environment):
                 inner_t=0,
                 outer_t=0,
                 grid=grid,
-                red_inventory=jnp.ones(2),
-                blue_inventory=jnp.ones(2),
+                red_inventory=jnp.zeros(2),
+                blue_inventory=jnp.zeros(2),
                 red_coins=red_coins,
                 blue_coins=blue_coins,
                 freeze=jnp.int16(-1),
@@ -1074,16 +1076,20 @@ class IPDInTheMatrix(environment.Environment):
             other_dir = (
                 state.blue_pos[2].item() - state.red_pos[2].item()
             ) % 4
-            principal_hat = bool(state.red_inventory.sum() > 2)
-            other_hat = bool(state.blue_inventory.sum() > 2)
+            principal_hat = bool(
+                state.red_inventory.sum() > INTERACT_THRESHOLD
+            )
+            other_hat = bool(state.blue_inventory.sum() > INTERACT_THRESHOLD)
 
         else:
             other_dir = (
                 state.red_pos[2].item() - state.blue_pos[2].item()
             ) % 4
 
-            principal_hat = bool(state.blue_inventory.sum() > 2)
-            other_hat = bool(state.red_inventory.sum() > 2)
+            principal_hat = bool(
+                state.blue_inventory.sum() > INTERACT_THRESHOLD
+            )
+            other_hat = bool(state.red_inventory.sum() > INTERACT_THRESHOLD)
 
         # Render the grid
         for j in range(0, grid.shape[1]):
@@ -1198,12 +1204,12 @@ class IPDInTheMatrix(environment.Environment):
                     )
                     agent_hat = False
                     agent_hat = (
-                        bool(state.red_inventory.sum() > 2)
+                        bool(state.red_inventory.sum() > INTERACT_THRESHOLD)
                         if red_agent_here
                         else agent_hat
                     )
                     agent_hat = (
-                        bool(state.blue_inventory.sum() > 2)
+                        bool(state.blue_inventory.sum() > INTERACT_THRESHOLD)
                         if blue_agent_here
                         else agent_hat
                     )
