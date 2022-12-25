@@ -479,7 +479,6 @@ class RLRunner:
                     print(f"Saving iteration {i} locally")
 
             # logging
-            self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
                 for stat in env_stats.keys():
@@ -513,7 +512,7 @@ class RLRunner:
                     )
                     wandb.log(
                         {
-                            "episodes": self.train_episodes,
+                            "train_iteration": i,
                             "train/episode_reward/player_1": float(
                                 rewards_1.mean().item()
                             ),
