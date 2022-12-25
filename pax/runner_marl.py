@@ -430,19 +430,21 @@ class RLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        agent1, agent2 = agents
-        rng, _ = jax.random.split(self.random_key)
-
-        a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
-
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
+        save_interval = int(num_iters * self.args.save_interval / self.args.total_timesteps)
 
+        agent1, agent2 = agents
+        rng, _ = jax.random.split(self.random_key)
+    
+        a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state, a2_mem = agent2._state, agent2._mem
+
+        print(f"Num iters {num_iters}")
         print(f"Log Interval {log_interval}")
-        print(log_interval)
+        print(f"Save Interval {save_interval}")
         # run actual loop
         for i in range(num_iters):
             rng, rng_run = jax.random.split(rng, 2)
@@ -461,7 +463,8 @@ class RLRunner:
                 rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
             )
 
-            if self.args.save and i % self.args.save_interval == 0:
+            # saving
+            if i % save_interval == 0:
                 log_savepath1 = os.path.join(
                     self.save_dir, f"agent1_iteration_{i}"
                 )

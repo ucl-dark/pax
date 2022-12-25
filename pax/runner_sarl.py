@@ -207,7 +207,7 @@ class SARLRunner:
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
 
-            if self.args.save and i % self.args.save_interval == 0:
+            if i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
                 if watcher:

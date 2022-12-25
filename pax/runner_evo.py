@@ -536,7 +536,7 @@ class EvoRunner:
             log = es_logging.update(log, x, fitness)
 
             # Saving
-            if self.args.save and gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
