@@ -97,6 +97,6 @@ ppo2:
 wandb:
   entity: "ucl-dark"
   project: ipditm
-  group: 'eval-${agent1}-vs-${agent2}'
+  group: 'shaper-eval-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True

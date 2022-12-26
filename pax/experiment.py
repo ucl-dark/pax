@@ -45,7 +45,7 @@ from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
 from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
 from pax.envs.ipd_in_the_matrix import (
-    EnvParams as RunningWithScissorsParams,
+    EnvParams as IPDInTheMatrixParams,
 )
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
@@ -148,7 +148,7 @@ def env_setup(args, logger=None):
             )
     elif args.env_id == "IPDInTheMatrix":
         payoff = jnp.array(args.payoff)
-        env_params = RunningWithScissorsParams(
+        env_params = IPDInTheMatrixParams(
             payoff_matrix=payoff, freeze_penalty=args.freeze
         )
         env = IPDInTheMatrix(
@@ -157,7 +157,7 @@ def env_setup(args, logger=None):
         )
         if logger:
             logger.info(
-                f"Env Type: IPDInTheMatrix | Episode Length: {args.num_steps}"
+                f"Env Type: IPDInTheMatrix | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)

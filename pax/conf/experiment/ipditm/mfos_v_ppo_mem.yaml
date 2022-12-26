@@ -105,6 +105,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: ipditm
-  group: 'mfos-${agent1}-vs-${agent2}'
+  group: 'shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: False

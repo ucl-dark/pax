@@ -308,7 +308,6 @@ class IPDITMEvalRunner:
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
 
-
             obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
@@ -433,7 +432,7 @@ class IPDITMEvalRunner:
             run_path=self.args.run_path,
             root=os.getcwd(),
         )
-            
+
         pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
 
@@ -464,7 +463,6 @@ class IPDITMEvalRunner:
             rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
         )
 
-
         for stat in env_stats.keys():
             print(stat + f": {env_stats[stat].item()}")
         print(
@@ -473,6 +471,7 @@ class IPDITMEvalRunner:
         print()
 
         if watchers:
+            env_stats = jax.tree_util.tree_map(lambda x: x.item(), env_stats)
             # metrics [outer_timesteps, num_opps]
             flattened_metrics_2 = jax.tree_util.tree_map(
                 lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
@@ -485,30 +484,32 @@ class IPDITMEvalRunner:
                 watcher(agent)
             wandb.log(
                 {
-                    "episodes": self.train_episodes,
+                    "episodes": 1,
                     "train/episode_reward/player_1": float(
-                        rewards_1.mean()
+                        rewards_1.mean().item()
                     ),
                     "train/episode_reward/player_2": float(
-                        rewards_2.mean()
+                        rewards_2.mean().item()
                     ),
                 }
                 | env_stats,
             )
 
         print("Generating Gif")
-        env = IPDInTheMatrix(self.args.num_steps, self.args.num_inner_steps)
+        env = IPDInTheMatrix(self.args.num_inner_steps, self.num_outer_steps)
         env_state = traj.env_state
         pics = []
-        # pics1 = []
-        # pics2 = []
+
+        if self.num_outer_steps == 1:
+            pics1 = []
+            pics2 = []
         now = datetime.now()
-        
+
         # reduce timesteps and pick a random env
         env_state = jax.tree_util.tree_map(
-            lambda x: x.reshape(
-                (x.shape[0]*x.shape[1], *x.shape[2:])
-        ), env_state)
+            lambda x: x.reshape((x.shape[0] * x.shape[1], *x.shape[2:])),
+            env_state,
+        )
         env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
         opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
 
@@ -533,20 +534,21 @@ class IPDITMEvalRunner:
 
         gif_every_n_eps = 5
 
-
         for i, state in enumerate(tqdm(env_states)):
             meta_episode = i // self.args.num_inner_steps
-            if (meta_episode % gif_every_n_eps) == 0 or (meta_episode == self.num_outer_steps-1):
+            if (meta_episode % gif_every_n_eps) == 0 or (
+                meta_episode == self.num_outer_steps - 1
+            ):
                 img = env.render(state, env_params)
-                # img1 = env.render_agent_view(state, agent=0)
-                # img2 = env.render_agent_view(state, agent=1)
                 pics.append(img)
-                # pics1.append(img1)
-                # pics2.append(img2)
+
+                if self.num_outer_steps == 1:
+                    img1 = env.render_agent_view(state, agent=0)
+                    img2 = env.render_agent_view(state, agent=1)
+                    pics1.append(img1)
+                    pics2.append(img2)
 
         pics = [Image.fromarray(img) for img in pics]
-        # pics1 = [Image.fromarray(img) for img in pics1]
-        # pics2 = [Image.fromarray(img) for img in pics2]
 
         print("Saving Gif")
         pics[0].save(
@@ -568,34 +570,57 @@ class IPDITMEvalRunner:
             optimize=False,
         )
 
+        wandb.log(
+            {
+                "video": wandb.Video(
+                    f"{self.args.wandb.group}_{now}.gif",
+                    fps=4,
+                    format="gif",
+                )
+            }
+        )
 
-        # pics1[0].save(
-        #     f"{self.args.wandb.group}_agent1_{now}.gif",
-        #     format="gif",
-        #     save_all=True,
-        #     append_images=pics1[1:],
-        #     duration=300,
-        #     loop=0,
-        #     optimize=False,
-        # )
+        if self.num_outer_steps == 1:
+            pics1 = [Image.fromarray(img) for img in pics1]
+            pics2 = [Image.fromarray(img) for img in pics2]
 
-        # pics2[0].save(
-        #     f"{self.args.wandb.group}_agent2_{now}.gif",
-        #     format="gif",
-        #     save_all=True,
-        #     append_images=pics2[1:],
-        #     duration=300,
-        #     loop=0,
-        #     optimize=False,
-        # )
-        if watchers:
+            pics1[0].save(
+                f"{self.args.wandb.group}_agent1_{now}.gif",
+                format="gif",
+                save_all=True,
+                append_images=pics1[1:],
+                duration=300,
+                loop=0,
+                optimize=False,
+            )
+
+            pics2[0].save(
+                f"{self.args.wandb.group}_agent2_{now}.gif",
+                format="gif",
+                save_all=True,
+                append_images=pics2[1:],
+                duration=300,
+                loop=0,
+                optimize=False,
+            )
+
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}_{now}.gif",
+                        f"{self.args.wandb.group}_agent1_{now}.gif",
                         fps=4,
                         format="gif",
                     )
                 }
             )
+            wandb.log(
+                {
+                    "video": wandb.Video(
+                        f"{self.args.wandb.group}_agent2_{now}.gif",
+                        fps=4,
+                        format="gif",
+                    )
+                }
+            )
+
         return agents

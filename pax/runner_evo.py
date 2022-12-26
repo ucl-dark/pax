@@ -590,7 +590,7 @@ class EvoRunner:
 
             if watchers:
                 wandb_log = {
-                    "training_iteration": gen,
+                    "train_iteration": gen,
                     "train/fitness/player_1": float(fitness.mean()),
                     "train/fitness/player_2": float(other_fitness.mean()),
                     "train/fitness/top_overall_mean": log["log_top_mean"][gen],
