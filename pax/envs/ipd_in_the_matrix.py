@@ -30,6 +30,7 @@ NUM_OBJECTS = (
 )  # red, blue, 2 red coin, 2 blue coin
 
 INTERACT_THRESHOLD = 0
+FIXED_COIN_LOCATION = True
 
 
 @chex.dataclass
@@ -105,55 +106,37 @@ GRID = GRID.at[:, GRID_SIZE + PADDING].set(5)
 COIN_SPAWNS = [
     [1, 1],
     [1, 2],
-    [1, GRID_SIZE - 2],
-    [1, GRID_SIZE - 3],
     [2, 1],
-    # [2, 2],
+    [1, GRID_SIZE - 2],
     [2, GRID_SIZE - 2],
+    [1, GRID_SIZE - 3],
+    # [2, 2],
     # [2, GRID_SIZE - 3],
-    [GRID_SIZE - 2, 1],
     [GRID_SIZE - 2, 2],
+    [GRID_SIZE - 3, 1],
+    [GRID_SIZE - 2, 1],
     [GRID_SIZE - 2, GRID_SIZE - 2],
     [GRID_SIZE - 2, GRID_SIZE - 3],
-    [GRID_SIZE - 3, 1],
-    # [GRID_SIZE - 3, 2],
     [GRID_SIZE - 3, GRID_SIZE - 2],
+    # [GRID_SIZE - 3, 2],
     # [GRID_SIZE - 3, GRID_SIZE - 3],
 ]
-
-
-# RED_SPAWN = jnp.array(
-#     [
-#         [1, 1],
-#         [2, 2],
-#         [1, GRID_SIZE - 2],
-#         [2, GRID_SIZE - 3],
-#         [GRID_SIZE - 2, 1],
-#         [GRID_SIZE - 3, 2],
-#         [GRID_SIZE - 2, GRID_SIZE - 2],
-#         [GRID_SIZE - 3, GRID_SIZE - 3],
-#     ],
-#     dtype=jnp.int8,
-# )
-
-# BLUE_SPAWN = jnp.array(
-#     [
-#         [1, 2],
-#         [2, 1],
-#         [1, GRID_SIZE - 3],
-#         [2, GRID_SIZE - 2],
-#         [GRID_SIZE - 2, 2],
-#         [GRID_SIZE - 3, 1],
-#         [GRID_SIZE - 2, GRID_SIZE - 3],
-#         [GRID_SIZE - 3, GRID_SIZE - 2],
-#     ],
-#     dtype=jnp.int8,
-# )
 
 COIN_SPAWNS = jnp.array(
     COIN_SPAWNS,
     dtype=jnp.int8,
 )
+
+RED_SPAWN = jnp.array(
+    COIN_SPAWNS[::2, :],
+    dtype=jnp.int8,
+)
+
+BLUE_SPAWN = jnp.array(
+    COIN_SPAWNS[1::2, :],
+    dtype=jnp.int8,
+)
+
 AGENT_SPAWNS = [
     [0, 0],
     [0, 1],
@@ -857,9 +840,18 @@ class IPDInTheMatrix(environment.Environment):
             grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
                 jnp.int8(Items.blue_agent)
             )
-            coin_spawn = jax.random.permutation(subkey, COIN_SPAWNS, axis=0)
-            red_coins = coin_spawn[:NUM_COINS, :]
-            blue_coins = coin_spawn[NUM_COINS:, :]
+            if FIXED_COIN_LOCATION:
+                rand_idx = jax.random.randint(
+                    subkey, shape=(), minval=0, maxval=1
+                )
+                red_coins = jnp.where(rand_idx, RED_SPAWN, BLUE_SPAWN)
+                blue_coins = jnp.where(rand_idx, BLUE_SPAWN, RED_SPAWN)
+            else:
+                coin_spawn = jax.random.permutation(
+                    subkey, COIN_SPAWNS, axis=0
+                )
+                red_coins = coin_spawn[:NUM_COINS, :]
+                blue_coins = coin_spawn[NUM_COINS:, :]
 
             for i in range(NUM_COINS):
                 grid = grid.at[red_coins[i, 0], red_coins[i, 1]].set(
@@ -1334,8 +1326,6 @@ if __name__ == "__main__":
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
     env.step = jax.jit(env.step)
-    print(old_state.red_pos)
-    print(old_state.blue_pos)
 
     for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
