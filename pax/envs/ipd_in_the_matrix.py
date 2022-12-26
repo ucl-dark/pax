@@ -23,7 +23,7 @@ GRID_SIZE = 8
 OBS_SIZE = 5
 PADDING = OBS_SIZE - 1
 NUM_TYPES = 5  # empty (0), red (1), blue, red coin, blue coin, wall, interact
-NUM_COINS = 8  # per type
+NUM_COINS = 6  # per type
 NUM_COIN_TYPES = 2
 NUM_OBJECTS = (
     2 + NUM_COIN_TYPES * NUM_COINS + 1
@@ -108,65 +108,77 @@ COIN_SPAWNS = [
     [1, GRID_SIZE - 2],
     [1, GRID_SIZE - 3],
     [2, 1],
-    [2, 2],
+    # [2, 2],
     [2, GRID_SIZE - 2],
-    [2, GRID_SIZE - 3],
+    # [2, GRID_SIZE - 3],
     [GRID_SIZE - 2, 1],
     [GRID_SIZE - 2, 2],
     [GRID_SIZE - 2, GRID_SIZE - 2],
     [GRID_SIZE - 2, GRID_SIZE - 3],
     [GRID_SIZE - 3, 1],
-    [GRID_SIZE - 3, 2],
+    # [GRID_SIZE - 3, 2],
     [GRID_SIZE - 3, GRID_SIZE - 2],
-    [GRID_SIZE - 3, GRID_SIZE - 3],
+    # [GRID_SIZE - 3, GRID_SIZE - 3],
 ]
 
 
-RED_SPAWN = jnp.array(
-    [
-        [1, 1],
-        [2, 2],
-        [1, GRID_SIZE - 2],
-        [2, GRID_SIZE - 3],
-        [GRID_SIZE - 2, 1],
-        [GRID_SIZE - 3, 2],
-        [GRID_SIZE - 2, GRID_SIZE - 2],
-        [GRID_SIZE - 3, GRID_SIZE - 3],
-    ],
+# RED_SPAWN = jnp.array(
+#     [
+#         [1, 1],
+#         [2, 2],
+#         [1, GRID_SIZE - 2],
+#         [2, GRID_SIZE - 3],
+#         [GRID_SIZE - 2, 1],
+#         [GRID_SIZE - 3, 2],
+#         [GRID_SIZE - 2, GRID_SIZE - 2],
+#         [GRID_SIZE - 3, GRID_SIZE - 3],
+#     ],
+#     dtype=jnp.int8,
+# )
+
+# BLUE_SPAWN = jnp.array(
+#     [
+#         [1, 2],
+#         [2, 1],
+#         [1, GRID_SIZE - 3],
+#         [2, GRID_SIZE - 2],
+#         [GRID_SIZE - 2, 2],
+#         [GRID_SIZE - 3, 1],
+#         [GRID_SIZE - 2, GRID_SIZE - 3],
+#         [GRID_SIZE - 3, GRID_SIZE - 2],
+#     ],
+#     dtype=jnp.int8,
+# )
+
+COIN_SPAWNS = jnp.array(
+    COIN_SPAWNS,
     dtype=jnp.int8,
 )
-
-BLUE_SPAWN = jnp.array(
-    [
-        [1, 2],
-        [2, 1],
-        [1, GRID_SIZE - 3],
-        [2, GRID_SIZE - 2],
-        [GRID_SIZE - 2, 2],
-        [GRID_SIZE - 3, 1],
-        [GRID_SIZE - 2, GRID_SIZE - 3],
-        [GRID_SIZE - 3, GRID_SIZE - 2],
-    ],
-    dtype=jnp.int8,
-)
-
 AGENT_SPAWNS = [
     [0, 0],
     [0, 1],
+    [0, 2],
     [1, 0],
-    [1, 1],
+    # [1, 1],
+    [1, 2],
     [0, GRID_SIZE - 1],
     [0, GRID_SIZE - 2],
+    [0, GRID_SIZE - 3],
     [1, GRID_SIZE - 1],
-    [1, GRID_SIZE - 2],
+    # [1, GRID_SIZE - 2],
+    [1, GRID_SIZE - 3],
     [GRID_SIZE - 1, 0],
     [GRID_SIZE - 1, 1],
+    [GRID_SIZE - 1, 2],
     [GRID_SIZE - 2, 0],
-    [GRID_SIZE - 2, 1],
+    # [GRID_SIZE - 2, 1],
+    [GRID_SIZE - 2, 2],
     [GRID_SIZE - 1, GRID_SIZE - 1],
     [GRID_SIZE - 1, GRID_SIZE - 2],
+    [GRID_SIZE - 1, GRID_SIZE - 3],
     [GRID_SIZE - 2, GRID_SIZE - 1],
-    [GRID_SIZE - 2, GRID_SIZE - 2],
+    # [GRID_SIZE - 2, GRID_SIZE - 2],
+    [GRID_SIZE - 2, GRID_SIZE - 3],
 ]
 
 AGENT_SPAWNS = jnp.array(
@@ -845,12 +857,9 @@ class IPDInTheMatrix(environment.Environment):
             grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
                 jnp.int8(Items.blue_agent)
             )
-
-            random_idx = jax.random.randint(
-                subkey, shape=(), minval=0, maxval=1
-            )
-            red_coins = jnp.where(random_idx, RED_SPAWN, BLUE_SPAWN)
-            blue_coins = jnp.where(random_idx, BLUE_SPAWN, RED_SPAWN)
+            coin_spawn = jax.random.permutation(subkey, COIN_SPAWNS, axis=0)
+            red_coins = coin_spawn[:NUM_COINS, :]
+            blue_coins = coin_spawn[NUM_COINS:, :]
 
             for i in range(NUM_COINS):
                 grid = grid.at[red_coins[i, 0], red_coins[i, 1]].set(
@@ -1325,7 +1334,8 @@ if __name__ == "__main__":
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
     env.step = jax.jit(env.step)
-    # import pdb; pdb.set_trace()
+    print(old_state.red_pos)
+    print(old_state.blue_pos)
 
     for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -1340,13 +1350,6 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, old_state, (a1 * action, a2 * action), params
         )
-
-        # print(
-        #     f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
-        # )
-        # print(f"reward1 : {reward[0].item()}, reward2: {reward[1].item()}")
-
-        # print(obs[0]["inventory"], obs[1]["inventory"])
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             import pdb
