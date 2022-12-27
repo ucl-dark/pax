@@ -30,7 +30,7 @@ NUM_OBJECTS = (
 )  # red, blue, 2 red coin, 2 blue coin
 
 INTERACT_THRESHOLD = 0
-FIXED_COIN_LOCATION = True
+FIXED_COIN_LOCATION = False
 
 
 @chex.dataclass
@@ -149,13 +149,13 @@ AGENT_SPAWNS = [
     [0, GRID_SIZE - 3],
     [1, GRID_SIZE - 1],
     # [1, GRID_SIZE - 2],
-    [1, GRID_SIZE - 3],
+    # [1, GRID_SIZE - 3],
     [GRID_SIZE - 1, 0],
     [GRID_SIZE - 1, 1],
     [GRID_SIZE - 1, 2],
     [GRID_SIZE - 2, 0],
     # [GRID_SIZE - 2, 1],
-    [GRID_SIZE - 2, 2],
+    # [GRID_SIZE - 2, 2],
     [GRID_SIZE - 1, GRID_SIZE - 1],
     [GRID_SIZE - 1, GRID_SIZE - 2],
     [GRID_SIZE - 1, GRID_SIZE - 3],
