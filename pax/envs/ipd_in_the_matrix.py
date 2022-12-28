@@ -1181,6 +1181,14 @@ class IPDInTheMatrix(environment.Environment):
             elif r2 > r1 > 0:
                 # blue won
                 img = onp.tile(BLUE_COLOUR, (img.shape[0], img.shape[1], 1))
+            elif r1 == r2:
+                img[:, : width_px // 2, :] = onp.tile(
+                    BLUE_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                )
+                img[:, width_px // 2 :, :] = onp.tile(
+                    RED_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                )
+
             img = img.astype(onp.uint8)
         else:
             # Render the grid
@@ -1299,7 +1307,7 @@ if __name__ == "__main__":
 
     action = 1
     rng = jax.random.PRNGKey(0)
-    num_outer_steps = 10
+    num_outer_steps = 1
     num_inner_steps = 142
     env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
     num_actions = env.action_space().n
@@ -1340,6 +1348,7 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, old_state, (a1 * action, a2 * action), params
         )
+        print(reward)
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             import pdb
