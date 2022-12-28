@@ -74,7 +74,9 @@ class EvoRunner:
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(jax.vmap(cg_visitation))
-        self.ipditm_stats = jax.jit(jax.vmap(ipditm_stats))
+        self.ipditm_stats = jax.jit(
+            jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
+        )
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)

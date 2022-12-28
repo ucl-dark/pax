@@ -13,6 +13,7 @@ freeze: 5
 runner: evo
 
 # Training hyperparameters
+num_devices: 1
 top_k: 8
 popsize: 512 #512
 # env_batch_size = num_envs * num_opponents
