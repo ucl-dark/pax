@@ -14,7 +14,7 @@ runner: evo
 
 # Training hyperparameters
 top_k: 8
-popsize: 64 #512
+popsize: 512 #512
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
 num_opps: 1

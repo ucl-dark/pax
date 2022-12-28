@@ -74,7 +74,7 @@ class EvoRunner:
         self.train_episodes = 0
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(jax.vmap(cg_visitation))
-        self.ipditm_stats = jax.jit(ipditm_stats)
+        self.ipditm_stats = jax.jit(jax.vmap(ipditm_stats))
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -469,7 +469,9 @@ class EvoRunner:
         popsize = self.popsize
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
-        fit_shaper = FitnessShaper(maximize=True, centered_rank=True)
+        fit_shaper = FitnessShaper(
+            maximize=True, centered_rank=True, w_decay=0.1
+        )
         es_logging = ESLog(
             param_reshaper.total_params,
             num_gens,
