@@ -469,7 +469,7 @@ class EvoRunner:
         popsize = self.popsize
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
-        fit_shaper = FitnessShaper(maximize=True)
+        fit_shaper = FitnessShaper(maximize=True, centered_rank=True)
         es_logging = ESLog(
             param_reshaper.total_params,
             num_gens,
@@ -523,8 +523,10 @@ class EvoRunner:
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
             # Maximize fitness
-            fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
-
+            if self.args.benchmark:
+                fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
+            else:
+                fitness_re = fit_shaper.apply(x, fitness)
             # Tell
             evo_state = strategy.tell(
                 x, fitness_re - fitness_re.mean(), evo_state, es_params
