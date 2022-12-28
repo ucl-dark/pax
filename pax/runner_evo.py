@@ -103,7 +103,7 @@ class EvoRunner:
             (0, None),
         )
 
-        num_outer_steps = (
+        self.num_outer_steps = (
             1
             if self.args.env_type == "sequential"
             else self.args.num_steps // self.args.num_inner_steps
@@ -359,7 +359,7 @@ class EvoRunner:
                     _env_params,
                 ),
                 None,
-                length=num_outer_steps,
+                length=self.num_outer_steps,
             )
 
             (
@@ -451,7 +451,7 @@ class EvoRunner:
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
         print(f"Number of Generations: {num_generations}")
-        print(f"Number of Meta Episodes: {num_generations}")
+        print(f"Number of Meta Episodes: {self.num_outer_steps}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {self.args.num_envs}")
         print(f"Number of Opponent: {self.args.num_opps}")
@@ -628,6 +628,10 @@ class EvoRunner:
                 agent2._logger.metrics.update(flattened_metrics)
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)
+                wandb_log = jax.tree_util.tree_map(
+                    lambda x: x.item() if isinstance(x, jax.Array) else x,
+                    wandb_log,
+                )
                 wandb.log(wandb_log)
 
         if self.args.benchmark:

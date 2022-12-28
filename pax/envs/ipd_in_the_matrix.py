@@ -1306,9 +1306,11 @@ if __name__ == "__main__":
     from PIL import Image
 
     action = 1
-    rng = jax.random.PRNGKey(0)
+    render_agent_view = True
     num_outer_steps = 1
     num_inner_steps = 142
+
+    rng = jax.random.PRNGKey(0)
     env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
     num_actions = env.action_space().n
     params = EnvParams(
@@ -1348,7 +1350,6 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, old_state, (a1 * action, a2 * action), params
         )
-        print(reward)
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             import pdb
@@ -1361,17 +1362,16 @@ if __name__ == "__main__":
             print(state.red_pos, state.blue_pos)
 
         img = env.render(state, params)
-        # img1 = env.render_agent_view(state, agent=0)
-        # img2 = env.render_agent_view(state, agent=1)
-
         pics.append(img)
-        # pics1.append(img1)
-        # pics2.append(img2)
+
+        if render_agent_view:
+            img1 = env.render_agent_view(state, agent=0)
+            img2 = env.render_agent_view(state, agent=1)
+            pics1.append(img1)
+            pics2.append(img2)
         old_state = state
     print("Saving GIF")
     pics = [Image.fromarray(img) for img in pics]
-    # pics1 = [Image.fromarray(img) for img in pics1]
-    # pics2 = [Image.fromarray(img) for img in pics2]
     pics[0].save(
         "state.gif",
         format="GIF",
@@ -1382,21 +1382,24 @@ if __name__ == "__main__":
         loop=0,
     )
 
-    # pics1[0].save(
-    #     "agent1.gif",
-    #     format="GIF",
-    #     save_all=True,
-    #     optimize=False,
-    #     append_images=pics1[1:],
-    #     duration=100,
-    #     loop=0,
-    # )
-    # pics2[0].save(
-    #     "agent2.gif",
-    #     format="GIF",
-    #     save_all=True,
-    #     optimize=False,
-    #     append_images=pics2[1:],
-    #     duration=100,
-    #     loop=0,
-    # )
+    if render_agent_view:
+        pics1 = [Image.fromarray(img) for img in pics1]
+        pics2 = [Image.fromarray(img) for img in pics2]
+        pics1[0].save(
+            "agent1.gif",
+            format="GIF",
+            save_all=True,
+            optimize=False,
+            append_images=pics1[1:],
+            duration=100,
+            loop=0,
+        )
+        pics2[0].save(
+            "agent2.gif",
+            format="GIF",
+            save_all=True,
+            optimize=False,
+            append_images=pics2[1:],
+            duration=100,
+            loop=0,
+        )

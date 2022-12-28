@@ -462,6 +462,9 @@ def watcher_setup(args, logger):
             losses.update(value)
             losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
@@ -473,6 +476,9 @@ def watcher_setup(args, logger):
         policy = logger_hyper(agent)
         losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
