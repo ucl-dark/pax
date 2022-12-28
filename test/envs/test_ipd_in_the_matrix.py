@@ -61,11 +61,11 @@ def test_ipditm_collision():
         red_inventory=jnp.array([1.0, 1.0], dtype=jnp.float32),
         blue_inventory=jnp.array([1.0, 1.0], dtype=jnp.float32),
         red_coins=jnp.array(
-            [[1, 2], [2, 1], [1, 5], [2, 6], [6, 2], [5, 1], [6, 5], [5, 6]],
+            [[1, 2], [2, 1], [1, 5], [2, 6], [6, 2], [5, 1]],
             dtype=jnp.int8,
         ),
         blue_coins=jnp.array(
-            [[1, 1], [2, 2], [1, 6], [2, 5], [6, 1], [5, 2], [6, 6], [5, 5]],
+            [[1, 1], [2, 2], [1, 6], [2, 5], [6, 1], [5, 2]],
             dtype=jnp.int8,
         ),
         freeze=jnp.array(-1, dtype=jnp.int16),
