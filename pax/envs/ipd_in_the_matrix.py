@@ -240,16 +240,16 @@ class IPDInTheMatrix(environment.Environment):
                 grid1,
             )
 
-            angle1 = jnp.zeros_like(grid1, dtype=jnp.int8)
+            angle1 = -1 * jnp.ones_like(grid1, dtype=jnp.int8)
             angle1 = jnp.where(
                 grid1 == Items.blue_agent,
                 (state.blue_pos[2] - state.red_pos[2]) % 4,
-                0,
+                -1,
             )
             angle1 = jax.nn.one_hot(angle1, 4)
 
             # one-hot (drop first channel as its empty blocks)
-            grid1 = jax.nn.one_hot(grid1, len(Items), dtype=jnp.int8)[:, :, 1:]
+            grid1 = jax.nn.one_hot(grid1 - 1, len(Items) - 1, dtype=jnp.int8)
             obs1 = jnp.concatenate([grid1, angle1], axis=-1)
 
             x, y = _get_obs_point(
@@ -278,15 +278,16 @@ class IPDInTheMatrix(environment.Environment):
                 grid2,
             )
 
-            angle2 = jnp.zeros_like(grid2, dtype=jnp.int8)
+            angle2 = -1 * jnp.ones_like(grid2, dtype=jnp.int8)
             angle2 = jnp.where(
                 grid2 == Items.red_agent,
                 (state.red_pos[2] - state.blue_pos[2]) % 4,
-                0,
+                -1,
             )
             angle2 = jax.nn.one_hot(angle2, 4)
 
-            grid2 = jax.nn.one_hot(grid2, len(Items), dtype=jnp.int8)[:, :, 1:]
+            # sends 0 -> -1 and droped by one_hot
+            grid2 = jax.nn.one_hot(grid2 - 1, len(Items) - 1, dtype=jnp.int8)
             # make agent 2 think it is agent 1
             _grid2 = grid2.at[:, :, 0].set(grid2[:, :, 1])
             _grid2 = _grid2.at[:, :, 1].set(grid2[:, :, 0])
@@ -1073,19 +1074,14 @@ class IPDInTheMatrix(environment.Environment):
 
         # agent direction
         pricipal_dir = 0
-
+        red_hat = bool(state.red_inventory.sum() > INTERACT_THRESHOLD)
+        blue_hat = bool(state.blue_inventory.sum() > INTERACT_THRESHOLD)
         if agent == 0:
-            principal_hat = bool(
-                state.red_inventory.sum() > INTERACT_THRESHOLD
-            )
-            other_hat = bool(state.blue_inventory.sum() > INTERACT_THRESHOLD)
-
+            principal_hat = red_hat
+            other_hat = blue_hat
         else:
-
-            principal_hat = bool(
-                state.blue_inventory.sum() > INTERACT_THRESHOLD
-            )
-            other_hat = bool(state.red_inventory.sum() > INTERACT_THRESHOLD)
+            principal_hat = blue_hat
+            other_hat = red_hat
 
         # Render the grid
         for j in range(0, grid.shape[1]):
@@ -1330,7 +1326,7 @@ if __name__ == "__main__":
     }
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
-    # env.step = jax.jit(env.step)
+    env.step = jax.jit(env.step)
 
     for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
