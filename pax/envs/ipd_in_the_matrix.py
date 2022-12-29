@@ -210,30 +210,18 @@ class IPDInTheMatrix(environment.Environment):
 
         def _get_obs(state: EnvState) -> jnp.ndarray:
             # create state
-            obs = jnp.pad(
+            grid = jnp.pad(
                 state.grid,
                 ((PADDING, PADDING), (PADDING, PADDING)),
                 constant_values=Items.wall,
             )
-            angle = jnp.copy(obs)
-            angle = angle.at[
-                state.red_pos[0] + PADDING, state.red_pos[1] + PADDING
-            ].set(state.red_pos[2])
-
-            angle = angle.at[
-                state.blue_pos[0] + PADDING, state.blue_pos[1] + PADDING
-            ].set(state.blue_pos[2])
-
-            grid = jnp.stack([obs, angle], axis=-1)
-
             x, y = _get_obs_point(
                 state.red_pos[0], state.red_pos[1], state.red_pos[2]
             )
-
             grid1 = jax.lax.dynamic_slice(
                 grid,
-                start_indices=(x, y, jnp.int8(0)),
-                slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
+                start_indices=(x, y),
+                slice_sizes=(OBS_SIZE, OBS_SIZE),
             )
             # rotate
             grid1 = jnp.where(
@@ -252,12 +240,17 @@ class IPDInTheMatrix(environment.Environment):
                 grid1,
             )
 
-            # one-hot (drop first channel as its empty blocks)
-            obs1, angle1 = grid1[:, :, 0], grid1[:, :, 1]
-            obs1 = jax.nn.one_hot(obs1, len(Items), dtype=jnp.int8)[:, :, 1:]
-            angle1 = (angle1 - state.red_pos[3]) % 4
+            angle1 = jnp.zeros_like(grid1, dtype=jnp.int8)
+            angle1 = jnp.where(
+                grid1 == Items.blue_agent,
+                (state.blue_pos[2] - state.red_pos[2]) % 4,
+                0,
+            )
             angle1 = jax.nn.one_hot(angle1, 4)
-            obs1 = jnp.concatenate([obs1, angle1], axis=-1)
+
+            # one-hot (drop first channel as its empty blocks)
+            grid1 = jax.nn.one_hot(grid1, len(Items), dtype=jnp.int8)[:, :, 1:]
+            obs1 = jnp.concatenate([grid1, angle1], axis=-1)
 
             x, y = _get_obs_point(
                 state.blue_pos[0], state.blue_pos[1], state.blue_pos[2]
@@ -265,8 +258,8 @@ class IPDInTheMatrix(environment.Environment):
 
             grid2 = jax.lax.dynamic_slice(
                 grid,
-                start_indices=(x, y, jnp.int8(0)),
-                slice_sizes=(OBS_SIZE, OBS_SIZE, 2),
+                start_indices=(x, y),
+                slice_sizes=(OBS_SIZE, OBS_SIZE),
             )
 
             grid2 = jnp.where(
@@ -285,15 +278,19 @@ class IPDInTheMatrix(environment.Environment):
                 grid2,
             )
 
-            obs2, angle2 = grid2[:, :, 0], grid2[:, :, 1]
-            obs2 = jax.nn.one_hot(obs2, len(Items), dtype=jnp.int8)[:, :, 1:]
-            # make agent 2 think it is agent 1
-            _obs2 = obs2.at[:, :, 0].set(obs2[:, :, 1])
-            _obs2 = _obs2.at[:, :, 1].set(obs2[:, :, 0])
-
-            angle2 = (grid2[:, :, 1] - state.blue_pos[3]) % 4
+            angle2 = jnp.zeros_like(grid2, dtype=jnp.int8)
+            angle2 = jnp.where(
+                grid2 == Items.red_agent,
+                (state.red_pos[2] - state.blue_pos[2]) % 4,
+                0,
+            )
             angle2 = jax.nn.one_hot(angle2, 4)
-            _obs2 = jnp.concatenate([_obs2, angle2], axis=-1)
+
+            grid2 = jax.nn.one_hot(grid2, len(Items), dtype=jnp.int8)[:, :, 1:]
+            # make agent 2 think it is agent 1
+            _grid2 = grid2.at[:, :, 0].set(grid2[:, :, 1])
+            _grid2 = _grid2.at[:, :, 1].set(grid2[:, :, 0])
+            _obs2 = jnp.concatenate([_grid2, angle2], axis=-1)
 
             red_pickup = jnp.sum(state.red_inventory) > INTERACT_THRESHOLD
             blue_pickup = jnp.sum(state.blue_inventory) > INTERACT_THRESHOLD
@@ -1058,11 +1055,15 @@ class IPDInTheMatrix(environment.Environment):
         tile_size = 32
         obs = self.get_obs(state)
 
-        grid = onp.array(obs[agent]["observation"])
+        grid = onp.array(obs[agent]["observation"][:, :, :-4])
         empty_space_channel = onp.zeros((OBS_SIZE, OBS_SIZE, 1))
         grid = onp.concatenate((empty_space_channel, grid), axis=-1)
         grid = onp.argmax(grid.reshape(-1, grid.shape[-1]), axis=1)
         grid = grid.reshape(OBS_SIZE, OBS_SIZE)
+
+        angles = onp.array(obs[agent]["observation"][:, :, -4:])
+        angles = onp.argmax(angles.reshape(-1, angles.shape[-1]), axis=1)
+        angles = angles.reshape(OBS_SIZE, OBS_SIZE)
 
         # Compute the total grid size
         width_px = grid.shape[0] * tile_size
@@ -1074,18 +1075,12 @@ class IPDInTheMatrix(environment.Environment):
         pricipal_dir = 0
 
         if agent == 0:
-            other_dir = (
-                state.blue_pos[2].item() - state.red_pos[2].item()
-            ) % 4
             principal_hat = bool(
                 state.red_inventory.sum() > INTERACT_THRESHOLD
             )
             other_hat = bool(state.blue_inventory.sum() > INTERACT_THRESHOLD)
 
         else:
-            other_dir = (
-                state.red_pos[2].item() - state.blue_pos[2].item()
-            ) % 4
 
             principal_hat = bool(
                 state.blue_inventory.sum() > INTERACT_THRESHOLD
@@ -1109,7 +1104,7 @@ class IPDInTheMatrix(environment.Environment):
                     agent_hat = principal_hat
 
                 elif other_agent_here:
-                    agent_dir = other_dir
+                    agent_dir = angles[i, j]
                     agent_hat = other_hat
 
                 else:
@@ -1308,7 +1303,7 @@ if __name__ == "__main__":
     action = 1
     render_agent_view = True
     num_outer_steps = 1
-    num_inner_steps = 142
+    num_inner_steps = 150
 
     rng = jax.random.PRNGKey(0)
     env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
@@ -1335,7 +1330,7 @@ if __name__ == "__main__":
     }
 
     key_int = {"w": 2, "a": 0, "s": 4, "d": 1, " ": 4}
-    env.step = jax.jit(env.step)
+    # env.step = jax.jit(env.step)
 
     for t in range(num_outer_steps * num_inner_steps):
         rng, rng1, rng2 = jax.random.split(rng, 3)
@@ -1354,7 +1349,7 @@ if __name__ == "__main__":
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             import pdb
 
-            pdb.set_trace()
+            # pdb.set_trace()
             print("collision")
             print(
                 f"timestep: {t}, A1: {int_action[a1.item()]} A2:{int_action[a2.item()]}"
