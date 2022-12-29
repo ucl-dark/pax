@@ -85,8 +85,8 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1     # Initial learning rate
-  lrate_decay: 0.9999 # Multiplicative decay factor
+  lrate_init: 0.005     # Initial learning rate
+  lrate_decay: 0.999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
