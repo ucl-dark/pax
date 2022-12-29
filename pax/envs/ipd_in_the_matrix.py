@@ -1093,8 +1093,6 @@ class IPDInTheMatrix(environment.Environment):
                 principal_agent_here = cell == 1
                 other_agent_here = cell == 2
 
-                agent_dir = None
-
                 if principal_agent_here:
                     agent_dir = pricipal_dir
                     agent_hat = principal_hat
