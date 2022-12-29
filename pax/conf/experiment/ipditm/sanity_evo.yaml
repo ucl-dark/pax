@@ -78,7 +78,7 @@ ppo2:
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES, SimpleGA]
-  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
+  sigma_init: 0.075   # Initial scale of isotropic Gaussian noise
   sigma_decay: 0.999  # Multiplicative decay factor
   sigma_limit: 0.01   # Smallest possible scale
   init_min: 0.0       # Range of parameter mean initialization - Min
