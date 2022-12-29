@@ -15,7 +15,7 @@ runner: evo
 # Training hyperparameters
 num_devices: 1
 top_k: 8
-popsize: 512 #512
+popsize: 1024 #512
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
 num_opps: 1
@@ -49,7 +49,7 @@ ppo1:
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: True # only works with CNN
+  separate: False # only works with CNN
   hidden_size: 16 #50
 
 ppo2:
