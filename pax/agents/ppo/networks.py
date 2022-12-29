@@ -222,15 +222,6 @@ class CNN_ipditm(hk.Module):
             stride=1,
             padding="SAME",
         )
-        self.conv_a_1 = hk.Conv2D(
-            output_channels=output_channels,
-            kernel_shape=kernel_shape,
-            stride=1,
-            padding="SAME",
-        )
-        self.linear_a_0 = hk.Linear(output_channels)
-        self.linear_a_1 = hk.Linear(output_channels)
-
         # akbir suggested fix
         self.flatten = hk.Flatten()
 
@@ -240,16 +231,9 @@ class CNN_ipditm(hk.Module):
         # Actor and Critic
         x = self.conv_a_0(obs)
         x = jax.nn.relu(x)
-        x = self.conv_a_1(x)
-        x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
-        # akbir suggested fix
-        # return self.linear(x)
-        x = self.linear_a_0(x)
-        x = jax.nn.relu(x)
-        x = self.linear_a_1(x)
-        x = jax.nn.relu(x)
+
         return x
 
 
@@ -453,57 +437,6 @@ def make_ipditm_network(
 
         else:
             raise ValueError("IPDITM network must have a CNN")
-            layers.extend(
-                [
-                    hk.nets.MLP(
-                        [hidden_size],
-                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                        b_init=hk.initializers.Constant(0),
-                        activate_final=True,
-                        activation=jnp.tanh,
-                    ),
-                    CategoricalValueHead(num_values=num_actions),
-                ]
-            )
-        policy_value_network = hk.Sequential(layers)
-        return policy_value_network(inputs)
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network
-
-
-def old_make_ipditm_network(
-    num_actions: int,
-    separate: bool,
-    with_cnn: bool,
-    hidden_size: int,
-    output_channels: int,
-    kernel_shape: Tuple[int],
-):
-    def forward_fn(inputs):
-        layers = []
-
-        if separate and with_cnn:
-            cnn = CNNSeparate(output_channels, kernel_shape)
-            layers.extend([cnn])
-        elif with_cnn:
-            cnn = CNN(output_channels, kernel_shape)
-            cvh = CategoricalValueHead(num_values=num_actions)
-            layers.extend([cnn, cvh])
-
-        else:
-            layers.extend(
-                [
-                    hk.nets.MLP(
-                        [hidden_size],
-                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                        b_init=hk.initializers.Constant(0),
-                        activate_final=True,
-                        activation=jnp.tanh,
-                    ),
-                    CategoricalValueHead(num_values=num_actions),
-                ]
-            )
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -588,34 +521,6 @@ def make_GRU_coingame_network(
     return network, hidden_state
 
 
-def old_make_GRU_ipditm_network(
-    num_actions: int,
-    hidden_size: int,
-    separate: bool,
-    output_channels: int,
-    kernel_shape: Tuple[int],
-):
-    hidden_state = jnp.zeros((1, hidden_size))
-
-    def forward_fn(
-        inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
-        """forward function"""
-        torso = CNN(output_channels, kernel_shape)
-        if separate:
-            cvh = CategoricalValueHeadSeparate(num_values=num_actions)
-        else:
-            cvh = CategoricalValueHead(num_values=num_actions)
-        gru = hk.GRU(hidden_size)
-        embedding = torso(inputs)
-        embedding, state = gru(embedding, state)
-        logits, values = cvh(embedding)
-        return (logits, values), state
-
-    network = hk.without_apply_rng(hk.transform(forward_fn))
-    return network, hidden_state
-
-
 def make_GRU_ipditm_network(
     num_actions: int,
     hidden_size: int,
@@ -630,13 +535,13 @@ def make_GRU_ipditm_network(
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = CNN_ipditm(output_channels, kernel_shape)
+        gru = hk.GRU(hidden_size)
         if separate:
             cvh = CategoricalValueHeadSeparate_ipditm(
                 num_values=num_actions, hidden_size=hidden_size
             )
         else:
             cvh = CategoricalValueHead(num_values=num_actions)
-        gru = hk.GRU(hidden_size)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
         logits, values = cvh(embedding)
