@@ -221,6 +221,7 @@ class CNN_ipditm(hk.Module):
             kernel_shape=kernel_shape,
             stride=1,
             padding="SAME",
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
         )
         # akbir suggested fix
         self.flatten = hk.Flatten()
