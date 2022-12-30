@@ -182,7 +182,9 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         def get_ga_strategy(agent):
             """Returns the SimpleGA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, n_devices=args.num_devices
+            )
             strategy = SimpleGA(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
@@ -192,7 +194,9 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         def get_cma_strategy(agent):
             """Returns the CMA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, n_devices=args.num_devices
+            )
             strategy = CMA_ES(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
