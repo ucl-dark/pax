@@ -30,7 +30,7 @@ NUM_OBJECTS = (
 )  # red, blue, 2 red coin, 2 blue coin
 
 INTERACT_THRESHOLD = 0
-FIXED_COIN_LOCATION = False
+FIXED_COIN_LOCATION = True
 
 
 @chex.dataclass
