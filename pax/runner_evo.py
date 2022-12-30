@@ -532,9 +532,7 @@ class EvoRunner:
             else:
                 fitness_re = fit_shaper.apply(x, fitness)
             # Tell
-            evo_state = strategy.tell(
-                x, fitness_re - fitness_re.mean(), evo_state, es_params
-            )
+            evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
             if self.args.benchmark:
                 evo_state.mean.block_until_ready()
                 self.tell_time.append(time.time() - start)
@@ -576,7 +574,9 @@ class EvoRunner:
                 print(
                     f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
-                print(f"Env Stats: {env_stats}")
+                print(
+                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                )
                 print(
                     "--------------------------------------------------------------------------"
                 )
