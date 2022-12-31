@@ -93,12 +93,14 @@ class CategoricalValueHeadSeparate_ipditm(hk.Module):
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
+            activation=jnp.tanh,
         )
         self._value_body = hk.nets.MLP(
             [hidden_size],
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
+            activation=jnp.tanh,
         )
         self._logit_layer = hk.Linear(
             num_values,
