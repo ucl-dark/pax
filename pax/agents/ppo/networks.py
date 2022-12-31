@@ -19,12 +19,12 @@ class CategoricalValueHead(hk.Module):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
             num_values,
-            w_init=hk.initializers.Constant(0.5),
+            w_init=hk.initializers.Orthogonal(0.01),
             with_bias=False,
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Constant(0.5),
+            w_init=hk.initializers.Orthogonal(1),
             with_bias=False,
         )
 
@@ -52,7 +52,7 @@ class CategoricalValueHeadSeparate(hk.Module):
         )
         self._logit_layer = hk.Linear(
             num_values,
-            w_init=hk.initializers.Orthogonal(1.0),
+            w_init=hk.initializers.Orthogonal(0.01),
             b_init=hk.initializers.Constant(0),
         )
         self._value_body = hk.nets.MLP(
@@ -64,7 +64,7 @@ class CategoricalValueHeadSeparate(hk.Module):
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Orthogonal(0.01),
+            w_init=hk.initializers.Orthogonal(1),
             b_init=hk.initializers.Constant(0),
         )
 
@@ -93,23 +93,21 @@ class CategoricalValueHeadSeparate_ipditm(hk.Module):
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
-            activation=jnp.tanh,
-        )
-        self._logit_layer = hk.Linear(
-            num_values,
-            w_init=hk.initializers.Orthogonal(1.0),
-            b_init=hk.initializers.Constant(0),
         )
         self._value_body = hk.nets.MLP(
             [hidden_size],
             w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
             b_init=hk.initializers.Constant(0),
             activate_final=True,
-            activation=jnp.tanh,
+        )
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Orthogonal(0.01),
+            b_init=hk.initializers.Constant(0),
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Orthogonal(0.01),
+            w_init=hk.initializers.Orthogonal(1.0),
             b_init=hk.initializers.Constant(0),
         )
 
@@ -209,7 +207,6 @@ class CNN(hk.Module):
         x = self.flatten(x)
         x = self.linear_a_0(x)
         x = jax.nn.relu(x)
-
         return x
 
 
@@ -536,7 +533,12 @@ def make_GRU_ipditm_network(
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = CNN_ipditm(output_channels, kernel_shape)
-        gru = hk.GRU(hidden_size)
+        gru = hk.GRU(
+            hidden_size,
+            w_i_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_h_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            b_init=hk.initializers.Constant(0),
+        )
         if separate:
             cvh = CategoricalValueHeadSeparate_ipditm(
                 num_values=num_actions, hidden_size=hidden_size
