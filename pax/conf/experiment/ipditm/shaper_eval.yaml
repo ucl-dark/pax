@@ -21,12 +21,14 @@ num_inner_steps: 152
 total_timesteps: 5e7
 save_interval: 100 
 
-# # Evaluation
-model_path1: exp/chaos-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-24_11.05.16.230057/generation_40
+# Evaluation
+run_path: ucl-dark/ipditm/38p53g1m
+model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-29_23.27.55.409662/generation_500
 model_path2: False #set to wandb file or False
 
 # PPO agent parameters
-ppo1:
+ppo1: 
+  type: 'PPO_memory'
   num_minibatches: 8
   num_epochs: 2 
   gamma: 0.96
@@ -38,16 +40,16 @@ ppo1:
   anneal_entropy: False
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.05
+  entropy_coeff_end: 0.005
   lr_scheduling: False
-  learning_rate: 0.0001 #0.05
+  learning_rate: 0.005
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: False # only works with CNN
-  hidden_size: 8 #50
+  separate: True # only works with CNN
+  hidden_size: 8
 
 ppo2:
   num_minibatches: 8
@@ -61,16 +63,16 @@ ppo2:
   anneal_entropy: False
   entropy_coeff_start: 0.1
   entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.05
+  entropy_coeff_end: 0.005
   lr_scheduling: False
-  learning_rate: 0.0001 #0.05
+  learning_rate: 0.005
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: True # only works with CNN
-  hidden_size: 8 #50
+  separate: False # only works with CNN
+  hidden_size: 8
 
 # Logging setup
 wandb:

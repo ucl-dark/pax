@@ -1161,13 +1161,13 @@ class IPDInTheMatrix(environment.Environment):
         highlight_mask[
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
-        if state.freeze > 0:
+        if state.freeze >= 0:
             # check which agent won
             r1, r2 = self.get_reward(state, params)
-            if r1 > r2 > 0:
+            if r1 > r2:
                 # red won
                 img = onp.tile(RED_COLOUR, (img.shape[0], img.shape[1], 1))
-            elif r2 > r1 > 0:
+            elif r2 > r1:
                 # blue won
                 img = onp.tile(BLUE_COLOUR, (img.shape[0], img.shape[1], 1))
             elif r1 == r2:
