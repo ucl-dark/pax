@@ -572,7 +572,7 @@ class EvoRunner:
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
                 )
                 print(
-                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
+                    f"Reward Per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print(
                     f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
