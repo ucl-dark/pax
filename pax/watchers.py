@@ -515,8 +515,8 @@ def ipditm_stats(
 
     rewards1 = traj1.rewards.sum() / num_envs
     rewards2 = traj2.rewards.sum() / num_envs
-    f_rewards1 = traj1.rewards[-1, ...].sum()
-    f_rewards2 = traj2.rewards[-1, ...].sum()
+    f_rewards1 = traj1.rewards[-1, ...].sum() / num_envs
+    f_rewards2 = traj2.rewards[-1, ...].sum() / num_envs
 
     return {
         "interactions/1": interacts1,
