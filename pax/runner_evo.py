@@ -610,8 +610,12 @@ class EvoRunner:
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                    "train/episode_reward/player_1": float(rewards_1.mean()),
-                    "train/episode_reward/player_2": float(rewards_2.mean()),
+                    "train/reward_per_timestep/player_1": float(
+                        rewards_1.mean()
+                    ),
+                    "train/reward_per_timestep/player_2": float(
+                        rewards_2.mean()
+                    ),
                 }
                 wandb_log.update(env_stats)
                 # loop through population

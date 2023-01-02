@@ -517,10 +517,10 @@ class RLRunner:
                     wandb.log(
                         {
                             "train_iteration": i,
-                            "train/episode_reward/player_1": float(
+                            "train/reward_per_timestep/player_1": float(
                                 rewards_1.mean().item()
                             ),
-                            "train/episode_reward/player_2": float(
+                            "train/reward_per_timestep/player_2": float(
                                 rewards_2.mean().item()
                             ),
                         }
