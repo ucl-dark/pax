@@ -154,6 +154,7 @@ def env_setup(args, logger=None):
         env = IPDInTheMatrix(
             num_inner_steps=args.num_inner_steps,
             num_outer_steps=args.num_steps // args.num_inner_steps,
+            fixed_coin_location=args.fixed_coins,
         )
         if logger:
             logger.info(

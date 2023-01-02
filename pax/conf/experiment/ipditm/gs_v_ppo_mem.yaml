@@ -11,6 +11,7 @@ egocentric: True
 env_discount: 0.96
 freeze: 5
 payoff: [[3, 0], [5, 1]]
+fixed_coins: True
 
 # Save
 save: True
@@ -27,8 +28,8 @@ popsize: 64 #512
 num_envs: 50
 num_opps: 1
 num_devices: 4
-num_steps: 76000
-num_inner_steps: 152 
+num_steps: 64000
+num_inner_steps: 128 
 num_generations: 5000
 
 # Evaluation

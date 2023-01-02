@@ -11,6 +11,7 @@ env_discount: 0.96
 payoff: [[3, 0], [5, 1]]
 freeze: 5
 runner: evo
+fixed_coins: True
 
 # Training hyperparameters
 num_devices: 1
@@ -18,7 +19,7 @@ top_k: 8
 popsize: 128 #512
 num_envs: 50
 num_opps: 1
-num_inner_steps: 152 
+num_inner_steps: 128 
 num_generations: 5000
 save_interval: 1e5
 benchmark: False

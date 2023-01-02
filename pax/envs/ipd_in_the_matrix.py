@@ -30,7 +30,6 @@ NUM_OBJECTS = (
 )  # red, blue, 2 red coin, 2 blue coin
 
 INTERACT_THRESHOLD = 0
-FIXED_COIN_LOCATION = True
 
 
 @chex.dataclass
@@ -193,6 +192,7 @@ class IPDInTheMatrix(environment.Environment):
         self,
         num_inner_steps: int,
         num_outer_steps: int,
+        fixed_coin_location: bool,
     ):
 
         super().__init__()
@@ -838,7 +838,7 @@ class IPDInTheMatrix(environment.Environment):
             grid = grid.at[player_pos[1, 0], player_pos[1, 1]].set(
                 jnp.int8(Items.blue_agent)
             )
-            if FIXED_COIN_LOCATION:
+            if fixed_coin_location:
                 rand_idx = jax.random.randint(
                     subkey, shape=(), minval=0, maxval=1
                 )
@@ -1161,7 +1161,7 @@ class IPDInTheMatrix(environment.Environment):
         highlight_mask[
             startx : startx + OBS_SIZE, starty : starty + OBS_SIZE
         ] = True
-        if state.freeze >= 0:
+        if state.freeze > 0:
             # check which agent won
             r1, r2 = self.get_reward(state, params)
             if r1 > r2:
