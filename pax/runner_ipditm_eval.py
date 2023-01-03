@@ -474,21 +474,27 @@ class IPDITMEvalRunner:
             env_stats = jax.tree_util.tree_map(lambda x: x.item(), env_stats)
             # metrics [outer_timesteps, num_opps]
             flattened_metrics_2 = jax.tree_util.tree_map(
-                lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                lambda x: x.flatten(), a2_metrics
             )
-            agent2._logger.metrics = (
-                agent2._logger.metrics | flattened_metrics_2
-            )
+            list_of_metrics = [
+                {k: v[i] for k, v in flattened_metrics_2.items()}
+                for i in range(len(list(flattened_metrics_2.values())[0]))
+            ]
 
-            for watcher, agent in zip(watchers, agents):
-                watcher(agent)
+            # log agent one
+            watchers[0](agents[0])
+            for i, metric in enumerate(list_of_metrics):
+                agents[1]._logger.metrics = metric
+                agents[1]._logger.metrics["sgd_steps"] = i
+                watchers[1](agents[1])
+
             wandb.log(
                 {
                     "episodes": 1,
-                    "train/episode_reward/player_1": float(
+                    "eval/episode_reward/player_1": float(
                         rewards_1.mean().item()
                     ),
-                    "train/episode_reward/player_2": float(
+                    "eval/episode_reward/player_2": float(
                         rewards_2.mean().item()
                     ),
                 }
@@ -496,7 +502,11 @@ class IPDITMEvalRunner:
             )
 
         print("Generating Gif")
-        env = IPDInTheMatrix(self.args.num_inner_steps, self.num_outer_steps)
+        env = IPDInTheMatrix(
+            self.args.num_inner_steps,
+            self.num_outer_steps,
+            self.args.fixed_coins,
+        )
         env_state = traj.env_state
         pics = []
 
