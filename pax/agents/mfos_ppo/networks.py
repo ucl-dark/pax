@@ -68,12 +68,6 @@ class CNNFusion(hk.Module):
             stride=1,
             padding="SAME",
         )
-        self.conv_1 = hk.Conv2D(
-            output_channels=output_channels,
-            kernel_shape=kernel_shape,
-            stride=1,
-            padding="SAME",
-        )
         self.linear = hk.Linear(output_channels)
         self.flatten = hk.Flatten()
 
@@ -82,8 +76,6 @@ class CNNFusion(hk.Module):
         inventory = inputs["inventory"]
         # Actor
         x = self.conv_0(obs)
-        x = jax.nn.relu(x)
-        x = self.conv_1(x)
         x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
