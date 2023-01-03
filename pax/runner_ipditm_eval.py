@@ -375,17 +375,6 @@ class IPDITMEvalRunner:
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id == "iterated_matrix_game":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.ipd_stats(
-                        traj_1.observations,
-                        traj_1.actions,
-                        obs1,
-                    ),
-                )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
             elif args.env_id == "IPDInTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -413,6 +402,7 @@ class IPDITMEvalRunner:
                 a2_mem,
                 a2_metrics,
                 traj_1,
+                traj_2,
             )
 
         # self.rollout = _rollout
@@ -459,6 +449,7 @@ class IPDITMEvalRunner:
             a2_mem,
             a2_metrics,
             traj,
+            other_traj,
         ) = self.rollout(
             rng_run, a1_state, a1_mem, a2_state, a2_mem, env_params
         )
@@ -471,7 +462,6 @@ class IPDITMEvalRunner:
         print()
 
         if watchers:
-            env_stats = jax.tree_util.tree_map(lambda x: x.item(), env_stats)
             # metrics [outer_timesteps, num_opps]
             flattened_metrics_2 = jax.tree_util.tree_map(
                 lambda x: x.flatten(), a2_metrics
@@ -480,13 +470,85 @@ class IPDITMEvalRunner:
                 {k: v[i] for k, v in flattened_metrics_2.items()}
                 for i in range(len(list(flattened_metrics_2.values())[0]))
             ]
+            env_state = traj.env_state
+            list_of_env_states = [
+                EnvState(
+                    red_pos=env_state.red_pos[i, ...],
+                    blue_pos=env_state.blue_pos[i, ...],
+                    inner_t=env_state.inner_t[i, ...],
+                    outer_t=env_state.outer_t[i, ...],
+                    grid=env_state.grid[i, ...],
+                    red_inventory=env_state.red_inventory[i, ...],
+                    blue_inventory=env_state.blue_inventory[i, ...],
+                    red_coins=env_state.red_coins[i, ...],
+                    blue_coins=env_state.blue_coins[i, ...],
+                    freeze=env_state.freeze[i, ...],
+                )
+                for i in range(
+                    self.args.num_steps // self.args.num_inner_steps
+                )
+            ]
+
+            list_traj1 = [
+                Sample(
+                    observations=jax.tree_util.tree_map(
+                        lambda x: x[i, ...], traj.observations
+                    ),
+                    actions=traj.actions[i, ...],
+                    rewards=traj.rewards[i, ...],
+                    dones=traj.dones[i, ...],
+                    env_state=None,
+                    behavior_log_probs=traj.behavior_log_probs[i, ...],
+                    behavior_values=traj.behavior_values[i, ...],
+                    hiddens=traj.hiddens[i, ...],
+                )
+                for i in range(
+                    self.args.num_steps // self.args.num_inner_steps
+                )
+            ]
+
+            list_traj2 = [
+                Sample(
+                    observations=jax.tree_util.tree_map(
+                        lambda x: x[i, ...], other_traj.observations
+                    ),
+                    actions=other_traj.actions[i, ...],
+                    rewards=other_traj.rewards[i, ...],
+                    dones=other_traj.dones[i, ...],
+                    env_state=None,
+                    behavior_log_probs=other_traj.behavior_log_probs[i, ...],
+                    behavior_values=other_traj.behavior_values[i, ...],
+                    hiddens=other_traj.hiddens[i, ...],
+                )
+                for i in range(
+                    self.args.num_steps // self.args.num_inner_steps
+                )
+            ]
+
+            list_of_env_stats = [
+                jax.tree_util.tree_map(
+                    lambda x: x.item(),
+                    self.ipditm_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
+                        self.args.num_envs,
+                    ),
+                )
+                for (env_state, traj_1, traj_2) in zip(
+                    list_of_env_states, list_traj1, list_traj2
+                )
+            ]
 
             # log agent one
             watchers[0](agents[0])
+
+            # log the inner episodes
             for i, metric in enumerate(list_of_metrics):
                 agents[1]._logger.metrics = metric
                 agents[1]._logger.metrics["sgd_steps"] = i
                 watchers[1](agents[1])
+                wandb.log({"inner_episode": i} | list_of_env_stats[i])
 
             wandb.log(
                 {
