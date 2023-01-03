@@ -548,15 +548,15 @@ class IPDITMEvalRunner:
                 agents[1]._logger.metrics = metric
                 agents[1]._logger.metrics["sgd_steps"] = i
                 watchers[1](agents[1])
-                wandb.log({"inner_episode": i} | list_of_env_stats[i])
+                wandb.log({"train_iteration": i} | list_of_env_stats[i])
 
             wandb.log(
                 {
                     "episodes": 1,
-                    "eval/episode_reward/player_1": float(
+                    "eval/meta_reward/player_1": float(
                         rewards_1.mean().item()
                     ),
-                    "eval/episode_reward/player_2": float(
+                    "eval/meta_reward/player_2": float(
                         rewards_2.mean().item()
                     ),
                 }
