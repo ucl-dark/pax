@@ -316,7 +316,7 @@ class RLRunner:
             # Player 1
             _a1_mem = agent1.batch_reset(_a1_mem, False)
 
-            # Player 2
+            # Resetting Agents if necessary
             if args.agent1 == "NaiveEx":
                 _a1_state, _a1_mem = agent1.batch_init(obs[0])
 
