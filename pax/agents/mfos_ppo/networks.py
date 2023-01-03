@@ -88,11 +88,11 @@ class CNNMFOS(hk.Module):
         super().__init__(name="CNNMFOS")
         self.t_network = CNNFusion(output_channels, kernel_shape)
         self.a_network = CNNFusion(output_channels, kernel_shape)
-        self.v_network = CNNFusion(output_channels, kernel_shape)
+        self.v_network = CNNFusion(1, kernel_shape)
 
         self._meta = hk.GRU(hidden_size)
         self._actor = hk.GRU(hidden_size)
-        self._critic = hk.GRU(hidden_size)
+        self._critic = hk.GRU(1)
 
         self._meta_layer = hk.Linear(hidden_size)
         self._logit_layer = hk.Linear(

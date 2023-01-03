@@ -233,7 +233,6 @@ class CNN_ipditm(hk.Module):
         x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
-
         return x
 
 
