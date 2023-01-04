@@ -20,8 +20,8 @@ save: True
 # total popsize = popsize * num_devices
 num_envs: 50
 num_opps: 1
-num_steps: 64000
-num_inner_steps: 128 
+num_steps: 76000
+num_inner_steps: 152 
 total_timesteps: 5e10
 save_interval: 1e10
 benchmark: False

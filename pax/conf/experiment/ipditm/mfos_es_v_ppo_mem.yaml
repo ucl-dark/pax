@@ -24,8 +24,8 @@ popsize: 128 #512
 # total popsize = popsize * num_devices
 num_envs: 50
 num_opps: 1
-num_steps: 64000
-num_inner_steps: 128 
+num_steps: 76000
+num_inner_steps: 152 
 num_generations: 5000
 benchmark: False
 
