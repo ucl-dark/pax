@@ -236,7 +236,7 @@ class CNN_ipditm(hk.Module):
         return x
 
 
-class CNNSeparate(hk.Module):
+class CNNSeparate_ipditm(hk.Module):
     def __init__(self, output_channels, kernel_shape, num_actions: int):
         super().__init__(name="CNN")
         self.conv_a_0 = hk.Conv2D(
@@ -245,30 +245,14 @@ class CNNSeparate(hk.Module):
             stride=1,
             padding="SAME",
         )
-        self.conv_a_1 = hk.Conv2D(
-            output_channels=output_channels,
-            kernel_shape=kernel_shape,
-            stride=1,
-            padding="SAME",
-        )
         self.linear_a_0 = hk.Linear(output_channels)
-        self.linear_a_1 = hk.Linear(num_actions)
-
         self.conv_v_0 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
             stride=1,
             padding="SAME",
         )
-        self.conv_v_1 = hk.Conv2D(
-            output_channels=output_channels,
-            kernel_shape=kernel_shape,
-            stride=1,
-            padding="SAME",
-        )
-        self.linear_v_0 = hk.Linear(output_channels)
-        self.linear_v_1 = hk.Linear(1)
-
+        self.linear_v_0 = hk.Linear(1)
         self.flatten = hk.Flatten()
 
     def __call__(self, inputs):
@@ -277,27 +261,17 @@ class CNNSeparate(hk.Module):
         # Actor
         x = self.conv_a_0(obs)
         x = jax.nn.relu(x)
-        x = self.conv_a_1(x)
-        x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
-        x = self.linear_a_0(x)
-        x = jax.nn.relu(x)
-        x = self.linear_a_1(x)
-        logits = jax.nn.relu(x)
+        logits = self.linear_a_0(x)
 
         # Critic
         x = self.conv_v_0(obs)
         x = jax.nn.relu(x)
-        x = self.conv_v_1(x)
-        x = jax.nn.relu(x)
         x = self.flatten(x)
         x = jnp.concatenate([x, inventory], axis=-1)
         x = self.linear_v_0(x)
-        x = jax.nn.relu(x)
-        x = self.linear_v_1(x)
         val = x
-
         return (distrax.Categorical(logits=logits), jnp.squeeze(val, axis=-1))
 
 
@@ -351,7 +325,9 @@ def make_coingame_network(
             )
         elif with_cnn:
             if separate:
-                cnn = CNNSeparate(output_channels, kernel_shape, num_actions)
+                cnn = CNNSeparate_ipditm(
+                    output_channels, kernel_shape, num_actions
+                )
                 cvh = CategoricalValueHeadSeparate(num_values=num_actions)
             else:
                 cnn = CNN(output_channels, kernel_shape)
@@ -425,12 +401,10 @@ def make_ipditm_network(
         layers = []
 
         if separate and with_cnn:
-            cnn = CNNSeparate(
-                output_channels, kernel_shape, num_actions=num_actions
-            )
+            cnn = CNNSeparate_ipditm(output_channels, kernel_shape)
             layers.extend([cnn])
         elif with_cnn:
-            cnn = CNN(output_channels, kernel_shape)
+            cnn = CNN_ipditm(output_channels, kernel_shape)
             cvh = CategoricalValueHead(num_values=num_actions)
             layers.extend([cnn, cvh])
 
