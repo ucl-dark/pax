@@ -22,7 +22,7 @@ runner: evo
 
 # Training
 top_k: 4
-popsize: 256 #512
+popsize: 1000 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
