@@ -332,8 +332,8 @@ class IPDInTheMatrix(environment.Environment):
         def _get_reward(state: EnvState, params: EnvParams) -> jnp.ndarray:
             inv1 = state.red_inventory / state.red_inventory.sum()
             inv2 = state.blue_inventory / state.blue_inventory.sum()
-            r1 = inv1 @ params.payoff_matrix @ inv2.T
-            r2 = inv1 @ params.payoff_matrix.T @ inv2.T
+            r1 = inv1 @ params.payoff_matrix[0] @ inv2.T
+            r2 = inv1 @ params.payoff_matrix[1] @ inv2.T
             return r1, r2
 
         def _interact(
