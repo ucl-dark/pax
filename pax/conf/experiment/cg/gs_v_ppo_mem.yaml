@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'PPO'
 agent2: 'PPO_memory'
 
 # Environment
@@ -14,6 +14,7 @@ payoff: [[1, 1, -2], [1, 1, -2]]
 # Save
 save: True
 save_interval: 100
+benchmark: False
 
 # Runner 
 runner: evo
@@ -30,8 +31,8 @@ num_inner_steps: 16
 num_generations: 3000
 
 # Evaluation
-run_path: ucl-dark/cg/z0ckvwtf
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
+run_path: ucl-dark/cg/3mpgbfm2
+model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
 
 # num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
@@ -51,7 +52,7 @@ ppo1:
   lr_scheduling: False
   learning_rate: 0.005
   adam_epsilon: 1e-5
-  with_memory: True
+  with_memory: False
   with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
@@ -80,7 +81,7 @@ ppo2:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
-
+  
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES, SimpleGA]
@@ -105,4 +106,4 @@ wandb:
   project: cg
   group: 'shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

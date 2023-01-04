@@ -480,7 +480,7 @@ def make_agent(
             agent_args.separate,
             agent_args.hidden_size,
             agent_args.output_channels,
-            agent_args.kernel_size,
+            agent_args.kernel_shape,
         )
     elif args.env_id == "IPDInTheMatrix":
         network = make_ipditm_network(
