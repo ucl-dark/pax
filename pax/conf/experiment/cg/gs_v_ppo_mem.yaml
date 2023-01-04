@@ -106,4 +106,4 @@ wandb:
   project: cg
   group: 'shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: False
+  log: True
