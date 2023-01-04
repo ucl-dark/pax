@@ -128,18 +128,23 @@ def env_setup(args, logger=None):
     elif args.env_id == "coin_game":
         payoff = jnp.array(args.payoff)
         env_params = CoinGameParams(payoff_matrix=payoff)
+        if args.ppo1.with_cnn != args.ppo2.with_cnn:
+            raise ValueError(
+                "Both agents must have the same CNN configuration."
+            )
+
         if args.env_type == "sequential":
             env = CoinGame(
                 num_inner_steps=args.num_steps,
                 num_outer_steps=1,
-                cnn=args.ppo.with_cnn,
+                cnn=args.ppo1.with_cnn,
                 egocentric=args.egocentric,
             )
         else:
             env = CoinGame(
                 num_inner_steps=args.num_inner_steps,
                 num_outer_steps=args.num_steps // args.num_inner_steps,
-                cnn=args.ppo.with_cnn,
+                cnn=args.ppo1.with_cnn,
                 egocentric=args.egocentric,
             )
         if logger:

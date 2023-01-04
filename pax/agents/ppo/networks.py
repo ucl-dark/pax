@@ -189,12 +189,16 @@ class CNN(hk.Module):
             kernel_shape=kernel_shape,
             stride=1,
             padding="SAME",
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
         )
         self.conv_a_1 = hk.Conv2D(
             output_channels=output_channels,
             kernel_shape=kernel_shape,
             stride=1,
             padding="SAME",
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
         )
         self.linear_a_0 = hk.Linear(output_channels)
 
@@ -481,9 +485,14 @@ def make_GRU_coingame_network(
                 w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
                 b_init=hk.initializers.Constant(0),
                 activate_final=True,
-                activation=jnp.tanh,
             )
-        gru = hk.GRU(hidden_size)
+        gru = hk.GRU(
+            hidden_size,
+            w_h_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            w_i_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+        )
+
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
         logits, values = CategoricalValueHead(num_actions)(embedding)
