@@ -571,7 +571,7 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=args.num_envs * args.num_opps,
+        batch_size=None,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
         num_minibatches=agent_args.num_minibatches,
