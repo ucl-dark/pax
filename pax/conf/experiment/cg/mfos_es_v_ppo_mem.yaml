@@ -105,6 +105,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: '${agent1}-vs-${agent2}'
+  group: '$shaping-{agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: False
