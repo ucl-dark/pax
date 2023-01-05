@@ -1300,10 +1300,11 @@ if __name__ == "__main__":
     num_inner_steps = 150
 
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(num_inner_steps, num_outer_steps)
+    env = IPDInTheMatrix(num_inner_steps, num_outer_steps, True)
     num_actions = env.action_space().n
     params = EnvParams(
-        payoff_matrix=jnp.array([[3, 0], [5, 1]]), freeze_penalty=5
+        payoff_matrix=jnp.array([[[3, 0], [5, 1]], [[3, 5], [0, 1]]]),
+        freeze_penalty=5,
     )
     obs, old_state = env.reset(rng, params)
     pics = []
