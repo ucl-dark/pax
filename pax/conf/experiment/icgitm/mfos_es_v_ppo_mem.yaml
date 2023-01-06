@@ -8,7 +8,7 @@ agent2: 'PPO_memory'
 env_id: IPDInTheMatrix
 env_type: meta
 env_discount: 0.96
-payoff: [[[1, 0], [0, 1]], [[1, 0], [0, 1]]]
+payoff: [[[1, -1], [-1, 1]], [[1, -1], [-1, 1]]]
 freeze: 5
 runner: evo
 fixed_coins: True
