@@ -29,8 +29,7 @@ model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25
 model_path2: False #set to wandb file or False
 
 # PPO agent parameters
-ppo1: 
-  type: 'PPO_memory'
+ppo1:
   num_minibatches: 8
   num_epochs: 2 
   gamma: 0.96
@@ -50,7 +49,7 @@ ppo1:
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: True # only works with CNN
+  separate: False # only works with CNN
   hidden_size: 32
 
 ppo2:
@@ -73,7 +72,7 @@ ppo2:
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: False # only works with CNN
+  separate: True # only works with CNN
   hidden_size: 8
 
 # Logging setup
