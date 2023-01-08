@@ -27,6 +27,7 @@ save_interval: 100
 run_path: ucl-dark/ipditm/38kbr6hp
 model_path1: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-25_18.26.02.795417/agent1_iteration_1125
 model_path2: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-25_18.26.02.795417/agent2_iteration_1125
+save_gif: False
 
 # PPO agent parameters
 ppo1:
