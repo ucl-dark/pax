@@ -25,7 +25,7 @@ save_interval: 100
 
 # Evaluation
 run_path: ucl-dark/ipditm/2pblxh8i
-model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-30_00.20.54.965157/generation_710
+model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25.169599/600
 model_path2: False #set to wandb file or False
 
 # PPO agent parameters
