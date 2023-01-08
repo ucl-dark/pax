@@ -24,8 +24,14 @@ total_timesteps: 5e7
 save_interval: 100 
 
 # Evaluation
-run_path: ucl-dark/ipditm/1vpl5161
-model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25.169599/generation_600
+# CHAOS
+# run_path: ucl-dark/ipditm/1vpl5161
+# model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25.169599/generation_600
+
+# GS
+run_path: ucl-dark/ipditm/2wjr55mr
+model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_09.59.53.063797/generation_700
+
 model_path2: False #set to wandb file or False
 save_gif: False
 
