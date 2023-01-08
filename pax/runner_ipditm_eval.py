@@ -563,115 +563,80 @@ class IPDITMEvalRunner:
                 | env_stats,
             )
 
-        print("Generating Gif")
-        env = IPDInTheMatrix(
-            self.args.num_inner_steps,
-            self.num_outer_steps,
-            self.args.fixed_coins,
-        )
-        env_state = traj.env_state
-        pics = []
-
-        if self.num_outer_steps == 1:
-            pics1 = []
-            pics2 = []
-        now = datetime.now()
-
-        # reduce timesteps and pick a random env
-        env_state = jax.tree_util.tree_map(
-            lambda x: x.reshape((x.shape[0] * x.shape[1], *x.shape[2:])),
-            env_state,
-        )
-        env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
-        opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
-
-        env_state = jax.tree_util.tree_map(
-            lambda x: x[:, opp_idx, env_idx, ...], env_state
-        )
-        env_states = [
-            EnvState(
-                red_pos=env_state.red_pos[i, ...],
-                blue_pos=env_state.blue_pos[i, ...],
-                inner_t=env_state.inner_t[i, ...],
-                outer_t=env_state.outer_t[i, ...],
-                grid=env_state.grid[i, ...],
-                red_inventory=env_state.red_inventory[i, ...],
-                blue_inventory=env_state.blue_inventory[i, ...],
-                red_coins=env_state.red_coins[i, ...],
-                blue_coins=env_state.blue_coins[i, ...],
-                freeze=env_state.freeze[i, ...],
+        if self.args.save_gif:
+            print("Generating Gif")
+            env = IPDInTheMatrix(
+                self.args.num_inner_steps,
+                self.num_outer_steps,
+                self.args.fixed_coins,
             )
-            for i in range(self.args.num_steps)
-        ]
+            env_state = traj.env_state
+            pics = []
 
-        gif_every_n_eps = 5
+            if self.num_outer_steps == 1:
+                pics1 = []
+                pics2 = []
+            now = datetime.now()
 
-        for i, state in enumerate(tqdm(env_states)):
-            meta_episode = i // self.args.num_inner_steps
-            if (meta_episode % gif_every_n_eps) == 0 or (
-                meta_episode == self.num_outer_steps - 1
-            ):
-                img = env.render(state, env_params)
-                pics.append(img)
+            # reduce timesteps and pick a random env
+            env_state = jax.tree_util.tree_map(
+                lambda x: x.reshape((x.shape[0] * x.shape[1], *x.shape[2:])),
+                env_state,
+            )
+            env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
+            opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
 
-                if self.num_outer_steps == 1:
-                    img1 = env.render_agent_view(state, agent=0)
-                    img2 = env.render_agent_view(state, agent=1)
-                    pics1.append(img1)
-                    pics2.append(img2)
-
-        pics = [Image.fromarray(img) for img in pics]
-
-        print("Saving Gif")
-        pics[0].save(
-            f"{self.args.wandb.group}_{now}.gif",
-            format="gif",
-            save_all=True,
-            append_images=pics[1:],
-            duration=100,
-            loop=0,
-            optimize=False,
-        )
-        pics[0].save(
-            f"akbir.gif",
-            format="gif",
-            save_all=True,
-            append_images=pics[1:],
-            duration=100,
-            loop=0,
-            optimize=False,
-        )
-
-        wandb.log(
-            {
-                "video": wandb.Video(
-                    f"{self.args.wandb.group}_{now}.gif",
-                    fps=4,
-                    format="gif",
+            env_state = jax.tree_util.tree_map(
+                lambda x: x[:, opp_idx, env_idx, ...], env_state
+            )
+            env_states = [
+                EnvState(
+                    red_pos=env_state.red_pos[i, ...],
+                    blue_pos=env_state.blue_pos[i, ...],
+                    inner_t=env_state.inner_t[i, ...],
+                    outer_t=env_state.outer_t[i, ...],
+                    grid=env_state.grid[i, ...],
+                    red_inventory=env_state.red_inventory[i, ...],
+                    blue_inventory=env_state.blue_inventory[i, ...],
+                    red_coins=env_state.red_coins[i, ...],
+                    blue_coins=env_state.blue_coins[i, ...],
+                    freeze=env_state.freeze[i, ...],
                 )
-            }
-        )
+                for i in range(self.args.num_steps)
+            ]
+            gif_every_n_eps = 5
+            for i, state in enumerate(tqdm(env_states)):
+                meta_episode = i // self.args.num_inner_steps
+                if (meta_episode % gif_every_n_eps) == 0 or (
+                    meta_episode == self.num_outer_steps - 1
+                ):
+                    img = env.render(state, env_params)
+                    pics.append(img)
 
-        if self.num_outer_steps == 1:
-            pics1 = [Image.fromarray(img) for img in pics1]
-            pics2 = [Image.fromarray(img) for img in pics2]
+                    if self.num_outer_steps == 1:
+                        img1 = env.render_agent_view(state, agent=0)
+                        img2 = env.render_agent_view(state, agent=1)
+                        pics1.append(img1)
+                        pics2.append(img2)
 
-            pics1[0].save(
-                f"{self.args.wandb.group}_agent1_{now}.gif",
+            pics = [Image.fromarray(img) for img in pics]
+
+            print("Saving Gif")
+            pics[0].save(
+                f"{self.args.wandb.group}_{now}.gif",
                 format="gif",
                 save_all=True,
-                append_images=pics1[1:],
-                duration=300,
+                append_images=pics[1:],
+                duration=100,
                 loop=0,
                 optimize=False,
             )
-
-            pics2[0].save(
-                f"{self.args.wandb.group}_agent2_{now}.gif",
+            pics[0].save(
+                f"akbir.gif",
                 format="gif",
                 save_all=True,
-                append_images=pics2[1:],
-                duration=300,
+                append_images=pics[1:],
+                duration=100,
                 loop=0,
                 optimize=False,
             )
@@ -679,20 +644,54 @@ class IPDITMEvalRunner:
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent1_{now}.gif",
+                        f"{self.args.wandb.group}_{now}.gif",
                         fps=4,
                         format="gif",
                     )
                 }
             )
-            wandb.log(
-                {
-                    "video": wandb.Video(
-                        f"{self.args.wandb.group}_agent2_{now}.gif",
-                        fps=4,
-                        format="gif",
-                    )
-                }
-            )
+
+            if self.num_outer_steps == 1:
+                pics1 = [Image.fromarray(img) for img in pics1]
+                pics2 = [Image.fromarray(img) for img in pics2]
+
+                pics1[0].save(
+                    f"{self.args.wandb.group}_agent1_{now}.gif",
+                    format="gif",
+                    save_all=True,
+                    append_images=pics1[1:],
+                    duration=300,
+                    loop=0,
+                    optimize=False,
+                )
+
+                pics2[0].save(
+                    f"{self.args.wandb.group}_agent2_{now}.gif",
+                    format="gif",
+                    save_all=True,
+                    append_images=pics2[1:],
+                    duration=300,
+                    loop=0,
+                    optimize=False,
+                )
+
+                wandb.log(
+                    {
+                        "video": wandb.Video(
+                            f"{self.args.wandb.group}_agent1_{now}.gif",
+                            fps=4,
+                            format="gif",
+                        )
+                    }
+                )
+                wandb.log(
+                    {
+                        "video": wandb.Video(
+                            f"{self.args.wandb.group}_agent2_{now}.gif",
+                            fps=4,
+                            format="gif",
+                        )
+                    }
+                )
 
         return agents
