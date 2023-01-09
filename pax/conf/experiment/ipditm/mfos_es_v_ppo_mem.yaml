@@ -11,7 +11,7 @@ env_discount: 0.96
 payoff: [[[3, 0], [5, 1]], [[3, 5], [0, 1]]]
 freeze: 5
 runner: evo
-fixed_coins: True
+fixed_coins: False
 
 # Save
 save: True
