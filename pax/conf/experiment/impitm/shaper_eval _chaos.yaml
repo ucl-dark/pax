@@ -29,8 +29,8 @@ save_interval: 100
 # model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25.169599/generation_600
 
 # GS
-run_path: ucl-dark/ipditm/2wjr55mr
-model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_09.59.53.063797/generation_700
+run_path: ucl-dark/impitm/2a4fjrcl
+model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-06_12.35.47.954472/generation_700
 
 model_path2: False #set to wandb file or False
 save_gif: False
