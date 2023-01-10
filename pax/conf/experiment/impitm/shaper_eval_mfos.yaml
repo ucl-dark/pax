@@ -11,7 +11,7 @@ env_discount: 0.96
 payoff: [[[1, -1], [-1, 1]], [[-1, 1], [1, -1]]]
 runner: ipditm_eval
 freeze: 5
-fixed_coins: False
+fixed_coins: True
 
 # Training hyperparameters
 
