@@ -84,7 +84,7 @@ ppo2:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: ipditm
+  project: impitm
   group: 'shaper-eval-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
