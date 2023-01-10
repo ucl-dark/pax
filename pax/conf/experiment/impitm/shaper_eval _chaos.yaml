@@ -24,13 +24,18 @@ total_timesteps: 5e7
 save_interval: 100 
 
 # Evaluation
-run_path: ucl-dark/ipditm/2pblxh8i
-model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2022-12-30_00.20.54.965157/generation_710
-model_path2: False #set to wandb file or False
+# CHAOS
+# run_path: ucl-dark/ipditm/1vpl5161
+# model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_14.13.25.169599/generation_600
 
-# PPO agent parameters
-ppo1: 
-  type: 'PPO_memory'
+# GS
+run_path: ucl-dark/ipditm/2wjr55mr
+model_path1: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-05_09.59.53.063797/generation_700
+
+model_path2: False #set to wandb file or False
+save_gif: False
+
+ppo1:
   num_minibatches: 8
   num_epochs: 2 
   gamma: 0.96
@@ -50,7 +55,7 @@ ppo1:
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: True # only works with CNN
+  separate: False # only works with CNN
   hidden_size: 32
 
 ppo2:
@@ -73,13 +78,13 @@ ppo2:
   with_cnn: True
   output_channels: 16
   kernel_shape: [3, 3]
-  separate: False # only works with CNN
+  separate: True # only works with CNN
   hidden_size: 8
 
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: impitm
+  project: ipditm
   group: 'shaper-eval-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
