@@ -21,15 +21,13 @@ gif: False
 runner: eval
 
 # Training
-top_k: 4
-popsize: 1000 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
 num_devices: 4
 num_steps: 16
 num_inner_steps: 16 
-total_timesteps: 16000
+total_timesteps: 960000
 
 # Evaluation
 run_path: ucl-dark/cg/nepcbqfv
