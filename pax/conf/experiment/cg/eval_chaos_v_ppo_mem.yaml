@@ -34,7 +34,7 @@ timesteps: 960000
 
 # Evaluation
 run_path: ucl-dark/cg/nepcbqfv
-model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-04_22.18.01.104737/generation_2900
+model_path: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-04_22.18.01.104737/generation_2900
 
 # num_generations = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
