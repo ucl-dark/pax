@@ -25,7 +25,7 @@ save_interval: 100
 
 # Evaluation
 # MFOS
-run_path: ucl-dark/ipditm/2wjr55mr
+run_path: ucl-dark/ipditm/pjc221cs
 model_path1: exp/sanity-PPO-vs-PPO_memory/run-seed-0/2023-01-10_19.01.39.859920/agent1_iteration_1092
 model_path2: False #set to wandb file or False
 save_gif: False
