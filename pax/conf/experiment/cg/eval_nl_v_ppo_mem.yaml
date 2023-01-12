@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
+agent1: 'PPO_memory'
 agent2: 'PPO_memory'
 
 # Environment
@@ -103,6 +103,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: 'eval-shaping-${agent1}-vs-${agent2}'
+  group: 'eval-shaping-nl-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
