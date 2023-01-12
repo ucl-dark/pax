@@ -25,7 +25,7 @@ save_interval: 100
 
 # Evaluation
 # MFOS
-run_path: ucl-dark/impitm/6kvqqj7j
+run_path: ucl-dark/impitm/1o3gwd1q
 model_path1: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-7/2023-01-05_15.22.02.203675/agent1_iteration_624
 
 
