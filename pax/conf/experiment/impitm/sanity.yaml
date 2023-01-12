@@ -16,8 +16,8 @@ fixed_coins: True
 # Training hyperparameters
 num_envs: 50
 num_opps: 1
-num_steps: 128
-num_inner_steps: 128 
+num_steps: 152
+num_inner_steps: 152 
 total_timesteps: 6e6
 save_interval: 1e6
 
