@@ -45,6 +45,7 @@ class MFOSSample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
     meta_actions: jnp.ndarray
+    env_state: jnp.ndarray
 
 
 class IPDITMEvalRunner:
@@ -209,6 +210,7 @@ class IPDITMEvalRunner:
                     done,
                     a1_mem.hidden,
                     a1_mem.th,
+                    env_state,
                 )
             else:
                 traj1 = Sample(
