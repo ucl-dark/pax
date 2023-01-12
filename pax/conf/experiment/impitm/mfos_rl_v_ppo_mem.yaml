@@ -22,8 +22,8 @@ num_envs: 50
 num_opps: 1
 num_steps: 76000
 num_inner_steps: 152 
-total_timesteps: 6e10
-save_interval: 1e10
+total_timesteps: 7.6e10
+save_interval: 1.52e10
 benchmark: False
 
 # Evaluation
