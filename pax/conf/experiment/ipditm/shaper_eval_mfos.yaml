@@ -79,7 +79,6 @@ ppo2:
   hidden_size: 8
 
 
-
 # Logging setup
 wandb:
   entity: "ucl-dark"

@@ -25,8 +25,8 @@ save_interval: 100
 
 # Evaluation
 # MFOS
-run_path: ucl-dark/ipditm/2wjr55mr
-model_path1: exp/shaping-PPO-vs-PPO_memory/run-seed-0/2023-01-05_09.59.53.063797/generation_700
+run_path: ucl-dark/ipditm/36ylf4e8
+model_path1: root/exp/shaping-rl-MFOS-vs-PPO_memory/run-seed-0/2023-01-12_18.24.04.592461/agent1_iteration_980
 
 model_path2: False #set to wandb file or False
 save_gif: False
