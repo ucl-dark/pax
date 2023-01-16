@@ -386,6 +386,7 @@ class ActRunner:
             elif args.adversary_type == "adversary":
                 fitness = -(traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8))
             other_fitness = traj_2.rewards.sum(axis=(0, 1, 3, 4))/(traj_2.dones.sum(axis=(0, 1, 3, 4))+1e-8)
+            jax.debug.breakpoint()
             # fitness = jnp.sum(traj_1.rewards)/(jnp.sum(traj_1.dones)+1e-8)
             # other_fitness = jnp.sum(traj_2.rewards)/(jnp.sum(traj_2.dones)+1e-8)
             # Stats

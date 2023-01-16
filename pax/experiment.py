@@ -140,7 +140,7 @@ def env_setup(args, logger=None):
     elif args.runner in ["sarl", "sarl_eval"]:
         env, env_params = gymnax.make(args.env_id)
     elif args.runner == "act":
-        env, env_params = gymnax.make("CartPole-v1")
+        env, env_params = gymnax.make(args.env_id)
     else:
         raise ValueError(f"Unknown env id {args.env_id}")
     return env, env_params
