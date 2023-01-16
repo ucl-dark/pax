@@ -11,7 +11,7 @@ env_discount: 0.96
 payoff: [[[1, -1], [-1, 1]], [[-1, 1], [1, -1]]]
 freeze: 5
 runner: rl
-fixed_coins: True
+fixed_coins: False
 
 # Save
 save: True

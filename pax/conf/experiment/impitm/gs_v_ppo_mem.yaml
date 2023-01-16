@@ -10,7 +10,7 @@ env_type: meta
 env_discount: 0.96
 freeze: 5
 payoff: [[[1, -1], [-1, 1]], [[-1, 1], [1, -1]]]
-fixed_coins: True
+fixed_coins: False
 
 # Save
 save: True
