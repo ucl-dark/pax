@@ -567,7 +567,7 @@ class IPDITMEvalRunner:
             )
 
         if self.args.save_gif:
-            print("Generating Gif")
+            print("Generating Renders")
             env = IPDInTheMatrix(
                 self.args.num_inner_steps,
                 self.num_outer_steps,
@@ -607,7 +607,7 @@ class IPDITMEvalRunner:
                 )
                 for i in range(self.args.num_steps)
             ]
-            gif_every_n_eps = 5
+            gif_every_n_eps = 10
             for i, state in enumerate(tqdm(env_states)):
                 meta_episode = i // self.args.num_inner_steps
                 if (meta_episode % gif_every_n_eps) == 0 or (
@@ -623,10 +623,11 @@ class IPDITMEvalRunner:
                         pics2.append(img2)
 
             print("Saving MP4")
+            print(onp.array(pics).shape)
             wandb.log(
                 {
                     "video": wandb.Video(
-                        onp.array(pics),
+                        onp.transpose(onp.array(pics), (0, 3, 1, 2)),
                         fps=4,
                         format="mp4",
                     )
