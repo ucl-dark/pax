@@ -628,7 +628,7 @@ class IPDITMEvalRunner:
                 {
                     "video": wandb.Video(
                         onp.transpose(onp.array(pics), (0, 3, 1, 2)),
-                        fps=4,
+                        fps=16,
                         format="mp4",
                     )
                 }
