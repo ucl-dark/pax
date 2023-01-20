@@ -31,10 +31,6 @@ num_steps: 76000
 num_inner_steps: 152 
 num_generations: 5000
 
-# Evaluation
-run_path: ucl-dark/cg/3mpgbfm2
-model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
-
 # PPO agent parameters
 ppo1:
   num_minibatches: 8

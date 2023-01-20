@@ -17,6 +17,7 @@ from pax.envs.ipd_in_the_matrix import (
 )
 
 from tqdm import tqdm
+import numpy as onp
 
 MAX_WANDB_CALLS = 1000
 
@@ -562,7 +563,7 @@ class IPDITMEvalRunner:
                         rewards_2.mean().item()
                     ),
                 }
-                | env_stats,
+                | jax.tree_util.tree_map(lambda x: x.item(), env_stats),
             )
 
         if self.args.save_gif:
@@ -621,37 +622,45 @@ class IPDITMEvalRunner:
                         pics1.append(img1)
                         pics2.append(img2)
 
-            pics = [Image.fromarray(img) for img in pics]
-
-            print("Saving Gif")
-            pics[0].save(
-                f"{self.args.wandb.group}_{now}.gif",
-                format="gif",
-                save_all=True,
-                append_images=pics[1:],
-                duration=100,
-                loop=0,
-                optimize=False,
-            )
-            pics[0].save(
-                f"akbir.gif",
-                format="gif",
-                save_all=True,
-                append_images=pics[1:],
-                duration=100,
-                loop=0,
-                optimize=False,
-            )
-
+            print("Saving MP4")
             wandb.log(
                 {
                     "video": wandb.Video(
-                        f"{self.args.wandb.group}_{now}.gif",
+                        onp.array(pics),
                         fps=4,
-                        format="gif",
+                        format="mp4",
                     )
                 }
             )
+            print("Saving Gif")
+            pics = [Image.fromarray(img) for img in pics]
+            print(len(pics))
+            pics_by_episode = [
+                pics[i : i + self.args.num_inner_steps]
+                for i in range(0, len(pics), self.args.num_inner_steps)
+            ]
+            print(len(pics_by_episode))
+
+            for i, pics in enumerate(pics_by_episode):
+                pics[0].save(
+                    f"{self.args.wandb.group}_{now}_ep{i * gif_every_n_eps}.gif",
+                    format="gif",
+                    save_all=True,
+                    append_images=pics[1:],
+                    duration=100,
+                    loop=0,
+                    optimize=False,
+                )
+
+                wandb.log(
+                    {
+                        "video": wandb.Video(
+                            f"{self.args.wandb.group}_{now}_ep{i * gif_every_n_eps}.gif",
+                            fps=4,
+                            format="gif",
+                        )
+                    }
+                )
 
             if self.num_outer_steps == 1:
                 pics1 = [Image.fromarray(img) for img in pics1]
