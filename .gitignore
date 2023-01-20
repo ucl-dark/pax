@@ -107,6 +107,7 @@ exp/
 exp/
 venv/
 plots/
+figures/
 
 # Sphinx documentation
 docs/_build/
