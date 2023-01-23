@@ -36,9 +36,12 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
+from pax.envs.iterated_tensor_game import IteratedTensorGame
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
+from pax.runner_marl_3ppl import TensorRLRunner
 from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -97,6 +100,19 @@ def env_setup(args, logger=None):
         elif args.env_type == "meta":
             env = IteratedMatrixGame(num_inner_steps=args.num_inner_steps)
             env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
+            if logger:
+                logger.info(
+                    f"Env Type: Meta | Episode Length: {args.num_steps}"
+                )
+    elif args.env_id == "iterated_tensor_game":
+        payoff = jnp.array(args.payoff)
+        if args.env_type == "sequential":
+            env = IteratedTensorGame(num_inner_steps=args.num_steps)
+            env_params = IteratedTensorGameParams(payoff_matrix=payoff)
+
+        elif args.env_type == "meta":
+            env = IteratedTensorGame(num_inner_steps=args.num_inner_steps)
+            env_params = IteratedTensorGameParams(payoff_matrix=payoff)
             if logger:
                 logger.info(
                     f"Env Type: Meta | Episode Length: {args.num_steps}"
@@ -235,6 +251,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return RLRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_rl":
+        logger.info("Training with tensor RL Runner")
+        return TensorRLRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -246,7 +265,7 @@ def runner_setup(args, env, agents, save_dir, logger):
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
 
-    if args.env_id == "iterated_matrix_game":
+    if args.env_id == "iterated_matrix_game" or args.env_id == "iterated_tensor_game":
         obs_shape = env.observation_space(env_params).n
     else:
         obs_shape = env.observation_space(env_params).shape
@@ -373,6 +392,39 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "sarl"]:
             logger.info("Using Independent Learners")
             return agent_1
+
+    elif args.num_players == 3:
+        assert args.agent1 in strategies
+        assert args.agent2 in strategies
+        assert args.agent3 in strategies
+
+        num_agents = args.num_players
+
+        seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
+        # Create Player IDs by normalizing seeds to 1, 2, 3 respectively
+        pids = [
+            seed % seed + i if seed != 0 else 1
+            for seed, i in zip(seeds, range(1, num_agents + 1))
+        ]
+        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
+        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+        agent_2 = strategies[args.agent3](seeds[2], pids[2])  # player 2
+
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        logger.info(
+            f"Agent Pair: {args.agent1} | {args.agent2}| {args.agent3}")
+        logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}| {seeds[2]}")
+
+        if args.runner in ["tensor_rl"]:
+            logger.info("Using Independent Learners")
+            return (agent_0, agent_1, agent_2)
+        else:
+            raise NotImplementedError('Only RL implemented')
+        # if args.runner == "evo":
+        #     logger.info("Using EvolutionaryLearners")
+        #     return (agent_0, agent_1, agent_2)
+
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
@@ -444,7 +496,7 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if args.env_id in ["finite_matrix_game"]:
+        if args.env_id in ["finite_matrix_game", "finite_tensor_game"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -521,7 +573,7 @@ def main(args):
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "rl":
+    elif args.runner == "rl" or args.runner == "tensor_rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
@@ -529,13 +581,6 @@ def main(args):
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     elif args.runner == "sarl":
-        num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
-
-    elif args.runner == "eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes

@@ -22,6 +22,7 @@ num_steps: 10_000
 num_inner_steps: 100 
 num_generations: 5000
 total_timesteps: 1e11
+num_devices: 1
 
 # Evaluation 
 # # EARL vs. PPO trained on seed=0
@@ -90,10 +91,10 @@ es:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: ipd
+  # entity: "ucl-dark"
+  # project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
-  log: False
+  # log: False
 
 

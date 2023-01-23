@@ -379,7 +379,7 @@ class EvoRunner:
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
             elif args.env_id in [
-                "matrix_game",
+                "iterated_matrix_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -496,7 +496,7 @@ class EvoRunner:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if num_devices > 1:
                     top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0 : self.args.num_devices]
+                        log["top_gen_params"][0: self.args.num_devices]
                     )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x[0].reshape(x[0].shape[1:]), top_params
