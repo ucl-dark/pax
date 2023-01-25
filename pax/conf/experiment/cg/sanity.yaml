@@ -22,10 +22,6 @@ num_inner_steps: 16
 total_timesteps: 8e5
 save_interval: 4e5 
 
-# Evaluation 
-run_path: ucl-dark/cg/3sp0y2cy
-model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
-
 # PPO agent parameters
 ppo1:
   num_minibatches: 8
