@@ -18,7 +18,7 @@ save: True
 save_interval: 10
 
 # Training
-num_devices: 8
+num_devices: 1
 top_k: 8
 popsize: 128 #512
 # total popsize = popsize * num_devices

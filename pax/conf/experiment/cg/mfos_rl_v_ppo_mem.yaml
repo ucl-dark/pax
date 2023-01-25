@@ -26,7 +26,7 @@ popsize: 256 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
-num_devices: 4
+num_devices: 1
 num_steps: 9600
 num_inner_steps: 16 
 total_timesteps: 2.88e9
