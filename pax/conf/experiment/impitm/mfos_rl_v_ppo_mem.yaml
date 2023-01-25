@@ -26,10 +26,6 @@ total_timesteps: 3800000000
 save_interval: 76000000
 benchmark: False
 
-# Evaluation
-run_path: ucl-dark/cg/3mpgbfm2
-model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
-
 # PPO agent parameters
 ppo1:
   num_minibatches: 8
@@ -79,8 +75,8 @@ ppo2:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: ??
   project: impitm
   group: 'shaping-rl-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

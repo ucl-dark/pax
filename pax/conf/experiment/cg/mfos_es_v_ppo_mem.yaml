@@ -22,11 +22,11 @@ runner: evo
 
 # Training
 top_k: 4
-popsize: 1000 #512
+popsize: 128 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
-num_devices: 4
+num_devices: 1
 num_steps: 9600
 num_inner_steps: 16 
 num_generations: 3000
@@ -103,8 +103,8 @@ es:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: ??
   project: cg
   group: 'shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

@@ -8,11 +8,8 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 
-import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
-from pax.agents.naive_exact import NaiveExact
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
-from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -152,15 +149,6 @@ def naive_pg_losses(agent) -> None:
     return losses
 
 
-def logger_hyper(agent: HyperPPO) -> dict:
-    episode = int(
-        agent._logger.metrics["total_steps"]
-        / (agent._num_steps * agent._num_envs)
-    )
-    cooperation_probs = {"episode": episode}
-    return cooperation_probs
-
-
 def losses_ppo(agent: PPO) -> dict:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
@@ -178,31 +166,6 @@ def losses_ppo(agent: PPO) -> dict:
         f"train/ppo_{pid}/entropy_coefficient": entropy_cost,
     }
     return losses
-
-
-def losses_naive(agent: NaiveExact) -> dict:
-    pid = agent.player_id
-    sgd_steps = agent._logger.metrics["sgd_steps"]
-    loss_total = agent._logger.metrics["loss_total"]
-    num_episodes = agent._logger.metrics["num_episodes"]
-    losses = {
-        f"train/naive_learner_{pid}/sgd_steps": sgd_steps,
-        f"train/naive_learner_{pid}/loss": loss_total,
-        f"train/naive_learner_{pid}/num_episodes": num_episodes,
-    }
-    return losses
-
-
-def logger_naive_exact(agent: NaiveExact) -> dict:
-    params = agent._mem.hidden
-    pid = agent.player_id
-    params = params.mean(axis=0)
-    cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
-    for i, state_name in enumerate(STATE_NAMES):
-        cooperation_probs[
-            f"policy/naive_learner_{pid}/avg/{state_name}"
-        ] = float(params[i])
-    return cooperation_probs
 
 
 def policy_logger_naive(agent) -> None:

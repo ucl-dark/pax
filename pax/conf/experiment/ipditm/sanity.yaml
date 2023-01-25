@@ -74,8 +74,8 @@ ppo2:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: ??
   project: ipditm
   group: 'sanity-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

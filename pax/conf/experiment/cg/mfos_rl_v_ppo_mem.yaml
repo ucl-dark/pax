@@ -102,8 +102,8 @@ es:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: ??
   project: cg
   group: 'shaping-${agent1}-rl-vs-${agent2}'
   name: run-seed-${seed}
-  log: True
+  log: False

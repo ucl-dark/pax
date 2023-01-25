@@ -17,10 +17,7 @@ import gymnax
 import jax
 
 import wandb
-from pax.agents.hyper.ppo import make_hyper
 from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
-from pax.agents.naive.naive import make_naive_pg
-from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
 from pax.agents.strategies import (
@@ -39,8 +36,6 @@ from pax.agents.strategies import (
 )
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
-from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
-from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
 from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
@@ -50,13 +45,9 @@ from pax.envs.ipd_in_the_matrix import (
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
-from pax.runner_sarl import SARLRunner
 from pax.runner_ipditm_eval import IPDITMEvalRunner
 from pax.utils import Section
 from pax.watchers import (
-    logger_hyper,
-    logger_naive_exact,
-    losses_naive,
     losses_ppo,
     naive_pg_losses,
     policy_logger_ppo,
