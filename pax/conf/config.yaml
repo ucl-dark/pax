@@ -44,7 +44,7 @@ total_timesteps: 1.0e8
 
 # Logging setup
 wandb:
-  entity: "alexandrasouly"
+  entity: "ucl-dark"
   project: ipd
   group: ??
   name: run-seed-${seed}

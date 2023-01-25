@@ -224,7 +224,13 @@ class TensorRLRunner:
                 obs3,
                 a3_mem,
             )
-            (next_obs1, next_obs2, next_obs3), env_state, rewards, done, info = env.step(
+            (
+                (next_obs1, next_obs2, next_obs3),
+                env_state,
+                rewards,
+                done,
+                info,
+            ) = env.step(
                 env_rng,
                 env_state,
                 (a1, a2, a3),
@@ -286,11 +292,7 @@ class TensorRLRunner:
                 new_a3_mem,
                 env_state,
                 env_params,
-            ), (
-                traj1,
-                traj2,
-                traj3
-            )
+            ), (traj1, traj2, traj3)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
@@ -537,7 +539,14 @@ class TensorRLRunner:
                 a3_mem,
                 a3_metrics,
             ) = self.rollout(
-                rng_run, a1_state, a1_mem, a2_state, a2_mem, a3_state, a3_mem, env_params
+                rng_run,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                a3_state,
+                a3_mem,
+                env_params,
             )
 
             if self.args.save and i % self.args.save_interval == 0:

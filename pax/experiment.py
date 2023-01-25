@@ -265,7 +265,10 @@ def runner_setup(args, env, agents, save_dir, logger):
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
 
-    if args.env_id == "iterated_matrix_game" or args.env_id == "iterated_tensor_game":
+    if (
+        args.env_id == "iterated_matrix_game"
+        or args.env_id == "iterated_tensor_game"
+    ):
         obs_shape = env.observation_space(env_params).n
     else:
         obs_shape = env.observation_space(env_params).shape
@@ -413,14 +416,15 @@ def agent_setup(args, env, env_params, logger):
         if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
             logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
         logger.info(
-            f"Agent Pair: {args.agent1} | {args.agent2}| {args.agent3}")
+            f"Agent Pair: {args.agent1} | {args.agent2}| {args.agent3}"
+        )
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}| {seeds[2]}")
 
         if args.runner in ["tensor_rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1, agent_2)
         else:
-            raise NotImplementedError('Only RL implemented')
+            raise NotImplementedError("Only RL implemented")
         # if args.runner == "evo":
         #     logger.info("Using EvolutionaryLearners")
         #     return (agent_0, agent_1, agent_2)

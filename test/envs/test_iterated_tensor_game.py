@@ -7,8 +7,16 @@ from pax.envs.iterated_tensor_game import EnvParams, IteratedTensorGame
 
 # payoff matrix accroding to
 # https://www.classes.cs.uchicago.edu/archive/1998/fall/CS105/Project/node6.html
-payoff = [[7, 7, 7], [3, 3, 9], [3, 9, 3], [
-    0, 5, 5], [9, 3, 3], [5, 0, 5], [5, 5, 0], [1, 1, 1]]
+payoff = [
+    [7, 7, 7],
+    [3, 3, 9],
+    [3, 9, 3],
+    [0, 5, 5],
+    [9, 3, 3],
+    [5, 0, 5],
+    [5, 5, 0],
+    [1, 1, 1],
+]
 
 ccc_p1 = payoff[0][0]
 ccc_p2 = payoff[0][1]
@@ -140,8 +148,10 @@ def test_batch_outcomes(actions, expected_rewards, payoff_list) -> None:
     )
     obs, env_state = env.reset(rng, env_params)
     obs, env_state, rewards, done, info = env.step(
-        rng, env_state, (a1 * all_ones, a2 * all_ones,
-                         a3 * all_ones), env_params
+        rng,
+        env_state,
+        (a1 * all_ones, a2 * all_ones, a3 * all_ones),
+        env_params,
     )
 
     assert jnp.array_equal(rewards[0], expected_r1 * jnp.ones((num_envs,)))
@@ -224,6 +234,7 @@ def test_batch_by_rngs() -> None:
     assert jnp.array_equal(rewards[0], ddd_p1 * r_array)
     assert jnp.array_equal(rewards[1], ddd_p2 * r_array)
     assert jnp.array_equal(rewards[1], ddd_p3 * r_array)
+
 
 # TODO: implement strategies to test with
 # def test_tit_for_tat_match() -> None:

@@ -44,24 +44,24 @@ class CategoricalValueHeadSeparate(hk.Module):
     ):
         super().__init__(name=name)
         self._action_body = hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jnp.tanh,
-                    )
+            [64, 64],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
         self._logit_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(1.0),
             b_init=hk.initializers.Constant(0),
         )
         self._value_body = hk.nets.MLP(
-                    [64, 64],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jnp.tanh,
-                    )
+            [64, 64],
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+            b_init=hk.initializers.Constant(0),
+            activate_final=True,
+            activation=jnp.tanh,
+        )
         self._value_layer = hk.Linear(
             1,
             w_init=hk.initializers.Orthogonal(0.01),
@@ -316,16 +316,13 @@ def make_cartpole_network(num_actions: int):
     network = hk.without_apply_rng(hk.transform(forward_fn))
     return network
 
+
 def make_sarl_network(num_actions: int):
     """Creates a hk network using the baseline hyperparameters from OpenAI"""
 
     def forward_fn(inputs):
         layers = []
-        layers.extend(
-            [
-                CategoricalValueHeadSeparate(num_values=num_actions)
-            ]
-        )
+        layers.extend([CategoricalValueHeadSeparate(num_values=num_actions)])
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 

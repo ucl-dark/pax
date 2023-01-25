@@ -36,37 +36,82 @@ class IteratedTensorGame(environment.Environment):
             a1, a2, a3 = actions
             inner_t += 1
 
-            ccc_p1 = params.payoff_matrix[0][0] * \
-                (1.0-a1) * (1.0-a2) * (1.0-a3)
-            ccc_p2 = params.payoff_matrix[0][1] * \
-                (1.0-a1) * (1.0-a2) * (1.0-a3)
-            ccc_p3 = params.payoff_matrix[0][2] * \
-                (1.0-a1) * (1.0-a2) * (1.0-a3)
-            ccd_p1 = params.payoff_matrix[1][0] * (1.0-a1) * (1.0-a2) * a3
-            ccd_p2 = params.payoff_matrix[1][1] * (1.0-a1) * (1.0-a2) * a3
-            ccd_p3 = params.payoff_matrix[1][2] * (1.0-a1) * (1.0-a2) * a3
-            cdc_p1 = params.payoff_matrix[2][0] * (1.0-a1) * a2 * (1.0-a3)
-            cdc_p2 = params.payoff_matrix[2][1] * (1.0-a1) * a2 * (1.0-a3)
-            cdc_p3 = params.payoff_matrix[2][2] * (1.0-a1) * a2 * (1.0-a3)
-            cdd_p1 = params.payoff_matrix[3][0] * (1.0-a1) * a2 * (a3)
-            cdd_p2 = params.payoff_matrix[3][1] * (1.0-a1) * a2 * (a3)
-            cdd_p3 = params.payoff_matrix[3][2] * (1.0-a1) * a2 * (a3)
-            dcc_p1 = params.payoff_matrix[4][0] * (a1) * (1.0-a2) * (1.0-a3)
-            dcc_p2 = params.payoff_matrix[4][1] * (a1) * (1.0-a2) * (1.0-a3)
-            dcc_p3 = params.payoff_matrix[4][2] * (a1) * (1.0-a2) * (1.0-a3)
-            dcd_p1 = params.payoff_matrix[5][0] * (a1) * (1.0-a2) * (a3)
-            dcd_p2 = params.payoff_matrix[5][1] * (a1) * (1.0-a2) * (a3)
-            dcd_p3 = params.payoff_matrix[5][2] * (a1) * (1.0-a2) * (a3)
-            ddc_p1 = params.payoff_matrix[6][0] * (a1) * (a2) * (1.0-a3)
-            ddc_p2 = params.payoff_matrix[6][1] * (a1) * (a2) * (1.0-a3)
-            ddc_p3 = params.payoff_matrix[6][2] * (a1) * (a2) * (1.0-a3)
+            ccc_p1 = (
+                params.payoff_matrix[0][0]
+                * (1.0 - a1)
+                * (1.0 - a2)
+                * (1.0 - a3)
+            )
+            ccc_p2 = (
+                params.payoff_matrix[0][1]
+                * (1.0 - a1)
+                * (1.0 - a2)
+                * (1.0 - a3)
+            )
+            ccc_p3 = (
+                params.payoff_matrix[0][2]
+                * (1.0 - a1)
+                * (1.0 - a2)
+                * (1.0 - a3)
+            )
+            ccd_p1 = params.payoff_matrix[1][0] * (1.0 - a1) * (1.0 - a2) * a3
+            ccd_p2 = params.payoff_matrix[1][1] * (1.0 - a1) * (1.0 - a2) * a3
+            ccd_p3 = params.payoff_matrix[1][2] * (1.0 - a1) * (1.0 - a2) * a3
+            cdc_p1 = params.payoff_matrix[2][0] * (1.0 - a1) * a2 * (1.0 - a3)
+            cdc_p2 = params.payoff_matrix[2][1] * (1.0 - a1) * a2 * (1.0 - a3)
+            cdc_p3 = params.payoff_matrix[2][2] * (1.0 - a1) * a2 * (1.0 - a3)
+            cdd_p1 = params.payoff_matrix[3][0] * (1.0 - a1) * a2 * (a3)
+            cdd_p2 = params.payoff_matrix[3][1] * (1.0 - a1) * a2 * (a3)
+            cdd_p3 = params.payoff_matrix[3][2] * (1.0 - a1) * a2 * (a3)
+            dcc_p1 = (
+                params.payoff_matrix[4][0] * (a1) * (1.0 - a2) * (1.0 - a3)
+            )
+            dcc_p2 = (
+                params.payoff_matrix[4][1] * (a1) * (1.0 - a2) * (1.0 - a3)
+            )
+            dcc_p3 = (
+                params.payoff_matrix[4][2] * (a1) * (1.0 - a2) * (1.0 - a3)
+            )
+            dcd_p1 = params.payoff_matrix[5][0] * (a1) * (1.0 - a2) * (a3)
+            dcd_p2 = params.payoff_matrix[5][1] * (a1) * (1.0 - a2) * (a3)
+            dcd_p3 = params.payoff_matrix[5][2] * (a1) * (1.0 - a2) * (a3)
+            ddc_p1 = params.payoff_matrix[6][0] * (a1) * (a2) * (1.0 - a3)
+            ddc_p2 = params.payoff_matrix[6][1] * (a1) * (a2) * (1.0 - a3)
+            ddc_p3 = params.payoff_matrix[6][2] * (a1) * (a2) * (1.0 - a3)
             ddd_p1 = params.payoff_matrix[7][0] * (a1) * (a2) * (a3)
             ddd_p2 = params.payoff_matrix[7][1] * (a1) * (a2) * (a3)
             ddd_p3 = params.payoff_matrix[7][2] * (a1) * (a2) * (a3)
 
-            r1 = ccc_p1 + ccd_p1 + cdc_p1 + cdd_p1 + dcc_p1 + dcd_p1 + ddc_p1 + ddd_p1
-            r2 = ccc_p2 + ccd_p2 + cdc_p2 + cdd_p2 + dcc_p2 + dcd_p2 + ddc_p2 + ddd_p2
-            r3 = ccc_p3 + ccd_p3 + cdc_p3 + cdd_p3 + dcc_p3 + dcd_p3 + ddc_p3 + ddd_p3
+            r1 = (
+                ccc_p1
+                + ccd_p1
+                + cdc_p1
+                + cdd_p1
+                + dcc_p1
+                + dcd_p1
+                + ddc_p1
+                + ddd_p1
+            )
+            r2 = (
+                ccc_p2
+                + ccd_p2
+                + cdc_p2
+                + cdd_p2
+                + dcc_p2
+                + dcd_p2
+                + ddc_p2
+                + ddd_p2
+            )
+            r3 = (
+                ccc_p3
+                + ccd_p3
+                + cdc_p3
+                + cdd_p3
+                + dcc_p3
+                + dcd_p3
+                + ddc_p3
+                + ddd_p3
+            )
 
             s1 = (
                 0 * (1 - a1) * (1 - a2) * (1 - a3)
@@ -139,12 +184,12 @@ class IteratedTensorGame(environment.Environment):
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
 
-    @ property
+    @property
     def name(self) -> str:
         """Environment name."""
         return "IteratedTensorGame-v1"
 
-    @ property
+    @property
     def num_actions(self) -> int:
         """Number of actions possible in environment."""
         return 2
