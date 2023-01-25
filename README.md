@@ -1,7 +1,7 @@
 
 # Scaling Opponent Shaping to High Dimmensional Games
 
-Code to accompy ICML submission.
+Code to accompy ICML submission 2581.
 
 # Installation
 Pax is written in pure Python, but depends on C++ code via JAX.
@@ -17,7 +17,7 @@ The project entrypoint is `pax/experiment.py`. The simplest command to run a gam
 python -m pax.experiment
 ```
 
-We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydra.cc/docs) for configs. Hyperparameters are stored `/conf/experiment` as `.yaml` files. Depending on your needs, you can specify hyperparameters through the CLI or by changing the `.yaml` files directly. These are required to make plots.
+We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydra.cc/docs) for configs. Hyperparameters are stored `/conf/experiment` as `.yaml` files. Depending on your needs, you can specify hyperparameters through the CLI. WandB is required to make plots.
 
 ## Experiments
 
