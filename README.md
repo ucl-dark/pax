@@ -58,20 +58,20 @@ python -m pax.experiment +experiment/ipditm=sanity.yaml
 
 ### IPD in the Matrix - SHAPER
 ```bash 
-python -m pax.experiment +experiment/cg=chaos_v_ppo_mem.yaml
+python -m pax.experiment +experiment/ipditm=chaos_v_ppo_mem.yaml
 ``` 
 
 ### IMP in the Matrix - Good Shepherd
 ```bash 
-python -m pax.experiment +experiment/cg=gs_v_ppo_mem.yaml 
+python -m pax.experiment +experiment/ipditm=gs_v_ppo_mem.yaml 
 ``` 
 
 ### IPD in the Matrix - Model Free Opponent Shaping (ES)
 ```bash 
-python -m pax.experiment +experiment/cg=mfos_es_v_ppo.yaml
+python -m pax.experiment +experiment/ipditm=mfos_es_v_ppo.yaml
 ``` 
 
 ### IPD in the Matrix  - Model Free Opponent Shaping (RL)
 ```bash 
-python -m pax.experiment +experiment/cg=mfos_rl_v_ppo.yaml
+python -m pax.experiment +experiment/ipditm=mfos_rl_v_ppo.yaml
 ``` 
