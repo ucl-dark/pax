@@ -17,44 +17,61 @@ The project entrypoint is `pax/experiment.py`. The simplest command to run a gam
 python -m pax.experiment
 ```
 
-We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydra.cc/docs) for configs. Hyperparameters are stored `/conf/experiment` as `.yaml` files. Depending on your needs, you can specify hyperparameters through the CLI or by changing the `.yaml` files directly. 
-
-```bash
-python -m pax.experiment +total_timesteps=1_000_000 +num_envs=10
-```
-
-We currently support two major environments: `MatrixGames` and `CoinGame`.
-```
-
-For `MatrixGames`, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
-```bash 
-python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.group="testing"
-```
+We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydra.cc/docs) for configs. Hyperparameters are stored `/conf/experiment` as `.yaml` files. Depending on your needs, you can specify hyperparameters through the CLI or by changing the `.yaml` files directly. These are required to make plots.
 
 ## Experiments
 
+### Iterated Prisoners Dilemma - Independent Learners
+```bash 
+python -m pax.experiment +experiment/ipd=sanity.yaml
+``` 
 
 ### Coin Game - Independent Learners
 ```bash 
-python -m pax.experiment +experiment/cg=sanity.yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/cg=sanity.yaml
 ``` 
 
 ### Coin Game - SHAPER
 ```bash 
-python -m pax.experiment +experiment/cg=chaos_v_ppo_mem.yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/cg=chaos_v_ppo_mem.yaml
 ``` 
 
 ### Coin Game - Good Shepherd
 ```bash 
-python -m pax.experiment +experiment/cg=gs_v_ppo_mem.yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/cg=gs_v_ppo_mem.yaml
 ``` 
 
 ### Coin Game - Model Free Opponent Shaping (ES)
 ```bash 
-python -m pax.experiment +experiment/cg=mfos_es_v_ppo.yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/cg=mfos_es_v_ppo.yaml 
 ``` 
 
 ### Coin Game - Model Free Opponent Shaping (RL)
 ```bash 
-python -m pax.experiment +experiment/cg=mfos_rl_v_ppo.yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/cg=mfos_rl_v_ppo.yaml
+``` 
+
+### IPD in the Matrix - Independent Learners
+```bash 
+python -m pax.experiment +experiment/ipditm=sanity.yaml
+``` 
+
+### IPD in the Matrix - SHAPER
+```bash 
+python -m pax.experiment +experiment/cg=chaos_v_ppo_mem.yaml
+``` 
+
+### IMP in the Matrix - Good Shepherd
+```bash 
+python -m pax.experiment +experiment/cg=gs_v_ppo_mem.yaml 
+``` 
+
+### IPD in the Matrix - Model Free Opponent Shaping (ES)
+```bash 
+python -m pax.experiment +experiment/cg=mfos_es_v_ppo.yaml
+``` 
+
+### IPD in the Matrix  - Model Free Opponent Shaping (RL)
+```bash 
+python -m pax.experiment +experiment/cg=mfos_rl_v_ppo.yaml
 ``` 

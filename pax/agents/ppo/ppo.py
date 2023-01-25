@@ -492,7 +492,7 @@ def make_agent(
             agent_args.kernel_shape,
         )
     else:
-        network = make_ipd_network(action_spec, tabular, args)
+        network = make_ipd_network(action_spec, agent_args.tabular, agent_args)
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)

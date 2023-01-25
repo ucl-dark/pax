@@ -45,7 +45,6 @@ from pax.envs.ipd_in_the_matrix import (
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
-from pax.runner_ipditm_eval import IPDITMEvalRunner
 from pax.utils import Section
 from pax.watchers import (
     losses_ppo,

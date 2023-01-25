@@ -543,7 +543,7 @@ def make_gru_agent(
 
     if agent_args.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=agent_args.ppo.learning_rate,
+            init_value=agent_args.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )

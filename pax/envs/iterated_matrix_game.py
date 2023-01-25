@@ -88,7 +88,7 @@ class IteratedMatrixGame(environment.Environment):
         ) -> Tuple[chex.Array, EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
-                outer_t=jnp.zeros((), dtype=jnp.int8),
+                outer_t=jnp.zeros((), dtype=jnp.int32),
             )
             obs = jax.nn.one_hot(4 * jnp.ones(()), 5, dtype=jnp.int8)
             return (obs, obs), state
