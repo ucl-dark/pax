@@ -110,6 +110,10 @@ class TensorRLRunner:
         )
 
         agent1, agent2, agent3 = agents
+        # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
+        # agent2.state, agent2.mem, agent2.batch_init, agent2.batch_update,agent2.batch_reset, agent2.batch_policy = init_other_agent(args.agent2, agent2, args.num_opps)
+        # agent3.state, agent3.mem, agent3.batch_init, agent3.batch_update,agent3.batch_reset, agent3.batch_policy = init_other_agent(args.agent3, agent3, args.num_opps)
+
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -129,6 +133,12 @@ class TensorRLRunner:
         agent1.batch_policy = jax.jit(
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
+        if args.agent1 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            agent1._state, agent1._mem = agent1.batch_init(
+                agent1._state.random_key, init_hidden
+            )
 
         # batch all for Agent2
         if args.agent2 == "NaiveEx":
@@ -143,6 +153,13 @@ class TensorRLRunner:
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            agent2._state, agent2._mem = agent2.batch_init(
+                jax.random.split(agent2._state.random_key, args.num_opps),
+                init_hidden,
+            )
 
         # batch all for Agent3
         if args.agent3 == "NaiveEx":
@@ -152,27 +169,11 @@ class TensorRLRunner:
             agent3.batch_init = jax.vmap(
                 agent3.make_initial_state, (0, None), 0
             )
-        agent3.batch_policy = jax.jit(jax.vmap(agent2._policy))
+        agent3.batch_policy = jax.jit(jax.vmap(agent3._policy))
         agent3.batch_reset = jax.jit(
             jax.vmap(agent3.reset_memory, (0, None), 0), static_argnums=1
         )
         agent3.batch_update = jax.jit(jax.vmap(agent3.update, (1, 0, 0, 0), 0))
-
-        if args.agent1 != "NaiveEx":
-            # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
-            agent1._state, agent1._mem = agent1.batch_init(
-                agent1._state.random_key, init_hidden
-            )
-
-        if args.agent2 != "NaiveEx":
-            # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
-            agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opps),
-                init_hidden,
-            )
-
         if args.agent3 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent3._mem.hidden, (args.num_opps, 1, 1))
@@ -180,6 +181,7 @@ class TensorRLRunner:
                 jax.random.split(agent3._state.random_key, args.num_opps),
                 init_hidden,
             )
+
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -613,3 +615,57 @@ class TensorRLRunner:
         agents[1]._state = a2_state
         agents[2]._state = a3_state
         return agents
+    
+# def init_first_agent(agent_arg, agent, num_opps):
+#     # set up agents
+#     if agent_arg == "NaiveEx":
+#         # special case where NaiveEx has a different call signature
+#         batch_init = jax.jit(jax.vmap(agent.make_initial_state))
+#     else:
+#         # batch MemoryState not TrainingState
+#         batch_init = jax.vmap(
+#             agent.make_initial_state,
+#             (None, 0),
+#             (None, 0),
+#         )
+#     batch_reset = jax.jit(
+#         jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
+#     )
+
+#     batch_policy = jax.jit(
+#         jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
+#     )
+#     if agent_arg != "NaiveEx":
+#         # NaiveEx requires env first step to init.
+#         init_hidden = jnp.tile(agent._mem.hidden, (num_opps, 1, 1))
+#         state, mem = batch_init(
+#             agent._state.random_key, init_hidden
+#         )
+#     else:
+#         state, mem = agent._state, agent._mem
+#     return state, mem, batch_init, batch_reset, batch_policy
+
+# def init_other_agent(agent_arg, agent, num_opps):
+#     if agent_arg == "NaiveEx":
+#         # special case where NaiveEx has a different call signature
+#         batch_init = jax.jit(jax.vmap(agent.make_initial_state))
+#     else:
+#         batch_init = jax.vmap(
+#             agent.make_initial_state, (0, None), 0
+#         )
+#     batch_policy = jax.jit(jax.vmap(agent._policy))
+#     batch_reset = jax.jit(
+#         jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
+#     )
+#     batch_update = jax.jit(jax.vmap(agent.update, (1, 0, 0, 0), 0))
+
+#     if agent_arg!= "NaiveEx":
+#         # NaiveEx requires env first step to init.
+#         init_hidden = jnp.tile(agent._mem.hidden, (num_opps, 1, 1))
+#         state, mem = batch_init(
+#         jax.random.split(agent._state.random_key, num_opps),
+#         init_hidden,
+#     )
+#     else:
+#         state, mem = agent._state, agent._mem
+#     return state, mem, batch_init, batch_update, batch_reset, batch_policy
