@@ -483,7 +483,7 @@ class Random(AgentInterface):
 
 
 class Stay(AgentInterface):
-    def __init__(self, num_actions: int, num_envs: int):
+    def __init__(self, num_actions: int, num_envs: int, num_players:int = 2):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self._logger = Logger()

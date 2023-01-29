@@ -352,7 +352,7 @@ def agent_setup(args, env, env_params, logger):
 
     # flake8: noqa: C901
     def get_stay_agent(seed, player_id):
-        agent = Stay(num_actions, args.num_envs)
+        agent = Stay(num_actions, args.num_envs, args.num_players)
         agent.player_id = player_id
         return agent
 

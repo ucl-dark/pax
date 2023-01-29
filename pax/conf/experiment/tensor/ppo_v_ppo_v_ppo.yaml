@@ -53,4 +53,4 @@ wandb:
   project: tensor
   group: '3player-ppo'
   name: run-seed-${seed}
-  log: True
+  log: False

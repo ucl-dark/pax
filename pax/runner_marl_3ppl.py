@@ -109,8 +109,10 @@ class TensorRLRunner:
             else self.args.num_steps // self.args.num_inner_steps
         )
 
+
         agent1, agent2, agent3 = agents
         # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
+
         # agent2.state, agent2.mem, agent2.batch_init, agent2.batch_update,agent2.batch_reset, agent2.batch_policy = init_other_agent(args.agent2, agent2, args.num_opps)
         # agent3.state, agent3.mem, agent3.batch_init, agent3.batch_update,agent3.batch_reset, agent3.batch_policy = init_other_agent(args.agent3, agent3, args.num_opps)
 
@@ -207,7 +209,9 @@ class TensorRLRunner:
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
-
+            # print(a1_state)
+            # print(obs1.shape)
+            # print(a1_mem.shape)
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
