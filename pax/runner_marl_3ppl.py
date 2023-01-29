@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import tensor_ipd_visitation 
 
 MAX_WANDB_CALLS = 1000
 
@@ -86,8 +86,8 @@ class TensorRLRunner:
             )
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
-        self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = jax.jit(cg_visitation)
+        self.tensor_ipd_stats = jax.jit(tensor_ipd_visitation)
+        # self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -113,7 +113,6 @@ class TensorRLRunner:
         # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
         # agent2.state, agent2.mem, agent2.batch_init, agent2.batch_update,agent2.batch_reset, agent2.batch_policy = init_other_agent(args.agent2, agent2, args.num_opps)
         # agent3.state, agent3.mem, agent3.batch_init, agent3.batch_update,agent3.batch_reset, agent3.batch_policy = init_other_agent(args.agent3, agent3, args.num_opps)
-
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -181,7 +180,6 @@ class TensorRLRunner:
                 jax.random.split(agent3._state.random_key, args.num_opps),
                 init_hidden,
             )
-
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -456,20 +454,20 @@ class TensorRLRunner:
             a3_mem = agent3.batch_reset(a3_mem, False)
 
             # Stats
-            if args.env_id == "coin_game":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x,
-                    self.cg_stats(env_state),
-                )
+            # if args.env_id == "coin_game":
+            #     env_stats = jax.tree_util.tree_map(
+            #         lambda x: x,
+            #         self.cg_stats(env_state),
+            #     )
 
-                rewards_1 = traj_1.rewards.sum(axis=1).mean()
-                rewards_2 = traj_2.rewards.sum(axis=1).mean()
-                rewards_3 = traj_3.rewards.sum(axis=1).mean()
+            #     rewards_1 = traj_1.rewards.sum(axis=1).mean()
+            #     rewards_2 = traj_2.rewards.sum(axis=1).mean()
+            #     rewards_3 = traj_3.rewards.sum(axis=1).mean()
 
-            elif args.env_id == "iterated_matrix_game":
+            if args.env_id == "iterated_tensor_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.ipd_stats(
+                    self.tensor_ipd_stats(
                         traj_1.observations,
                         traj_1.actions,
                         obs1,
@@ -593,7 +591,7 @@ class TensorRLRunner:
                         agent3._logger.metrics | flattened_metrics_3
                     )
 
-                    for watcher, agent in zip(watchers, agents, strict=True):
+                    for watcher, agent in zip(watchers, agents):
                         watcher(agent)
                     wandb.log(
                         {
@@ -615,7 +613,8 @@ class TensorRLRunner:
         agents[1]._state = a2_state
         agents[2]._state = a3_state
         return agents
-    
+
+
 # def init_first_agent(agent_arg, agent, num_opps):
 #     # set up agents
 #     if agent_arg == "NaiveEx":

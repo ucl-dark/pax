@@ -21,6 +21,18 @@ DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
 
+START_3P = jnp.array([[0, 0, 0, 0,0,0,0,0,1]])
+CCC = jnp.array([[1, 0, 0, 0, 0,0,0,0,0]])
+CCD = jnp.array([[0, 1, 0, 0, 0,0,0,0,0]])
+CDC = jnp.array([[0, 0, 1, 0, 0,0,0,0,0]])
+CDD = jnp.array([[0, 0, 0, 1, 0,0,0,0,0]])
+DCC = jnp.array([[0, 0, 0, 0, 1,0,0,0,0]])
+DCD = jnp.array([[0, 0, 0, 0, 0,1,0,0,0]])
+DDC = jnp.array([[0, 0, 0, 0, 0,0,1,0,0]])
+DDD = jnp.array([[0, 0, 0, 0, 0,0,0,1,0]])
+STATE_NAMES_3P = ["START", "CCC", "CCD", "CDC", "CDD", "DCC", "DCD", "DDC", "DDD"]
+ALL_STATES_3P = [START, CCC, CCD, CDC, CDD, DCC, DCD, DDC, DDD]
+
 
 class State(enum.IntEnum):
     CC = 0
@@ -29,83 +41,118 @@ class State(enum.IntEnum):
     DD = 3
     START = 4
 
+class State_3P(enum.IntEnum):
+    CCC = 0
+    CCD = 1
+    CDC = 2
+    CDD = 3
+    DCC = 4
+    DCD = 5
+    DDC = 6
+    DDD = 7
+    START = 8
 
-def policy_logger(agent) -> dict:
+
+def policy_logger(agent, three_players=False) -> dict:
     weights = agent.actor_optimizer.target["Dense_0"][
         "kernel"
     ]  # [layer_name]['w']
     log_pi = nn.softmax(weights)
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
+        "policy/" + str(s): p[0] for (s, p) in zip(state, log_pi)
     }  # probability of cooperating is p[0]
     return probs
 
 
-def value_logger(agent) -> dict:
+def value_logger(agent, three_players= False) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(state, weights)}
     )
     return values
 
 
-def policy_logger_dqn(agent) -> None:
+def policy_logger_dqn(agent, three_players = False) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     probs = {
         f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update(
         {
             f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, pi)
+            for (s, p) in zip(state, pi)
         }
     )
     probs.update({"policy/target_step_updates": target_steps})
     return probs
 
 
-def value_logger_dqn(agent) -> dict:
+def value_logger_dqn(agent, three_players= False) -> dict:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     values = {
         f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, weights)
+        for (s, p) in zip(state, weights)
     }
     values.update(
         {
             f"value/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, weights)
+            for (s, p) in zip(state, weights)
         }
     )
     values.update({"value/target_step_updates": target_steps})
     return values
 
 
-def policy_logger_ppo(agent: PPO) -> dict:
+def policy_logger_ppo(agent: PPO, three_players=False) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    if three_players:
+        state = State_3P
+    else:
+        state = State
+    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(state, pi)}
     probs.update({"policy/total_steps": sgd_steps})
     return probs
 
 
-def value_logger_ppo(agent: PPO) -> dict:
+def value_logger_ppo(agent: PPO, three_players=False) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear_1"][
         "w"
     ]  # 5 x 1 matrix
     sgd_steps = agent._total_steps / agent._num_steps
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
@@ -191,25 +238,33 @@ def losses_naive(agent: NaiveExact) -> dict:
     return losses
 
 
-def logger_naive_exact(agent: NaiveExact) -> dict:
+def logger_naive_exact(agent: NaiveExact, three_players = False) -> dict:
     params = agent._mem.hidden
     pid = agent.player_id
     params = params.mean(axis=0)
     cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
-    for i, state_name in enumerate(STATE_NAMES):
+    if three_players:
+        state_names = STATE_NAMES_3P
+    else:
+        state_names = STATE_NAMES
+    for i, state_name in enumerate(state_names):
         cooperation_probs[
             f"policy/naive_learner_{pid}/avg/{state_name}"
         ] = float(params[i])
     return cooperation_probs
 
 
-def policy_logger_naive(agent) -> None:
+def policy_logger_naive(agent, three_players= False) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
+    if three_players:
+        state = State_3P
+    else:
+        state = State
     probs = {
         f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
@@ -420,6 +475,57 @@ def ipd_visitation(
         "cooperation_probability/DC": action_probs[2],
         "cooperation_probability/DD": action_probs[3],
         "cooperation_probability/START": action_probs[4],
+    }
+
+def tensor_ipd_visitation(
+    observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
+) -> dict:
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
+    # final_t [num_opps, num_envs, ...]
+    num_timesteps = observations.shape[0] * observations.shape[1]
+    # obs = [0....8], a = [0, 1]
+    # combine = [0, .... 17]
+    state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
+    state_actions = jnp.reshape(
+        state_actions,
+        (num_timesteps,) + state_actions.shape[2:],
+    )
+    # assume final step taken is cooperate
+    final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
+    state_actions = jnp.append(state_actions, final_obs, axis=0)
+    hist = jnp.bincount(state_actions.flatten(), length=18)
+    state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+    state_probs = state_freq / state_freq.sum()
+    action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+    print(action_probs.shape)
+    return {
+        "state_visitation/CCC": state_freq[0],
+        "state_visitation/CCD": state_freq[1],
+        "state_visitation/CDC": state_freq[2],
+        "state_visitation/CDD": state_freq[3],
+        "state_visitation/DCC": state_freq[4],
+        "state_visitation/DCD": state_freq[5],
+        "state_visitation/DDC": state_freq[6],
+        "state_visitation/DDD": state_freq[7],
+        "state_visitation/START": state_freq[8],
+        "state_probability/CCC": state_probs[0],
+        "state_probability/CCD": state_probs[1],
+        "state_probability/CDC": state_probs[2],
+        "state_probability/CDD": state_probs[3],
+        "state_probability/DCC": state_probs[4],
+        "state_probability/DCD": state_probs[5],
+        "state_probability/DDC": state_probs[6],
+        "state_probability/DDD": state_probs[7],
+        "state_probability/START": state_probs[8],
+        "cooperation_probability/CCC": action_probs[0],
+        "cooperation_probability/CCD": action_probs[1],
+        "cooperation_probability/CDC": action_probs[2],
+        "cooperation_probability/CDD": action_probs[3],
+        "cooperation_probability/DCC": action_probs[4],
+        "cooperation_probability/DCD": action_probs[5],
+        "cooperation_probability/DDC": action_probs[6],
+        "cooperation_probability/DDD": action_probs[7],
+        "cooperation_probability/START": action_probs[8],
     }
 
 

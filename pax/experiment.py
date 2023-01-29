@@ -396,7 +396,7 @@ def agent_setup(args, env, env_params, logger):
             logger.info("Using Independent Learners")
             return agent_1
 
-    elif args.num_players == 3:
+    elif 'num_players' in args and args.num_players == 3:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
         assert args.agent3 in strategies
@@ -425,9 +425,6 @@ def agent_setup(args, env, env_params, logger):
             return (agent_0, agent_1, agent_2)
         else:
             raise NotImplementedError("Only RL implemented")
-        # if args.runner == "evo":
-        #     logger.info("Using EvolutionaryLearners")
-        #     return (agent_0, agent_1, agent_2)
 
     else:
         assert args.agent1 in strategies
@@ -458,8 +455,10 @@ def agent_setup(args, env, env_params, logger):
 
 def watcher_setup(args, logger):
     """Set up watcher variables."""
+    
+    three_players =  ('num_players' in args) and (args.num_players == 3)
 
-    def ppo_memory_log(agent):
+    def ppo_memory_log(agent,):
         losses = losses_ppo(agent)
         if not args.env_id == "coin_game":
             policy = policy_logger_ppo_with_memory(agent)
@@ -471,8 +470,8 @@ def watcher_setup(args, logger):
     def ppo_log(agent):
         losses = losses_ppo(agent)
         if not args.env_id == "coin_game":
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
+            policy = policy_logger_ppo(agent, three_players)
+            value = value_logger_ppo(agent, three_players)
             losses.update(value)
             losses.update(policy)
         if args.wandb.log:
@@ -492,7 +491,7 @@ def watcher_setup(args, logger):
 
     def naive_logger(agent):
         losses = losses_naive(agent)
-        policy = logger_naive_exact(agent)
+        policy = logger_naive_exact(agent), three_players
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -500,9 +499,9 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if args.env_id in ["finite_matrix_game", "finite_tensor_game"]:
-            policy = policy_logger_ppo(agent)
-            value = value_logger_ppo(agent)
+        if args.env_id in ["iterated_matrix_game", "iterated_tensor_game"]:
+            policy = policy_logger_ppo(agent, three_players)
+            value = value_logger_ppo(agent, three_players)
             losses.update(value)
             losses.update(policy)
         if args.wandb.log:
@@ -540,13 +539,17 @@ def watcher_setup(args, logger):
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
 
         return agent_1_log
+        
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
 
         agent_0_log = strategies[args.agent1]
         agent_1_log = strategies[args.agent2]
-
+        if three_players:
+            assert args.agent3 in strategies
+            agent_2_log = strategies[args.agent3]
+            return [agent_0_log, agent_1_log, agent_2_log]
         return [agent_0_log, agent_1_log]
 
 

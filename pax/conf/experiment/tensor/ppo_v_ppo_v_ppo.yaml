@@ -19,7 +19,7 @@ runner: tensor_rl
 num_envs: 100
 num_opps: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 150_000000
+total_timesteps: 150_000000 # num_episodes  = total / (numsteps * num_envs)
 
 # Evaluation 
 
@@ -50,7 +50,7 @@ ppo:
 # Logging setup
 wandb:
   # entity: "ucl-dark"
-  project: mp
+  project: tensor
   group: '3player-ppo'
   name: run-seed-${seed}
-  log: False
+  log: True
