@@ -69,7 +69,6 @@ class TensorRLRunner:
     """
 
     def __init__(self, agents, env, save_dir, args):
-        print(args)
         self.train_steps = 0
         self.train_episodes = 0
         self.start_time = time.time()
@@ -565,7 +564,8 @@ class TensorRLRunner:
 
                 print(f"Env Stats: {env_stats}")
                 print(
-                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean()), float(rewards_3.mean())}"
+                    "Total Episode Reward:"
+                    + f"{float(rewards_1.mean()), float(rewards_2.mean()), float(rewards_3.mean())}"
                 )
                 print()
 
@@ -591,7 +591,7 @@ class TensorRLRunner:
                         agent3._logger.metrics | flattened_metrics_3
                     )
 
-                    for watcher, agent in zip(watchers, agents):
+                    for watcher, agent in zip(watchers, agents, strict=True):
                         watcher(agent)
                     wandb.log(
                         {
