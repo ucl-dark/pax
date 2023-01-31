@@ -1645,7 +1645,7 @@
 [2023-01-31 11:15:08,115][root][INFO] - => Done in 4.046 ms
 [2023-01-31 11:15:08,116][root][INFO] - 
 [2023-01-31 11:15:08,116][root][INFO] - => Agent setup ...
-[2023-01-31 11:15:08,593][root][INFO] - Agent Pair: PPO | TitForTatStrictSwitch| TitForTatStrictSwitch
+[2023-01-31 11:15:08,593][root][INFO] - Agent Pair: PPO | TitForTatStrictStay| TitForTatStrictStay
 [2023-01-31 11:15:08,593][root][INFO] - Agent seeds: 0 | 1| 2
 [2023-01-31 11:15:08,594][root][INFO] - Using Independent Learners
 [2023-01-31 11:15:08,594][root][INFO] - => Done in 477.996 ms
@@ -1657,3 +1657,313 @@
 [2023-01-31 11:15:08,594][root][INFO] - Training with tensor RL Runner
 [2023-01-31 11:15:08,669][root][INFO] - => Done in 74.868 ms
 [2023-01-31 11:15:08,669][root][INFO] - 
+[2023-01-31 15:27:00,173][root][INFO] - => Global setup ...
+[2023-01-31 15:27:03,319][root][INFO] - => Done in 3.146 s
+[2023-01-31 15:27:03,319][root][INFO] - 
+[2023-01-31 15:27:03,319][root][INFO] - => Env setup ...
+[2023-01-31 15:27:03,325][root][INFO] - => Done in 5.489 ms
+[2023-01-31 15:27:03,325][root][INFO] - 
+[2023-01-31 15:27:03,325][root][INFO] - => Agent setup ...
+[2023-01-31 15:27:03,797][root][INFO] - Agent Pair: PPO | TitForTatStrictSwitch| TitForTatStrictSwitch
+[2023-01-31 15:27:03,798][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:27:03,798][root][INFO] - Using Independent Learners
+[2023-01-31 15:27:03,798][root][INFO] - => Done in 472.767 ms
+[2023-01-31 15:27:03,798][root][INFO] - 
+[2023-01-31 15:27:03,798][root][INFO] - => Watcher setup ...
+[2023-01-31 15:27:03,798][root][INFO] - => Done in 136.852 us
+[2023-01-31 15:27:03,798][root][INFO] - 
+[2023-01-31 15:27:03,798][root][INFO] - => Runner setup ...
+[2023-01-31 15:27:03,798][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:27:03,865][root][INFO] - => Done in 67.303 ms
+[2023-01-31 15:27:03,866][root][INFO] - 
+[2023-01-31 15:29:03,280][root][INFO] - => Global setup ...
+[2023-01-31 15:29:06,229][root][INFO] - => Done in 2.949 s
+[2023-01-31 15:29:06,230][root][INFO] - 
+[2023-01-31 15:29:06,230][root][INFO] - => Env setup ...
+[2023-01-31 15:29:06,236][root][INFO] - => Done in 6.747 ms
+[2023-01-31 15:29:06,237][root][INFO] - 
+[2023-01-31 15:29:06,237][root][INFO] - => Agent setup ...
+[2023-01-31 15:29:06,700][root][INFO] - Agent Pair: PPO | TitForTatStrictStay| TitForTatStrictStay
+[2023-01-31 15:29:06,700][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:29:06,700][root][INFO] - Using Independent Learners
+[2023-01-31 15:29:06,700][root][INFO] - => Done in 463.165 ms
+[2023-01-31 15:29:06,700][root][INFO] - 
+[2023-01-31 15:29:06,700][root][INFO] - => Watcher setup ...
+[2023-01-31 15:29:06,700][root][INFO] - => Done in 120.163 us
+[2023-01-31 15:29:06,700][root][INFO] - 
+[2023-01-31 15:29:06,700][root][INFO] - => Runner setup ...
+[2023-01-31 15:29:06,700][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:29:06,767][root][INFO] - => Done in 66.884 ms
+[2023-01-31 15:29:06,767][root][INFO] - 
+[2023-01-31 15:36:28,418][root][INFO] - => Global setup ...
+[2023-01-31 15:36:31,639][root][INFO] - => Done in 3.221 s
+[2023-01-31 15:36:31,640][root][INFO] - 
+[2023-01-31 15:36:31,640][root][INFO] - => Env setup ...
+[2023-01-31 15:36:31,648][root][INFO] - => Done in 8.331 ms
+[2023-01-31 15:36:31,648][root][INFO] - 
+[2023-01-31 15:36:31,648][root][INFO] - => Agent setup ...
+[2023-01-31 15:36:32,237][root][INFO] - Agent Pair: PPO | TitForTatStrictSwitch| TitForTatStrictStay
+[2023-01-31 15:36:32,238][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:36:32,238][root][INFO] - Using Independent Learners
+[2023-01-31 15:36:32,238][root][INFO] - => Done in 589.378 ms
+[2023-01-31 15:36:32,238][root][INFO] - 
+[2023-01-31 15:36:32,238][root][INFO] - => Watcher setup ...
+[2023-01-31 15:36:32,238][root][INFO] - => Done in 155.926 us
+[2023-01-31 15:36:32,238][root][INFO] - 
+[2023-01-31 15:36:32,238][root][INFO] - => Runner setup ...
+[2023-01-31 15:36:32,238][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:36:32,313][root][INFO] - => Done in 74.769 ms
+[2023-01-31 15:36:32,313][root][INFO] - 
+[2023-01-31 15:43:34,407][root][INFO] - => Global setup ...
+[2023-01-31 15:43:34,529][root][INFO] - => Done in 121.262 ms
+[2023-01-31 15:43:34,529][root][INFO] - 
+[2023-01-31 15:44:07,919][root][INFO] - => Global setup ...
+[2023-01-31 15:44:11,340][root][INFO] - => Done in 3.421 s
+[2023-01-31 15:44:11,340][root][INFO] - 
+[2023-01-31 15:44:11,340][root][INFO] - => Env setup ...
+[2023-01-31 15:44:11,347][root][INFO] - => Done in 7.016 ms
+[2023-01-31 15:44:11,348][root][INFO] - 
+[2023-01-31 15:44:11,348][root][INFO] - => Agent setup ...
+[2023-01-31 15:44:12,021][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictStay
+[2023-01-31 15:44:12,021][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:44:12,021][root][INFO] - Using Independent Learners
+[2023-01-31 15:44:12,021][root][INFO] - => Done in 673.437 ms
+[2023-01-31 15:44:12,021][root][INFO] - 
+[2023-01-31 15:44:12,021][root][INFO] - => Watcher setup ...
+[2023-01-31 15:44:12,021][root][INFO] - => Done in 113.249 us
+[2023-01-31 15:44:12,021][root][INFO] - 
+[2023-01-31 15:44:12,021][root][INFO] - => Runner setup ...
+[2023-01-31 15:44:12,022][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:44:12,491][root][INFO] - => Done in 469.486 ms
+[2023-01-31 15:44:12,491][root][INFO] - 
+[2023-01-31 15:57:37,855][root][INFO] - => Global setup ...
+[2023-01-31 15:57:37,919][root][INFO] - => Done in 63.957 ms
+[2023-01-31 15:57:37,920][root][INFO] - 
+[2023-01-31 15:57:46,829][root][INFO] - => Global setup ...
+[2023-01-31 15:57:49,961][root][INFO] - => Done in 3.132 s
+[2023-01-31 15:57:49,962][root][INFO] - 
+[2023-01-31 15:57:49,962][root][INFO] - => Env setup ...
+[2023-01-31 15:57:49,971][root][INFO] - => Done in 8.833 ms
+[2023-01-31 15:57:49,971][root][INFO] - 
+[2023-01-31 15:57:49,971][root][INFO] - => Agent setup ...
+[2023-01-31 15:57:50,627][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 15:57:50,628][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:57:50,628][root][INFO] - Using Independent Learners
+[2023-01-31 15:57:50,628][root][INFO] - => Done in 656.823 ms
+[2023-01-31 15:57:50,628][root][INFO] - 
+[2023-01-31 15:57:50,628][root][INFO] - => Watcher setup ...
+[2023-01-31 15:57:50,628][root][INFO] - => Done in 112.057 us
+[2023-01-31 15:57:50,628][root][INFO] - 
+[2023-01-31 15:57:50,628][root][INFO] - => Runner setup ...
+[2023-01-31 15:57:50,628][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:57:51,084][root][INFO] - => Done in 455.473 ms
+[2023-01-31 15:57:51,084][root][INFO] - 
+[2023-01-31 15:59:15,977][root][INFO] - => Global setup ...
+[2023-01-31 15:59:19,246][root][INFO] - => Done in 3.269 s
+[2023-01-31 15:59:19,246][root][INFO] - 
+[2023-01-31 15:59:19,246][root][INFO] - => Env setup ...
+[2023-01-31 15:59:19,253][root][INFO] - => Done in 7.313 ms
+[2023-01-31 15:59:19,254][root][INFO] - 
+[2023-01-31 15:59:19,254][root][INFO] - => Agent setup ...
+[2023-01-31 15:59:19,724][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 15:59:19,724][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 15:59:19,725][root][INFO] - Using Independent Learners
+[2023-01-31 15:59:19,725][root][INFO] - => Done in 470.996 ms
+[2023-01-31 15:59:19,725][root][INFO] - 
+[2023-01-31 15:59:19,725][root][INFO] - => Watcher setup ...
+[2023-01-31 15:59:19,725][root][INFO] - => Done in 111.103 us
+[2023-01-31 15:59:19,725][root][INFO] - 
+[2023-01-31 15:59:19,725][root][INFO] - => Runner setup ...
+[2023-01-31 15:59:19,725][root][INFO] - Training with tensor RL Runner
+[2023-01-31 15:59:20,161][root][INFO] - => Done in 436.243 ms
+[2023-01-31 15:59:20,161][root][INFO] - 
+[2023-01-31 16:02:37,625][root][INFO] - => Global setup ...
+[2023-01-31 16:02:40,867][root][INFO] - => Done in 3.242 s
+[2023-01-31 16:02:40,867][root][INFO] - 
+[2023-01-31 16:02:40,868][root][INFO] - => Env setup ...
+[2023-01-31 16:02:40,873][root][INFO] - => Done in 5.218 ms
+[2023-01-31 16:02:40,873][root][INFO] - 
+[2023-01-31 16:02:40,873][root][INFO] - => Agent setup ...
+[2023-01-31 16:02:41,342][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:02:41,342][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:02:41,342][root][INFO] - Using Independent Learners
+[2023-01-31 16:02:41,342][root][INFO] - => Done in 469.172 ms
+[2023-01-31 16:02:41,342][root][INFO] - 
+[2023-01-31 16:02:41,342][root][INFO] - => Watcher setup ...
+[2023-01-31 16:02:41,343][root][INFO] - => Done in 153.065 us
+[2023-01-31 16:02:41,343][root][INFO] - 
+[2023-01-31 16:02:41,343][root][INFO] - => Runner setup ...
+[2023-01-31 16:02:41,343][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:02:41,783][root][INFO] - => Done in 440.702 ms
+[2023-01-31 16:02:41,784][root][INFO] - 
+[2023-01-31 16:37:36,199][root][INFO] - => Global setup ...
+[2023-01-31 16:37:39,586][root][INFO] - => Done in 3.387 s
+[2023-01-31 16:37:39,586][root][INFO] - 
+[2023-01-31 16:37:39,587][root][INFO] - => Env setup ...
+[2023-01-31 16:37:39,596][root][INFO] - => Done in 9.743 ms
+[2023-01-31 16:37:39,597][root][INFO] - 
+[2023-01-31 16:37:39,597][root][INFO] - => Agent setup ...
+[2023-01-31 16:37:40,154][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:37:40,154][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:37:40,154][root][INFO] - Using Independent Learners
+[2023-01-31 16:37:40,154][root][INFO] - => Done in 556.848 ms
+[2023-01-31 16:37:40,154][root][INFO] - 
+[2023-01-31 16:37:40,154][root][INFO] - => Watcher setup ...
+[2023-01-31 16:37:40,154][root][INFO] - => Done in 116.110 us
+[2023-01-31 16:37:40,154][root][INFO] - 
+[2023-01-31 16:37:40,154][root][INFO] - => Runner setup ...
+[2023-01-31 16:37:40,154][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:37:40,593][root][INFO] - => Done in 439.047 ms
+[2023-01-31 16:37:40,594][root][INFO] - 
+[2023-01-31 16:47:36,599][root][INFO] - => Global setup ...
+[2023-01-31 16:47:39,390][root][INFO] - => Done in 2.790 s
+[2023-01-31 16:47:39,390][root][INFO] - 
+[2023-01-31 16:47:39,390][root][INFO] - => Env setup ...
+[2023-01-31 16:47:39,395][root][INFO] - => Done in 5.449 ms
+[2023-01-31 16:47:39,396][root][INFO] - 
+[2023-01-31 16:47:39,396][root][INFO] - => Agent setup ...
+[2023-01-31 16:47:39,858][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:47:39,859][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:47:39,859][root][INFO] - Using Independent Learners
+[2023-01-31 16:47:39,859][root][INFO] - => Done in 463.178 ms
+[2023-01-31 16:47:39,859][root][INFO] - 
+[2023-01-31 16:47:39,859][root][INFO] - => Watcher setup ...
+[2023-01-31 16:47:39,859][root][INFO] - => Done in 108.242 us
+[2023-01-31 16:47:39,859][root][INFO] - 
+[2023-01-31 16:47:39,859][root][INFO] - => Runner setup ...
+[2023-01-31 16:47:39,859][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:47:40,300][root][INFO] - => Done in 440.362 ms
+[2023-01-31 16:47:40,300][root][INFO] - 
+[2023-01-31 16:49:25,788][root][INFO] - => Global setup ...
+[2023-01-31 16:49:28,931][root][INFO] - => Done in 3.143 s
+[2023-01-31 16:49:28,931][root][INFO] - 
+[2023-01-31 16:49:28,931][root][INFO] - => Env setup ...
+[2023-01-31 16:49:28,936][root][INFO] - => Done in 4.668 ms
+[2023-01-31 16:49:28,936][root][INFO] - 
+[2023-01-31 16:49:28,936][root][INFO] - => Agent setup ...
+[2023-01-31 16:49:29,402][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:49:29,403][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:49:29,403][root][INFO] - Using Independent Learners
+[2023-01-31 16:49:29,403][root][INFO] - => Done in 466.412 ms
+[2023-01-31 16:49:29,403][root][INFO] - 
+[2023-01-31 16:49:29,403][root][INFO] - => Watcher setup ...
+[2023-01-31 16:49:29,403][root][INFO] - => Done in 121.832 us
+[2023-01-31 16:49:29,403][root][INFO] - 
+[2023-01-31 16:49:29,403][root][INFO] - => Runner setup ...
+[2023-01-31 16:49:29,403][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:49:29,836][root][INFO] - => Done in 432.508 ms
+[2023-01-31 16:49:29,836][root][INFO] - 
+[2023-01-31 16:50:18,608][root][INFO] - => Global setup ...
+[2023-01-31 16:50:21,948][root][INFO] - => Done in 3.340 s
+[2023-01-31 16:50:21,949][root][INFO] - 
+[2023-01-31 16:50:21,949][root][INFO] - => Env setup ...
+[2023-01-31 16:50:21,955][root][INFO] - => Done in 5.932 ms
+[2023-01-31 16:50:21,955][root][INFO] - 
+[2023-01-31 16:50:21,955][root][INFO] - => Agent setup ...
+[2023-01-31 16:50:22,420][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:50:22,420][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:50:22,420][root][INFO] - Using Independent Learners
+[2023-01-31 16:50:22,420][root][INFO] - => Done in 465.198 ms
+[2023-01-31 16:50:22,420][root][INFO] - 
+[2023-01-31 16:50:22,420][root][INFO] - => Watcher setup ...
+[2023-01-31 16:50:22,420][root][INFO] - => Done in 113.964 us
+[2023-01-31 16:50:22,420][root][INFO] - 
+[2023-01-31 16:50:22,420][root][INFO] - => Runner setup ...
+[2023-01-31 16:50:22,421][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:50:22,856][root][INFO] - => Done in 435.279 ms
+[2023-01-31 16:50:22,856][root][INFO] - 
+[2023-01-31 16:56:26,676][root][INFO] - => Global setup ...
+[2023-01-31 16:56:29,612][root][INFO] - => Done in 2.935 s
+[2023-01-31 16:56:29,612][root][INFO] - 
+[2023-01-31 16:56:29,612][root][INFO] - => Env setup ...
+[2023-01-31 16:56:29,618][root][INFO] - => Done in 6.056 ms
+[2023-01-31 16:56:29,618][root][INFO] - 
+[2023-01-31 16:56:29,618][root][INFO] - => Agent setup ...
+[2023-01-31 16:56:30,079][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:56:30,079][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:56:30,079][root][INFO] - Using Independent Learners
+[2023-01-31 16:56:30,079][root][INFO] - => Done in 461.134 ms
+[2023-01-31 16:56:30,079][root][INFO] - 
+[2023-01-31 16:56:30,080][root][INFO] - => Watcher setup ...
+[2023-01-31 16:56:30,080][root][INFO] - => Done in 152.826 us
+[2023-01-31 16:56:30,080][root][INFO] - 
+[2023-01-31 16:56:30,080][root][INFO] - => Runner setup ...
+[2023-01-31 16:56:30,080][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:56:30,081][root][INFO] - => Done in 1.181 ms
+[2023-01-31 16:56:30,081][root][INFO] - 
+[2023-01-31 16:57:05,364][root][INFO] - => Global setup ...
+[2023-01-31 16:57:07,986][root][INFO] - => Done in 2.622 s
+[2023-01-31 16:57:07,986][root][INFO] - 
+[2023-01-31 16:57:07,986][root][INFO] - => Env setup ...
+[2023-01-31 16:57:07,991][root][INFO] - => Done in 4.991 ms
+[2023-01-31 16:57:07,991][root][INFO] - 
+[2023-01-31 16:57:07,991][root][INFO] - => Agent setup ...
+[2023-01-31 16:57:08,454][root][INFO] - Agent Pair: PPO | PPO| TitForTatStrictSwitch
+[2023-01-31 16:57:08,454][root][INFO] - Agent seeds: 1 | 2| 3
+[2023-01-31 16:57:08,454][root][INFO] - Using Independent Learners
+[2023-01-31 16:57:08,454][root][INFO] - => Done in 462.959 ms
+[2023-01-31 16:57:08,454][root][INFO] - 
+[2023-01-31 16:57:08,454][root][INFO] - => Watcher setup ...
+[2023-01-31 16:57:08,454][root][INFO] - => Done in 111.818 us
+[2023-01-31 16:57:08,454][root][INFO] - 
+[2023-01-31 16:57:08,454][root][INFO] - => Runner setup ...
+[2023-01-31 16:57:08,454][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:57:08,493][root][INFO] - => Done in 38.975 ms
+[2023-01-31 16:57:08,494][root][INFO] - 
+[2023-01-31 16:58:25,944][root][INFO] - => Global setup ...
+[2023-01-31 16:58:28,510][root][INFO] - => Done in 2.566 s
+[2023-01-31 16:58:28,510][root][INFO] - 
+[2023-01-31 16:58:28,510][root][INFO] - => Env setup ...
+[2023-01-31 16:58:28,514][root][INFO] - => Done in 4.527 ms
+[2023-01-31 16:58:28,515][root][INFO] - 
+[2023-01-31 16:58:28,515][root][INFO] - => Agent setup ...
+[2023-01-31 16:58:28,983][root][INFO] - Agent Pair: PPO | TitForTatStrictStay| TitForTatStrictStay
+[2023-01-31 16:58:28,984][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 16:58:28,984][root][INFO] - Using Independent Learners
+[2023-01-31 16:58:28,984][root][INFO] - => Done in 469.064 ms
+[2023-01-31 16:58:28,984][root][INFO] - 
+[2023-01-31 16:58:28,984][root][INFO] - => Watcher setup ...
+[2023-01-31 16:58:28,984][root][INFO] - => Done in 109.196 us
+[2023-01-31 16:58:28,984][root][INFO] - 
+[2023-01-31 16:58:28,984][root][INFO] - => Runner setup ...
+[2023-01-31 16:58:28,984][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:58:29,034][root][INFO] - => Done in 49.536 ms
+[2023-01-31 16:58:29,034][root][INFO] - 
+[2023-01-31 16:58:56,924][root][INFO] - => Global setup ...
+[2023-01-31 16:58:56,925][root][INFO] - => Done in 998.020 us
+[2023-01-31 16:58:56,925][root][INFO] - 
+[2023-01-31 16:58:56,925][root][INFO] - => Env setup ...
+[2023-01-31 16:58:56,928][root][INFO] - => Done in 2.900 ms
+[2023-01-31 16:58:56,928][root][INFO] - 
+[2023-01-31 16:58:56,928][root][INFO] - => Agent setup ...
+[2023-01-31 16:58:57,378][root][INFO] - Agent Pair: PPO | TitForTatStrictStay| TitForTatStrictStay
+[2023-01-31 16:58:57,378][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 16:58:57,378][root][INFO] - Using Independent Learners
+[2023-01-31 16:58:57,378][root][INFO] - => Done in 450.280 ms
+[2023-01-31 16:58:57,378][root][INFO] - 
+[2023-01-31 16:58:57,378][root][INFO] - => Watcher setup ...
+[2023-01-31 16:58:57,378][root][INFO] - => Done in 89.169 us
+[2023-01-31 16:58:57,378][root][INFO] - 
+[2023-01-31 16:58:57,378][root][INFO] - => Runner setup ...
+[2023-01-31 16:58:57,379][root][INFO] - Training with tensor RL Runner
+[2023-01-31 16:58:57,432][root][INFO] - => Done in 53.900 ms
+[2023-01-31 16:58:57,433][root][INFO] - 
+[2023-01-31 17:02:56,008][root][INFO] - => Global setup ...
+[2023-01-31 17:02:56,009][root][INFO] - => Done in 1.252 ms
+[2023-01-31 17:02:56,009][root][INFO] - 
+[2023-01-31 17:02:56,009][root][INFO] - => Env setup ...
+[2023-01-31 17:02:56,012][root][INFO] - => Done in 3.151 ms
+[2023-01-31 17:02:56,012][root][INFO] - 
+[2023-01-31 17:02:56,012][root][INFO] - => Agent setup ...
+[2023-01-31 17:02:56,466][root][INFO] - Agent Pair: PPO | TitForTatStrictStay| TitForTatStrictStay
+[2023-01-31 17:02:56,466][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-01-31 17:02:56,466][root][INFO] - Using Independent Learners
+[2023-01-31 17:02:56,466][root][INFO] - => Done in 453.735 ms
+[2023-01-31 17:02:56,466][root][INFO] - 
+[2023-01-31 17:02:56,466][root][INFO] - => Watcher setup ...
+[2023-01-31 17:02:56,466][root][INFO] - => Done in 85.831 us
+[2023-01-31 17:02:56,466][root][INFO] - 
+[2023-01-31 17:02:56,466][root][INFO] - => Runner setup ...
+[2023-01-31 17:02:56,466][root][INFO] - Training with tensor RL Runner
+[2023-01-31 17:02:56,535][root][INFO] - => Done in 68.885 ms
+[2023-01-31 17:02:56,535][root][INFO] - 

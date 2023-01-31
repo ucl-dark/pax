@@ -30,7 +30,10 @@ from pax.agents.strategies import (
     Stay,
     TitForTat,
 )
-from pax.agents.tensor_strategies import TitForTatStrictSwitch
+from pax.agents.tensor_strategies import (
+    TitForTatStrictStay,
+    TitForTatStrictSwitch,
+)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
@@ -359,6 +362,7 @@ def agent_setup(args, env, env_params, logger):
 
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
+        "TitForTatStrictStay": partial(TitForTatStrictStay, args.num_envs),
         "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
@@ -535,7 +539,8 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
-        'TitForTatStrictSwitch': dumb_log,
+        "TitForTatStrictStay": dumb_log,
+        "TitForTatStrictSwitch": dumb_log,
     }
 
     if args.runner == "sarl":

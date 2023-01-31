@@ -1,0 +1,56 @@
+# @package _global_
+
+# Agents  
+agent1: 'PPO'
+agent2: 'PPO'
+agent3: 'TitForTatStrictSwitch'
+
+# Environment
+env_id: iterated_tensor_game
+num_players: 3
+env_type: sequential
+env_discount: 0.99
+# payoff: [[7, 7, 7], [3, 3,9], [3,9,3], [0,5,5], [9,3,3],[5,0,5], [5,5,0],[1,1,1]]
+payoff: [[-1, -1, -1], [-3, -3,0], [-3,0,-3], [-3,0,0], [0,-3,-3],[0,-3,0], [0,0,-3],[-2,-2,-2]]
+# Runner 
+runner: tensor_rl
+
+# Training hyperparameters
+num_envs: 100
+num_opps: 1
+num_steps: 150 # number of steps per episode
+total_timesteps: 150_0000000 # num_episodes  = total / (numsteps * num_envs)
+
+# Evaluation 
+
+# run_path: ucl-dark/ipd/w1x0vqb7
+# model_path: exp/PPO-vs-TitForTat-ipd-parity/PPO-vs-TitForTat-ipd-parity-run-seed-0/2022-09-08_15.56.38.018596/iteration_260
+
+# PPO agent parameters
+ppo:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.0001
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+# Logging setup
+wandb:
+  # entity: "ucl-dark"
+  project: tensor
+  group: 'ppo-vs-ppo-tft-switch'
+  name: run-seed-${seed}
+  log: True

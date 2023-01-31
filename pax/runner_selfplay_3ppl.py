@@ -87,7 +87,13 @@ class TensorRLRunner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.tensor_ipd_stats = jax.jit(tensor_ipd_visitation)
+        # self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num envs: we vmap over the rng but not params
+        env.reset = jax.vmap(env.reset, (0, None), 0)
+        env.step = jax.vmap(
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        )
+
         # VMAP for num opps: we vmap over the rng but not params
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
@@ -104,25 +110,29 @@ class TensorRLRunner:
         )
 
         agent1, agent2, agent3 = agents
+        # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
 
-        (
-            agent1.batch_init,
-            agent1.batch_reset,
-            agent1.batch_policy,
-        ) = init_first_agent(args.agent1, agent1)
-        (
-            agent2.batch_init,
-            agent2.batch_update,
-            agent2.batch_reset,
-            agent2.batch_policy,
-        ) = init_other_agent(args.agent2, agent2)
-        (
-            agent3.batch_init,
-            agent3.batch_update,
-            agent3.batch_reset,
-            agent3.batch_policy,
-        ) = init_other_agent(args.agent3, agent3)
+        # agent2.state, agent2.mem, agent2.batch_init, agent2.batch_update,agent2.batch_reset, agent2.batch_policy = init_other_agent(args.agent2, agent2, args.num_opps)
+        # agent3.state, agent3.mem, agent3.batch_init, agent3.batch_update,agent3.batch_reset, agent3.batch_policy = init_other_agent(args.agent3, agent3, args.num_opps)
 
+        # set up agents
+        if args.agent1 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
+        else:
+            # batch MemoryState not TrainingState
+            agent1.batch_init = jax.vmap(
+                agent1.make_initial_state,
+                (None, 0),
+                (None, 0),
+            )
+        agent1.batch_reset = jax.jit(
+            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
+        )
+
+        agent1.batch_policy = jax.jit(
+            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
+        )
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
@@ -130,16 +140,47 @@ class TensorRLRunner:
                 agent1._state.random_key, init_hidden
             )
 
-        for agent_arg, agent in [(args.agent2, agent2), (args.agent3, agent3)]:
-            if agent_arg != "NaiveEx":
-                # NaiveEx requires env first step to init.
-                init_hidden = jnp.tile(
-                    agent._mem.hidden, (args.num_opps, 1, 1)
-                )
-                agent._state, agent._mem = agent.batch_init(
-                    jax.random.split(agent._state.random_key, args.num_opps),
-                    init_hidden,
-                )
+        # batch all for Agent2
+        if args.agent2 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
+        else:
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None), 0
+            )
+        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
+        agent2.batch_reset = jax.jit(
+            jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
+        )
+        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            agent2._state, agent2._mem = agent2.batch_init(
+                jax.random.split(agent2._state.random_key, args.num_opps),
+                init_hidden,
+            )
+
+        # batch all for Agent3
+        if args.agent3 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent3.batch_init = jax.jit(jax.vmap(agent3.make_initial_state))
+        else:
+            agent3.batch_init = jax.vmap(
+                agent3.make_initial_state, (0, None), 0
+            )
+        agent3.batch_policy = jax.jit(jax.vmap(agent3._policy))
+        agent3.batch_reset = jax.jit(
+            jax.vmap(agent3.reset_memory, (0, None), 0), static_argnums=1
+        )
+        agent3.batch_update = jax.jit(jax.vmap(agent3.update, (1, 0, 0, 0), 0))
+        if args.agent3 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent3._mem.hidden, (args.num_opps, 1, 1))
+            agent3._state, agent3._mem = agent3.batch_init(
+                jax.random.split(agent3._state.random_key, args.num_opps),
+                init_hidden,
+            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -167,7 +208,9 @@ class TensorRLRunner:
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
-
+            # print(a1_state)
+            # print(obs1.shape)
+            # print(a1_mem.shape)
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -433,11 +476,14 @@ class TensorRLRunner:
                         obs1,
                     ),
                 )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
             else:
                 env_stats = {}
-            rewards_1 = traj_1.rewards.mean()
-            rewards_2 = traj_2.rewards.mean()
-            rewards_3 = traj_3.rewards.mean()
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+                rewards_3 = traj_3.rewards.mean()
 
             return (
                 env_stats,
@@ -465,9 +511,10 @@ class TensorRLRunner:
         agent1, agent2, agent3 = agents
         rng, _ = jax.random.split(self.random_key)
 
+        # all have same state at the start
         a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
-        a3_state, a3_mem = agent3._state, agent3._mem
+        a2_state, a2_mem = agent1._state, agent2._mem
+        a3_state, a3_mem = agent1._state, agent3._mem
 
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
@@ -570,39 +617,3 @@ class TensorRLRunner:
         agents[1]._state = a2_state
         agents[2]._state = a3_state
         return agents
-
-
-def init_first_agent(agent_arg, agent):
-    """Batches init, reset and policy functions for first agent"""
-    # set up agents
-    if agent_arg == "NaiveEx":
-        # special case where NaiveEx has a different call signature
-        batch_init = jax.jit(jax.vmap(agent.make_initial_state))
-    else:
-        # batch MemoryState not TrainingState
-        batch_init = jax.vmap(
-            agent.make_initial_state,
-            (None, 0),
-            (None, 0),
-        )
-    batch_reset = jax.jit(
-        jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
-    )
-
-    batch_policy = jax.jit(jax.vmap(agent._policy, (None, 0, 0), (0, None, 0)))
-    return batch_init, batch_reset, batch_policy
-
-
-def init_other_agent(agent_arg, agent):
-    """Batches init, reset, update and policy functions for not the first agent"""
-    if agent_arg == "NaiveEx":
-        # special case where NaiveEx has a different call signature
-        batch_init = jax.jit(jax.vmap(agent.make_initial_state))
-    else:
-        batch_init = jax.vmap(agent.make_initial_state, (0, None), 0)
-    batch_policy = jax.jit(jax.vmap(agent._policy))
-    batch_reset = jax.jit(
-        jax.vmap(agent.reset_memory, (0, None), 0), static_argnums=1
-    )
-    batch_update = jax.jit(jax.vmap(agent.update, (1, 0, 0, 0), 0))
-    return batch_init, batch_update, batch_reset, batch_policy

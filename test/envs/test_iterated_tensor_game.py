@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import pytest
 
 from pax.agents.strategies import TitForTat
-from pax.agents.tensor_strategies import TitForTatStrictSwitch
+from pax.agents.tensor_strategies import TitForTatStrictStay
 from pax.envs.iterated_tensor_game import EnvParams, IteratedTensorGame
 
 # payoff matrix accroding to
@@ -237,9 +237,8 @@ def test_batch_by_rngs() -> None:
     assert jnp.array_equal(rewards[1], ddd_p3 * r_array)
 
 
-
 def test_tit_for_tat_strict_match() -> None:
-    # just tests they all cooperate 
+    # just tests they all cooperate
     num_envs = 5
     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
         num_envs, -1
@@ -253,7 +252,7 @@ def test_tit_for_tat_strict_match() -> None:
     )
 
     obs, env_state = env.reset(rngs, env_params)
-    tit_for_tat = TitForTatStrictSwitch(num_envs)
+    tit_for_tat = TitForTatStrictStay(num_envs)
 
     action_0, _, _ = tit_for_tat._policy(None, obs[0], None)
     action_1, _, _ = tit_for_tat._policy(None, obs[1], None)
@@ -265,8 +264,15 @@ def test_tit_for_tat_strict_match() -> None:
         obs, env_state, rewards, done, info = env.step(
             rngs, env_state, (action_0, action_1, action_2), env_params
         )
-        assert jnp.array_equal(rewards[0], rewards[1],)
-        assert jnp.array_equal(rewards[0], rewards[2],)
+        assert jnp.array_equal(
+            rewards[0],
+            rewards[1],
+        )
+        assert jnp.array_equal(
+            rewards[0],
+            rewards[2],
+        )
+
 
 def test_longer_game() -> None:
     num_envs = 1
@@ -290,7 +296,7 @@ def test_longer_game() -> None:
 
     obs, env_state = env.reset(rngs, env_params)
 
-    agent = TitForTatStrictSwitch(num_envs)
+    agent = TitForTatStrictStay(num_envs)
     r1 = []
     r2 = []
     r3 = []
