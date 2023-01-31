@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import pytest
 
 from pax.agents.strategies import TitForTat
+from pax.agents.tensor_strategies import TitForTatStrictSwitch
 from pax.envs.iterated_tensor_game import EnvParams, IteratedTensorGame
 
 # payoff matrix accroding to
@@ -236,75 +237,79 @@ def test_batch_by_rngs() -> None:
     assert jnp.array_equal(rewards[1], ddd_p3 * r_array)
 
 
-# TODO: implement strategies to test with
-# def test_tit_for_tat_match() -> None:
-#     num_envs = 5
-#     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
-#         num_envs, -1
-#     )
-#     env = IteratedTensorGame(num_inner_steps=5)
-#     env_params = EnvParams(payoff_matrix=payoff)
 
-#     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
-#     env.step = jax.vmap(
-#         env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
-#     )
+def test_tit_for_tat_strict_match() -> None:
+    # just tests they all cooperate 
+    num_envs = 5
+    rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
+        num_envs, -1
+    )
+    env = IteratedTensorGame(num_inner_steps=5)
+    env_params = EnvParams(payoff_matrix=payoff)
 
-#     obs, env_state = env.reset(rngs, env_params)
-#     tit_for_tat = TitForTat(num_envs)
+    env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
+    env.step = jax.vmap(
+        env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
 
-#     action_0, _, _ = tit_for_tat._policy(None, obs[0], None)
-#     action_1, _, _ = tit_for_tat._policy(None, obs[1], None)
-#     action_2, _, _ = tit_for_tat._policy(None, obs[2], None)
-#     assert jnp.array_equal(action_0, action_1)
-#     assert jnp.array_equal(action_0, action_2)
+    obs, env_state = env.reset(rngs, env_params)
+    tit_for_tat = TitForTatStrictSwitch(num_envs)
 
-#     for _ in range(10):
-#         obs, env_state, rewards, done, info = env.step(
-#             rngs, env_state, (action_0, action_1, action_2), env_params
-#         )
-#         assert jnp.array_equal(rewards[0], rewards[1], rewards[2])
+    action_0, _, _ = tit_for_tat._policy(None, obs[0], None)
+    action_1, _, _ = tit_for_tat._policy(None, obs[1], None)
+    action_2, _, _ = tit_for_tat._policy(None, obs[2], None)
+    assert jnp.array_equal(action_0, action_1)
+    assert jnp.array_equal(action_0, action_2)
 
-# def test_longer_game() -> None:
-#     num_envs = 1
-#     num_outer_steps = 25
-#     num_inner_steps = 2
-#     env = IteratedTensorGame(num_inner_steps=num_inner_steps)
+    for _ in range(10):
+        obs, env_state, rewards, done, info = env.step(
+            rngs, env_state, (action_0, action_1, action_2), env_params
+        )
+        assert jnp.array_equal(rewards[0], rewards[1],)
+        assert jnp.array_equal(rewards[0], rewards[2],)
 
-#     # batch over actions and env_states
-#     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
-#     env.step = jax.vmap(
-#         env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
-#     )
+def test_longer_game() -> None:
+    num_envs = 1
+    num_outer_steps = 25
+    num_inner_steps = 2
+    env = IteratedTensorGame(num_inner_steps=num_inner_steps)
 
-#     env_params = EnvParams(
-#         payoff_matrix=payoff,
-#     )
+    # batch over actions and env_states
+    env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
+    env.step = jax.vmap(
+        env.step, in_axes=(0, None, 0, None), out_axes=(0, None, 0, 0, 0)
+    )
 
-#     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
-#         num_envs, -1
-#     )
+    env_params = EnvParams(
+        payoff_matrix=payoff,
+    )
 
-#     obs, env_state = env.reset(rngs, env_params)
+    rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
+        num_envs, -1
+    )
 
-#     agent = TitForTat(num_envs)
-#     r1 = []
-#     r2 = []
-#     r3 = []
-#     for _ in range(num_outer_steps):
-#         for _ in range(num_inner_steps):
-#             action, _, _ = agent._policy(None, obs[0], None)
-#             obs, env_state, rewards, done, info = env.step(
-#                 rngs, env_state, (action, action), env_params
-#             )
-#             r1.append(rewards[0])
-#             r2.append(rewards[1])
-#             r3.append(rewards[2])
-#             assert jnp.array_equal(rewards[0], rewards[1], rewards[2])
-#         assert (done == True).all()
+    obs, env_state = env.reset(rngs, env_params)
 
-#     assert jnp.mean(jnp.stack(r1)) == 2
-#     assert jnp.mean(jnp.stack(r2)) == 2
+    agent = TitForTatStrictSwitch(num_envs)
+    r1 = []
+    r2 = []
+    r3 = []
+    for _ in range(num_outer_steps):
+        for _ in range(num_inner_steps):
+            action, _, _ = agent._policy(None, obs[0], None)
+            obs, env_state, rewards, done, info = env.step(
+                rngs, env_state, (action, action, action), env_params
+            )
+            r1.append(rewards[0])
+            r2.append(rewards[1])
+            r3.append(rewards[2])
+            assert jnp.array_equal(rewards[0], rewards[1])
+            assert jnp.array_equal(rewards[0], rewards[2])
+        assert (done == True).all()
+
+    assert jnp.mean(jnp.stack(r1)) == 7
+    assert jnp.mean(jnp.stack(r2)) == 7
+    assert jnp.mean(jnp.stack(r3)) == 7
 
 
 def test_done():

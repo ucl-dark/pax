@@ -30,6 +30,7 @@ from pax.agents.strategies import (
     Stay,
     TitForTat,
 )
+from pax.agents.tensor_strategies import TitForTatStrictSwitch
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
@@ -358,6 +359,7 @@ def agent_setup(args, env, env_params, logger):
 
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
+        "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Random": get_random_agent,
@@ -396,7 +398,7 @@ def agent_setup(args, env, env_params, logger):
             logger.info("Using Independent Learners")
             return agent_1
 
-    elif 'num_players' in args and args.num_players == 3:
+    elif "num_players" in args and args.num_players == 3:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
         assert args.agent3 in strategies
@@ -455,10 +457,12 @@ def agent_setup(args, env, env_params, logger):
 
 def watcher_setup(args, logger):
     """Set up watcher variables."""
-    
-    three_players =  ('num_players' in args) and (args.num_players == 3)
 
-    def ppo_memory_log(agent,):
+    three_players = ("num_players" in args) and (args.num_players == 3)
+
+    def ppo_memory_log(
+        agent,
+    ):
         losses = losses_ppo(agent)
         if not args.env_id == "coin_game":
             policy = policy_logger_ppo_with_memory(agent)
@@ -531,6 +535,7 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
+        'TitForTatStrictSwitch': dumb_log,
     }
 
     if args.runner == "sarl":
@@ -539,7 +544,7 @@ def watcher_setup(args, logger):
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
 
         return agent_1_log
-        
+
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies

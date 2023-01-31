@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-from pax.watchers import tensor_ipd_visitation 
+from pax.watchers import tensor_ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -109,7 +109,6 @@ class TensorRLRunner:
             else self.args.num_steps // self.args.num_inner_steps
         )
 
-
         agent1, agent2, agent3 = agents
         # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
 
@@ -124,8 +123,8 @@ class TensorRLRunner:
             # batch MemoryState not TrainingState
             agent1.batch_init = jax.vmap(
                 agent1.make_initial_state,
-                (None, 0),
-                (None, 0),
+                (None, 0), # batch not over rng, but over hidden
+                (None, 0), # batch not over training state, but over memory state
             )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
