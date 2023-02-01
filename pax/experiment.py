@@ -28,6 +28,7 @@ from pax.agents.strategies import (
     HyperTFT,
     Random,
     RandomGreedy,
+    RandomACT,
     Stay,
     TitForTat,
 )
@@ -42,7 +43,8 @@ from pax.runner_evo import EvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
 from pax.runner_sarl_eval import SARLEvalRunner
-from pax.runner_act import ActRunner
+from pax.runner_act_evo import ActEvoRunner
+from pax.runner_act_rl import ActRLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -139,7 +141,7 @@ def env_setup(args, logger=None):
             )
     elif args.runner in ["sarl", "sarl_eval"]:
         env, env_params = gymnax.make(args.env_id)
-    elif args.runner == "act":
+    elif args.runner == "act_evo" or args.runner == "act_rl":
         env, env_params = gymnax.make(args.env_id)
     else:
         raise ValueError(f"Unknown env id {args.env_id}")
@@ -151,7 +153,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
 
-    if args.runner == "evo" or args.runner == "act":
+    if args.runner == "evo" or args.runner == "act_evo":
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -242,8 +244,8 @@ def runner_setup(args, env, agents, save_dir, logger):
                 save_dir,
                 args,
             )
-        elif args.runner == "act":
-            return ActRunner(
+        elif args.runner == "act_evo":
+            return ActEvoRunner(
                 agents,
                 env,
                 strategy,
@@ -262,6 +264,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "sarl_eval":
         logger.info("Evaluating with SARLEval Runner")
         return SARLEvalRunner(agents, env, save_dir, args)
+    elif args.runner == "act_rl":
+        logger.info("Training with RL Runner")
+        return ActRLRunner(agents, env, save_dir, args)
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -275,6 +280,7 @@ def agent_setup(args, env, env_params, logger):
     else:
         obs_shape = env.observation_space(env_params).shape
     num_actions = env.num_actions
+    print(num_actions)
 
     def get_PPO_memory_agent(seed, player_id, obs_shape=obs_shape):
         ppo_memory_agent = make_gru_agent(
@@ -352,6 +358,11 @@ def agent_setup(args, env, env_params, logger):
         random_agent.player_id = player_id
         return random_agent
 
+    def get_random_act_agent(seed, player_id):
+        random_agent = RandomACT(args.output_dim, args.num_envs)
+        random_agent.player_id = player_id
+        return random_agent
+
     # flake8: noqa: C901
     def get_stay_agent(seed, player_id):
         agent = Stay(num_actions, args.num_envs)
@@ -362,7 +373,7 @@ def agent_setup(args, env, env_params, logger):
         act_agent = make_act_agent(
             args,
             obs_spec=obs_shape,
-            action_spec=num_actions,
+            action_spec=args.output_dim,
             seed=seed,
             player_id=player_id,
         )
@@ -373,6 +384,7 @@ def agent_setup(args, env, env_params, logger):
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Random": get_random_agent,
+        "RandomACT": get_random_act_agent,
         "Stay": get_stay_agent,
         "Grim": partial(GrimTrigger, args.num_envs),
         "GoodGreedy": partial(GoodGreedy, args.num_envs),
@@ -411,8 +423,9 @@ def agent_setup(args, env, env_params, logger):
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
-        if args.agent1 != "ACT":
-            raise NotImplementedError
+        if args.runner == "act_evo":
+            if args.agent1 != "ACT":
+                raise NotImplementedError
 
         num_agents = 2
         seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
@@ -421,10 +434,10 @@ def agent_setup(args, env, env_params, logger):
             seed % seed + i if seed != 0 else 1
             for seed, i in zip(seeds, range(1, num_agents + 1))
         ]
-        if args.runner == "act":
+        if args.runner == "act_evo" or args.runner=="act_rl":
             agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
             agent_1 = strategies[args.agent2](
-                seeds[1], pids[1], obs_shape=(obs_shape[0] + 2,)
+                seeds[1], pids[1], obs_shape=(obs_shape[0] + args.output_dim,)
             )  # player 2
         else:
             agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
@@ -435,10 +448,10 @@ def agent_setup(args, env, env_params, logger):
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-        if args.runner in ["eval", "rl"]:
+        if args.runner in ["eval", "rl", "act_rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
-        if args.runner == "evo" or args.runner == "act":
+        if args.runner == "evo" or args.runner == "act_evo":
             logger.info("Using EvolutionaryLearners")
             return (agent_0, agent_1)
 
@@ -502,6 +515,7 @@ def watcher_setup(args, logger):
         "Altruistic": dumb_log,
         "Human": dumb_log,
         "Random": dumb_log,
+        "RandomACT": dumb_log,
         "Stay": dumb_log,
         "Grim": dumb_log,
         "GoodGreedy": dumb_log,
@@ -593,9 +607,16 @@ def main(args):
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "act":
+    elif args.runner == "act_evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "act_rl":
+        num_iters = int(
+            args.total_timesteps / args.num_steps
+        )  # number of episodes
+        print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     wandb.finish()

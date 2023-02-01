@@ -94,7 +94,7 @@ def make_act_agent(
     tabular=False,
 ):
     """Make PPO agent"""
-    if args.runner == "act":
+    if args.runner == "act_evo":
         network = make_act_network(action_spec)
     else:
         raise NotImplementedError

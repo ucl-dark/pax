@@ -15,8 +15,8 @@ runner: sarl
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 8
-num_steps: 500 # 500 Cartpole 
-total_timesteps: 5e6
+num_steps: 200 # 500 Cartpole 
+total_timesteps: 1e6
 save_interval: 100 
 
 # Evaluation 

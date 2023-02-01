@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class ActRunner:
+class ActEvoRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -220,7 +220,7 @@ class ActRunner:
             traj1 = Sample(
                 obs1,
                 a1,
-                rewards,
+                rewards * jnp.logical_not(done),
                 new_a1_mem.extras["log_probs"],
                 new_a1_mem.extras["values"],
                 done,
@@ -280,7 +280,6 @@ class ActRunner:
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
-
 
             a1, a1_state, a1_mem = agent1.batch_policy(
                 a1_state,
@@ -382,11 +381,11 @@ class ActRunner:
             # fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             # other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
             if args.adversary_type == "ally":
-                fitness = traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8)
+                fitness = traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1)
             elif args.adversary_type == "adversary":
-                fitness = -(traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1e-8))
-            other_fitness = traj_2.rewards.sum(axis=(0, 1, 3, 4))/(traj_2.dones.sum(axis=(0, 1, 3, 4))+1e-8)
-            jax.debug.breakpoint()
+                fitness = -(traj_1.rewards.sum(axis=(0, 1, 3, 4))/(traj_1.dones.sum(axis=(0, 1, 3, 4))+1))
+            other_fitness = traj_2.rewards.sum(axis=(0, 1, 3, 4))/(traj_2.dones.sum(axis=(0, 1, 3, 4))+1)
+
             # fitness = jnp.sum(traj_1.rewards)/(jnp.sum(traj_1.dones)+1e-8)
             # other_fitness = jnp.sum(traj_2.rewards)/(jnp.sum(traj_2.dones)+1e-8)
             # Stats
@@ -414,8 +413,8 @@ class ActRunner:
                 rewards_2 = traj_2.rewards.mean()
             else:
                 env_stats = {}
-                rewards_1 = jnp.sum(traj_1.rewards)/(jnp.sum(traj_1.dones)+1e-8)
-                rewards_2 = jnp.sum(traj_2.rewards)/(jnp.sum(traj_2.dones)+1e-8)
+                rewards_1 = jnp.sum(traj_1.rewards)/(jnp.sum(traj_1.dones)+1)
+                rewards_2 = jnp.sum(traj_2.rewards)/(jnp.sum(traj_2.dones)+1)
             return (
                 fitness,
                 other_fitness,

@@ -481,6 +481,41 @@ class Random(AgentInterface):
     def make_initial_state(self, _unused, *args) -> TrainingState:
         return self._state, self._mem
 
+class RandomACT(AgentInterface):
+    def __init__(self, num_actions: int, num_envs: int):
+        self.make_initial_state = initial_state_fun(num_envs)
+        self._state, self._mem = self.make_initial_state(None, None)
+        self.reset_memory = reset_mem_fun(num_envs)
+        self._logger = Logger()
+        self._logger.metrics = {}
+        self._num_actions = num_actions
+        print('self num actions', self._num_actions)
+
+        def _policy(
+            state: NamedTuple,
+            obs: jnp.array,
+            mem: NamedTuple,
+        ) -> jnp.ndarray:
+            # state is [batch x time_step x num_players]
+            # return [batch]
+            batch_size = obs.shape[0]
+            new_key, _ = jax.random.split(state.random_key)
+            action = jnp.zeros((batch_size, num_actions))
+            # action = jax.random.uniform(new_key, (batch_size, num_actions), dtype=jnp.float32, minval=0.0, maxval=1.0)
+            state = state._replace(random_key=new_key)
+            return action, state, mem
+
+        self._policy = jax.jit(_policy)
+
+    def update(self, unused0, unused1, state, mem) -> None:
+        return state, mem, {}
+
+    def reset_memory(self, mem, *args) -> MemoryState:
+        return self._mem
+
+    def make_initial_state(self, _unused, *args) -> TrainingState:
+        return self._state, self._mem
+
 
 class Stay(AgentInterface):
     def __init__(self, num_actions: int, num_envs: int):

@@ -97,7 +97,7 @@ class SARLRunner:
                 a1,
                 env_params,
             )
-
+            jax.debug.breakpoint()
             traj1 = Sample(
                 obs,
                 a1,
@@ -156,6 +156,7 @@ class SARLRunner:
             ) = vals
 
             # update outer agent
+            jax.debug.breakpoint()
             _a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
@@ -167,7 +168,8 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
+            jax.debug.breakpoint()
+            rewards = jnp.sum(traj.rewards,axis=0) / (jnp.sum(traj.dones,axis=0) + 1)
             env_stats = {}
 
             return (
@@ -220,7 +222,6 @@ class SARLRunner:
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
-
                 print(f"Env Stats: {env_stats}")
                 print(f"Total Episode Reward: {float(rewards_1.mean())}")
                 print()
