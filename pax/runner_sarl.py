@@ -97,7 +97,6 @@ class SARLRunner:
                 a1,
                 env_params,
             )
-            jax.debug.breakpoint()
             traj1 = Sample(
                 obs,
                 a1,
@@ -156,7 +155,6 @@ class SARLRunner:
             ) = vals
 
             # update outer agent
-            jax.debug.breakpoint()
             _a1_state, _, _a1_metrics = agent.update(
                 traj,
                 obs,
@@ -168,7 +166,6 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            jax.debug.breakpoint()
             rewards = jnp.sum(traj.rewards,axis=0) / (jnp.sum(traj.dones,axis=0) + 1)
             env_stats = {}
 

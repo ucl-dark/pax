@@ -45,7 +45,19 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     num_envs = traj.observations.shape[2] * traj.observations.shape[3]
     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
     return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[5:]),
+        traj,
+    )
+
+@jax.jit
+def reduce_outer_traj_but_not_opp_dim_for_timon_debug(traj: Sample) -> Sample:
+    """Used to collapse lax.scan outputs dims"""
+    # x: [outer_loop, inner_loop, num_envs ...]
+    # x: [timestep, batch_size, ...]
+    num_envs = traj.observations.shape[2]
+    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+    return jax.tree_util.tree_map(
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[3:]),
         traj,
     )
 
@@ -82,7 +94,7 @@ class ActRLRunner:
             # x: [batch_size, ...]
             batch_size = args.num_envs * args.num_opps
             return jax.tree_util.tree_map(
-                lambda x: x.reshape((batch_size, args.num_opps) + x.shape[2:]), x
+                lambda x: x.reshape((batch_size,)+ x.shape[2:]), x
             )
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
@@ -95,15 +107,15 @@ class ActRLRunner:
         )
 
         # VMAP for num opps: we vmap over the rng but not params
-        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
-        env.step = jax.jit(
-            jax.vmap(
-                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
-            )
-        )
+        # env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
+        # env.step = jax.jit(
+        #     jax.vmap(
+        #         env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+        #     )
+        # )
 
-        self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
-        # self.split = jax.vmap(jax.random.split, (0, None))
+        # self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+        self.split = jax.vmap(jax.random.split, (0, None))
         num_outer_steps = (
             1
             if self.args.env_type == "sequential"
@@ -123,13 +135,21 @@ class ActRLRunner:
                 (None, 0),
                 (None, 0),
             )
+        # agent1.batch_reset = jax.jit(
+        #     jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
+        # )
+        
+        # agent1.batch_policy = jax.jit(
+        #     jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
+        # )
+
+        # removed opps dim
         agent1.batch_reset = jax.jit(
-            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
-        )
+            agent1.reset_memory, static_argnums=1)
 
         agent1.batch_policy = jax.jit(
-            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
-        )
+            agent1._policy)
+
 
         # batch all for Agent2
         if args.agent2 == "NaiveEx":
@@ -178,10 +198,10 @@ class ActRLRunner:
 
             # unpack rngs
             rngs = self.split(rngs, 4)
-            env_rng = rngs[:, :, 0, :]
+            env_rng = rngs[:, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
-            rngs = rngs[:, :, 3, :]
+            rngs = rngs[:, 3, :]
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -190,19 +210,20 @@ class ActRLRunner:
 
             # obs2 = jnp.concatenate([obs1, a1], axis=-1)
             # obs2 = obs1
-
-            a2, a2_state, new_a2_mem = agent2.batch_policy(
-                a2_state,
-                obs2,
-                a2_mem,
-            )
+            a2 = a1
+            new_a2_mem = a2_mem
+            # a2, a2_state, new_a2_mem = agent2.batch_policy(
+            #     a2_state,
+            #     obs2,
+            #     a2_mem,
+            # )
             next_obs, env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
-                a2,
+                a1,
                 env_params,
             )
-            jax.debug.breakpoint()
+            
             traj1 = Sample(
                 obs1,
                 a1,
@@ -276,15 +297,15 @@ class ActRLRunner:
             # obs2 = jnp.concatenate([obs1, a1], axis=-1)
 
             # update second agent
-            traj_2 = trajectories[1]
             # jax.debug.breakpoint()
             # traj_2.rewards = traj_2.rewards.squeeze(1)
-            a2_state, a2_mem, a2_metrics = agent2.batch_update(
-                trajectories[1],
-                obs2,
-                a2_state,
-                a2_mem,
-            )
+            # a2_state, a2_mem, a2_metrics = agent2.batch_update(
+            #     trajectories[1],
+            #     obs1,
+            #     a2_state,
+            #     a2_mem,
+            # )
+            a2_metrics = {}
             return (
                 rngs,
                 obs1,
@@ -310,15 +331,15 @@ class ActRLRunner:
             # env reset
             rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
-            ).reshape((args.num_opps, args.num_envs, -1))
+            ).reshape((args.num_envs, -1)) #args.num_opps, 
 
             obs, env_state = env.reset(rngs, _env_params)
             obs1 = obs
             obs2 = obs
 
             rewards = [
-                jnp.zeros((args.num_opps, args.num_envs)),
-                jnp.zeros((args.num_opps, args.num_envs)),
+                jnp.zeros((args.num_envs)), #args.num_opps,
+                jnp.zeros((args.num_envs)), #args.num_opps, 
             ]
             # Player 1
             _a1_mem = agent1.batch_reset(_a1_mem, False)
@@ -333,7 +354,7 @@ class ActRLRunner:
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(_rng_run, args.num_opps), _a2_mem.hidden
+                    jax.random.split(_rng_run), _a2_mem.hidden #, args.num_opps
                 )
             # run trials
             vals, stack = jax.lax.scan(
@@ -370,6 +391,9 @@ class ActRLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
+            print(reduce_outer_traj(traj_1).dones.shape)
+            print(a1_mem.extras['values'].shape)
+            print(self.reduce_opp_dim(a1_mem).extras['values'].shape)
             a1_state, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
@@ -407,7 +431,7 @@ class ActRLRunner:
                 # rewards_1 = traj_1.rewards.mean()
                 # rewards_2 = traj_2.rewards.mean()
                 # jax.debug.breakpoint()
-                rewards_1 = (traj_1.rewards[-1].sum(axis=0)/(traj_1.dones[-1].sum(axis=0)+1)).mean()
+                rewards_1 = (traj_1.rewards[0].sum(axis=0)/(traj_1.dones[0].sum(axis=0)+1)).mean()
                 rewards_2 = (traj_2.rewards[0].sum(axis=0)/(traj_2.dones[0].sum(axis=0)+1)).mean()
                 traj_1.dones[-1].sum(axis=0).mean()
 
@@ -444,7 +468,7 @@ class ActRLRunner:
         print(f"Log Interval {log_interval}")
 
         # run actual loop
-        for i in range(num_iters):
+        for i in range(10000):
             rng, rng_run = jax.random.split(rng, 2)
             # RL Rollout
             (
