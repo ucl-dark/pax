@@ -45,7 +45,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     num_envs = traj.observations.shape[2] * traj.observations.shape[3]
     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
     return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[5:]),
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[6:]),
         traj,
     )
 
@@ -197,11 +197,11 @@ class ActRLRunner:
             ) = carry
 
             # unpack rngs
-            rngs = self.split(rngs, 4)
+            rngs = self.split(rngs, 2)
             env_rng = rngs[:, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
-            rngs = rngs[:, 3, :]
+            rngs = rngs[:, 1, :]
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -391,14 +391,26 @@ class ActRLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            print(reduce_outer_traj(traj_1).dones.shape)
-            print(a1_mem.extras['values'].shape)
-            print(self.reduce_opp_dim(a1_mem).extras['values'].shape)
+            # print(reduce_outer_traj(traj_1).dones.shape)
+            # print(traj_1.dones.shape)
+            traj_1 = jax.tree_util.tree_map(
+                lambda x: x.squeeze(0), traj_1
+            )
+            # print(a1_mem.extras['values'].shape)
+            # print(self.reduce_opp_dim(a1_mem).extras['values'].shape)
+            # print(traj_1.dones.shape)
+            # a1_state, _, a1_metrics = agent1.update(
+            #     reduce_outer_traj(traj_1),
+            #     self.reduce_opp_dim(obs1),
+            #     a1_state,
+            #     self.reduce_opp_dim(a1_mem),
+            # )
+
             a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(obs1),
+                traj_1,
+                obs1,
                 a1_state,
-                self.reduce_opp_dim(a1_mem),
+                a1_mem,
             )
 
             # reset memory
@@ -430,9 +442,8 @@ class ActRLRunner:
                 env_stats = {}
                 # rewards_1 = traj_1.rewards.mean()
                 # rewards_2 = traj_2.rewards.mean()
-                # jax.debug.breakpoint()
-                rewards_1 = (traj_1.rewards[0].sum(axis=0)/(traj_1.dones[0].sum(axis=0)+1)).mean()
-                rewards_2 = (traj_2.rewards[0].sum(axis=0)/(traj_2.dones[0].sum(axis=0)+1)).mean()
+                rewards_1 = (traj_1.rewards.sum(axis=0)/(traj_1.dones.sum(axis=0)+1)).mean()
+                rewards_2 = (traj_2.rewards[-1].sum(axis=0)/(traj_2.dones[-1].sum(axis=0)+1)).mean()
                 traj_1.dones[-1].sum(axis=0).mean()
 
             return (
