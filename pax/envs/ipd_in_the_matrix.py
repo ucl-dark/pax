@@ -1201,12 +1201,12 @@ class IPDInTheMatrix(environment.Environment):
                 if r1 > r2:
                     # red won
                     img[:, : width_px // 2, :] = onp.tile(
-                        PLAYER1_COLOUR, (img.shape[0], img.shape[1], 1)
+                        PLAYER1_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
                     )
                 elif r1 < r2:
                     # blue won
                     img[:, : width_px // 2, :] = onp.tile(
-                        PLAYER2_COLOUR, (img.shape[0], img.shape[1], 1)
+                        PLAYER2_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
                     )
                 elif r1 == r2:
                     img[height_px // 2 :, : width_px // 2, :] = onp.tile(
