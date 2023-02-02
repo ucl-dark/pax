@@ -172,8 +172,10 @@ AGENT_SPAWNS = jnp.array(
 ).reshape(-1, 2, 2)
 
 
-RED_COLOUR = (255.0, 127.0, 14.0)
-BLUE_COLOUR = (31.0, 119.0, 180.0)
+PLAYER1_COLOUR = (255.0, 127.0, 14.0)
+PLAYER2_COLOUR = (31.0, 119.0, 180.0)
+GREEN_COLOUR = (44.0, 160.0, 44.0)
+RED_COLOUR = (214.0, 39.0, 40.0)
 
 
 class IPDInTheMatrix(environment.Environment):
@@ -973,18 +975,18 @@ class IPDInTheMatrix(environment.Environment):
 
         if obj == Items.red_agent:
             # Draw the agent 1
-            agent_color = RED_COLOUR
+            agent_color = PLAYER1_COLOUR
 
         elif obj == Items.blue_agent:
             # Draw agent 2
-            agent_color = BLUE_COLOUR
+            agent_color = PLAYER2_COLOUR
         elif obj == Items.red_coin:
             # Draw the red coin as GREEN COOPERATE
             fill_coords(
                 img, point_in_circle(0.5, 0.5, 0.31), (44.0, 160.0, 44.0)
             )
         elif obj == Items.blue_coin:
-            # Draw the blue coin as DEFECT
+            # Draw the blue coin as DEFECT/ RED COIN
             fill_coords(
                 img, point_in_circle(0.5, 0.5, 0.31), (214.0, 39.0, 40.0)
             )
@@ -1164,19 +1166,57 @@ class IPDInTheMatrix(environment.Environment):
         if state.freeze > 0:
             # check which agent won
             r1, r2 = self.get_reward(state, params)
-            if r1 > r2:
-                # red won
-                img = onp.tile(RED_COLOUR, (img.shape[0], img.shape[1], 1))
-            elif r2 > r1:
-                # blue won
-                img = onp.tile(BLUE_COLOUR, (img.shape[0], img.shape[1], 1))
-            elif r1 == r2:
-                img[:, : width_px // 2, :] = onp.tile(
-                    BLUE_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
-                )
-                img[:, width_px // 2 :, :] = onp.tile(
-                    RED_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
-                )
+
+            if r1 == -r2:
+                # zero sum game
+                if r1 > r2:
+                    # red won
+                    img = onp.tile(
+                        PLAYER1_COLOUR, (img.shape[0], img.shape[1], 1)
+                    )
+                elif r2 > r1:
+                    # blue won
+                    img = onp.tile(
+                        PLAYER2_COLOUR, (img.shape[0], img.shape[1], 1)
+                    )
+                elif r1 == r2:
+                    img[:, : width_px // 2, :] = onp.tile(
+                        PLAYER2_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                    )
+                    img[:, width_px // 2 :, :] = onp.tile(
+                        PLAYER1_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                    )
+            else:
+                # otherwise we got some cool general sum game
+                welfare = r1 + r2
+                if welfare > 5:
+                    # cooperate
+                    img[:, width_px // 2 :, :] = onp.tile(
+                        GREEN_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                    )
+                else:
+                    img[:, width_px // 2 :, :] = onp.tile(
+                        RED_COLOUR, (img.shape[0], img.shape[1] // 2, 1)
+                    )
+                if r1 > r2:
+                    # red won
+                    img[:, : width_px // 2, :] = onp.tile(
+                        PLAYER1_COLOUR, (img.shape[0], img.shape[1], 1)
+                    )
+                elif r1 < r2:
+                    # blue won
+                    img[:, : width_px // 2, :] = onp.tile(
+                        PLAYER2_COLOUR, (img.shape[0], img.shape[1], 1)
+                    )
+                elif r1 == r2:
+                    img[height_px // 2 :, : width_px // 2, :] = onp.tile(
+                        PLAYER1_COLOUR,
+                        (img.shape[0] // 2, img.shape[1] // 2, 1),
+                    )
+                    img[: height_px // 2, : width_px // 2, :] = onp.tile(
+                        PLAYER2_COLOUR,
+                        (img.shape[0] // 2, img.shape[1] // 2, 1),
+                    )
 
             img = img.astype(onp.uint8)
         else:
