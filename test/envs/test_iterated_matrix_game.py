@@ -17,7 +17,7 @@ test_payoffs = [ipd, stag, sexes, chicken]
 def test_single_batch_rewards(payoff) -> None:
     num_envs = 5
     rng = jax.random.PRNGKey(0)
-    env = IteratedMatrixGame(num_inner_steps=5)
+    env = IteratedMatrixGame(num_inner_steps=5, num_outer_steps=10)
     env_params = EnvParams(payoff_matrix=payoff)
 
     action = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -91,7 +91,7 @@ def test_batch_outcomes(actions, expected_rewards, payoff) -> None:
     a1, a2 = actions
     expected_r1, expected_r2 = expected_rewards
 
-    env = IteratedMatrixGame(num_inner_steps=5)
+    env = IteratedMatrixGame(num_inner_steps=5, num_outer_steps=10)
     env_params = EnvParams(payoff_matrix=payoff)
     # we want to batch over envs purely by actions
     env.step = jax.vmap(
@@ -115,7 +115,7 @@ def test_batch_by_rngs() -> None:
     rng = jnp.concatenate(
         [jax.random.PRNGKey(0), jax.random.PRNGKey(0)]
     ).reshape(num_envs, -1)
-    env = IteratedMatrixGame(num_inner_steps=5)
+    env = IteratedMatrixGame(num_inner_steps=5, num_outer_steps=10)
     env_params = EnvParams(payoff_matrix=payoff)
 
     action = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -165,7 +165,7 @@ def test_tit_for_tat_match() -> None:
     rngs = jnp.concatenate(num_envs * [jax.random.PRNGKey(0)]).reshape(
         num_envs, -1
     )
-    env = IteratedMatrixGame(num_inner_steps=5)
+    env = IteratedMatrixGame(num_inner_steps=5, num_outer_steps=10)
     env_params = EnvParams(payoff_matrix=payoff)
 
     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
@@ -192,7 +192,9 @@ def test_longer_game() -> None:
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     num_outer_steps = 25
     num_inner_steps = 2
-    env = IteratedMatrixGame(num_inner_steps=num_inner_steps)
+    env = IteratedMatrixGame(
+        num_inner_steps=num_inner_steps, num_outer_steps=num_outer_steps
+    )
 
     # batch over actions and env_states
     env.reset = jax.vmap(env.reset, in_axes=(0, None), out_axes=(0, None))
@@ -222,7 +224,7 @@ def test_longer_game() -> None:
             r1.append(rewards[0])
             r2.append(rewards[1])
             assert jnp.array_equal(rewards[0], rewards[1])
-        assert (done == True).all()
+    assert (done == True).all()
 
     assert jnp.mean(jnp.stack(r1)) == 2
     assert jnp.mean(jnp.stack(r2)) == 2
@@ -231,7 +233,9 @@ def test_longer_game() -> None:
 def test_done():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     num_inner_steps = 5
-    env = IteratedMatrixGame(num_inner_steps=num_inner_steps)
+    env = IteratedMatrixGame(
+        num_inner_steps=num_inner_steps, num_outer_steps=1
+    )
     env_params = EnvParams(
         payoff_matrix=payoff,
     )
@@ -261,7 +265,7 @@ def test_done():
 def test_reset():
     payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
     rng = jax.random.PRNGKey(0)
-    env = IteratedMatrixGame(num_inner_steps=5)
+    env = IteratedMatrixGame(num_inner_steps=5, num_outer_steps=20)
     env_params = EnvParams(
         payoff_matrix=payoff,
     )
