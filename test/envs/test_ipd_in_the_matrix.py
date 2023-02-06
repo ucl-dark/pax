@@ -10,10 +10,13 @@ from pax.envs.ipd_in_the_matrix import (
 
 def test_ipditm_shapes():
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(num_inner_steps=8, num_outer_steps=2)
+    env = IPDInTheMatrix(
+        num_inner_steps=8, num_outer_steps=2, fixed_coin_location=True
+    )
 
     params = EnvParams(
-        payoff_matrix=jnp.array([[1, -2], [1, -2]]), freeze_penalty=5
+        payoff_matrix=jnp.array([[[1, -2], [1, -2]], [[1, -2], [1, -2]]]),
+        freeze_penalty=5,
     )
 
     obs, state = env.reset(rng, params)
@@ -33,9 +36,10 @@ def test_ipditm_shapes():
 
 def test_ipditm_collision():
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(142, 100)
+    env = IPDInTheMatrix(142, 100, True)
     params = EnvParams(
-        payoff_matrix=jnp.array([[1, -2], [1, -2]]), freeze_penalty=5
+        payoff_matrix=jnp.array([[[1, -2], [1, -2]], [[1, -2], [1, -2]]]),
+        freeze_penalty=5,
     )
 
     _, state = env.reset(rng, params)
