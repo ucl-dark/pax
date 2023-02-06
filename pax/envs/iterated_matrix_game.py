@@ -73,7 +73,7 @@ class IteratedMatrixGame(environment.Environment):
             )
             outer_t_new = outer_t + 1
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
-            reset_outer = outer_t = num_outer_steps
+            reset_outer = outer_t == num_outer_steps
             state = EnvState(inner_t=inner_t, outer_t=outer_t)
             return (
                 (obs1, obs2),
