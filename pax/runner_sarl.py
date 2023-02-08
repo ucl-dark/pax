@@ -6,7 +6,6 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save
 
 # from jax.config import config
