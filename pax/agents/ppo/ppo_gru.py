@@ -368,11 +368,10 @@ class PPO(AgentInterface):
             key, subkey = jax.random.split(key)
 
             if isinstance(obs_spec, dict):
-                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
-                dummy_obs = {
-                    "inventory": jnp.zeros(obs_spec["inventory"]),
-                    "observation": jnp.zeros(obs_spec["observation"]),
-                }
+                dummy_obs = {}
+                for k, v in obs_spec.items():
+                    dummy_obs[k] = jnp.zeros(shape=v)
+
             else:
                 dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)

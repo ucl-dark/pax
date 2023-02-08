@@ -342,20 +342,19 @@ class PPO(AgentInterface):
             key, subkey = jax.random.split(key)
 
             if isinstance(obs_spec, dict):
-                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
-                dummy_obs = {
-                    "inventory": jnp.zeros(obs_spec["inventory"]),
-                    "observation": jnp.zeros(obs_spec["observation"]),
-                }
+                dummy_obs = {}
+                for k, v in obs_spec.items():
+                    dummy_obs[k] = jnp.zeros(shape=v)
 
             elif not tabular:
-                dummy_obs = jnp.zeros(shape=obs_spec)
-            else:
                 dummy_obs = jnp.zeros(shape=obs_spec)
                 dummy_obs = dummy_obs.at[0].set(1)
                 dummy_obs = dummy_obs.at[9].set(1)
                 dummy_obs = dummy_obs.at[18].set(1)
                 dummy_obs = dummy_obs.at[27].set(1)
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)

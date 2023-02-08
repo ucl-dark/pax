@@ -405,7 +405,9 @@ def make_ipditm_network(
         layers = []
 
         if separate and with_cnn:
-            cnn = CNNSeparate_ipditm(output_channels, kernel_shape)
+            cnn = CNNSeparate_ipditm(
+                output_channels, kernel_shape, num_actions
+            )
             layers.extend([cnn])
         elif with_cnn:
             cnn = CNN_ipditm(output_channels, kernel_shape)
