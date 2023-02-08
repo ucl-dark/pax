@@ -447,12 +447,12 @@ class TensorEvalRunner:
             traj_1, traj_2, traj_3, a2_metrics, a3_metrics = stack
 
             # # update outer agent
-            # a1_state, _, a1_metrics = agent1.update(
-            #     reduce_outer_traj(traj_1),
-            #     self.reduce_opp_dim(obs1),
-            #     a1_state,
-            #     self.reduce_opp_dim(a1_mem),
-            # )
+            _, _, a1_metrics = agent1.update(
+                reduce_outer_traj(traj_1),
+                self.reduce_opp_dim(obs1),
+                a1_state,
+                self.reduce_opp_dim(a1_mem),
+            )
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
