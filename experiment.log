@@ -2684,3 +2684,23 @@
 [2023-02-07 11:41:26,333][root][INFO] - Evolution Strategy: OpenES
 [2023-02-07 11:41:27,266][root][INFO] - => Done in 968.102 ms
 [2023-02-07 11:41:27,267][root][INFO] - 
+[2023-02-08 11:34:38,202][root][INFO] - => Global setup ...
+[2023-02-08 11:34:43,250][root][INFO] - => Done in 5.048 s
+[2023-02-08 11:34:43,250][root][INFO] - 
+[2023-02-08 11:34:43,250][root][INFO] - => Env setup ...
+[2023-02-08 11:34:43,254][root][INFO] - Env Type: Meta | Episode Length: 10000
+[2023-02-08 11:34:43,254][root][INFO] - => Done in 4.062 ms
+[2023-02-08 11:34:43,254][root][INFO] - 
+[2023-02-08 11:34:43,254][root][INFO] - => Agent setup ...
+[2023-02-08 11:34:44,366][root][INFO] - Agent Pair: PPO | PPO| PPO
+[2023-02-08 11:34:44,366][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-02-08 11:34:44,366][root][INFO] - Using EvolutionaryLearners
+[2023-02-08 11:34:44,366][root][INFO] - => Done in 1.112 s
+[2023-02-08 11:34:44,366][root][INFO] - 
+[2023-02-08 11:34:44,366][root][INFO] - => Watcher setup ...
+[2023-02-08 11:34:44,367][root][INFO] - => Done in 102.043 us
+[2023-02-08 11:34:44,367][root][INFO] - 
+[2023-02-08 11:34:44,367][root][INFO] - => Runner setup ...
+[2023-02-08 11:34:44,398][root][INFO] - Evolution Strategy: OpenES
+[2023-02-08 11:34:45,521][root][INFO] - => Done in 1.155 s
+[2023-02-08 11:34:45,521][root][INFO] - 

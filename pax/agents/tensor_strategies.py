@@ -89,6 +89,7 @@ class TitForTatStrictSwitch(AgentInterface):
         action = jnp.where(obs % 4 == 3, 1, action)
         return action
 
+
 class TitForTatCooperate(AgentInterface):
     # Cooperate unless they both defect
     def __init__(self, num_envs, *args):
@@ -121,6 +122,7 @@ class TitForTatCooperate(AgentInterface):
         # 0 is cooperate, 1 is defect
         action = jnp.where(obs % 4 == 3, 1, 0)
         return action
+
 
 class TitForTatDefect(AgentInterface):
     # Defect unless they both cooperate

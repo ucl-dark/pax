@@ -5,7 +5,7 @@ from pax.agents.tensor_strategies import (
     TitForTatStrictStay,
     TitForTatStrictSwitch,
     TitForTatDefect,
-    TitForTatCooperate
+    TitForTatCooperate,
 )
 
 batch_number = 3
@@ -88,6 +88,7 @@ def test_titfortat_strict_switch():
     action, _, _ = agent._policy(None, initial_obs, None)
     assert jnp.array_equal(cooperate_action, action)
 
+
 def test_titfortat_cooperate():
     agent = TitForTatCooperate(num_envs=1)
 
@@ -117,6 +118,7 @@ def test_titfortat_cooperate():
 
     action, _, _ = agent._policy(None, initial_obs, None)
     assert jnp.array_equal(cooperate_action, action)
+
 
 def test_titfortat_defect():
     agent = TitForTatDefect(num_envs=1)
