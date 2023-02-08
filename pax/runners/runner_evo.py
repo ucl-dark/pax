@@ -182,11 +182,6 @@ class EvoRunner:
         strategy.tell = jax.jit(strategy.tell)
         param_reshaper.reshape = jax.jit(param_reshaper.reshape)
 
-        if args.benchmark:
-            self.ask_time = []
-            self.rollout_time = []
-            self.tell_time = []
-
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -498,16 +493,12 @@ class EvoRunner:
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
 
             # Ask
-            start = time.time()
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
             if self.args.num_devices == 1:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
-            if self.args.benchmark:
-                self.ask_time.append(time.time() - start)
-                start = time.time()
             # Evo Rollout
             (
                 fitness,
@@ -518,24 +509,14 @@ class EvoRunner:
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
-            if self.args.benchmark:
-                fitness.block_until_ready()
-                self.rollout_time.append(time.time() - start)
-                start = time.time()
-
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
             # Maximize fitness
-            if self.args.benchmark:
-                fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
-            else:
-                fitness_re = fit_shaper.apply(x, fitness)
+            fitness_re = fit_shaper.apply(x, fitness)
             # Tell
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
-            if self.args.benchmark:
-                evo_state.mean.block_until_ready()
-                self.tell_time.append(time.time() - start)
+
             # Logging
             log = es_logging.update(log, x, fitness)
 
@@ -644,8 +625,4 @@ class EvoRunner:
                 )
                 wandb.log(wandb_log)
 
-        if self.args.benchmark:
-            print(f"Ask Time: {sum(self.ask_time)/len(self.ask_time)}")
-            print(f"Rollout Time: {sum(self.rollout_time)/len(self.ask_time)}")
-            print(f"Tell Time: {sum(self.tell_time)/len(self.ask_time)}")
         return agents
