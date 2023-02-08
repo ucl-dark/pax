@@ -49,6 +49,7 @@ from pax.runner_evo import EvoRunner
 from pax.runner_evo_3ppl import TensorEvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_marl_3ppl import TensorRLRunner
+from pax.runner_eval_3ppl import TensorEvalRunner
 from pax.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -277,6 +278,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "tensor_rl":
         logger.info("Training with tensor RL Runner")
         return TensorRLRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_eval":
+        logger.info("Training with tensor RL Runner")
+        return TensorEvalRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -450,6 +454,9 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["tensor_rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1, agent_2)
+        elif args.runner in ["tensor_eval"]:
+            logger.info("Using Independent Learners")
+            return (agent_0, agent_1, agent_2)
         elif args.runner == "tensor_evo":
             logger.info("Using EvolutionaryLearners")
             return (agent_0, agent_1, agent_2)
@@ -613,7 +620,7 @@ def main(args):
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "rl" or args.runner == "tensor_rl":
+    elif args.runner == "rl" or args.runner == "tensor_rl" or args.runner == "tensor_eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes

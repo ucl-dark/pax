@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, load
 from pax.watchers import tensor_ipd_visitation
 
 MAX_WANDB_CALLS = 1000
@@ -50,7 +50,7 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     )
 
 
-class TensorRLRunner:
+class TensorEvalRunner:
     """
     Reinforcement Learning runner provides a convenient example for quickly writing
     a MARL runner for PAX. The MARLRunner class can be used to
@@ -446,8 +446,8 @@ class TensorRLRunner:
             ) = vals
             traj_1, traj_2, traj_3, a2_metrics, a3_metrics = stack
 
-            # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
+            # # update outer agent
+            _, _, a1_metrics = agent1.update(
                 reduce_outer_traj(traj_1),
                 self.reduce_opp_dim(obs1),
                 a1_state,
@@ -518,10 +518,18 @@ class TensorRLRunner:
         a2_state, a2_mem = agent2._state, agent2._mem
         a3_state, a3_mem = agent3._state, agent3._mem
 
+        if watchers:
+            wandb.restore(
+                name=self.args.model_path, run_path=self.args.run_path, root=os.getcwd()
+            )
+        pretrained_params = load(self.args.model_path)
+        a1_state = a1_state._replace(params=pretrained_params)
+
         num_iters = max(
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
-        log_interval = int(max(num_iters // MAX_WANDB_CALLS, 5))
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+
         print(f"Log Interval {log_interval}")
 
         # run actual loop
@@ -554,11 +562,17 @@ class TensorRLRunner:
             )
 
             if self.args.save and i % self.args.save_interval == 0:
-                log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
-                save(a1_state.params, log_savepath)
+                log_savepath1 = os.path.join(self.save_dir, f"agent1_iteration_{i}")
+                log_savepath2 = os.path.join(self.save_dir, f"agent2_iteration_{i}")
+                log_savepath3 = os.path.join(self.save_dir, f"agent3_iteration_{i}")
+                save(a1_state.params, log_savepath1)
+                save(a2_state.params, log_savepath2)
+                save(a3_state.params, log_savepath3)
                 if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
-                    wandb.save(log_savepath)
+                    wandb.save(log_savepath1)
+                    wandb.save(log_savepath2)
+                    wandb.save(log_savepath3)
                 else:
                     print(f"Saving iteration {i} locally")
 
