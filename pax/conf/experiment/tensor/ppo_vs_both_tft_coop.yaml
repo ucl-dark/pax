@@ -2,8 +2,8 @@
 
 # Agents  
 agent1: 'PPO'
-agent2: 'TitForTatStrictSwitch'
-agent3: 'TitForTatStrictStay'
+agent2: 'TitForTatCooperate'
+agent3: 'TitForTatCooperate'
 
 # Environment
 env_id: iterated_tensor_game
@@ -51,6 +51,6 @@ ppo:
 wandb:
   # entity: "ucl-dark"
   project: tensor
-  group: 'ppo-vs-tft-switch-stay'
+  group: 'ppo-vs-both-tft-coop'
   name: run-seed-${seed}
   log: True

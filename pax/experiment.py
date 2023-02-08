@@ -33,6 +33,8 @@ from pax.agents.strategies import (
 from pax.agents.tensor_strategies import (
     TitForTatStrictStay,
     TitForTatStrictSwitch,
+    TitForTatCooperate,
+    TitForTatDefect,
 )
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
@@ -44,6 +46,7 @@ from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
 from pax.envs.iterated_tensor_game import IteratedTensorGame
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
+from pax.runner_evo_3ppl import TensorEvoRunner
 from pax.runner_marl import RLRunner
 from pax.runner_marl_3ppl import TensorRLRunner
 from pax.runner_sarl import SARLRunner
@@ -166,8 +169,8 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
 
-    if args.runner == "evo":
-        agent1, _ = agents
+    if args.runner == "evo" or args.runner == "tensor_evo":
+        agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
@@ -247,10 +250,26 @@ def runner_setup(args, env, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
+        if args.runner == "evo":
+            return EvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+        elif args.runner == "tensor_evo":
+            return TensorEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -364,6 +383,8 @@ def agent_setup(args, env, env_params, logger):
         "TitForTat": partial(TitForTat, args.num_envs),
         "TitForTatStrictStay": partial(TitForTatStrictStay, args.num_envs),
         "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
+        "TitForTatCooperate": partial(TitForTatCooperate, args.num_envs),
+        "TitForTatDefect": partial(TitForTatDefect, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Random": get_random_agent,
@@ -429,9 +450,9 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["tensor_rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1, agent_2)
-        else:
-            raise NotImplementedError("Only RL implemented")
-
+        elif args.runner == "tensor_evo":
+            logger.info("Using EvolutionaryLearners")
+            return (agent_0, agent_1, agent_2)
     else:
         assert args.agent1 in strategies
         assert args.agent2 in strategies
@@ -541,6 +562,8 @@ def watcher_setup(args, logger):
         "MFOS_pretrained": dumb_log,
         "TitForTatStrictStay": dumb_log,
         "TitForTatStrictSwitch": dumb_log,
+        "TitForTatCooperate": dumb_log,
+        "TitForTatDefect": dumb_log,
     }
 
     if args.runner == "sarl":
@@ -585,7 +608,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    if args.runner == "evo":
+    if args.runner == "evo" or args.runner == "tensor_evo":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
