@@ -1,6 +1,6 @@
 from functools import partial
 from re import A
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Union
 
 import jax.numpy as jnp
 import jax.random
@@ -449,7 +449,9 @@ class Altruistic(AgentInterface):
 
 
 class Random(AgentInterface):
-    def __init__(self, num_actions: int, num_envs: int, args):
+    def __init__(
+        self, num_actions: int, num_envs: int, obs_shape: Union[dict, tuple]
+    ):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -464,7 +466,7 @@ class Random(AgentInterface):
         ) -> jnp.ndarray:
             # state is [batch x time_step x num_players]
             # return [batch]
-            if args.env_id == "IPDInTheMatrix":
+            if isinstance(obs_shape, dict):
                 batch_size = obs["inventory"].shape[0]
             else:
                 batch_size = obs.shape[0]

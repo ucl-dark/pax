@@ -373,7 +373,7 @@ def agent_setup(args, env, env_params, logger):
         return agent
 
     def get_random_agent(seed, player_id):
-        random_agent = Random(num_actions, args.num_envs, args)
+        random_agent = Random(num_actions, args.num_envs, obs_shape)
         random_agent.player_id = player_id
         return random_agent
 
