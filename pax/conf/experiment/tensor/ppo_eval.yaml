@@ -51,6 +51,6 @@ ppo:
 wandb:
   # entity: "ucl-dark"
   project: tensor
-  group: '3player-ppo'
+  group: '3player-ppo-eval'
   name: run-seed-${seed}
   log: True
