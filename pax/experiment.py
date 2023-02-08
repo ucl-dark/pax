@@ -441,7 +441,7 @@ def agent_setup(args, env, env_params, logger):
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
 
-        if args.runner in ["eval", "rl", "ipditm_eval", "ipditm_pretrain"]:
+        if args.runner in ["eval", "rl"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
         if args.runner == "evo":
