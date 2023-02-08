@@ -8,11 +8,10 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save, load
+from pax.utils import MemoryState, TrainingState, load
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 from pax.envs.ipd_in_the_matrix import (
     IPDInTheMatrix,
-    EnvParams,
     EnvState,
 )
 
@@ -201,29 +200,16 @@ class IPDITMEvalRunner:
                 env_params,
             )
 
-            if args.agent1 == "MFOS":
-                traj1 = MFOSSample(
-                    obs1,
-                    a1,
-                    rewards[0],
-                    new_a1_mem.extras["log_probs"],
-                    new_a1_mem.extras["values"],
-                    done,
-                    a1_mem.hidden,
-                    a1_mem.th,
-                    env_state,
-                )
-            else:
-                traj1 = Sample(
-                    obs1,
-                    a1,
-                    rewards[0],
-                    new_a1_mem.extras["log_probs"],
-                    new_a1_mem.extras["values"],
-                    done,
-                    a1_mem.hidden,
-                    env_state,
-                )
+            traj1 = Sample(
+                obs1,
+                a1,
+                rewards[0],
+                new_a1_mem.extras["log_probs"],
+                new_a1_mem.extras["values"],
+                done,
+                a1_mem.hidden,
+                env_state,
+            )
             traj2 = Sample(
                 obs2,
                 a2,
@@ -422,7 +408,7 @@ class IPDITMEvalRunner:
 
         wandb.restore(
             name=self.args.model_path1,
-            run_path=self.args.run_path,
+            run_path=self.args.run_path1,
             root=os.getcwd(),
         )
 
@@ -433,7 +419,7 @@ class IPDITMEvalRunner:
             print("Loading Second Agent")
             wandb.restore(
                 name=self.args.model_path2,
-                run_path=self.args.run_path,
+                run_path=self.args.run_path2,
                 root=os.getcwd(),
             )
             pretrained_params = load(self.args.model_path2)

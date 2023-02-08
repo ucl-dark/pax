@@ -47,11 +47,11 @@ from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
 from pax.envs.ipd_in_the_matrix import (
     EnvParams as IPDInTheMatrixParams,
 )
-from pax.runner_eval import EvalRunner
-from pax.runner_evo import EvoRunner
-from pax.runner_marl import RLRunner
-from pax.runner_sarl import SARLRunner
-from pax.runner_ipditm_eval import IPDITMEvalRunner
+from pax.runners.runner_eval import EvalRunner
+from pax.runners.runner_evo import EvoRunner
+from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_sarl import SARLRunner
+from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
