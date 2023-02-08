@@ -1,16 +1,24 @@
 import os
 import time
 from typing import Any, NamedTuple
+import sys
 
 import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
-from pax.utils import MemoryState, TrainingState, save
+from gymnax.visualize import Visualizer
+from gymnax.environments.classic_control.cartpole import (
+    EnvState as EnvStateCartPole,
+)
+from gymnax.environments.classic_control.acrobot import (
+    EnvState as EnvStateAcrobot,
+)
 
-# from jax.config import config
-# config.update('jax_disable_jit', True)
+from pax.watchers import cg_visitation, ipd_visitation
+from pax.utils import MemoryState, TrainingState, save, load
+
+from jax.config import config
 
 MAX_WANDB_CALLS = 1000000
 
@@ -25,9 +33,10 @@ class Sample(NamedTuple):
     behavior_values: jnp.ndarray
     dones: jnp.ndarray
     hiddens: jnp.ndarray
+    env_state: jnp.ndarray
 
 
-class SARLRunner:
+class SARLEvalRunner:
     """Holds the runner's state."""
 
     def __init__(self, agent, env, save_dir, args):
@@ -37,6 +46,8 @@ class SARLRunner:
         self.args = args
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
+        self.run_path = args.run_path
+        self.model_path = args.model_path
 
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
@@ -97,6 +108,7 @@ class SARLRunner:
                 a1,
                 env_params,
             )
+
             traj1 = Sample(
                 obs,
                 a1,
@@ -105,6 +117,7 @@ class SARLRunner:
                 new_a1_mem.extras["values"],
                 done,
                 a1_mem.hidden,
+                env_state,
             )
 
             return (
@@ -166,7 +179,7 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = jnp.sum(traj.rewards,axis=0) / (jnp.sum(traj.dones,axis=0) + 1)
+            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
 
             return (
@@ -175,19 +188,27 @@ class SARLRunner:
                 _a1_state,
                 _a1_mem,
                 _a1_metrics,
-            )
+            ), traj
 
         self.rollout = _rollout
         # self.rollout = jax.jit(_rollout)
 
-    def run_loop(self, env, env_params, agent, num_iters, watcher):
+    def run_loop(self, env, env_params, agent, num_iters, watchers):
         """Run training of agent in environment"""
         print("Training")
         print("-----------------------")
+        config.update("jax_disable_jit", True)
         agent = agent
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent._state, agent._mem
+
+        if watchers:
+            wandb.restore(
+                name=self.model_path, run_path=self.run_path, root=os.getcwd()
+            )
+        pretrained_params = load(self.model_path)
+        a1_state = a1_state._replace(params=pretrained_params)
 
         num_iters = max(int(num_iters / (self.args.num_envs)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
@@ -204,14 +225,42 @@ class SARLRunner:
                 a1_state,
                 a1_mem,
                 a1_metrics,
-            ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
+            ), traj = self.rollout(rng_run, a1_state, a1_mem, env_params)
+            if self.args.env_id == "CartPole-v1":
+                obs_traj = [
+                    EnvStateCartPole(
+                        x=traj.env_state.x[i],
+                        x_dot=traj.env_state.x_dot[i],
+                        theta=traj.env_state.theta[i],
+                        theta_dot=traj.env_state.theta_dot[i],
+                        time=i,
+                    )
+                    for i in range(self.args.num_steps)
+                ]
+            elif self.args.env_id == "Acrobot-v1":
+                obs_traj = [
+                    EnvStateAcrobot(
+                        joint_angle1=traj.env_state.joint_angle1[i],
+                        joint_angle2=traj.env_state.joint_angle2[i],
+                        velocity_1=traj.env_state.velocity_1[i],
+                        velocity_2=traj.env_state.velocity_2[i],
+                        time=i,
+                    )
+                    for i in range(self.args.num_steps)
+                ]
+
+            vis = Visualizer(
+                env, env_params, obs_traj, jnp.cumsum(traj.rewards)
+            )
+            vis.animate(f"pax/vis/{self.args.env_id}.gif")
 
             if self.args.save and i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
-                if watcher:
+                if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
                     wandb.save(log_savepath)
+
                 else:
                     print(f"Saving iteration {i} locally")
 
@@ -219,11 +268,12 @@ class SARLRunner:
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
+
                 print(f"Env Stats: {env_stats}")
                 print(f"Total Episode Reward: {float(rewards_1.mean())}")
                 print()
 
-                if watcher:
+                if watchers:
                     # metrics [outer_timesteps]
                     flattened_metrics_1 = jax.tree_util.tree_map(
                         lambda x: jnp.mean(x), a1_metrics
@@ -232,7 +282,7 @@ class SARLRunner:
                         agent._logger.metrics | flattened_metrics_1
                     )
 
-                    watcher(agent)
+                    watchers(agent)
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
@@ -241,6 +291,15 @@ class SARLRunner:
                             ),
                         }
                         | env_stats,
+                    )
+                    wandb.log(
+                        {
+                            "video": wandb.Video(
+                                f"pax/vis/{self.args.env_id}.gif",
+                                fps=4,
+                                format="gif",
+                            )
+                        }
                     )
 
         agent._state = a1_state

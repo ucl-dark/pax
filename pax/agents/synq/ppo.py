@@ -30,6 +30,7 @@ class Batch(NamedTuple):
     # Value estimate and action log-prob at behavior time.
     behavior_values: jnp.ndarray
     behavior_log_probs: jnp.ndarray
+    behavior_synq_values: jnp.ndarray
 
 
 class PPO(AgentInterface):
@@ -38,6 +39,7 @@ class PPO(AgentInterface):
     def __init__(
         self,
         network: NamedTuple,
+        network_synq: NamedTuple,
         optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         obs_spec: Tuple,
@@ -67,6 +69,18 @@ class PPO(AgentInterface):
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
+            mem = mem._replace(extras=mem.extras)
+            state = state._replace(random_key=key)
+            return actions, state, mem
+
+        @jax.jit
+        def synq_value(
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
+        ):
+            """Agent policy to select actions and calculate agent specific information"""
+            key, subkey = jax.random.split(state.random_key)
+            values = network.apply(state.params_synq, observation)
+            mem.extras["synq_values"] = values
             mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
             return actions, state, mem
@@ -110,6 +124,8 @@ class PPO(AgentInterface):
             target_values: jnp.array,
             advantages: jnp.array,
             behavior_values: jnp.array,
+            behavior_synq_values: jnp.ndarray,
+            target_synq_values: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
             distribution, values = network.apply(params, observations)
@@ -190,6 +206,7 @@ class PPO(AgentInterface):
                 rewards,
                 behavior_log_probs,
                 behavior_values,
+                synq_values,
                 dones,
             ) = (
                 sample.observations,
@@ -197,6 +214,7 @@ class PPO(AgentInterface):
                 sample.rewards,
                 sample.behavior_log_probs,
                 sample.behavior_values,
+                sample.synq_values,
                 sample.dones,
             )
 
@@ -214,6 +232,7 @@ class PPO(AgentInterface):
                 behavior_log_probs=behavior_log_probs,
                 target_values=target_values,
                 behavior_values=behavior_values,
+                behavior_synq_values=synq_values,
             )
 
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
@@ -257,6 +276,7 @@ class PPO(AgentInterface):
                     minibatch.target_values,
                     advantages,
                     minibatch.behavior_values,
+                    minibatch.behavior_synq_values,
                 )
 
                 # Apply updates
@@ -405,6 +425,7 @@ class PPO(AgentInterface):
 
         # Initialize functions
         self._policy = policy
+        self._synq_value = synq_value
         self.player_id = player_id
 
         # Other useful hyperparameters
@@ -459,13 +480,11 @@ def make_agent(
     tabular=False,
 ):
     """Make PPO agent"""
-    if args.runner in ["sarl", "sarl_eval"]:
+    if args.runner in ["synq"]:
         network = make_sarl_network(action_spec)
-    elif args.env_id == "coin_game":
-        print(f"Making network for {args.env_id}")
-        network = make_coingame_network(action_spec, tabular, args)
+        network_synq = make_synq_network(action_spec)
     else:
-        network = make_ipd_network(action_spec, tabular, args)
+        raise NotImplementedError
 
     # Optimizer
     batch_size = int(args.num_envs * args.num_steps)
@@ -501,6 +520,7 @@ def make_agent(
 
     agent = PPO(
         network=network,
+        network_synq=network_synq,
         optimizer=optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
