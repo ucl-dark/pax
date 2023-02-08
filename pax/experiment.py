@@ -440,13 +440,7 @@ def agent_setup(args, env, env_params, logger):
             logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
-
-        if args.runner in ["eval", "rl"]:
-            logger.info("Using Independent Learners")
-            return (agent_0, agent_1)
-        if args.runner == "evo":
-            logger.info("Using EvolutionaryLearners")
-            return (agent_0, agent_1)
+        return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
