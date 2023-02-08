@@ -37,29 +37,29 @@ class MFOSSample(NamedTuple):
     meta_actions: jnp.ndarray
 
 
-@jax.jit
-def reduce_outer_traj(traj: Sample) -> Sample:
-    """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
-    # x: [timestep, batch_size, ...]
-    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[6:]),
-        traj,
-    )
+# @jax.jit
+# def reduce_outer_traj(traj: Sample) -> Sample:
+#     """Used to collapse lax.scan outputs dims"""
+#     # x: [outer_loop, inner_loop, num_opps, num_envs ...]
+#     # x: [timestep, batch_size, ...]
+#     num_envs = traj.observations.shape[2] * traj.observations.shape[3]
+#     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+#     return jax.tree_util.tree_map(
+#         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[6:]),
+#         traj,
+#     )
 
-@jax.jit
-def reduce_outer_traj_but_not_opp_dim_for_timon_debug(traj: Sample) -> Sample:
-    """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_envs ...]
-    # x: [timestep, batch_size, ...]
-    num_envs = traj.observations.shape[2]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
-    return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[3:]),
-        traj,
-    )
+# @jax.jit
+# def reduce_outer_traj_but_not_opp_dim_for_timon_debug(traj: Sample) -> Sample:
+#     """Used to collapse lax.scan outputs dims"""
+#     # x: [outer_loop, inner_loop, num_envs ...]
+#     # x: [timestep, batch_size, ...]
+#     num_envs = traj.observations.shape[2]
+#     num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+#     return jax.tree_util.tree_map(
+#         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[3:]),
+#         traj,
+#     )
 
 
 class ActRLRunner:
@@ -97,14 +97,14 @@ class ActRLRunner:
                 lambda x: x.reshape((batch_size,)+ x.shape[2:]), x
             )
 
-        self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
+        # self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
-        env.step = jax.vmap(
+        env.step = jax.jit(jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
-        )
+        ))
 
         # VMAP for num opps: we vmap over the rng but not params
         # env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -116,6 +116,7 @@ class ActRLRunner:
 
         # self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         self.split = jax.vmap(jax.random.split, (0, None))
+        # self.split = jax.random.split
         num_outer_steps = (
             1
             if self.args.env_type == "sequential"
@@ -130,11 +131,12 @@ class ActRLRunner:
             agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
         else:
             # batch MemoryState not TrainingState
-            agent1.batch_init = jax.vmap(
-                agent1.make_initial_state,
-                (None, 0),
-                (None, 0),
-            )
+            # agent1.batch_init = jax.vmap(
+            #     agent1.make_initial_state,
+            #     (None, 0),
+            #     (None, 0),
+            # )
+            agent1.batch_init = jax.jit(agent1.make_initial_state)
         # agent1.batch_reset = jax.jit(
         #     jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
         # )
@@ -159,22 +161,31 @@ class ActRLRunner:
             agent2.batch_init = jax.vmap(
                 agent2.make_initial_state, (0, None), 0
             )
-        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
+            # agent2.batch_init = jax.jit(
+            #     agent2.make_initial_state
+            # )
+        # agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        agent2.batch_policy = jax.jit(agent2._policy)
+        # agent2.batch_reset = jax.jit(agent2.reset_memory, static_argnums=1
+        # )
+        # agent2.batch_update = agent2.update
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            # init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            init_hidden = jnp.tile(agent1._mem.hidden, (1))
             agent1._state, agent1._mem = agent1.batch_init(
                 agent1._state.random_key, init_hidden
             )
 
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            # init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            init_hidden = jnp.tile(agent1._mem.hidden, (1))
             agent2._state, agent2._mem = agent2.batch_init(
                 jax.random.split(agent2._state.random_key, args.num_opps),
                 init_hidden,
@@ -184,7 +195,7 @@ class ActRLRunner:
             """Runner for inner episode"""
             (
                 rngs,
-                obs1,
+                obs,
                 obs2,
                 r1,
                 r2,
@@ -202,16 +213,16 @@ class ActRLRunner:
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, 1, :]
-            a1, a1_state, new_a1_mem = agent1.batch_policy(
-                a1_state,
-                obs1,
-                a1_mem,
+            a2, a2_state, new_a2_mem = agent2.batch_policy(
+                a2_state,
+                obs,
+                a2_mem,
             )
 
             # obs2 = jnp.concatenate([obs1, a1], axis=-1)
             # obs2 = obs1
-            a2 = a1
-            new_a2_mem = a2_mem
+            a1 = a2
+            new_a1_mem = a1_mem
             # a2, a2_state, new_a2_mem = agent2.batch_policy(
             #     a2_state,
             #     obs2,
@@ -220,12 +231,12 @@ class ActRLRunner:
             next_obs, env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
-                a1,
+                a2,
                 env_params,
             )
             
             traj1 = Sample(
-                obs1,
+                obs,
                 a1,
                 rewards * jnp.logical_not(done),
                 new_a1_mem.extras["log_probs"],
@@ -234,7 +245,7 @@ class ActRLRunner:
                 a1_mem.hidden,
             )
             traj2 = Sample(
-                obs2,
+                obs,
                 a2,
                 rewards * jnp.logical_not(done),
                 new_a2_mem.extras["log_probs"],
@@ -243,15 +254,15 @@ class ActRLRunner:
                 a2_mem.hidden,
             )
 
-            obs1 = next_obs
-            obs2 = next_obs
+            obs = next_obs
+            # obs2 = next_obs
             r1 = rewards
             r2 = rewards
 
             return (
                 rngs,
-                obs1,
-                obs2,
+                obs,
+                obs,
                 r1,
                 r2,
                 a1_state,
@@ -299,13 +310,13 @@ class ActRLRunner:
             # update second agent
             # jax.debug.breakpoint()
             # traj_2.rewards = traj_2.rewards.squeeze(1)
-            # a2_state, a2_mem, a2_metrics = agent2.batch_update(
-            #     trajectories[1],
-            #     obs1,
-            #     a2_state,
-            #     a2_mem,
-            # )
-            a2_metrics = {}
+            a2_state, a2_mem, a2_metrics = agent2.batch_update(
+                trajectories[1],
+                obs2,
+                a2_state,
+                a2_mem,
+            )
+            # a2_metrics = {}
             return (
                 rngs,
                 obs1,
@@ -458,8 +469,8 @@ class ActRLRunner:
                 a2_metrics,
             )
 
-        # self.rollout = _rollout
-        self.rollout = jax.jit(_rollout)
+        self.rollout = _rollout
+        # self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env_params, agents, num_iters, watchers):
         """Run training of agents in environment"""
@@ -479,7 +490,7 @@ class ActRLRunner:
         print(f"Log Interval {log_interval}")
 
         # run actual loop
-        for i in range(10000):
+        for i in range(num_iters):
             rng, rng_run = jax.random.split(rng, 2)
             # RL Rollout
             (
