@@ -5,6 +5,7 @@ from typing import Any, Callable, NamedTuple
 
 import jax
 import jax.numpy as jnp
+from jax import flatten_util
 from evosax import FitnessShaper
 
 import wandb
@@ -78,6 +79,12 @@ class EvoSelfRunner:
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
 
+        def _get_unravel_pytree(x):
+            flat, unravel_pytree = flatten_util.ravel_pytree(
+                x
+            )
+            return jax.jit(unravel_pytree) 
+
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
         # For the env we vmap over the rng but not params
@@ -87,6 +94,7 @@ class EvoSelfRunner:
             return jax.tree_util.tree_map(
                 lambda x: jnp.tile(x, ([args.popsize] + [1]*x.ndim)), x
             )
+
 
         def _take_first_index(x):
             # x: [num_opps, num_envs ...]
@@ -104,6 +112,7 @@ class EvoSelfRunner:
         self.tile_params = jax.jit(_tile_params)
         self.reshape_params_dim = jax.jit(_reshape_params_dim)
         self.take_first_index = jax.jit(_take_first_index)
+        self.get_unravel_pytree = _get_unravel_pytree
         # num envs
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -545,7 +554,8 @@ class EvoSelfRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
-        params2 = self.take_first_index(a1_state.params) 
+        params2 = self.take_first_index(a1_state.params)
+        unravel_pytree = self.get_unravel_pytree(params2)
         for gen in range(num_gens):
             rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
 
@@ -589,7 +599,7 @@ class EvoSelfRunner:
                 top_params = jax.tree_util.tree_map(
                     lambda x: x.reshape(x.shape[1:]), top_params
                 )
-            params2 = top_params
+            params2 = unravel_pytree(evo_state.mean)
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
