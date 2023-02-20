@@ -180,14 +180,10 @@ RED_COLOUR = (214.0, 39.0, 40.0)
 
 class IPDInTheMatrix(environment.Environment):
     """
-    JAX Compatible version of coin game environment.
-    0. Make the environment larger (10x10)
-    1. We make the environment 2D with orientation
-    2. Agents can not stand or move onto same square (coins can respawn there tho)
-    2. Then we add a fire action
-    3. Then we add variable number of coins
+    JAX Compatible version of *inTheMatix environment.
     """
 
+    # used for caching
     tile_cache: dict[tuple[Any, ...], Any] = {}
 
     def __init__(
