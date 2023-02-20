@@ -294,7 +294,7 @@ class EvoSelfRunner:
                 traj2,
             )
 
-        def _outer_rollout(carry, unused):
+        def _outer_rollout_naive(carry, unused):
             """Runner for trial"""
             # play episode of the game
             vals, trajectories = jax.lax.scan(
@@ -341,6 +341,167 @@ class EvoSelfRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
+        def _outer_rollout_msp(carry, unused):
+            """Runner for trial"""
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                carry,
+                None,
+                length=args.num_inner_steps,
+            )
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
+            # MFOS has to take a meta-action for each episode
+            if args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            return (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ), (*trajectories, a2_metrics)
+
+        def _rollout_naive(
+            _params: jnp.ndarray,
+            _rng_run: jnp.ndarray,
+            _a1_state: TrainingState,
+            _a1_mem: MemoryState,
+            _env_params: Any,
+        ):
+            # env reset
+            rngs = jnp.concatenate(
+                [jax.random.split(_rng_run, args.num_envs)]
+                * args.num_opps
+                * args.popsize
+            ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
+
+            obs, env_state = env.reset(rngs, _env_params)
+            rewards = [
+                jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
+                jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
+            ]
+
+            _a1_state = _a1_state._replace(params=_params)
+            _a1_mem = agent1.batch_reset(_a1_mem, False)
+            # Player 2
+            if args.agent2 == "NaiveEx":
+                a2_state, a2_mem = agent2.batch_init(obs[1])
+
+            else:
+                # meta-experiments - init 2nd agent per trial
+                a2_state, a2_mem = agent2.batch_init(
+                    jax.random.split(
+                        _rng_run, args.popsize * args.num_opps
+                    ).reshape(args.popsize, args.num_opps, -1),
+                    agent2._mem.hidden,
+                )
+
+            # run trials
+            vals, stack = jax.lax.scan(
+                _outer_rollout_naive,
+                (
+                    rngs,
+                    *obs,
+                    *rewards,
+                    _a1_state,
+                    _a1_mem,
+                    a2_state,
+                    a2_mem,
+                    env_state,
+                    _env_params,
+                ),
+                None,
+                length=self.num_outer_steps,
+            )
+
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                _a1_state,
+                _a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                _env_params,
+            ) = vals
+            traj_1, traj_2, a2_metrics = stack
+
+            # Fitness
+            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
+            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            # Stats
+            if args.env_id == "coin_game":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x,
+                    self.cg_stats(env_state),
+                )
+
+                rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                rewards_2 = traj_2.rewards.sum(axis=1).mean()
+
+            elif args.env_id in [
+                "iterated_matrix_game",
+            ]:
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipd_stats(
+                        traj_1.observations,
+                        traj_1.actions,
+                        obs1,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+
+            elif args.env_id == "IPDInTheMatrix":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.ipditm_stats(
+                        env_state,
+                        traj_1,
+                        traj_2,
+                        args.num_envs,
+                    ),
+                )
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+            else:
+                env_stats = {}
+                rewards_1 = traj_1.rewards.mean()
+                rewards_2 = traj_2.rewards.mean()
+
+            return (
+                fitness,
+                other_fitness,
+                env_stats,
+                rewards_1,
+                rewards_2,
+                a2_metrics,
+            )
+
         def _rollout(
             _params: jnp.ndarray,
             _params2: jnp.ndarray,
@@ -362,16 +523,6 @@ class EvoSelfRunner:
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
             ]
 
-            # Player 1
-            # print('a1_state params', _a1_state.params)
-            # print('params', _params)
-            # jax.tree_util.tree_map(
-            #         lambda x: print(x.shape), _a1_state.params
-            #     )
-            # print('break1')
-            # jax.tree_util.tree_map(
-            #         lambda x: print(x.shape), _params
-            #     )
             _a1_state = _a1_state._replace(params=_params)
             _a1_mem = agent1.batch_reset(_a1_mem, False)
             # Player 2
@@ -386,30 +537,14 @@ class EvoSelfRunner:
                     ).reshape(args.popsize, args.num_opps, -1),
                     agent2._mem.hidden,
                 )
-            jax.tree_util.tree_map(
-                    lambda x: print(x.shape), a2_state.params
-                )
-            print('break')
-            jax.tree_map(
-                    lambda x: print(x.shape), _params2
-                )
+
             _params2 = self.tile_params(_params2)
-            print('tile')
-            jax.tree_map(
-                    lambda x: print(x.shape), _params2
-                )
             _params2 = self.reshape_params_dim(_params2)
-            print('second time')
-            jax.tree_map(
-                    lambda x: print(x.shape), _params2
-                )            
-            print('a2_state params', a2_state.params)
-            print('params2', _params2)
             a2_state = a2_state._replace(params=_params2)
 
             # run trials
             vals, stack = jax.lax.scan(
-                _outer_rollout,
+                _outer_rollout_msp,
                 (
                     rngs,
                     *obs,
@@ -497,6 +632,10 @@ class EvoSelfRunner:
             _rollout,
             in_axes=(0, None, None, None, None, None),
         )
+        self.rollout_naive = jax.pmap(
+            _rollout_naive,
+            in_axes=(0, None, None, None, None),
+        )
 
         print(
             f"Time to Compile Jax Methods: {time.time() - self.start_time} Seconds"
@@ -557,7 +696,7 @@ class EvoSelfRunner:
         params2 = self.take_first_index(a1_state.params)
         unravel_pytree = self.get_unravel_pytree(params2)
         for gen in range(num_gens):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, rng_run, rng_gen, rng_key, rng_lambda = jax.random.split(rng, 5)
 
             # Ask
             start = time.time()
@@ -571,34 +710,44 @@ class EvoSelfRunner:
                 self.ask_time.append(time.time() - start)
                 start = time.time()
             # Evo Rollout
-            (
-                fitness,
-                other_fitness,
-                env_stats,
-                rewards_1,
-                rewards_2,
-                a2_metrics,
-            ) = self.rollout(params, params2, rng_run, a1_state, a1_mem, env_params)
+            if jax.random.uniform(rng_lambda) > self.args.lmbda:
+                (
+                    fitness,
+                    other_fitness,
+                    env_stats,
+                    rewards_1,
+                    rewards_2,
+                    a2_metrics,
+                ) = self.rollout(params, params2, rng_run, a1_state, a1_mem, env_params)
+            else:
+                (
+                    fitness,
+                    other_fitness,
+                    env_stats,
+                    rewards_1,
+                    rewards_2,
+                    a2_metrics,
+                ) = self.rollout_naive(params, rng_run, a1_state, a1_mem, env_params)
 
             if self.args.benchmark:
                 fitness.block_until_ready()
                 self.rollout_time.append(time.time() - start)
                 start = time.time()
-
-            if self.args.num_devices > 1:
-                top_params = param_reshaper.reshape(
-                    log["top_gen_params"][0 : self.args.num_devices]
-                )
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x[0].reshape(x[0].shape[1:]), top_params
-                )
-            else:
-                top_params = param_reshaper.reshape(
-                    log["top_gen_params"][0:1]
-                )
-                top_params = jax.tree_util.tree_map(
-                    lambda x: x.reshape(x.shape[1:]), top_params
-                )
+            # Used this to get best parameter for meta self-play
+            # if self.args.num_devices > 1:
+            #     top_params = param_reshaper.reshape(
+            #         log["top_gen_params"][0 : self.args.num_devices]
+            #     )
+            #     top_params = jax.tree_util.tree_map(
+            #         lambda x: x[0].reshape(x[0].shape[1:]), top_params
+            #     )
+            # else:
+            #     top_params = param_reshaper.reshape(
+            #         log["top_gen_params"][0:1]
+            #     )
+            #     top_params = jax.tree_util.tree_map(
+            #         lambda x: x.reshape(x.shape[1:]), top_params
+            #     )
             params2 = unravel_pytree(evo_state.mean)
 
             # Reshape over devices
@@ -611,6 +760,7 @@ class EvoSelfRunner:
                 fitness_re = fit_shaper.apply(x, fitness)
             # Tell
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
+            self.args.lmbda -= self.args.lmbda_anneal
             if self.args.benchmark:
                 evo_state.mean.block_until_ready()
                 self.tell_time.append(time.time() - start)

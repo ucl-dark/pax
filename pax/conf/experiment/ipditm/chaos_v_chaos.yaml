@@ -20,6 +20,9 @@ benchmark: False
 # Runner 
 runner: evo_self
 
+lmbda: 1.0
+lmbda_anneal: 0.0015
+
 # Training
 top_k: 2
 popsize: 8 #512
