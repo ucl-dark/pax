@@ -49,6 +49,7 @@ from pax.envs.ipd_in_the_matrix import (
 )
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
+from pax.runner_evo_self import EvoSelfRunner
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
 from pax.runner_ipditm_eval import IPDITMEvalRunner
@@ -180,7 +181,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo":
+    if args.runner == "evo" or args.runner == "evo_self":
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -266,9 +267,14 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
 
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
+        if args.runner == "evo":
+            return EvoRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_self":
+            return EvoSelfRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )            
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -444,7 +450,7 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "rl", "ipditm_eval", "ipditm_pretrain"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
-        if args.runner == "evo":
+        if args.runner == "evo" or args.runner == "evo_self":
             logger.info("Using EvolutionaryLearners")
             return (agent_0, agent_1)
 
@@ -574,7 +580,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    if args.runner == "evo":
+    if args.runner == "evo" or args.runner == "evo_self":
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
