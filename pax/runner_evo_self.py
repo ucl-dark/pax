@@ -733,26 +733,13 @@ class EvoSelfRunner:
                 fitness.block_until_ready()
                 self.rollout_time.append(time.time() - start)
                 start = time.time()
-            # Used this to get best parameter for meta self-play
-            # if self.args.num_devices > 1:
-            #     top_params = param_reshaper.reshape(
-            #         log["top_gen_params"][0 : self.args.num_devices]
-            #     )
-            #     top_params = jax.tree_util.tree_map(
-            #         lambda x: x[0].reshape(x[0].shape[1:]), top_params
-            #     )
-            # else:
-            #     top_params = param_reshaper.reshape(
-            #         log["top_gen_params"][0:1]
-            #     )
-            #     top_params = jax.tree_util.tree_map(
-            #         lambda x: x.reshape(x.shape[1:]), top_params
-            #     )
+
             params2 = unravel_pytree(evo_state.mean)
 
             # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
+            
             # Maximize fitness
             if self.args.benchmark:
                 fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
@@ -760,7 +747,9 @@ class EvoSelfRunner:
                 fitness_re = fit_shaper.apply(x, fitness)
             # Tell
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
+
             self.args.lmbda -= self.args.lmbda_anneal
+
             if self.args.benchmark:
                 evo_state.mean.block_until_ready()
                 self.tell_time.append(time.time() - start)
