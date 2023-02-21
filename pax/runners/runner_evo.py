@@ -105,12 +105,7 @@ class EvoRunner:
             (0, None),
         )
 
-        self.num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_steps // self.args.num_inner_steps
-        )
-
+        self.num_outer_steps = args.num_outer_steps
         agent1, agent2 = agents
 
         # vmap agents accordingly

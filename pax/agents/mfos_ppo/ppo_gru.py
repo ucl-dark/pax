@@ -571,7 +571,12 @@ def make_mfos_agent(
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
+    # TODO: this is a hack - we assume memory agent is outer agent - we should pass through explicitly
+    batch_size = int(
+        args.num_envs
+        * (args.num_outer_steps * args.num_inner_steps)
+        * args.num_opps
+    )
     transition_steps = (
         args.total_timesteps
         / batch_size

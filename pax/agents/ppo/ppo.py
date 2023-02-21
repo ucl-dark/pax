@@ -494,7 +494,9 @@ def make_agent(
         network = make_ipd_network(action_spec, tabular, args)
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(
+        args.num_envs * args.num_inner_steps * args.num_outer_steps
+    )
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -531,7 +533,8 @@ def make_agent(
         random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
+        num_steps=args.num_inner_steps
+        * args.num_outer_steps,  # TODO: assume outer agent!
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,

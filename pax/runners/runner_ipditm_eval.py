@@ -102,12 +102,7 @@ class IPDITMEvalRunner:
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
-        num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_steps // self.args.num_inner_steps
-        )
-        self.num_outer_steps = num_outer_steps
+        self.num_outer_steps = self.args.num_outer_steps
 
         agent1, agent2 = agents
 
@@ -473,9 +468,7 @@ class IPDITMEvalRunner:
                     blue_coins=env_state.blue_coins[i, ...],
                     freeze=env_state.freeze[i, ...],
                 )
-                for i in range(
-                    self.args.num_steps // self.args.num_inner_steps
-                )
+                for i in range(self.args.num_outer_steps)
             ]
 
             list_traj1 = [
@@ -491,9 +484,7 @@ class IPDITMEvalRunner:
                     behavior_values=traj.behavior_values[i, ...],
                     hiddens=traj.hiddens[i, ...],
                 )
-                for i in range(
-                    self.args.num_steps // self.args.num_inner_steps
-                )
+                for i in range(self.args.num_outer_steps)
             ]
 
             list_traj2 = [
@@ -509,9 +500,7 @@ class IPDITMEvalRunner:
                     behavior_values=other_traj.behavior_values[i, ...],
                     hiddens=other_traj.hiddens[i, ...],
                 )
-                for i in range(
-                    self.args.num_steps // self.args.num_inner_steps
-                )
+                for i in range(self.args.num_outer_steps)
             ]
 
             list_of_env_stats = [
@@ -591,7 +580,7 @@ class IPDITMEvalRunner:
                     blue_coins=env_state.blue_coins[i, ...],
                     freeze=env_state.freeze[i, ...],
                 )
-                for i in range(self.args.num_steps)
+                for i in range(self.args.num_outer_steps)
             ]
             gif_every_n_eps = 10
             for i, state in enumerate(tqdm(env_states)):

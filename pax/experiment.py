@@ -97,22 +97,16 @@ def env_setup(args, logger=None):
 
     if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
-        if args.env_type == "sequential":
-            env = IteratedMatrixGame(
-                num_inner_steps=args.num_steps, num_outer_steps=1
-            )
-            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
 
-        elif args.env_type == "meta":
-            env = IteratedMatrixGame(
-                num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_outer_steps,
+        env = IteratedMatrixGame(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} | Episode Length: {args.num_steps}"
             )
-            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
-            if logger:
-                logger.info(
-                    f"Env Type: Meta | Episode Length: {args.num_steps}"
-                )
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
@@ -567,7 +561,8 @@ def main(args):
 
     elif args.runner == "rl":
         num_iters = int(
-            args.total_timesteps / args.num_steps
+            args.total_timesteps
+            / (args.num_outer_steps * args.num_inner_steps)
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
@@ -584,7 +579,8 @@ def main(args):
 
     elif args.runner == "eval":
         num_iters = int(
-            args.total_timesteps / args.num_steps
+            args.total_timesteps
+            / (args.num_outer_steps * args.num_inner_steps)
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
