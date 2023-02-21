@@ -24,7 +24,7 @@ runner: eval
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
-num_steps: 16
+num_outer_steps: 1
 num_inner_steps: 16 
 total_timesteps: 16000
 

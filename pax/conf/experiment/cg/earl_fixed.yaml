@@ -25,7 +25,7 @@ popsize: 128 #512
 num_envs: 50
 num_opps: 1
 num_devices: 2
-num_steps: 9600
+num_outer_steps: 600
 num_inner_steps: 16 
 num_generations: 2000
 

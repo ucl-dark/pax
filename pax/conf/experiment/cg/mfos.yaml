@@ -17,7 +17,7 @@ runner: evo
 # env_batch_size = num_envs * num_opponents
 num_envs: 250
 num_opps: 1
-num_steps: 9600 
+num_outer_steps: 600
 num_inner_steps: 16 
 total_timesteps: 1.6e6
 save_interval: 100 

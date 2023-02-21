@@ -19,7 +19,7 @@ runner: rl
 # Training
 num_envs: 100 # Training requires 10000 
 num_opps: 1
-num_steps: 16 
+num_outer_steps: 1
 num_inner_steps: 16 
 num_generations: 10000
 total_timesteps: 1.6e5 

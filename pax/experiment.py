@@ -133,20 +133,12 @@ def env_setup(args, logger=None):
                 "Both agents must have the same CNN configuration."
             )
 
-        if args.env_type == "sequential":
-            env = CoinGame(
-                num_inner_steps=args.num_steps,
-                num_outer_steps=1,
-                cnn=args.ppo1.with_cnn,
-                egocentric=args.egocentric,
-            )
-        else:
-            env = CoinGame(
-                num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_steps // args.num_inner_steps,
-                cnn=args.ppo1.with_cnn,
-                egocentric=args.egocentric,
-            )
+        env = CoinGame(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+            cnn=args.ppo1.with_cnn,
+            egocentric=args.egocentric,
+        )
         if logger:
             logger.info(
                 f"Env Type: CoinGame | Episode Length: {args.num_steps}"
@@ -158,7 +150,7 @@ def env_setup(args, logger=None):
         )
         env = IPDInTheMatrix(
             num_inner_steps=args.num_inner_steps,
-            num_outer_steps=args.num_steps // args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
             fixed_coin_location=args.fixed_coins,
         )
         if logger:
