@@ -72,7 +72,7 @@ from pax.watchers import (
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
-    if not args.runner == "eval":
+    if not args.runner == "eval" and not args.runner == "tensor_eval":
         os.makedirs(
             save_dir,
             exist_ok=True,
@@ -169,6 +169,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
+    elif args.runner == "tensor_eval":
+        logger.info("Training with tensor eval Runner")
+        return TensorEvalRunner(agents, env, args)
 
     if args.runner == "evo" or args.runner == "tensor_evo":
         agent1 = agents[0]
@@ -278,9 +281,6 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "tensor_rl":
         logger.info("Training with tensor RL Runner")
         return TensorRLRunner(agents, env, save_dir, args)
-    elif args.runner == "tensor_eval":
-        logger.info("Training with tensor RL Runner")
-        return TensorEvalRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -620,7 +620,7 @@ def main(args):
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "rl" or args.runner == "tensor_rl" or args.runner == "tensor_eval":
+    elif args.runner == "rl" or args.runner == "tensor_rl":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes
@@ -634,7 +634,7 @@ def main(args):
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 
-    elif args.runner == "eval":
+    elif args.runner == "eval" or args.runner == "tensor_eval":
         num_iters = int(
             args.total_timesteps / args.num_steps
         )  # number of episodes

@@ -20,7 +20,7 @@ num_envs: 2
 num_opps: 1
 num_inner_steps: 100
 num_steps: 100 # number of steps per episode
-total_timesteps: 200_000 # num_episodes  = total / (numsteps * num_envs * num_opps)
+total_timesteps: 1000_000 # num_episodes  = total / (numsteps * num_envs * num_opps)
 
 # Evaluation 
 
