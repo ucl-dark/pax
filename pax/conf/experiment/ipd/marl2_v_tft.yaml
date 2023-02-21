@@ -14,7 +14,7 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
 num_opps: 2
-num_steps: 100 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
+num_outer_steps: 1 
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
 total_timesteps: 1.0e6
 
