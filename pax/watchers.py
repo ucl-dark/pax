@@ -21,16 +21,26 @@ DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
 
-START_3P = jnp.array([[0, 0, 0, 0,0,0,0,0,1]])
-CCC = jnp.array([[1, 0, 0, 0, 0,0,0,0,0]])
-CCD = jnp.array([[0, 1, 0, 0, 0,0,0,0,0]])
-CDC = jnp.array([[0, 0, 1, 0, 0,0,0,0,0]])
-CDD = jnp.array([[0, 0, 0, 1, 0,0,0,0,0]])
-DCC = jnp.array([[0, 0, 0, 0, 1,0,0,0,0]])
-DCD = jnp.array([[0, 0, 0, 0, 0,1,0,0,0]])
-DDC = jnp.array([[0, 0, 0, 0, 0,0,1,0,0]])
-DDD = jnp.array([[0, 0, 0, 0, 0,0,0,1,0]])
-STATE_NAMES_3P = ["START", "CCC", "CCD", "CDC", "CDD", "DCC", "DCD", "DDC", "DDD"]
+START_3P = jnp.array([[0, 0, 0, 0, 0, 0, 0, 0, 1]])
+CCC = jnp.array([[1, 0, 0, 0, 0, 0, 0, 0, 0]])
+CCD = jnp.array([[0, 1, 0, 0, 0, 0, 0, 0, 0]])
+CDC = jnp.array([[0, 0, 1, 0, 0, 0, 0, 0, 0]])
+CDD = jnp.array([[0, 0, 0, 1, 0, 0, 0, 0, 0]])
+DCC = jnp.array([[0, 0, 0, 0, 1, 0, 0, 0, 0]])
+DCD = jnp.array([[0, 0, 0, 0, 0, 1, 0, 0, 0]])
+DDC = jnp.array([[0, 0, 0, 0, 0, 0, 1, 0, 0]])
+DDD = jnp.array([[0, 0, 0, 0, 0, 0, 0, 1, 0]])
+STATE_NAMES_3P = [
+    "START",
+    "CCC",
+    "CCD",
+    "CDC",
+    "CDD",
+    "DCC",
+    "DCD",
+    "DDC",
+    "DDD",
+]
 ALL_STATES_3P = [START, CCC, CCD, CDC, CDD, DCC, DCD, DDC, DDD]
 
 
@@ -40,6 +50,7 @@ class State(enum.IntEnum):
     DC = 2
     DD = 3
     START = 4
+
 
 class State_3P(enum.IntEnum):
     CCC = 0
@@ -68,7 +79,7 @@ def policy_logger(agent, three_players=False) -> dict:
     return probs
 
 
-def value_logger(agent, three_players= False) -> dict:
+def value_logger(agent, three_players=False) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
     if three_players:
         state = State_3P
@@ -83,7 +94,7 @@ def value_logger(agent, three_players= False) -> dict:
     return values
 
 
-def policy_logger_dqn(agent, three_players = False) -> None:
+def policy_logger_dqn(agent, three_players=False) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
@@ -107,7 +118,7 @@ def policy_logger_dqn(agent, three_players = False) -> None:
     return probs
 
 
-def value_logger_dqn(agent, three_players= False) -> dict:
+def value_logger_dqn(agent, three_players=False) -> dict:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pid = agent.player_id
     target_steps = agent.target_step_updates
@@ -238,7 +249,7 @@ def losses_naive(agent: NaiveExact) -> dict:
     return losses
 
 
-def logger_naive_exact(agent: NaiveExact, three_players = False) -> dict:
+def logger_naive_exact(agent: NaiveExact, three_players=False) -> dict:
     params = agent._mem.hidden
     pid = agent.player_id
     params = params.mean(axis=0)
@@ -254,7 +265,7 @@ def logger_naive_exact(agent: NaiveExact, three_players = False) -> dict:
     return cooperation_probs
 
 
-def policy_logger_naive(agent, three_players= False) -> None:
+def policy_logger_naive(agent, three_players=False) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
@@ -477,8 +488,12 @@ def ipd_visitation(
         "cooperation_probability/START": action_probs[4],
     }
 
+
 def tensor_ipd_visitation(
-    observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
+    observations: jnp.ndarray,
+    actions: jnp.ndarray,
+    final_obs: jnp.ndarray,
+    agent_idx=1,
 ) -> dict:
     # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
     # final_t [num_opps, num_envs, ...]
@@ -517,15 +532,48 @@ def tensor_ipd_visitation(
         "state_probability/DDC": state_probs[6],
         "state_probability/DDD": state_probs[7],
         "state_probability/START": state_probs[8],
-        "cooperation_probability/CCC": action_probs[0],
-        "cooperation_probability/CCD": action_probs[1],
-        "cooperation_probability/CDC": action_probs[2],
-        "cooperation_probability/CDD": action_probs[3],
-        "cooperation_probability/DCC": action_probs[4],
-        "cooperation_probability/DCD": action_probs[5],
-        "cooperation_probability/DDC": action_probs[6],
-        "cooperation_probability/DDD": action_probs[7],
-        "cooperation_probability/START": action_probs[8],
+        "cooperation_probability/1/CCC": action_probs[0],
+        "cooperation_probability/1/CCD": action_probs[1],
+        "cooperation_probability/1/CDC": action_probs[2],
+        "cooperation_probability/1/CDD": action_probs[3],
+        "cooperation_probability/1/DCC": action_probs[4],
+        "cooperation_probability/1/DCD": action_probs[5],
+        "cooperation_probability/1/DDC": action_probs[6],
+        "cooperation_probability/1/DDD": action_probs[7],
+        "cooperation_probability/1/START": action_probs[8],
+    }
+
+
+def tensor_ipd_coop_probs(
+    observations: jnp.ndarray,
+    actions: jnp.ndarray,
+    final_obs: jnp.ndarray,
+    agent_idx: int = 1,
+) -> dict:
+    num_timesteps = observations.shape[0] * observations.shape[1]
+    # obs = [0....8], a = [0, 1]
+    # combine = [0, .... 17]
+    state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
+    state_actions = jnp.reshape(
+        state_actions,
+        (num_timesteps,) + state_actions.shape[2:],
+    )
+    final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
+    state_actions = jnp.append(state_actions, final_obs, axis=0)
+    hist = jnp.bincount(state_actions.flatten(), length=18)
+    state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+    action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+    # THIS IS FROM AGENTS OWN PERSPECTIVE
+    return {
+        f"cooperation_probability/{agent_idx}/CCC": action_probs[0],
+        f"cooperation_probability/{agent_idx}/CCD": action_probs[1],
+        f"cooperation_probability/{agent_idx}/CDC": action_probs[2],
+        f"cooperation_probability/{agent_idx}/CDD": action_probs[3],
+        f"cooperation_probability/{agent_idx}/DCC": action_probs[4],
+        f"cooperation_probability/{agent_idx}/DCD": action_probs[5],
+        f"cooperation_probability/{agent_idx}/DDC": action_probs[6],
+        f"cooperation_probability/{agent_idx}/DDD": action_probs[7],
+        f"cooperation_probability/{agent_idx}/START": action_probs[8],
     }
 
 

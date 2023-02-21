@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import load
-from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers import tensor_ipd_visitation, tensor_ipd_coop_probs
 
 MAX_WANDB_CALLS = 10000
 
@@ -48,8 +48,9 @@ class TensorEvalRunner:
         self.random_key = jax.random.PRNGKey(args.seed)
         self.run_path = args.run_path
         self.model_path = args.model_path
-        self.ipd_stats = jax.jit(ipd_visitation)
-        self.cg_stats = jax.jit(cg_visitation)
+        self.ipd_stats = jax.jit(tensor_ipd_visitation)
+        self.ipd_coop = jax.jit(tensor_ipd_coop_probs)
+        # self.cg_stats = jax.jit(cg_visitation)
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -415,11 +416,22 @@ class TensorEvalRunner:
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(),
                         self.ipd_stats(
-                            traj_1.observations,
-                            traj_1.actions,
-                            obs1,
+                            traj_1.observations, traj_1.actions, obs1, 1
                         ),
                     )
+                    coop_probs2 = jax.tree_util.tree_map(
+                        lambda x: x.item(),
+                        tensor_ipd_coop_probs(
+                            traj_2.observations, traj_2.actions, obs2, 2
+                        ),
+                    )
+                    coop_probs3 = jax.tree_util.tree_map(
+                        lambda x: x.item(),
+                        tensor_ipd_coop_probs(
+                            traj_3.observations, traj_3.actions, obs3, 3
+                        ),
+                    )
+
                     rewards_1 = traj_1.rewards.mean()
                     rewards_2 = traj_2.rewards.mean()
                     rewards_3 = traj_3.rewards.mean()
@@ -438,12 +450,12 @@ class TensorEvalRunner:
 
                 if watchers:
                     # metrics [outer_timesteps, num_opps]
-                    flattened_metrics_1 = jax.tree_util.tree_map(
-                        lambda x: jnp.mean(x), a1_metrics
-                    )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
+                    # flattened_metrics_1 = jax.tree_util.tree_map(
+                    #     lambda x: jnp.mean(x), a1_metrics
+                    # )
+                    # agent1._logger.metrics = (
+                    #     agent1._logger.metrics | flattened_metrics_1
+                    # )
                     flattened_metrics = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
@@ -459,21 +471,22 @@ class TensorEvalRunner:
 
                     for watcher, agent in zip(watchers, agents):
                         watcher(agent)
-                    wandb.log(
-                        {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
-                            ),
-                            "train/episode_reward/player_2": float(
-                                rewards_2.mean()
-                            ),
-                            "train/episode_reward/player_3": float(
-                                rewards_3.mean()
-                            ),
-                        }
-                        | env_stats,
-                    )
+                    wandb_log = {
+                        "episodes": self.train_episodes,
+                        "train/episode_reward/player_1": float(
+                            rewards_1.mean()
+                        ),
+                        "train/episode_reward/player_2": float(
+                            rewards_2.mean()
+                        ),
+                        "train/episode_reward/player_3": float(
+                            rewards_3.mean()
+                        ),
+                    }
+                    wandb_log.update(env_stats)
+                    wandb_log.update(coop_probs2)
+                    wandb_log.update(coop_probs3)
+                    wandb.log(wandb_log)
 
         agents[0]._state = a1_state
         agents[1]._state = a2_state
