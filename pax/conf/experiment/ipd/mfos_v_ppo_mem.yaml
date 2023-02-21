@@ -25,7 +25,7 @@ total_timesteps: 1e11
 num_devices: 2
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

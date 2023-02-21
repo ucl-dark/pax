@@ -62,7 +62,7 @@ run_path: ucl-dark/ipd/3dzkof3f
 model_path:  exp/GS-PPO-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_16.41.50.643263/generation_4900
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

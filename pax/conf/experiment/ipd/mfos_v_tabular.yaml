@@ -41,7 +41,7 @@ model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20
 # model_path:  exp/GS-MFOS-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_20.38.01.382774/generation_4400
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

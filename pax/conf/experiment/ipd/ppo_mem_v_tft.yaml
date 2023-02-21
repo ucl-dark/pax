@@ -19,15 +19,17 @@ eval: False
 # Training hyperparameters
 num_envs: 100
 num_opps: 1
-num_steps: 150 # number of steps per episode
+num_outer_steps: 1
+num_inner_steps: 150 # number of steps per episode
 total_timesteps: 2e7
+save_interval: 2e7
 
 # Useful information
 # num_episodes = total_timesteps / num_steps
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 4
   num_epochs: 2 
   gamma: 0.96

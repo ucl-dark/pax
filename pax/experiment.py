@@ -105,8 +105,9 @@ def env_setup(args, logger=None):
         env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
         if logger:
             logger.info(
-                f"Env Type: {args.env_type} | Episode Length: {args.num_steps}"
+                f"Env Type: {args.env_type} | Inner Episode Length: {args.num_inner_steps}"
             )
+            logger.info(f"Outer Episode Length: {args.num_outer_steps}")
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)

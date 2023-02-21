@@ -106,7 +106,7 @@ class RLRunner:
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
-        num_outer_steps = self.num_outer_steps
+        num_outer_steps = self.args.num_outer_steps
         agent1, agent2 = agents
 
         # set up agents

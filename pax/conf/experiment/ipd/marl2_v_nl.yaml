@@ -23,7 +23,7 @@ total_timesteps: 0.5e9
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 10
   num_epochs: 4 
   gamma: 0.96
