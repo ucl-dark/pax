@@ -3,15 +3,22 @@ import os
 from datetime import datetime
 from functools import partial
 
+# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
+# uncomment to debug multi-devices on CPU
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
+
 import hydra
 import jax.numpy as jnp
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
 import gymnax
+import jax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
-from pax.agents.mfos_ppo.ppo_gru import make_gru_agent as make_mfos_agent
+from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
 from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
@@ -36,10 +43,15 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
-from pax.runner_eval import EvalRunner
-from pax.runner_evo import EvoRunner
-from pax.runner_marl import RLRunner
-from pax.runner_sarl import SARLRunner
+from pax.envs.in_the_matrix import InTheMatrix
+from pax.envs.in_the_matrix import (
+    EnvParams as InTheMatrixParams,
+)
+from pax.runners.runner_eval import EvalRunner
+from pax.runners.runner_evo import EvoRunner
+from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_sarl import SARLRunner
+from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -51,11 +63,6 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_ppo,
 )
-
-# uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
 
 
 def global_setup(args):
@@ -90,17 +97,17 @@ def env_setup(args, logger=None):
 
     if args.env_id == "iterated_matrix_game":
         payoff = jnp.array(args.payoff)
-        if args.env_type == "sequential":
-            env = IteratedMatrixGame(num_inner_steps=args.num_steps)
-            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
 
-        elif args.env_type == "meta":
-            env = IteratedMatrixGame(num_inner_steps=args.num_inner_steps)
-            env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
-            if logger:
-                logger.info(
-                    f"Env Type: Meta | Episode Length: {args.num_steps}"
-                )
+        env = IteratedMatrixGame(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} | Inner Episode Length: {args.num_inner_steps}"
+            )
+            logger.info(f"Outer Episode Length: {args.num_outer_steps}")
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
@@ -116,23 +123,36 @@ def env_setup(args, logger=None):
     elif args.env_id == "coin_game":
         payoff = jnp.array(args.payoff)
         env_params = CoinGameParams(payoff_matrix=payoff)
-        if args.env_type == "sequential":
-            env = CoinGame(
-                num_inner_steps=args.num_steps,
-                num_outer_steps=1,
-                cnn=args.ppo.with_cnn,
-                egocentric=args.egocentric,
+        if args.ppo1.with_cnn != args.ppo2.with_cnn:
+            raise ValueError(
+                "Both agents must have the same CNN configuration."
             )
-        else:
-            env = CoinGame(
-                num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_steps // args.num_inner_steps,
-                cnn=args.ppo.with_cnn,
-                egocentric=args.egocentric,
-            )
+
+        env = CoinGame(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+            cnn=args.ppo1.with_cnn,
+            egocentric=args.egocentric,
+        )
         if logger:
             logger.info(
-                f"Env Type: CoinGame | Episode Length: {args.num_steps}"
+                f"Env Type: CoinGame | Inner Episode Length: {args.num_inner_steps}"
+            )
+            logger.info(f"Outer Episode Length: {args.num_outer_steps}")
+
+    elif args.env_id == "InTheMatrix":
+        payoff = jnp.array(args.payoff)
+        env_params = InTheMatrixParams(
+            payoff_matrix=payoff, freeze_penalty=args.freeze
+        )
+        env = InTheMatrix(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+            fixed_coin_location=args.fixed_coins,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: InTheMatrix | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
@@ -145,6 +165,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
+    elif args.runner == "ipditm_eval":
+        logger.info("Evaluating with ipditmEvalRunner")
+        return IPDITMEvalRunner(agents, env, save_dir, args)
 
     if args.runner == "evo":
         agent1, _ = agents
@@ -154,7 +177,9 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         def get_ga_strategy(agent):
             """Returns the SimpleGA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, n_devices=args.num_devices
+            )
             strategy = SimpleGA(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
@@ -164,7 +189,9 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         def get_cma_strategy(agent):
             """Returns the CMA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
+            param_reshaper = ParameterReshaper(
+                agent._state.params, n_devices=args.num_devices
+            )
             strategy = CMA_ES(
                 num_dims=param_reshaper.total_params,
                 popsize=args.popsize,
@@ -245,26 +272,33 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-
     if args.env_id == "iterated_matrix_game":
         obs_shape = env.observation_space(env_params).n
+    elif args.env_id == "InTheMatrix":
+        obs_shape = jax.tree_map(
+            lambda x: x.shape, env.observation_space(env_params)
+        )
     else:
         obs_shape = env.observation_space(env_params).shape
+
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
-        ppo_memory_agent = make_gru_agent(
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        return make_gru_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
             player_id=player_id,
         )
-        return ppo_memory_agent
 
     def get_PPO_agent(seed, player_id):
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
         ppo_agent = make_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -273,8 +307,10 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_PPO_tabular_agent(seed, player_id):
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
         ppo_agent = make_agent(
             args,
+            player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -284,8 +320,10 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
+        agent_args = args.ppo1
         ppo_agent = make_mfos_agent(
             args,
+            agent_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
@@ -324,7 +362,7 @@ def agent_setup(args, env, env_params, logger):
         return agent
 
     def get_random_agent(seed, player_id):
-        random_agent = Random(num_actions, args.num_envs)
+        random_agent = Random(num_actions, args.num_envs, obs_shape)
         random_agent.player_id = player_id
         return random_agent
 
@@ -387,17 +425,11 @@ def agent_setup(args, env, env_params, logger):
         agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
         agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
 
-        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        if args.agent1 in ["PPO", "PPO_memory"]:
+            logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
         logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
         logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
-
-        if args.runner in ["eval", "rl"]:
-            logger.info("Using Independent Learners")
-            return (agent_0, agent_1)
-        if args.runner == "evo":
-            logger.info("Using EvolutionaryLearners")
-            return (agent_0, agent_1)
+        return (agent_0, agent_1)
 
 
 def watcher_setup(args, logger):
@@ -405,21 +437,27 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if not args.env_id == "coin_game":
+        if args.env_id not in ["coin_game", "InTheMatrix"]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if not args.env_id == "coin_game":
+        if args.env_id not in ["coin_game", "InTheMatrix"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
             losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
@@ -431,6 +469,9 @@ def watcher_setup(args, logger):
         policy = logger_hyper(agent)
         losses.update(policy)
         if args.wandb.log:
+            losses = jax.tree_util.tree_map(
+                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+            )
             wandb.log(losses)
         return
 
@@ -523,10 +564,14 @@ def main(args):
 
     elif args.runner == "rl":
         num_iters = int(
-            args.total_timesteps / args.num_steps
+            args.total_timesteps
+            / (args.num_outer_steps * args.num_inner_steps)
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
+
+    elif args.runner == "ipditm_eval":
+        runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":
         num_iters = int(
@@ -537,14 +582,8 @@ def main(args):
 
     elif args.runner == "eval":
         num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
-
-    elif args.runner == "eval":
-        num_iters = int(
-            args.total_timesteps / args.num_steps
+            args.total_timesteps
+            / (args.num_outer_steps * args.num_inner_steps)
         )  # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)

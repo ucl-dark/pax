@@ -10,6 +10,7 @@ import optax
 from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
+    make_ipditm_network,
     make_sarl_network,
     make_coingame_network,
     make_ipd_network,
@@ -339,14 +340,21 @@ class PPO(AgentInterface):
         def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
-            if not tabular:
-                dummy_obs = jnp.zeros(shape=obs_spec)
-            else:
+
+            if isinstance(obs_spec, dict):
+                dummy_obs = {}
+                for k, v in obs_spec.items():
+                    dummy_obs[k] = jnp.zeros(shape=v)
+
+            elif not tabular:
                 dummy_obs = jnp.zeros(shape=obs_spec)
                 dummy_obs = dummy_obs.at[0].set(1)
                 dummy_obs = dummy_obs.at[9].set(1)
                 dummy_obs = dummy_obs.at[18].set(1)
                 dummy_obs = dummy_obs.at[27].set(1)
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
@@ -452,6 +460,7 @@ class PPO(AgentInterface):
 
 def make_agent(
     args,
+    agent_args,
     obs_spec,
     action_spec,
     seed: int,
@@ -463,37 +472,58 @@ def make_agent(
         network = make_sarl_network(action_spec)
     elif args.env_id == "coin_game":
         print(f"Making network for {args.env_id}")
-        network = make_coingame_network(action_spec, tabular, args)
+        network = make_coingame_network(
+            action_spec,
+            tabular,
+            agent_args.with_cnn,
+            agent_args.separate,
+            agent_args.hidden_size,
+            agent_args.output_channels,
+            agent_args.kernel_shape,
+        )
+    elif args.env_id == "InTheMatrix":
+        network = make_ipditm_network(
+            action_spec,
+            agent_args.separate,
+            agent_args.with_cnn,
+            agent_args.hidden_size,
+            agent_args.output_channels,
+            agent_args.kernel_shape,
+        )
     else:
-        network = make_ipd_network(action_spec, tabular, args)
+        network = make_ipd_network(
+            action_spec, tabular, agent_args.hidden_size
+        )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps)
+    batch_size = int(
+        args.num_envs * args.num_inner_steps * args.num_outer_steps
+    )
     transition_steps = (
         args.total_timesteps
         / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
+        * agent_args.num_epochs
+        * agent_args.num_minibatches
     )
 
-    if args.ppo.lr_scheduling:
+    if agent_args.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=args.ppo.learning_rate,
+            init_value=agent_args.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.clip_by_global_norm(agent_args.max_gradient_norm),
+            optax.scale_by_adam(eps=agent_args.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
 
     else:
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
-            optax.scale(-args.ppo.learning_rate),
+            optax.clip_by_global_norm(agent_args.max_gradient_norm),
+            optax.scale_by_adam(eps=agent_args.adam_epsilon),
+            optax.scale(-agent_args.learning_rate),
         )
 
     # Random key
@@ -505,18 +535,19 @@ def make_agent(
         random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
-        num_minibatches=args.ppo.num_minibatches,
-        num_epochs=args.ppo.num_epochs,
-        clip_value=args.ppo.clip_value,
-        value_coeff=args.ppo.value_coeff,
-        anneal_entropy=args.ppo.anneal_entropy,
-        entropy_coeff_start=args.ppo.entropy_coeff_start,
-        entropy_coeff_end=args.ppo.entropy_coeff_end,
-        entropy_coeff_horizon=args.ppo.entropy_coeff_horizon,
-        ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
-        gamma=args.ppo.gamma,
-        gae_lambda=args.ppo.gae_lambda,
+        num_steps=args.num_inner_steps
+        * args.num_outer_steps,  # TODO: assume outer agent!
+        num_minibatches=agent_args.num_minibatches,
+        num_epochs=agent_args.num_epochs,
+        clip_value=agent_args.clip_value,
+        value_coeff=agent_args.value_coeff,
+        anneal_entropy=agent_args.anneal_entropy,
+        entropy_coeff_start=agent_args.entropy_coeff_start,
+        entropy_coeff_end=agent_args.entropy_coeff_end,
+        entropy_coeff_horizon=agent_args.entropy_coeff_horizon,
+        ppo_clipping_epsilon=agent_args.ppo_clipping_epsilon,
+        gamma=agent_args.gamma,
+        gae_lambda=agent_args.gae_lambda,
         tabular=tabular,
         player_id=player_id,
     )

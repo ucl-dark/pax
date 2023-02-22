@@ -1,6 +1,6 @@
 from functools import partial
 from re import A
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Union
 
 import jax.numpy as jnp
 import jax.random
@@ -449,7 +449,9 @@ class Altruistic(AgentInterface):
 
 
 class Random(AgentInterface):
-    def __init__(self, num_actions: int, num_envs: int):
+    def __init__(
+        self, num_actions: int, num_envs: int, obs_shape: Union[dict, tuple]
+    ):
         self.make_initial_state = initial_state_fun(num_envs)
         self._state, self._mem = self.make_initial_state(None, None)
         self.reset_memory = reset_mem_fun(num_envs)
@@ -464,7 +466,10 @@ class Random(AgentInterface):
         ) -> jnp.ndarray:
             # state is [batch x time_step x num_players]
             # return [batch]
-            batch_size = obs.shape[0]
+            if isinstance(obs_shape, dict):
+                batch_size = obs["inventory"].shape[0]
+            else:
+                batch_size = obs.shape[0]
             new_key, _ = jax.random.split(state.random_key)
             action = jax.random.randint(new_key, (batch_size,), 0, num_actions)
             state = state._replace(random_key=new_key)
@@ -497,8 +502,7 @@ class Stay(AgentInterface):
         ) -> jnp.ndarray:
             # state is [batch x time_step x num_players]
             # return [batch]
-            batch_size = obs.shape[0]
-            action = 4 * jnp.ones((batch_size,), dtype=int)
+            action = 4 * jnp.ones((num_envs,), dtype=int)
             return action, state, mem
 
         self._policy = jax.jit(_policy)

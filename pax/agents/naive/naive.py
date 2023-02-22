@@ -415,7 +415,7 @@ def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
         random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
+        num_steps=args.num_inner_steps,  # TODO: this is a hack assumes Naive Learner is inner agent
         num_minibatches=args.naive.num_minibatches,
         num_epochs=args.naive.num_epochs,
         gamma=args.naive.gamma,

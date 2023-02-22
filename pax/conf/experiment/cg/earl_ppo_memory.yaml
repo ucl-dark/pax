@@ -19,7 +19,7 @@ top_k: 1
 popsize: 50 #128 
 num_envs: 10 #50
 num_opps: 1
-num_steps: 9600
+num_outer_steps: 600
 num_inner_steps: 16 
 num_generations: 5000
 

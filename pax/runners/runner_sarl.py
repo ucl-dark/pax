@@ -6,7 +6,6 @@ import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.watchers import cg_visitation, ipd_visitation
 from pax.utils import MemoryState, TrainingState, save
 
 # from jax.config import config
@@ -134,7 +133,7 @@ class SARLRunner:
             # run trials
             vals, traj = jax.lax.scan(
                 _inner_rollout,
-                (   
+                (
                     rngs,
                     obs,
                     _a1_state,
@@ -167,7 +166,7 @@ class SARLRunner:
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
             # Stats
-            rewards = jnp.sum(traj.rewards)/(jnp.sum(traj.dones)+1e-8)
+            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
 
             return (
@@ -207,7 +206,7 @@ class SARLRunner:
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
 
-            if self.args.save and i % self.args.save_interval == 0:
+            if i % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
                 if watcher:
