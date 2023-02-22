@@ -390,7 +390,7 @@ class RLRunner:
                 )
                 rewards_1 = traj_1.rewards.mean()
                 rewards_2 = traj_2.rewards.mean()
-            elif args.env_id == "IPDInTheMatrix":
+            elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipditm_stats(

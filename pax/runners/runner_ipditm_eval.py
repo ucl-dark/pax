@@ -10,8 +10,8 @@ import jax.numpy as jnp
 import wandb
 from pax.utils import MemoryState, TrainingState, load
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
-from pax.envs.ipd_in_the_matrix import (
-    IPDInTheMatrix,
+from pax.envs.in_the_matrix import (
+    InTheMatrix,
     EnvState,
 )
 
@@ -359,7 +359,7 @@ class IPDITMEvalRunner:
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            elif args.env_id == "IPDInTheMatrix":
+            elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipditm_stats(
@@ -543,7 +543,7 @@ class IPDITMEvalRunner:
 
         if self.args.save_gif:
             print("Generating Renders")
-            env = IPDInTheMatrix(
+            env = InTheMatrix(
                 self.args.num_inner_steps,
                 self.num_outer_steps,
                 self.args.fixed_coins,

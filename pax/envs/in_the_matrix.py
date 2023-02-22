@@ -178,7 +178,7 @@ GREEN_COLOUR = (44.0, 160.0, 44.0)
 RED_COLOUR = (214.0, 39.0, 40.0)
 
 
-class IPDInTheMatrix(environment.Environment):
+class InTheMatrix(environment.Environment):
     """
     JAX Compatible version of *inTheMatix environment.
     """
@@ -1103,7 +1103,7 @@ class IPDInTheMatrix(environment.Environment):
                     agent_dir = None
                     agent_hat = None
 
-                tile_img = IPDInTheMatrix.render_tile(
+                tile_img = InTheMatrix.render_tile(
                     cell,
                     agent_dir=agent_dir,
                     agent_hat=agent_hat,
@@ -1248,7 +1248,7 @@ class IPDInTheMatrix(environment.Environment):
                         else agent_hat
                     )
 
-                    tile_img = IPDInTheMatrix.render_tile(
+                    tile_img = InTheMatrix.render_tile(
                         cell,
                         agent_dir=agent_dir,
                         agent_hat=agent_hat,
@@ -1291,9 +1291,7 @@ class IPDInTheMatrix(environment.Environment):
                     cell = 99
                 elif j == 1:
                     cell = 100
-                tile_img = IPDInTheMatrix.render_tile(
-                    cell, tile_size=tile_height
-                )
+                tile_img = InTheMatrix.render_tile(cell, tile_size=tile_height)
                 ymin = j * tile_height
                 ymax = (j + 1) * tile_height
                 xmin = i * tile_width
@@ -1336,7 +1334,7 @@ if __name__ == "__main__":
     num_inner_steps = 150
 
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(num_inner_steps, num_outer_steps, True)
+    env = InTheMatrix(num_inner_steps, num_outer_steps, True)
     num_actions = env.action_space().n
     params = EnvParams(
         payoff_matrix=jnp.array([[[3, 0], [5, 1]], [[3, 5], [0, 1]]]),

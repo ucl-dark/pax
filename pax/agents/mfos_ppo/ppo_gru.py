@@ -558,7 +558,7 @@ def make_mfos_agent(
             action_spec,
             agent_args.hidden_size,
         )
-    elif args.env_id == "IPDInTheMatrix":
+    elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_mfos_ipditm_network(
             action_spec,
             agent_args.hidden_size,

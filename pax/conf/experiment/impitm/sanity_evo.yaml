@@ -5,7 +5,7 @@ agent1: 'PPO_memory' #PPO_memory vs Stay takes like 2000 episodes
 agent2: 'Random'
 
 # Environment
-env_id: IPDInTheMatrix
+env_id: InTheMatrix
 env_type: sequential
 env_discount: 0.96
 payoff: [[[1, -1], [-1, 1]], [[-1, 1], [1, -1]]]

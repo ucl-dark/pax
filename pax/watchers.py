@@ -12,7 +12,7 @@ import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
-from pax.envs.ipd_in_the_matrix import IPDInTheMatrix
+from pax.envs.in_the_matrix import InTheMatrix
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -486,7 +486,7 @@ def cg_visitation(state: NamedTuple) -> dict:
 def ipditm_stats(
     state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
 ) -> dict:
-    from pax.envs.ipd_in_the_matrix import Actions
+    from pax.envs.in_the_matrix import Actions
 
     """Compute statistics for IPDITM."""
     interacts1 = (

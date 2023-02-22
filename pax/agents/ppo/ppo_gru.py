@@ -516,7 +516,7 @@ def make_gru_agent(
             action_spec, agent_args.hidden_size
         )
 
-    elif args.env_id == "IPDInTheMatrix":
+    elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(
             action_spec,
             agent_args.hidden_size,
