@@ -30,7 +30,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoSelfRunner:
+class EvoSelfRunner2pop:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -670,7 +670,8 @@ class EvoSelfRunner:
         param_reshaper = self.param_reshaper
         popsize = self.popsize
         num_opps = self.num_opps
-        evo_state = strategy.initialize(rng, es_params)
+        evo_state1 = strategy.initialize(rng, es_params) 
+        evo_state2 = strategy.initialize(rng, es_params)
         fit_shaper = FitnessShaper(
             maximize=True, centered_rank=True, w_decay=0.1
         )
@@ -680,95 +681,142 @@ class EvoSelfRunner:
             top_k=self.top_k,
             maximize=True,
         )
-        log = es_logging.initialize()
+        log1 = es_logging.initialize()
+        log2 = es_logging.initialize()
 
         # Reshape a single agent's params before vmapping
+        # Agent 1
         init_hidden = jnp.tile(
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
         )
+        
         agent1._state, agent1._mem = agent1.batch_init(
             jax.random.split(agent1._state.random_key, popsize),
             init_hidden,
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
+
+        # Agent 2
+        # init_hidden = jnp.tile(
+        #     agent._mem.hidden,
+        #     (popsize, num_opps, 1, 1),
+        # )
+        a2_state, a2_mem = agent1.batch_init(
+            jax.random.split(self.random_key, popsize), #I DON'T THINK THIS IS CORRECT
+            init_hidden,
+        ) # agent2._state, agent2._mem = 
+        # a2_state, a2_mem = agent2._state, agent2._mem
+        # a2_state, a2_mem = {}, {}
+
         params2 = self.take_first_index(a1_state.params)
         unravel_pytree = self.get_unravel_pytree(params2)
         for gen in range(num_gens):
-            rng, rng_run, rng_gen, rng_key, rng_lambda = jax.random.split(rng, 5)
+            rng, rng_run, rng_gen1, rng_gen2, rng_key, rng_lambda = jax.random.split(rng, 6)
 
             # Ask
             start = time.time()
-            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
-            params = param_reshaper.reshape(x)
+            x1, evo_state1 = strategy.ask(rng_gen1, evo_state1, es_params)
+            x2, evo_state2 = strategy.ask(rng_gen2, evo_state2, es_params)
+            params1 = param_reshaper.reshape(x1)
+            params2 = param_reshaper.reshape(x2)
+            params1_asopp = unravel_pytree(evo_state1.mean)
+            params2_asopp = unravel_pytree(evo_state2.mean)
+
             if self.args.num_devices == 1:
-                params = jax.tree_util.tree_map(
-                    lambda x: jax.lax.expand_dims(x, (0,)), params
+                params1 = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), params1
+                )
+                params2 = jax.tree_util.tree_map(
+                    lambda x: jax.lax.expand_dims(x, (0,)), params2
                 )
             if self.args.benchmark:
                 self.ask_time.append(time.time() - start)
                 start = time.time()
             # Evo Rollout
             if jax.random.uniform(rng_lambda) > self.args.lmbda:
+                print('self play')
                 (
-                    fitness,
+                    fitness1,
                     other_fitness,
                     env_stats,
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout(params, params2, rng_run, a1_state, a1_mem, env_params)
+                ) = self.rollout(params1, params2_asopp, rng_run, a1_state, a1_mem, env_params)
+                (
+                    fitness2,
+                    other_fitness,
+                    env_stats,
+                    rewards_1,
+                    rewards_2,
+                    a2_metrics,
+                ) = self.rollout(params2, params1_asopp, rng_run, a2_state, a2_mem, env_params)
             else:
+                print('naive')
                 (
-                    fitness,
+                    fitness1,
                     other_fitness,
                     env_stats,
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout_naive(params, rng_run, a1_state, a1_mem, env_params)
-
+                ) = self.rollout_naive(params1, rng_run, a1_state, a1_mem, env_params)
+                (
+                    fitness2,
+                    other_fitness,
+                    env_stats,
+                    rewards_1,
+                    rewards_2,
+                    a2_metrics,
+                ) = self.rollout_naive(params2, rng_run, a2_state, a2_mem, env_params)
+                                     
             if self.args.benchmark:
-                fitness.block_until_ready()
+                fitness1.block_until_ready()
                 self.rollout_time.append(time.time() - start)
                 start = time.time()
 
-            params2 = unravel_pytree(evo_state.mean)
+            # params2 = unravel_pytree(evo_state.mean)
 
             # Reshape over devices
-            fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
+            fitness1 = jnp.reshape(fitness1, popsize * self.args.num_devices)
+            fitness2 = jnp.reshape(fitness2, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
             
             # Maximize fitness
             if self.args.benchmark:
-                fitness_re = fit_shaper.apply(x, fitness).block_until_ready()
+                fitness1_re = fit_shaper.apply(x1, fitness1).block_until_ready()
+                fitness2_re = fit_shaper.apply(x2, fitness2).block_until_ready()
             else:
-                fitness_re = fit_shaper.apply(x, fitness)
+                fitness1_re = fit_shaper.apply(x1, fitness1)
+                fitness2_re = fit_shaper.apply(x2, fitness2)
             # Tell
-            evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
+            evo_state1 = strategy.tell(x1, fitness1_re, evo_state1, es_params)
+            evo_state2 = strategy.tell(x2, fitness2_re, evo_state2, es_params)
 
             self.args.lmbda -= self.args.lmbda_anneal
 
             if self.args.benchmark:
-                evo_state.mean.block_until_ready()
+                evo_state1.mean.block_until_ready()
                 self.tell_time.append(time.time() - start)
             # Logging
-            log = es_logging.update(log, x, fitness)
+            log1 = es_logging.update(log1, x1, fitness1)
+            log2 = es_logging.update(log2, x2, fitness2)
 
             # Saving
             if gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0 : self.args.num_devices]
+                        log1["top_gen_params"][0 : self.args.num_devices]
                     )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x[0].reshape(x[0].shape[1:]), top_params
                     )
                 else:
                     top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0:1]
+                        log1["top_gen_params"][0:1]
                     )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x.reshape(x.shape[1:]), top_params
@@ -786,7 +834,7 @@ class EvoSelfRunner:
                     "--------------------------------------------------------------------------"
                 )
                 print(
-                    f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                    f"Fitness: {fitness1.mean()} | Other Fitness: {fitness2.mean()}"
                 )
                 print(
                     f"Reward Per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
@@ -798,29 +846,29 @@ class EvoSelfRunner:
                     "--------------------------------------------------------------------------"
                 )
                 print(
-                    f"Top 5: Generation | Mean: {log['log_top_gen_mean'][gen]}"
-                    f" | Std: {log['log_top_gen_std'][gen]}"
+                    f"Top 5: Generation | Mean: {log1['log_top_gen_mean'][gen]}"
+                    f" | Std: {log1['log_top_gen_std'][gen]}"
                 )
                 print(
                     "--------------------------------------------------------------------------"
                 )
-                print(f"Agent {1} | Fitness: {log['top_gen_fitness'][0]}")
-                print(f"Agent {2} | Fitness: {log['top_gen_fitness'][1]}")
-                print(f"Agent {3} | Fitness: {log['top_gen_fitness'][2]}")
-                print(f"Agent {4} | Fitness: {log['top_gen_fitness'][3]}")
-                print(f"Agent {5} | Fitness: {log['top_gen_fitness'][4]}")
+                print(f"Agent {1} | Fitness: {log1['top_gen_fitness'][0]}")
+                print(f"Agent {2} | Fitness: {log1['top_gen_fitness'][1]}")
+                print(f"Agent {3} | Fitness: {log1['top_gen_fitness'][2]}")
+                print(f"Agent {4} | Fitness: {log1['top_gen_fitness'][3]}")
+                print(f"Agent {5} | Fitness: {log1['top_gen_fitness'][4]}")
                 print()
 
             if watchers:
                 wandb_log = {
                     "train_iteration": gen,
-                    "train/fitness/player_1": float(fitness.mean()),
-                    "train/fitness/player_2": float(other_fitness.mean()),
-                    "train/fitness/top_overall_mean": log["log_top_mean"][gen],
-                    "train/fitness/top_overall_std": log["log_top_std"][gen],
-                    "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
-                    "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                    "train/fitness/gen_std": log["log_gen_std"][gen],
+                    "train/fitness/player_1": float(fitness1.mean()),
+                    "train/fitness/player_2": float(fitness2.mean()),
+                    "train/fitness/top_overall_mean": log1["log_top_mean"][gen],
+                    "train/fitness/top_overall_std": log1["log_top_std"][gen],
+                    "train/fitness/top_gen_mean": log1["log_top_gen_mean"][gen],
+                    "train/fitness/top_gen_std": log1["log_top_gen_std"][gen],
+                    "train/fitness/gen_std": log1["log_gen_std"][gen],
                     "train/time/minutes": float(
                         (time.time() - self.start_time) / 60
                     ),
@@ -837,7 +885,7 @@ class EvoSelfRunner:
                 wandb_log.update(env_stats)
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
-                    zip(log["top_fitness"], log["top_gen_fitness"])
+                    zip(log1["top_fitness"], log1["top_gen_fitness"])
                 ):
                     wandb_log[
                         f"train/fitness/top_overall_agent_{idx+1}"

@@ -50,6 +50,7 @@ from pax.envs.ipd_in_the_matrix import (
 from pax.runner_eval import EvalRunner
 from pax.runner_evo import EvoRunner
 from pax.runner_evo_self import EvoSelfRunner
+from pax.runner_evo_self_2pop import EvoSelfRunner2pop
 from pax.runner_marl import RLRunner
 from pax.runner_sarl import SARLRunner
 from pax.runner_ipditm_eval import IPDITMEvalRunner
@@ -107,7 +108,7 @@ def env_setup(args, logger=None):
         elif args.env_type == "meta":
             env = IteratedMatrixGame(
                 num_inner_steps=args.num_inner_steps,
-                num_outer_steps=args.num_outer_steps,
+                num_outer_steps=args.num_steps,
             )
             env_params = IteratedMatrixGameParams(payoff_matrix=payoff)
             if logger:
@@ -181,7 +182,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo" or args.runner == "evo_self":
+    if args.runner in ['evo', 'evo_self', 'evo_self_2pop']:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -274,7 +275,11 @@ def runner_setup(args, env, agents, save_dir, logger):
         elif args.runner == "evo_self":
             return EvoSelfRunner(
                 agents, env, strategy, es_params, param_reshaper, save_dir, args
-            )            
+            )         
+        elif args.runner == "evo_self_2pop":
+            return EvoSelfRunner2pop(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )         
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -450,7 +455,7 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "rl", "ipditm_eval", "ipditm_pretrain"]:
             logger.info("Using Independent Learners")
             return (agent_0, agent_1)
-        if args.runner == "evo" or args.runner == "evo_self":
+        if args.runner in ['evo', 'evo_self', 'evo_self_2pop']:
             logger.info("Using EvolutionaryLearners")
             return (agent_0, agent_1)
 
@@ -580,7 +585,7 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
-    if args.runner == "evo" or args.runner == "evo_self":
+    if args.runner in ['evo', 'evo_self', 'evo_self_2pop']:
         num_iters = args.num_generations  # number of generations
         print(f"Number of Generations: {num_iters}")
         runner.run_loop(env_params, agent_pair, num_iters, watchers)
