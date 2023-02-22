@@ -9,7 +9,10 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.mfos_ppo.networks import make_mfos_network
+from pax.agents.mfos_ppo.networks import (
+    make_mfos_ipditm_network,
+    make_mfos_network,
+)
 from pax.utils import TrainingState, get_advantages
 
 
@@ -211,73 +214,6 @@ class PPO(AgentInterface):
                 "loss_entropy": entropy_loss,
                 "entropy_cost": entropy_cost,
             }
-            # }, new_rnn_unroll_state
-
-        self.grad_fn = jax.jit(jax.grad(loss, has_aux=True))
-
-        @jax.jit
-        def model_update_minibatch(
-            carry: Tuple[hk.Params, optax.OptState, int],
-            minibatch: Batch,
-        ) -> Tuple[
-            Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
-        ]:
-            """Performs model update for a single minibatch."""
-            params, opt_state, timesteps = carry
-            # Normalize advantages at the minibatch level before using them.
-            advantages = (
-                minibatch.advantages - jnp.mean(minibatch.advantages, axis=0)
-            ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
-            gradients, metrics = self.grad_fn(
-                params,
-                timesteps,
-                minibatch.observations,
-                minibatch.actions,
-                minibatch.behavior_log_probs,
-                minibatch.target_values,
-                advantages,
-                minibatch.behavior_values,
-                minibatch.hiddens,
-                minibatch.meta_actions,
-            )
-
-            # Apply updates
-            updates, opt_state = optimizer.update(gradients, opt_state)
-            params = optax.apply_updates(params, updates)
-
-            metrics["norm_grad"] = optax.global_norm(gradients)
-            metrics["norm_updates"] = optax.global_norm(updates)
-            return (params, opt_state, timesteps), metrics
-
-        @jax.jit
-        def model_update_epoch(
-            carry: Tuple[jnp.ndarray, hk.Params, optax.OptState, int, Batch],
-            unused_t: Tuple[()],
-        ) -> Tuple[
-            Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
-            Dict[str, jnp.ndarray],
-        ]:
-            """Performs model updates based on one epoch of data."""
-            key, params, opt_state, timesteps, batch = carry
-            key, subkey = jax.random.split(key)
-            permutation = jax.random.permutation(subkey, batch_size)
-            shuffled_batch = jax.tree_util.tree_map(
-                lambda x: jnp.take(x, permutation, axis=0), batch
-            )
-            minibatches = jax.tree_util.tree_map(
-                lambda x: jnp.reshape(
-                    x, [num_minibatches, -1] + list(x.shape[1:])
-                ),
-                shuffled_batch,
-            )
-
-            (params, opt_state, timesteps), metrics = jax.lax.scan(
-                model_update_minibatch,
-                (params, opt_state, timesteps),
-                minibatches,
-                length=num_minibatches,
-            )
-            return (key, params, opt_state, timesteps, batch), metrics
 
         def sgd_step(
             state: TrainingState, sample: NamedTuple
@@ -333,9 +269,76 @@ class PPO(AgentInterface):
                 " num_minibatches={}."
             ).format(batch_size, num_minibatches)
 
-            batch = jax.tree_map(
+            batch = jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
+
+            grad_fn = jax.jit(jax.grad(loss, has_aux=True))
+
+            def model_update_minibatch(
+                carry: Tuple[hk.Params, optax.OptState, int],
+                minibatch: Batch,
+            ) -> Tuple[
+                Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
+            ]:
+                """Performs model update for a single minibatch."""
+                params, opt_state, timesteps = carry
+                # Normalize advantages at the minibatch level before using them.
+                advantages = (
+                    minibatch.advantages
+                    - jnp.mean(minibatch.advantages, axis=0)
+                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+                gradients, metrics = grad_fn(
+                    params,
+                    timesteps,
+                    minibatch.observations,
+                    minibatch.actions,
+                    minibatch.behavior_log_probs,
+                    minibatch.target_values,
+                    advantages,
+                    minibatch.behavior_values,
+                    minibatch.hiddens,
+                    minibatch.meta_actions,
+                )
+
+                # Apply updates
+                updates, opt_state = optimizer.update(gradients, opt_state)
+                params = optax.apply_updates(params, updates)
+
+                metrics["norm_grad"] = optax.global_norm(gradients)
+                metrics["norm_updates"] = optax.global_norm(updates)
+                return (params, opt_state, timesteps), metrics
+
+            def model_update_epoch(
+                carry: Tuple[
+                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
+                ],
+                unused_t: Tuple[()],
+            ) -> Tuple[
+                Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
+                Dict[str, jnp.ndarray],
+            ]:
+                """Performs model updates based on one epoch of data."""
+                key, params, opt_state, timesteps, batch = carry
+                key, subkey = jax.random.split(key)
+                permutation = jax.random.permutation(subkey, batch_size)
+                shuffled_batch = jax.tree_util.tree_map(
+                    lambda x: jnp.take(x, permutation, axis=0), batch
+                )
+                minibatches = jax.tree_util.tree_map(
+                    lambda x: jnp.reshape(
+                        x, [num_minibatches, -1] + list(x.shape[1:])
+                    ),
+                    shuffled_batch,
+                )
+
+                (params, opt_state, timesteps), metrics = jax.lax.scan(
+                    model_update_minibatch,
+                    (params, opt_state, timesteps),
+                    minibatches,
+                    length=num_minibatches,
+                )
+                return (key, params, opt_state, timesteps, batch), metrics
 
             params = state.params
             opt_state = state.opt_state
@@ -351,7 +354,7 @@ class PPO(AgentInterface):
                 length=num_epochs,
             )
 
-            metrics = jax.tree_map(jnp.mean, metrics)
+            metrics = jax.tree_util.tree_map(jnp.mean, metrics)
             metrics["rewards_mean"] = jnp.mean(
                 jnp.abs(jnp.mean(rewards, axis=(0, 1)))
             )
@@ -384,9 +387,18 @@ class PPO(AgentInterface):
 
             # We pass through initial_hidden_state so its easy to batch memory
             key, subkey = jax.random.split(key)
-            hidden_size = initial_hidden_state.shape[-1]
-            dummy_obs = jnp.zeros(shape=obs_spec)
+
+            if isinstance(obs_spec, dict):
+                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
+                dummy_obs = {
+                    "inventory": jnp.zeros(obs_spec["inventory"]),
+                    "observation": jnp.zeros(obs_spec["observation"]),
+                }
+            else:
+                dummy_obs = jnp.zeros(shape=obs_spec)
+
             dummy_obs = utils.add_batch_dim(dummy_obs)
+            hidden_size = initial_hidden_state.shape[-1]
 
             dummy_meta = jnp.zeros(shape=hidden_size // 3)
             dummy_meta = utils.add_batch_dim(dummy_meta)
@@ -530,8 +542,9 @@ class PPO(AgentInterface):
 
 
 # TODO: seed, and player_id not used in CartPole
-def make_gru_agent(
+def make_mfos_agent(
     args,
+    agent_args,
     obs_spec,
     action_spec,
     seed: int,
@@ -539,40 +552,56 @@ def make_gru_agent(
 ):
     """Make PPO agent"""
     # Network
-    network, initial_hidden_state = make_mfos_network(
-        action_spec,
-        args.ppo.hidden_size,
-    )
+
+    if args.env_id == "coin_game":
+        network, initial_hidden_state = make_mfos_network(
+            action_spec,
+            agent_args.hidden_size,
+        )
+    elif args.env_id == "InTheMatrix":
+        network, initial_hidden_state = make_mfos_ipditm_network(
+            action_spec,
+            agent_args.hidden_size,
+            agent_args.output_channels,
+            agent_args.kernel_shape,
+        )
+    else:
+        raise ValueError("Unsupported environment")
 
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
+    # TODO: this is a hack - we assume memory agent is outer agent - we should pass through explicitly
+    batch_size = int(
+        args.num_envs
+        * (args.num_outer_steps * args.num_inner_steps)
+        * args.num_opps
+    )
     transition_steps = (
         args.total_timesteps
         / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
+        * agent_args.num_epochs
+        * agent_args.num_minibatches
     )
 
-    if args.ppo.lr_scheduling:
+    if agent_args.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=args.ppo.learning_rate,
+            init_value=agent_args.ppo.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
+            optax.clip_by_global_norm(agent_args.max_gradient_norm),
+            optax.scale_by_adam(eps=agent_args.adam_epsilon),
             optax.scale_by_schedule(scheduler),
             optax.scale(-1),
         )
 
     else:
         optimizer = optax.chain(
-            optax.clip_by_global_norm(args.ppo.max_gradient_norm),
-            optax.scale_by_adam(eps=args.ppo.adam_epsilon),
-            optax.scale(-args.ppo.learning_rate),
+            optax.clip_by_global_norm(agent_args.max_gradient_norm),
+            optax.scale_by_adam(eps=agent_args.adam_epsilon),
+            optax.scale(-agent_args.learning_rate),
         )
 
     # Random key
@@ -585,20 +614,20 @@ def make_gru_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=args.num_envs * args.num_opps,
+        batch_size=None,
         num_envs=args.num_envs,
         num_steps=args.num_steps,
-        num_minibatches=args.ppo.num_minibatches,
-        num_epochs=args.ppo.num_epochs,
-        clip_value=args.ppo.clip_value,
-        value_coeff=args.ppo.value_coeff,
-        anneal_entropy=args.ppo.anneal_entropy,
-        entropy_coeff_start=args.ppo.entropy_coeff_start,
-        entropy_coeff_end=args.ppo.entropy_coeff_end,
-        entropy_coeff_horizon=args.ppo.entropy_coeff_horizon,
-        ppo_clipping_epsilon=args.ppo.ppo_clipping_epsilon,
-        gamma=args.ppo.gamma,
-        gae_lambda=args.ppo.gae_lambda,
+        num_minibatches=agent_args.num_minibatches,
+        num_epochs=agent_args.num_epochs,
+        clip_value=agent_args.clip_value,
+        value_coeff=agent_args.value_coeff,
+        anneal_entropy=agent_args.anneal_entropy,
+        entropy_coeff_start=agent_args.entropy_coeff_start,
+        entropy_coeff_end=agent_args.entropy_coeff_end,
+        entropy_coeff_horizon=agent_args.entropy_coeff_horizon,
+        ppo_clipping_epsilon=agent_args.ppo_clipping_epsilon,
+        gamma=agent_args.gamma,
+        gae_lambda=agent_args.gae_lambda,
         player_id=player_id,
     )
     return agent

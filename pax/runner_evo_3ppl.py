@@ -105,7 +105,7 @@ class TensorEvoRunner:
         num_outer_steps = (
             1
             if self.args.env_type == "sequential"
-            else self.args.num_steps // self.args.num_inner_steps
+            else self.args.num_outer_steps
         )
 
         agent1, agent2, agent3 = agents

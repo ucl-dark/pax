@@ -369,7 +369,7 @@ class TensorEvalRunner:
                     env_params,
                 ),
                 None,
-                length=self.args.num_steps // self.args.num_inner_steps,
+                length=self.args.num_outer_steps,
             )
 
             (

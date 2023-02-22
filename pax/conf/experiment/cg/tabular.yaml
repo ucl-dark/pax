@@ -17,7 +17,7 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 10000
 num_opps: 1
-num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
+num_outer_steps: 1
 num_inner_steps: 16 # number of inner steps
 total_timesteps: 1.2e8
 num_generations: 10000

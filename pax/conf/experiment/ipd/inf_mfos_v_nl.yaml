@@ -14,7 +14,7 @@ runner: rl
 # Training hyperparameters
 num_envs: 4000
 num_opps: 1
-num_steps: 100 # number of steps per episode
+num_outer_steps: 1 
 num_outer_steps: 100
 total_timesteps: 0.4e9
 

@@ -18,14 +18,14 @@ top_k: 5
 popsize: 1000
 num_envs: 100
 num_opps: 1
-num_steps: 10_000 
+num_outer_steps: 100 
 num_inner_steps: 100 
 num_generations: 5000
 total_timesteps: 1e11
 num_devices: 2
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

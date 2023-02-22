@@ -11,6 +11,8 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
+from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
+from pax.envs.in_the_matrix import InTheMatrix
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -632,4 +634,58 @@ def cg_visitation(state: NamedTuple) -> dict:
         "state_visitation/SD": count[6],
         "state_visitation/CS": count[7],
         "state_visitation/DS": count[8],
+    }
+
+
+def ipditm_stats(
+    state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
+) -> dict:
+    from pax.envs.in_the_matrix import Actions
+
+    """Compute statistics for IPDITM."""
+    interacts1 = (
+        jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
+    )
+    interacts2 = (
+        jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
+    )
+
+    soft_reset_mask = jnp.where(traj1.rewards != 0, 1, 0)
+    num_soft_resets = jnp.count_nonzero(traj1.rewards) / num_envs
+
+    num_sft_resets = jnp.maximum(1, num_soft_resets)
+    coops1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
+    defect1 = (
+        soft_reset_mask * traj1.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
+    coops2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
+    defect2 = (
+        soft_reset_mask * traj2.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
+
+    rewards1 = traj1.rewards.sum() / num_envs
+    rewards2 = traj2.rewards.sum() / num_envs
+    f_rewards1 = traj1.rewards[-1, ...].sum() / num_envs
+    f_rewards2 = traj2.rewards[-1, ...].sum() / num_envs
+
+    return {
+        "interactions/1": interacts1,
+        "interactions/2": interacts2,
+        "coop_coin/1": coops1,
+        "coop_coin/2": coops2,
+        "defect_coin/1": defect1,
+        "defect_coin/2": defect2,
+        "total_coin/1": coops1 + defect1,
+        "total_coin/2": coops2 + defect2,
+        "ratio/1": jnp.nan_to_num(coops1 / (coops1 + defect1), nan=0),
+        "ratio/2": jnp.nan_to_num(coops2 / (coops2 + defect2), nan=0),
+        "num_soft_resets": num_soft_resets,
+        "train/total_reward/player_1": rewards1,
+        "train/total_reward/player_2": rewards2,
+        "train/final_reward/player1": f_rewards1,
+        "train/final_reward/player2": f_rewards2,
     }
