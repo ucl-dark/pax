@@ -514,7 +514,6 @@ def tensor_ipd_visitation(
     state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
     state_probs = state_freq / state_freq.sum()
     action_probs = jnp.nan_to_num(hist[::2] / state_freq)
-    print(action_probs.shape)
     return {
         "state_visitation/CCC": state_freq[0],
         "state_visitation/CCD": state_freq[1],
@@ -534,15 +533,6 @@ def tensor_ipd_visitation(
         "state_probability/DDC": state_probs[6],
         "state_probability/DDD": state_probs[7],
         "state_probability/START": state_probs[8],
-        "cooperation_probability/1/CCC": action_probs[0],
-        "cooperation_probability/1/CCD": action_probs[1],
-        "cooperation_probability/1/CDC": action_probs[2],
-        "cooperation_probability/1/CDD": action_probs[3],
-        "cooperation_probability/1/DCC": action_probs[4],
-        "cooperation_probability/1/DCD": action_probs[5],
-        "cooperation_probability/1/DDC": action_probs[6],
-        "cooperation_probability/1/DDD": action_probs[7],
-        "cooperation_probability/1/START": action_probs[8],
     }
 
 

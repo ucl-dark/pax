@@ -419,6 +419,12 @@ class TensorEvalRunner:
                             traj_1.observations, traj_1.actions, obs1, 1
                         ),
                     )
+                    coop_probs1 = jax.tree_util.tree_map(
+                        lambda x: x.item(),
+                        tensor_ipd_coop_probs(
+                            traj_1.observations, traj_1.actions, obs1, 1
+                        ),
+                    )
                     coop_probs2 = jax.tree_util.tree_map(
                         lambda x: x.item(),
                         tensor_ipd_coop_probs(
@@ -484,6 +490,7 @@ class TensorEvalRunner:
                         ),
                     }
                     wandb_log.update(env_stats)
+                    wandb_log.update(coop_probs1)
                     wandb_log.update(coop_probs2)
                     wandb_log.update(coop_probs3)
                     wandb.log(wandb_log)

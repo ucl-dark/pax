@@ -4001,3 +4001,23 @@
 [2023-02-23 00:27:34,588][root][INFO] - Evolution Strategy: OpenES
 [2023-02-23 00:27:36,061][root][INFO] - => Done in 1.507 s
 [2023-02-23 00:27:36,061][root][INFO] - 
+[2023-02-23 00:52:36,691][root][INFO] - => Global setup ...
+[2023-02-23 00:52:39,738][root][INFO] - => Done in 3.047 s
+[2023-02-23 00:52:39,739][root][INFO] - 
+[2023-02-23 00:52:39,739][root][INFO] - => Env setup ...
+[2023-02-23 00:52:39,743][root][INFO] - Env Type: Meta | Inner Episode Length: 100
+[2023-02-23 00:52:39,744][root][INFO] - => Done in 4.930 ms
+[2023-02-23 00:52:39,744][root][INFO] - 
+[2023-02-23 00:52:39,744][root][INFO] - => Agent setup ...
+[2023-02-23 00:52:40,474][root][INFO] - Agent Pair: PPO | PPO| PPO
+[2023-02-23 00:52:40,474][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-02-23 00:52:40,474][root][INFO] - Using Independent Learners
+[2023-02-23 00:52:40,474][root][INFO] - => Done in 730.776 ms
+[2023-02-23 00:52:40,475][root][INFO] - 
+[2023-02-23 00:52:40,475][root][INFO] - => Watcher setup ...
+[2023-02-23 00:52:40,475][root][INFO] - => Done in 108.957 us
+[2023-02-23 00:52:40,475][root][INFO] - 
+[2023-02-23 00:52:40,475][root][INFO] - => Runner setup ...
+[2023-02-23 00:52:40,475][root][INFO] - Training with tensor eval Runner
+[2023-02-23 00:52:41,253][root][INFO] - => Done in 778.344 ms
+[2023-02-23 00:52:41,253][root][INFO] - 
