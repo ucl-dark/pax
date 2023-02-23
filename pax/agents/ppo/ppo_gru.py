@@ -532,9 +532,16 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
+    batch_size = int(
+        args.num_envs
+        * args.num_inner_steps
+        * args.num_outer_steps
+        * args.num_opps
+    )
     transition_steps = (
-        args.total_timesteps
+        args.num_iters
+        * args.num_inner_steps
+        * args.num_outer_steps
         / batch_size
         * agent_args.num_epochs
         * agent_args.num_minibatches
@@ -572,7 +579,11 @@ def make_gru_agent(
         obs_spec=obs_spec,
         batch_size=None,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
+        num_steps=args.num_iters
+        * args.num_inner_steps
+        * args.num_outer_steps
+        * args.num_opps
+        * args.num_envs,
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,
