@@ -21,7 +21,6 @@ num_opps: 1
 num_outer_steps: 100 
 num_inner_steps: 100 
 num_iters: 5000
-total_timesteps: 1e11
 
 # Evaluation 
 # # EARL vs. PPO trained on seed=0

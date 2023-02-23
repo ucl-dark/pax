@@ -22,7 +22,6 @@ num_opps: 1
 num_outer_steps: 100 
 num_inner_steps: 100 
 num_iters: 5000
-total_timesteps: 1e11
 
 # Evaluation 
 # PPO was renamed to Tabular, which is why these say PPO_memory vs. PPO 

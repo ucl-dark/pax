@@ -21,7 +21,6 @@ save_interval: 4e3
 runner: rl
 
 # Useful information
-# num_episodes = total_timesteps / num_steps
 # batch_size = num_envs * num_steps
 
 # Naive agent parameters
