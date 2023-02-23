@@ -34,6 +34,7 @@ class IteratedTensorGame(environment.Environment):
         ):
             inner_t, outer_t = state.inner_t, state.outer_t
             a1, a2, a3 = actions
+            reset_inner = inner_t == num_inner_steps
             inner_t += 1
 
             ccc_p1 = (
@@ -145,7 +146,6 @@ class IteratedTensorGame(environment.Environment):
                 + 7 * (a3) * (a1) * (a2)
             )
             # if first step then return START state.
-            reset_inner = inner_t == num_inner_steps
             s1 = jax.lax.select(reset_inner, jnp.int8(8), jnp.int8(s1))
             s2 = jax.lax.select(reset_inner, jnp.int8(8), jnp.int8(s2))
             s3 = jax.lax.select(reset_inner, jnp.int8(8), jnp.int8(s3))
