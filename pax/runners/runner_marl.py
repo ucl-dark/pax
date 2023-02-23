@@ -430,9 +430,7 @@ class RLRunner:
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
-        save_interval = int(
-            num_iters * self.args.save_interval / self.args.total_timesteps
-        )
+        save_interval = self.args.save_interval
 
         agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
