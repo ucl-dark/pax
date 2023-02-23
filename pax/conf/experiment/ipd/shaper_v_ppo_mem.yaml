@@ -23,6 +23,7 @@ num_outer_steps: 100
 num_inner_steps: 100 
 num_generations: 5000
 total_timesteps: 1e11
+num_devices: 1
 
 # PPO agent parameters
 ppo1:
