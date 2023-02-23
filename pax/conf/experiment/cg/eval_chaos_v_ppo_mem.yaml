@@ -32,7 +32,7 @@ total_timesteps: 16000
 run_path: ucl-dark/cg/nepcbqfv
 model_path: exp/shaping-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-04_22.18.01.104737/generation_2900
 
-# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
+
 # PPO agent parameters
 ppo1:
   num_minibatches: 8

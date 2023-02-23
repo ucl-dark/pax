@@ -35,7 +35,7 @@ num_iters: 3000
 run_path: ucl-dark/cg/3mpgbfm2
 model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
 
-# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
+
 # PPO agent parameters
 ppo1:
   num_minibatches: 8
