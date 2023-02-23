@@ -464,6 +464,7 @@ def make_agent(
     obs_spec,
     action_spec,
     seed: int,
+    num_iterations: int,
     player_id: int,
     tabular=False,
 ):
@@ -496,14 +497,8 @@ def make_agent(
         )
 
     # Optimizer
-    batch_size = int(
-        args.num_envs * args.num_inner_steps * args.num_outer_steps
-    )
     transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * agent_args.num_epochs
-        * agent_args.num_minibatches
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:

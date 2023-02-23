@@ -285,22 +285,30 @@ def agent_setup(args, env, env_params, logger):
 
     def get_PPO_memory_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         return make_gru_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
+            num_iterations=num_iterations,
             player_id=player_id,
         )
 
     def get_PPO_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         ppo_agent = make_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
+            num_iterations=num_iterations,
             seed=seed,
             player_id=player_id,
         )
@@ -308,12 +316,16 @@ def agent_setup(args, env, env_params, logger):
 
     def get_PPO_tabular_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         ppo_agent = make_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
+            num_iterations=num_iterations,
             player_id=player_id,
             tabular=True,
         )
@@ -321,10 +333,14 @@ def agent_setup(args, env, env_params, logger):
 
     def get_mfos_agent(seed, player_id):
         agent_args = args.ppo1
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         ppo_agent = make_mfos_agent(
             args,
             agent_args,
             obs_spec=obs_shape,
+            num_iterations=num_iterations,
             action_spec=num_actions,
             seed=seed,
             player_id=player_id,

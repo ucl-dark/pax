@@ -497,7 +497,13 @@ class PPO(AgentInterface):
 
 # TODO: seed, and player_id not used in CartPole
 def make_gru_agent(
-    args, agent_args, obs_spec, action_spec, seed: int, player_id: int
+    args,
+    agent_args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    num_iterations: int,
+    player_id: int,
 ):
     """Make PPO agent"""
     # Network
@@ -532,19 +538,8 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(
-        args.num_envs
-        * args.num_inner_steps
-        * args.num_outer_steps
-        * args.num_opps
-    )
     transition_steps = (
-        args.num_iters
-        * args.num_inner_steps
-        * args.num_outer_steps
-        / batch_size
-        * agent_args.num_epochs
-        * agent_args.num_minibatches
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:
