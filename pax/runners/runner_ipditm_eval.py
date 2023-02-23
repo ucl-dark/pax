@@ -1,22 +1,18 @@
 import os
 import time
-from typing import Any, NamedTuple
-from PIL import Image
 from datetime import datetime
+from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
+import numpy as onp
+from PIL import Image
+from tqdm import tqdm
 
 import wandb
+from pax.envs.in_the_matrix import EnvState, InTheMatrix
 from pax.utils import MemoryState, TrainingState, load
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
-from pax.envs.in_the_matrix import (
-    InTheMatrix,
-    EnvState,
-)
-
-from tqdm import tqdm
-import numpy as onp
 
 MAX_WANDB_CALLS = 1000
 

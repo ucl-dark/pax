@@ -4,9 +4,9 @@ from typing import Callable, NamedTuple
 
 import jax.numpy as jnp
 import jax.random
+
 from pax.agents.agent import AgentInterface
 from pax.agents.strategies import initial_state_fun
-
 from pax.utils import Logger, MemoryState, TrainingState
 
 

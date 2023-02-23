@@ -9,12 +9,10 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.ppo.networks import (
-    make_GRU_cartpole_network,
-    make_GRU_coingame_network,
-    make_GRU_ipd_network,
-    make_GRU_ipditm_network,
-)
+from pax.agents.ppo.networks import (make_GRU_cartpole_network,
+                                     make_GRU_coingame_network,
+                                     make_GRU_ipd_network,
+                                     make_GRU_ipditm_network)
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 # from dm_env import TimeStep

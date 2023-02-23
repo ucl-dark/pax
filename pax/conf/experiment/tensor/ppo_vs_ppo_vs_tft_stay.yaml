@@ -19,7 +19,7 @@ runner: tensor_rl
 num_envs: 2
 num_opps: 1
 num_inner_steps: 100
-num_steps: 100 # number of steps per episode
+num_outer_steps: 1
 total_timesteps: 500_000 # num_episodes  = total / (numsteps * num_envs * num_opps)
 
 # Evaluation 
@@ -28,7 +28,26 @@ total_timesteps: 500_000 # num_episodes  = total / (numsteps * num_envs * num_op
 # model_path: exp/PPO-vs-TitForTat-ipd-parity/PPO-vs-TitForTat-ipd-parity-run-seed-0/2022-09-08_15.56.38.018596/iteration_260
 
 # PPO agent parameters
-ppo:
+ppo1:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.0001
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+ppo2:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

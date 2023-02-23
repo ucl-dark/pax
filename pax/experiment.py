@@ -3,18 +3,12 @@ import os
 from datetime import datetime
 from functools import partial
 
-# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
-# uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
-
+import gymnax
 import hydra
+import jax
 import jax.numpy as jnp
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
-import gymnax
-import jax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
@@ -23,56 +17,43 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
-from pax.agents.strategies import (
-    Altruistic,
-    Defect,
-    EvilGreedy,
-    GoodGreedy,
-    GrimTrigger,
-    HyperAltruistic,
-    HyperDefect,
-    HyperTFT,
-    Random,
-    RandomGreedy,
-    Stay,
-    TitForTat,
-)
-from pax.agents.tensor_strategies import (
-    TitForTatStrictStay,
-    TitForTatStrictSwitch,
-    TitForTatCooperate,
-    TitForTatDefect,
-)
+from pax.agents.strategies import (Altruistic, Defect, EvilGreedy, GoodGreedy,
+                                   GrimTrigger, HyperAltruistic, HyperDefect,
+                                   HyperTFT, Random, RandomGreedy, Stay,
+                                   TitForTat)
+from pax.agents.tensor_strategies import (TitForTatCooperate, TitForTatDefect,
+                                          TitForTatStrictStay,
+                                          TitForTatStrictSwitch)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
+from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
+from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
-from pax.envs.in_the_matrix import InTheMatrix
-from pax.envs.in_the_matrix import (
-    EnvParams as InTheMatrixParams,
-)
-from pax.runners.runner_eval import EvalRunner
-from pax.runners.runner_evo import EvoRunner
-from pax.runners.runner_marl import RLRunner
-from pax.runners.runner_sarl import SARLRunner
-from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
 from pax.envs.iterated_tensor_game import IteratedTensorGame
-from pax.runner_marl_3ppl import TensorRLRunner
-from pax.runner_eval_3ppl import TensorEvalRunner
+from pax.runners.runner_eval import EvalRunner
+from pax.runners.runner_eval_3player import TensorEvalRunner
+from pax.runners.runner_evo import EvoRunner
+from pax.runners.runner_evo_3player import TensorEvoRunner
+from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
+from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_marl_3player import TensorRLRunner
+from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
-from pax.watchers import (
-    logger_hyper,
-    logger_naive_exact,
-    losses_naive,
-    losses_ppo,
-    naive_pg_losses,
-    policy_logger_ppo,
-    policy_logger_ppo_with_memory,
-    value_logger_ppo,
-)
+from pax.watchers import (logger_hyper, logger_naive_exact, losses_naive,
+                          losses_ppo, naive_pg_losses, policy_logger_ppo,
+                          policy_logger_ppo_with_memory, value_logger_ppo)
+
+# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
+# uncomment to debug multi-devices on CPU
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
+
+
 
 
 def global_setup(args):
@@ -344,7 +325,14 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_agent(seed, player_id):
-        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        if player_id == 1:
+            player_args = args.ppo1
+        elif player_id == 2:
+            player_args = args.ppo2
+        elif player_id == 3:
+            player_args = args.ppo3
+        else:
+            raise RuntimeError("player_id must be 1, 2, or 3")
         ppo_agent = make_agent(
             args,
             player_args,
@@ -482,8 +470,8 @@ def agent_setup(args, env, env_params, logger):
         agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
         agent_2 = strategies[args.agent3](seeds[2], pids[2])  # player 2
 
-        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
+        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo1.with_cnn:
+            logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
         logger.info(
             f"Agent Pair: {args.agent1} | {args.agent2}| {args.agent3}"
         )
@@ -540,11 +528,12 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix"]:
-            policy = policy_logger_ppo(agent, three_players)
-            value = value_logger_ppo(agent, three_players)
-            losses.update(value)
-            losses.update(policy)
+        # TODO fix this
+        # if args.env_id not in ["coin_game", "InTheMatrix"]:
+        #     policy = policy_logger_ppo(agent, three_players)
+        #     value = value_logger_ppo(agent, three_players)
+        #     losses.update(value)
+        #     losses.update(policy)
         if args.wandb.log:
             losses = jax.tree_util.tree_map(
                 lambda x: x.item() if isinstance(x, jax.Array) else x, losses

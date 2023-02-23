@@ -329,7 +329,9 @@ class PPO(AgentInterface):
             return new_state, new_mem, metrics
 
         @jax.jit
-        def make_initial_state(key: Any, hidden: jnp.ndarray) -> Tuple[TrainingState,MemoryState]:
+        def make_initial_state(
+            key: Any, hidden: jnp.ndarray
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)

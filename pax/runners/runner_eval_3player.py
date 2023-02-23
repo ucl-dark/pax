@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import load
-from pax.watchers import tensor_ipd_visitation, tensor_ipd_coop_probs
+from pax.watchers import tensor_ipd_coop_probs, tensor_ipd_visitation
 
 MAX_WANDB_CALLS = 10000
 

@@ -42,8 +42,8 @@ def reduce_outer_traj(traj: Sample) -> Sample:
     """Used to collapse lax.scan outputs dims"""
     # x: [outer_loop, inner_loop, num_opps, num_envs ...]
     # x: [timestep, batch_size, ...]
-    num_envs = traj.observations.shape[2] * traj.observations.shape[3]
-    num_timesteps = traj.observations.shape[0] * traj.observations.shape[1]
+    num_envs = traj.rewards.shape[2] * traj.rewards.shape[3]
+    num_timesteps = traj.rewards.shape[0] * traj.rewards.shape[1]
     return jax.tree_util.tree_map(
         lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
         traj,
@@ -68,6 +68,7 @@ class TensorRLRunner:
             A tuple of experiment arguments used (usually provided by HydraConfig).
     """
 
+    # flake8: noqa: C901
     def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
         self.train_episodes = 0
@@ -103,11 +104,7 @@ class TensorRLRunner:
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
-        num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_outer_steps
-        )
+        num_outer_steps = self.args.num_outer_steps
 
         agent1, agent2, agent3 = agents
         # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
@@ -511,6 +508,13 @@ class TensorRLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
+        num_iters = max(
+            int(num_iters / (self.args.num_envs * self.num_opps)), 1
+        )
+        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
+        save_interval = int(
+            num_iters * self.args.save_interval / self.args.total_timesteps
+        )
         agent1, agent2, agent3 = agents
         rng, _ = jax.random.split(self.random_key)
 
@@ -522,7 +526,9 @@ class TensorRLRunner:
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
         log_interval = int(max(num_iters // MAX_WANDB_CALLS, 5))
+        print(f"Num iters {num_iters}")
         print(f"Log Interval {log_interval}")
+        print(f"Save Interval {save_interval}")
 
         # run actual loop
         for i in range(num_iters):
@@ -553,23 +559,35 @@ class TensorRLRunner:
                 env_params,
             )
 
-            if self.args.save and i % self.args.save_interval == 0:
-                log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
-                save(a1_state.params, log_savepath)
+            if i % save_interval == 0:
+                log_savepath1 = os.path.join(
+                    self.save_dir, f"agent1_iteration_{i}"
+                )
+                save(a1_state.params, log_savepath1)
+                log_savepath2 = os.path.join(
+                    self.save_dir, f"agent2_iteration_{i}"
+                )
+                save(a2_state.params, log_savepath2)
+                log_savepath3 = os.path.join(
+                    self.save_dir, f"agent3_iteration_{i}"
+                )
+                save(a3_state.params, log_savepath3)
                 if watchers:
                     print(f"Saving iteration {i} locally and to WandB")
-                    wandb.save(log_savepath)
+                    wandb.save(log_savepath1)
+                    wandb.save(log_savepath2)
+                    wandb.save(log_savepath3)
                 else:
                     print(f"Saving iteration {i} locally")
 
             # logging
-            self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")
 
-                print(f"Env Stats: {env_stats}")
+                for stat in env_stats.keys():
+                    print(stat + f": {env_stats[stat].item()}")
                 print(
-                    "Total Episode Reward:"
+                    "Reward per Timestep:"
                     + f"{float(rewards_1.mean()), float(rewards_2.mean()), float(rewards_3.mean())}"
                 )
                 print()
@@ -598,17 +616,20 @@ class TensorRLRunner:
 
                     for watcher, agent in zip(watchers, agents):
                         watcher(agent)
+                    env_stats = jax.tree_util.tree_map(
+                        lambda x: x.item(), env_stats
+                    )
                     wandb.log(
                         {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
+                            "train_iteration": i,
+                            "train/reward_per_timestep/player_1": float(
+                                rewards_1.mean().item()
                             ),
-                            "train/episode_reward/player_2": float(
-                                rewards_2.mean()
+                            "train/reward_per_timestep/player_2": float(
+                                rewards_2.mean().item()
                             ),
-                            "train/episode_reward/player_3": float(
-                                rewards_3.mean()
+                            "train/reward_per_timestep/player_3": float(
+                                rewards_3.mean().item()
                             ),
                         }
                         | env_stats,

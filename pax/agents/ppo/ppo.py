@@ -9,12 +9,8 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.ppo.networks import (
-    make_ipditm_network,
-    make_sarl_network,
-    make_coingame_network,
-    make_ipd_network,
-)
+from pax.agents.ppo.networks import (make_coingame_network, make_ipd_network,
+                                     make_ipditm_network, make_sarl_network)
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
@@ -337,7 +333,9 @@ class PPO(AgentInterface):
 
             return new_state, new_memory, metrics
 
-        def make_initial_state(key: Any, hidden: jnp.ndarray) -> Tuple[TrainingState,MemoryState]:
+        def make_initial_state(
+            key: Any, hidden: jnp.ndarray
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
 

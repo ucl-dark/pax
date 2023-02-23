@@ -4,8 +4,8 @@ from typing import Callable, NamedTuple, Union
 
 import jax.numpy as jnp
 import jax.random
-from pax.agents.agent import AgentInterface
 
+from pax.agents.agent import AgentInterface
 from pax.utils import Logger, MemoryState, TrainingState
 
 # states are [CC, CD, DC, DD, START]
@@ -381,7 +381,7 @@ class TitForTat(AgentInterface):
 
     def _reciprocity(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         # now either 0, 1, 2, 3
-        #batch_size, _ = obs.shape
+        # batch_size, _ = obs.shape
         obs = obs.argmax(axis=-1)
         # if 0 | 2 | 4  -> C
         # if 1 | 3 -> D

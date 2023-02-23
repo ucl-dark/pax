@@ -1,11 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from pax.envs.ipd_in_the_matrix import (
-    IPDInTheMatrix,
-    EnvParams,
-    EnvState,
-)
+from pax.envs.ipd_in_the_matrix import EnvParams, EnvState, IPDInTheMatrix
 
 
 def test_ipditm_shapes():

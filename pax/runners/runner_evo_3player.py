@@ -9,7 +9,6 @@ from evosax import FitnessShaper
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog, cg_visitation, tensor_ipd_visitation
@@ -102,11 +101,7 @@ class TensorEvoRunner:
             (0, None),
         )
 
-        num_outer_steps = (
-            1
-            if self.args.env_type == "sequential"
-            else self.args.num_outer_steps
-        )
+        self.num_outer_steps = args.num_outer_steps
 
         agent1, agent2, agent3 = agents
 
@@ -214,6 +209,9 @@ class TensorEvoRunner:
                 key,
                 init_hidden,
             )
+        strategy.ask = jax.jit(strategy.ask)
+        strategy.tell = jax.jit(strategy.tell)
+        param_reshaper.reshape = jax.jit(param_reshaper.reshape)
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -445,7 +443,7 @@ class TensorEvoRunner:
                     _env_params,
                 ),
                 None,
-                length=num_outer_steps,
+                length=self.num_outer_steps,
             )
 
             (
@@ -525,7 +523,7 @@ class TensorEvoRunner:
         print("------------------------------")
         log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
         print(f"Number of Generations: {num_generations}")
-        print(f"Number of Meta Episodes: {num_generations}")
+        print(f"Number of Meta Episodes: {self.num_outer_steps}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {self.args.num_envs}")
         print(f"Number of Opponent: {self.args.num_opps}")
@@ -543,7 +541,9 @@ class TensorEvoRunner:
         popsize = self.popsize
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
-        fit_shaper = FitnessShaper(maximize=True)
+        fit_shaper = FitnessShaper(
+            maximize=True, centered_rank=True, w_decay=0.1
+        )
         es_logging = ESLog(
             param_reshaper.total_params,
             num_gens,
@@ -551,7 +551,6 @@ class TensorEvoRunner:
             maximize=True,
         )
         log = es_logging.initialize()
-        num_devices = self.args.num_devices
 
         # Reshape a single agent's params before vmapping
         init_hidden = jnp.tile(
@@ -571,7 +570,7 @@ class TensorEvoRunner:
             # Ask
             x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
             params = param_reshaper.reshape(x)
-            if num_devices == 1:
+            if self.args.num_devices == 1:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
@@ -589,23 +588,21 @@ class TensorEvoRunner:
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
             # Reshape over devices
-            fitness = jnp.reshape(fitness, popsize * num_devices)
+            fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Maximize fitness
             fitness_re = fit_shaper.apply(x, fitness)
 
             # Tell
-            evo_state = strategy.tell(
-                x, fitness_re - fitness_re.mean(), evo_state, es_params
-            )
+            evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
             # Logging
             log = es_logging.update(log, x, fitness)
 
             # Saving
-            if self.args.save and gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                if num_devices > 1:
+                if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
                         log["top_gen_params"][0 : self.args.num_devices]
                     )
@@ -635,9 +632,11 @@ class TensorEvoRunner:
                     f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()} |  Third Fitness: {other2_fitness.mean()}"
                 )
                 print(
-                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean()), float(rewards_3.mean())}"
+                    f"Reward Per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
-                print(f"Env Stats: {env_stats}")
+                print(
+                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                )
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -657,7 +656,7 @@ class TensorEvoRunner:
 
             if watchers:
                 wandb_log = {
-                    "generations": gen,
+                    "train_iteration": gen,
                     "train/fitness/player_1": float(fitness.mean()),
                     "train/fitness/player_2": float(other_fitness.mean()),
                     "train/fitness/player_3": float(other2_fitness.mean()),
@@ -672,9 +671,15 @@ class TensorEvoRunner:
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                    "train/episode_reward/player_1": float(rewards_1.mean()),
-                    "train/episode_reward/player_2": float(rewards_2.mean()),
-                    "train/episode_reward/player_3": float(rewards_3.mean()),
+                    "train/reward_per_timestep/player_1": float(
+                        rewards_1.mean()
+                    ),
+                    "train/reward_per_timestep/player_2": float(
+                        rewards_2.mean()
+                    ),
+                    "train/reward_per_timestep/player_3": float(
+                        rewards_3.mean()
+                    ),
                 }
                 wandb_log.update(env_stats)
                 # loop through population
@@ -701,6 +706,10 @@ class TensorEvoRunner:
 
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)
+                wandb_log = jax.tree_util.tree_map(
+                    lambda x: x.item() if isinstance(x, jax.Array) else x,
+                    wandb_log,
+                )
                 wandb.log(wandb_log)
 
         return agents
