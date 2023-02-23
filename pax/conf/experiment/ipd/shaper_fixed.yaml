@@ -21,7 +21,6 @@ num_opps: 1
 num_outer_steps: 100 
 num_inner_steps: 100 
 num_iters: 1000
-total_timesteps: 2.5e7
 num_devices: 1
 
 # Evaluation 

@@ -26,10 +26,9 @@ popsize: 256 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
-num_devices: 4
 num_outer_steps: 600
 num_inner_steps: 16 
-total_timesteps: 2.88e9
+num_iters: 1e5
 
 # Evaluation
 run_path: ucl-dark/cg/3mpgbfm2
