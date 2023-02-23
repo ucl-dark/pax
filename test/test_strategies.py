@@ -392,5 +392,3 @@ def test_coin_chaser():
     # take a right
     a2 = agent._greedy_step(obs[1])
     assert a2 == 0
-
-

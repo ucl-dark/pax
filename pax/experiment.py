@@ -17,13 +17,26 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
-from pax.agents.strategies import (Altruistic, Defect, EvilGreedy, GoodGreedy,
-                                   GrimTrigger, HyperAltruistic, HyperDefect,
-                                   HyperTFT, Random, RandomGreedy, Stay,
-                                   TitForTat)
-from pax.agents.tensor_strategies import (TitForTatCooperate, TitForTatDefect,
-                                          TitForTatStrictStay,
-                                          TitForTatStrictSwitch)
+from pax.agents.strategies import (
+    Altruistic,
+    Defect,
+    EvilGreedy,
+    GoodGreedy,
+    GrimTrigger,
+    HyperAltruistic,
+    HyperDefect,
+    HyperTFT,
+    Random,
+    RandomGreedy,
+    Stay,
+    TitForTat,
+)
+from pax.agents.tensor_strategies import (
+    TitForTatCooperate,
+    TitForTatDefect,
+    TitForTatStrictStay,
+    TitForTatStrictSwitch,
+)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
@@ -43,17 +56,22 @@ from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_3player import TensorRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
-from pax.watchers import (logger_hyper, logger_naive_exact, losses_naive,
-                          losses_ppo, naive_pg_losses, policy_logger_ppo,
-                          policy_logger_ppo_with_memory, value_logger_ppo)
+from pax.watchers import (
+    logger_hyper,
+    logger_naive_exact,
+    losses_naive,
+    losses_ppo,
+    naive_pg_losses,
+    policy_logger_ppo,
+    policy_logger_ppo_with_memory,
+    value_logger_ppo,
+)
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
 # config.update('jax_disable_jit', True)
-
-
 
 
 def global_setup(args):

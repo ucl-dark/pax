@@ -9,8 +9,10 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.mfos_ppo.networks import (make_mfos_ipditm_network,
-                                          make_mfos_network)
+from pax.agents.mfos_ppo.networks import (
+    make_mfos_ipditm_network,
+    make_mfos_network,
+)
 from pax.utils import TrainingState, get_advantages
 
 

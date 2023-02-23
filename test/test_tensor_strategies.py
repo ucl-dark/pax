@@ -1,9 +1,12 @@
 import jax
 import jax.numpy as jnp
 
-from pax.agents.tensor_strategies import (TitForTatCooperate, TitForTatDefect,
-                                          TitForTatStrictStay,
-                                          TitForTatStrictSwitch)
+from pax.agents.tensor_strategies import (
+    TitForTatCooperate,
+    TitForTatDefect,
+    TitForTatStrictStay,
+    TitForTatStrictSwitch,
+)
 
 batch_number = 3
 # all obs are only of final state e.g batch x dim.
