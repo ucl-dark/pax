@@ -486,7 +486,7 @@ def agent_setup(args, env, env_params, logger):
         ]
         agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
         agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
-        agent_2 = strategies[args.agent3](seeds[2], pids[2])  # player 2
+        agent_2 = strategies[args.agent3](seeds[2], pids[2])  # player 3
 
         if args.agent1 in ["PPO", "PPO_memory"] and args.ppo1.with_cnn:
             logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
@@ -690,7 +690,8 @@ def main(args):
         num_iters = int(
             args.total_timesteps
             / (args.num_outer_steps * args.num_inner_steps)
-        )  # number of episodes
+        )
+        # number of episodes
         print(f"Number of Episodes: {num_iters}")
         runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
 

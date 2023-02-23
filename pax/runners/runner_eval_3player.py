@@ -330,7 +330,7 @@ class TensorEvalRunner:
             [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
         ).reshape((self.args.num_opps, self.args.num_envs, -1))
         # run actual loop
-        for i in range(num_episodes):
+        for i in range(num_iters):
             obs, env_state = env.reset(rngs, env_params)
             rewards = [
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),
