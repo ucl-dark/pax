@@ -32,7 +32,7 @@ total_timesteps: 16000
 run_path: ucl-dark/cg/1qmvvzt1
 model_path: exp/sanity-PPO_memory-vs-PPO_memory/run-seed-0/2023-01-04_16.49.11.911047/agent1_iteration_104
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
+# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 # PPO agent parameters
 ppo1:

@@ -16,7 +16,7 @@ num_envs: 4000
 num_opps: 1
 num_outer_steps: 1 
 num_outer_steps: 100
-total_timesteps: 0.4e9
+num_iters: 1e4
 
 # Useful information
 # num_episodes = total_timesteps / (num_steps * num_envs) 

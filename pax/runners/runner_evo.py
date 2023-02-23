@@ -435,14 +435,14 @@ class EvoRunner:
         self,
         env_params,
         agents,
-        num_generations: int,
+        num_iters: int,
         watchers: Callable,
     ):
         """Run training of agents in environment"""
         print("Training")
         print("------------------------------")
-        log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
-        print(f"Number of Generations: {num_generations}")
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_iters}")
         print(f"Number of Meta Episodes: {self.num_outer_steps}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {self.args.num_envs}")
@@ -454,7 +454,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
-        num_gens = num_generations
+        num_gens = num_iters
         strategy = self.strategy
         es_params = self.es_params
         param_reshaper = self.param_reshaper

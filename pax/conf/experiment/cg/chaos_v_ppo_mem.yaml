@@ -28,13 +28,13 @@ num_opps: 1
 num_devices: 4
 num_outer_steps: 600
 num_inner_steps: 16 
-num_generations: 3000
+num_iters: 3000
 
 # Evaluation
 run_path: ucl-dark/cg/z0ckvwtf
 model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
+# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 ppo1:
   num_minibatches: 8

@@ -557,36 +557,26 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
+    print(f"Number of Training Iterations: {args.num_iters}")
+
     if args.runner == "evo":
-        num_iters = args.num_generations  # number of generations
-        print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "rl":
-        num_iters = int(
-            args.total_timesteps
-            / (args.num_outer_steps * args.num_inner_steps)
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+        # number of episodes
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "ipditm_eval":
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":
-        num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "eval":
-        num_iters = int(
-            args.total_timesteps
-            / (args.num_outer_steps * args.num_inner_steps)
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
     wandb.finish()
 

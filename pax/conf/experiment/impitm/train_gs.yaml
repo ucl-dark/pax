@@ -29,9 +29,9 @@ num_opps: 1
 num_devices: 8
 num_outer_steps: 500
 num_inner_steps: 152 
-num_generations: 5000
+num_iters: 5000
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
+# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 ppo1:
   num_minibatches: 8

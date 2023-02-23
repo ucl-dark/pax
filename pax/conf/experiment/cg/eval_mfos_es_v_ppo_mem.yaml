@@ -32,7 +32,7 @@ total_timesteps: 16000
 run_path: ucl-dark/cg/158n82qj
 model_path: exp/shaping-MFOS-vs-PPO_memory/run-seed-0/2023-01-06_17.01.54.968694/generation_2900
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
+# num_iters = total_timesteps / (num_envs*num_opps*num_steps)
 # PPO agent parameters
 ppo1:
   num_minibatches: 8
