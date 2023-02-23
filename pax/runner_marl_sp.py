@@ -248,7 +248,7 @@ class RLRunner:
                 traj2,
             )
 
-        def _outer_rollout(carry, unused):
+        def _outer_rollout_naive(carry, unused):
             """Runner for trial"""
             # play episode of the game
             vals, trajectories = jax.lax.scan(
@@ -295,7 +295,48 @@ class RLRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
-        def _rollout(
+        def _outer_rollout_sp(carry, unused):
+            """Runner for trial"""
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                carry,
+                None,
+                length=self.args.num_inner_steps,
+            )
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
+            # MFOS has to take a meta-action for each episode
+            if args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            a2_metrics = {}
+            return (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ), (*trajectories, a2_metrics)
+
+        def _rollout_sp(
             _rng_run: jnp.ndarray,
             _a1_state: TrainingState,
             _a1_mem: MemoryState,
@@ -330,7 +371,7 @@ class RLRunner:
                 )
             # run trials
             vals, stack = jax.lax.scan(
-                _outer_rollout,
+                _outer_rollout_sp,
                 (
                     rngs,
                     *obs,
@@ -368,6 +409,14 @@ class RLRunner:
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
             )
+
+            a2_state, _, a2_metrics = agent2.update(
+                reduce_outer_traj(traj_1),
+                self.reduce_opp_dim(obs1),
+                a1_state,
+                self.reduce_opp_dim(a1_mem),
+            )
+
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
@@ -424,7 +473,8 @@ class RLRunner:
             )
 
         # self.rollout = _rollout
-        self.rollout = jax.jit(_rollout)
+        self.rollout = jax.jit(_rollout_sp)
+        self.rollout = jax.jit(_rollout_sp)
 
     def run_loop(self, env_params, agents, num_iters, watchers):
         """Run training of agents in environment"""
@@ -437,7 +487,7 @@ class RLRunner:
         save_interval = int(
             num_iters * self.args.save_interval / self.args.total_timesteps
         )
-        jax.debug.breakpoint()
+
         agent1, agent2 = agents
         rng, _ = jax.random.split(self.random_key)
 

@@ -23,7 +23,7 @@ total_timesteps: 1.0e6
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
-ppo:
+ppo1:
   num_minibatches: 10
   num_epochs: 4 
   gamma: 0.96
@@ -34,12 +34,14 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: True
   entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 20.0e9
+  entropy_coeff_horizon: 0.25e9
   entropy_coeff_end: 0.05
-  lr_scheduling: False
+  lr_scheduling: True
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: True
+  with_cnn: False
+  hidden_size: 16
 
 # Naive Learner parameters 
 naive:

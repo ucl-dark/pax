@@ -670,8 +670,9 @@ class EvoSelfRunner2pop:
         param_reshaper = self.param_reshaper
         popsize = self.popsize
         num_opps = self.num_opps
-        evo_state1 = strategy.initialize(rng, es_params) 
-        evo_state2 = strategy.initialize(rng, es_params)
+        rng, evo_rng1, evo_rng2 = jax.random.split(rng, 3)
+        evo_state1 = strategy.initialize(evo_rng1, es_params) 
+        evo_state2 = strategy.initialize(evo_rng2, es_params)
         fit_shaper = FitnessShaper(
             maximize=True, centered_rank=True, w_decay=0.1
         )
@@ -703,8 +704,9 @@ class EvoSelfRunner2pop:
         #     agent._mem.hidden,
         #     (popsize, num_opps, 1, 1),
         # )
+        rng, a2_rng = jax.random.split(rng)
         a2_state, a2_mem = agent1.batch_init(
-            jax.random.split(self.random_key, popsize), #I DON'T THINK THIS IS CORRECT
+            jax.random.split(a2_rng, popsize), #I DON'T THINK THIS IS CORRECT
             init_hidden,
         ) # agent2._state, agent2._mem = 
         # a2_state, a2_mem = agent2._state, agent2._mem
@@ -713,7 +715,7 @@ class EvoSelfRunner2pop:
         params2 = self.take_first_index(a1_state.params)
         unravel_pytree = self.get_unravel_pytree(params2)
         for gen in range(num_gens):
-            rng, rng_run, rng_gen1, rng_gen2, rng_key, rng_lambda = jax.random.split(rng, 6)
+            rng, rng_run1, rng_run2, rng_gen1, rng_gen2, rng_key, rng_lambda = jax.random.split(rng, 7)
 
             # Ask
             start = time.time()
@@ -744,7 +746,7 @@ class EvoSelfRunner2pop:
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout(params1, params2_asopp, rng_run, a1_state, a1_mem, env_params)
+                ) = self.rollout(params1, params2_asopp, rng_run1, a1_state, a1_mem, env_params)
                 (
                     fitness2,
                     other_fitness,
@@ -752,7 +754,7 @@ class EvoSelfRunner2pop:
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout(params2, params1_asopp, rng_run, a2_state, a2_mem, env_params)
+                ) = self.rollout(params2, params1_asopp, rng_run2, a2_state, a2_mem, env_params)
             else:
                 print('naive')
                 (
@@ -762,7 +764,7 @@ class EvoSelfRunner2pop:
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout_naive(params1, rng_run, a1_state, a1_mem, env_params)
+                ) = self.rollout_naive(params1, rng_run1, a1_state, a1_mem, env_params)
                 (
                     fitness2,
                     other_fitness,
@@ -770,7 +772,7 @@ class EvoSelfRunner2pop:
                     rewards_1,
                     rewards_2,
                     a2_metrics,
-                ) = self.rollout_naive(params2, rng_run, a2_state, a2_mem, env_params)
+                ) = self.rollout_naive(params2, rng_run2, a2_state, a2_mem, env_params)
                                      
             if self.args.benchmark:
                 fitness1.block_until_ready()
