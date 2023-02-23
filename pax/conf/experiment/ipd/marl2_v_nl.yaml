@@ -14,7 +14,7 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 1
 num_opps: 4000
-num_outer_steps: 4 
+num_outer_steps: 4
 num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
 num_iters: 1e5
 
@@ -39,7 +39,7 @@ ppo1:
   learning_rate: 3e-4
   adam_epsilon: 1e-5
   with_memory: True
-  hidden_size: 12
+  hidden_size: 16
   with_cnn: False
 
 # Naive Learner parameters 
