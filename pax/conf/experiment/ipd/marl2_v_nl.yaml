@@ -19,7 +19,6 @@ num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
 num_iters: 1e5
 
 # Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
