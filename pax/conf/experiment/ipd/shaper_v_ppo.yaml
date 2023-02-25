@@ -24,19 +24,6 @@ num_iters: 5000
 num_devices: 1
 
 # Evaluation 
-# # EARL vs. PPO trained on seed=0
-# run_path: ucl-dark/ipd/13o3v95p
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900
-# EARL vs. PPO trained on seed=1
-# run_path: ucl-dark/ipd/dopodr9n
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-1-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.58.912526/generation_2900
-# EARL vs. PPO trained on seed=2
-# run_path: ucl-dark/ipd/265ftn32
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-2-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.17.00.437954/generation_2900
-# EARL vs. PPO trained on seed=3
-# run_path: ucl-dark/ipd/1hffijy2
-# model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
-# EARL vs. PPO trained on seed=25
 run_path: ucl-dark/ipd/1ui7wfop
 model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
 
@@ -98,7 +85,15 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-
+  centering: True     # Fitness Centering
+  w_decay: 0.1        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: False      # Normalise fitness 
+  centering: False     # Fitness Centering
+  w_decay: 0        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: True      # Normalise fitness 
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"

@@ -13,7 +13,6 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 # Runner 
 runner: evo 
 
-
 # Training
 top_k: 5
 popsize: 1000
@@ -24,20 +23,6 @@ num_inner_steps: 100
 num_iters: 5000
 
 # Evaluation 
-# PPO was renamed to Tabular, which is why these say PPO_memory vs. PPO 
-# # EARL vs. PPO trained on seed=0
-# run_path: ucl-dark/ipd/13o3v95p
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-0-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.31.908871/generation_2900
-# EARL vs. PPO trained on seed=1
-# run_path: ucl-dark/ipd/dopodr9n
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-1-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.15.58.912526/generation_2900
-# EARL vs. PPO trained on seed=2
-# run_path: ucl-dark/ipd/265ftn32
-# model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-2-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.17.00.437954/generation_2900
-# EARL vs. PPO trained on seed=3
-# run_path: ucl-dark/ipd/1hffijy2
-# model_path:  exp/EARL-PPO_memory-vs-PPO/run-seed-3-OpenES-pop-size-1000-num-opps-1/2022-09-15_00.19.01.387867/generation_2900
-# EARL vs. PPO trained on seed=25
 run_path: ucl-dark/ipd/1ui7wfop
 model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
 
@@ -94,13 +79,17 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.01    # Initial learning rate
+  lrate_init: 0.1    # Initial learning rate
   lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-
+  centering: False     # Fitness Centering
+  w_decay: 0        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: True      # Normalise fitness 
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"

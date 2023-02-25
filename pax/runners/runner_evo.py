@@ -462,7 +462,10 @@ class EvoRunner:
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
         fit_shaper = FitnessShaper(
-            maximize=True, centered_rank=True, w_decay=0.1
+            maximize=self.args.evo.maximise,
+            centered_rank=self.args.evo.centered_rank,
+            w_decay=self.args.evo.w_decay,
+            z_score=self.args.evo.z_score,
         )
         es_logging = ESLog(
             param_reshaper.total_params,

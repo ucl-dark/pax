@@ -61,7 +61,7 @@ class IteratedMatrixGame(environment.Environment):
                 + 3 * (a1) * (a2)
             )
             # if first step then return START state.
-            reset_inner = inner_t == num_inner_steps
+            reset_inner = inner_t == num_inner_steps + 1
             s1 = jax.lax.select(reset_inner, jnp.int8(4), jnp.int8(s1))
             s2 = jax.lax.select(reset_inner, jnp.int8(4), jnp.int8(s2))
             obs1 = jax.nn.one_hot(s1, 5, dtype=jnp.int8)

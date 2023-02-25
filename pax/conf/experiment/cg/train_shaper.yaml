@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'MFOS'
+agent1: 'PPO_memory'
 agent2: 'PPO_memory'
 
 # Environment
@@ -13,26 +13,27 @@ payoff: [[1, 1, -2], [1, 1, -2]]
 
 # Save
 save: True
-save_interval: 2.88e8
+save_interval: 100
 benchmark: False
 
-
 # Runner 
-runner: rl
+runner: evo
 
 # Training
 top_k: 4
-popsize: 256 #512
+popsize: 1000 #512
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
+num_devices: 4
 num_outer_steps: 600
 num_inner_steps: 16 
-num_iters: 1e5
+num_iters: 3000
 
 # Evaluation
-run_path: ucl-dark/cg/3mpgbfm2
-model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
+run_path: ucl-dark/cg/z0ckvwtf
+model_path: exp/EARL-PPO_memory-vs-PPO_memory/run-seed-0/2022-09-28_01.58.33.843138/generation_1200
+
 
 # PPO agent parameters
 ppo1:
@@ -57,7 +58,7 @@ ppo1:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
-  
+
 ppo2:
   num_minibatches: 8
   num_epochs: 2 
@@ -80,29 +81,33 @@ ppo2:
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
-  
+
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES, SimpleGA]
-  sigma_init: 0.075    # Initial scale of isotropic Gaussian noise
+  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
   sigma_decay: 0.999  # Multiplicative decay factor
   sigma_limit: 0.01   # Smallest possible scale
   init_min: 0.0       # Range of parameter mean initialization - Min
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.05     # Initial learning rate
-  lrate_decay: 0.999 # Multiplicative decay factor
+  lrate_init: 0.1     # Initial learning rate
+  lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
   elite_ratio: 0.1
-
+  centering: True     # Fitness Centering
+  w_decay: 0.1        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: False      # Normalise fitness 
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: cg
-  group: 'shaping-${agent1}-rl-vs-${agent2}'
+  group: 'shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
