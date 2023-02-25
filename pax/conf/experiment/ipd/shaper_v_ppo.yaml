@@ -85,11 +85,7 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-  centering: True     # Fitness Centering
-  w_decay: 0.1        # Decay old elite fitness 
-  maximise: True      # Maximise fitness 
-  z_score: False      # Normalise fitness 
-  centering: False     # Fitness Centering
+  centered_rank: False     # Fitness centered_rank
   w_decay: 0        # Decay old elite fitness 
   maximise: True      # Maximise fitness 
   z_score: True      # Normalise fitness 
