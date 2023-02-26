@@ -465,7 +465,7 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "IPDInTheMatrix"]:
+        if args.env_id not in ["coin_game", "IPDInTheMatrix", "iterated_matrix_game"]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -477,7 +477,7 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "IPDInTheMatrix"]:
+        if args.env_id not in ["coin_game", "IPDInTheMatrix", "iterated_matrix_game"]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
