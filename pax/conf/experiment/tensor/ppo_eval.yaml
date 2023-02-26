@@ -20,11 +20,11 @@ num_envs: 2
 num_opps: 1
 num_inner_steps: 100
 num_outer_steps: 1 # number of steps per episode
-total_timesteps: 200_000 #150_000000 # num_episodes  = total / (numsteps * num_envs)
+total_timesteps: 200_000 #150_000000 # inner_steps * outer_steps *num_envs * num_oppps
 
 # Evaluation 
 
-run_path: ucl-dark/tensor/k6bemjfs
+run_path: ucl-dark/tensor/9h04cw1m
 model_path: exp/ppo-shaping/run-seed-0/2023-02-15_00.32.37.184195/generation_800
 
 # PPO agent parameters
@@ -68,6 +68,7 @@ ppo2:
   with_cnn: False
   separate: False
   hidden_size: 16
+
 ppo3:
   num_minibatches: 10
   num_epochs: 4 

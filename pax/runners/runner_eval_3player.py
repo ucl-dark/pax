@@ -330,7 +330,7 @@ class TensorEvalRunner:
             [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
         ).reshape((self.args.num_opps, self.args.num_envs, -1))
         # run actual loop
-        for i in range(num_episodes):
+        for i in range(num_iters):  # 1000
             obs, env_state = env.reset(rngs, env_params)
             rewards = [
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),
@@ -338,16 +338,11 @@ class TensorEvalRunner:
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),
             ]
 
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(obs[1])
-            elif self.args.env_type in ["meta"]:
+            if self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_state, a2_mem = agent2.batch_init(
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
-            if self.args.agent3 == "NaiveEx":
-                a3_state, a3_mem = agent3.batch_init(obs[2])
-            elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 3rd agent per trial
                 a3_state, a3_mem = agent3.batch_init(
                     jax.random.split(rng, self.num_opps), a3_mem.hidden
@@ -369,7 +364,7 @@ class TensorEvalRunner:
                     env_params,
                 ),
                 None,
-                length=self.args.num_outer_steps,
+                length=self.args.num_outer_steps,  # 1
             )
 
             (
@@ -393,7 +388,6 @@ class TensorEvalRunner:
 
             # reset second agent memory
             a2_mem = agent2.batch_reset(a2_mem, False)
-            # reset second agent memory
             a3_mem = agent3.batch_reset(a3_mem, False)
 
             # logging
