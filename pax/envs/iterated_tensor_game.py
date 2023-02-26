@@ -177,6 +177,7 @@ class IteratedTensorGame(environment.Environment):
                 inner_t=jnp.zeros((), dtype=jnp.int8),
                 outer_t=jnp.zeros((), dtype=jnp.int8),
             )
+            # start state
             obs = jax.nn.one_hot(8 * jnp.ones(()), 9, dtype=jnp.int8)
             return (obs, obs, obs), state
 

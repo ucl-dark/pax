@@ -128,7 +128,7 @@ def env_setup(args, logger=None):
 
         if logger:
             logger.info(
-                f"Env Type: Meta | Inner Episode Length: {args.num_inner_steps}"
+                f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
             )
 
     elif args.env_id == "infinite_matrix_game":
@@ -189,7 +189,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         return EvalRunner(agents, env, args)
     elif args.runner == "tensor_eval":
         logger.info("Training with tensor eval Runner")
-        return TensorEvalRunner(agents, env, args)
+        return TensorEvalRunner(agents, env, save_dir, args)
     elif args.runner == "ipditm_eval":
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
@@ -693,7 +693,7 @@ def main(args):
         )
         # number of episodes
         print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, num_iters, watchers)
 
     wandb.finish()
 
