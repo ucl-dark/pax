@@ -4021,3 +4021,140 @@
 [2023-02-23 00:52:40,475][root][INFO] - Training with tensor eval Runner
 [2023-02-23 00:52:41,253][root][INFO] - => Done in 778.344 ms
 [2023-02-23 00:52:41,253][root][INFO] - 
+[2023-02-23 13:05:25,445][root][INFO] - => Global setup ...
+[2023-02-23 13:05:25,447][root][INFO] - => Done in 2.346 ms
+[2023-02-23 13:05:25,447][root][INFO] - 
+[2023-02-23 13:05:25,447][root][INFO] - => Env setup ...
+[2023-02-23 13:05:25,449][root][INFO] - Env Type: meta | Inner Episode Length: 100
+[2023-02-23 13:05:25,449][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:05:25,449][root][INFO] - => Done in 2.279 ms
+[2023-02-23 13:05:25,449][root][INFO] - 
+[2023-02-23 13:05:25,449][root][INFO] - => Agent setup ...
+[2023-02-23 13:05:26,269][root][INFO] - => Done in 819.130 ms
+[2023-02-23 13:05:26,269][root][INFO] - 
+[2023-02-23 13:05:48,292][root][INFO] - => Global setup ...
+[2023-02-23 13:05:48,294][root][INFO] - => Done in 2.234 ms
+[2023-02-23 13:05:48,294][root][INFO] - 
+[2023-02-23 13:05:48,294][root][INFO] - => Env setup ...
+[2023-02-23 13:05:48,296][root][INFO] - Env Type: meta | Inner Episode Length: 100
+[2023-02-23 13:05:48,296][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:05:48,296][root][INFO] - => Done in 2.024 ms
+[2023-02-23 13:05:48,296][root][INFO] - 
+[2023-02-23 13:05:48,296][root][INFO] - => Agent setup ...
+[2023-02-23 13:05:49,385][root][INFO] - PPO with CNN: False
+[2023-02-23 13:05:49,385][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:05:49,385][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:05:49,385][root][INFO] - => Done in 1.089 s
+[2023-02-23 13:05:49,385][root][INFO] - 
+[2023-02-23 13:05:49,385][root][INFO] - => Watcher setup ...
+[2023-02-23 13:05:49,385][root][INFO] - => Done in 92.030 us
+[2023-02-23 13:05:49,385][root][INFO] - 
+[2023-02-23 13:05:49,385][root][INFO] - => Runner setup ...
+[2023-02-23 13:05:49,427][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:05:49,905][root][INFO] - => Done in 519.532 ms
+[2023-02-23 13:05:49,905][root][INFO] - 
+[2023-02-23 13:06:17,414][root][INFO] - => Global setup ...
+[2023-02-23 13:06:17,416][root][INFO] - => Done in 1.847 ms
+[2023-02-23 13:06:17,416][root][INFO] - 
+[2023-02-23 13:06:17,416][root][INFO] - => Env setup ...
+[2023-02-23 13:06:17,418][root][INFO] - Env Type: meta | Inner Episode Length: 10
+[2023-02-23 13:06:17,418][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:06:17,418][root][INFO] - => Done in 2.094 ms
+[2023-02-23 13:06:17,418][root][INFO] - 
+[2023-02-23 13:06:17,418][root][INFO] - => Agent setup ...
+[2023-02-23 13:06:18,444][root][INFO] - PPO with CNN: False
+[2023-02-23 13:06:18,444][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:06:18,444][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:06:18,444][root][INFO] - => Done in 1.025 s
+[2023-02-23 13:06:18,444][root][INFO] - 
+[2023-02-23 13:06:18,444][root][INFO] - => Watcher setup ...
+[2023-02-23 13:06:18,444][root][INFO] - => Done in 77.248 us
+[2023-02-23 13:06:18,444][root][INFO] - 
+[2023-02-23 13:06:18,444][root][INFO] - => Runner setup ...
+[2023-02-23 13:06:18,478][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:06:18,866][root][INFO] - => Done in 422.301 ms
+[2023-02-23 13:06:18,866][root][INFO] - 
+[2023-02-23 13:06:44,344][root][INFO] - => Global setup ...
+[2023-02-23 13:06:44,346][root][INFO] - => Done in 2.106 ms
+[2023-02-23 13:06:44,346][root][INFO] - 
+[2023-02-23 13:06:44,346][root][INFO] - => Env setup ...
+[2023-02-23 13:06:44,348][root][INFO] - Env Type: meta | Inner Episode Length: 10
+[2023-02-23 13:06:44,348][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:06:44,348][root][INFO] - => Done in 2.018 ms
+[2023-02-23 13:06:44,348][root][INFO] - 
+[2023-02-23 13:06:44,348][root][INFO] - => Agent setup ...
+[2023-02-23 13:06:45,370][root][INFO] - PPO with CNN: False
+[2023-02-23 13:06:45,371][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:06:45,371][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:06:45,371][root][INFO] - => Done in 1.022 s
+[2023-02-23 13:06:45,371][root][INFO] - 
+[2023-02-23 13:06:45,371][root][INFO] - => Watcher setup ...
+[2023-02-23 13:06:45,371][root][INFO] - => Done in 135.183 us
+[2023-02-23 13:06:45,371][root][INFO] - 
+[2023-02-23 13:06:45,371][root][INFO] - => Runner setup ...
+[2023-02-23 13:06:45,405][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:06:45,797][root][INFO] - => Done in 425.779 ms
+[2023-02-23 13:06:45,797][root][INFO] - 
+[2023-02-23 13:07:02,976][root][INFO] - => Global setup ...
+[2023-02-23 13:07:02,978][root][INFO] - => Done in 2.013 ms
+[2023-02-23 13:07:02,978][root][INFO] - 
+[2023-02-23 13:07:02,978][root][INFO] - => Env setup ...
+[2023-02-23 13:07:02,980][root][INFO] - Env Type: meta | Inner Episode Length: 10
+[2023-02-23 13:07:02,980][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:07:02,980][root][INFO] - => Done in 2.199 ms
+[2023-02-23 13:07:02,980][root][INFO] - 
+[2023-02-23 13:07:02,981][root][INFO] - => Agent setup ...
+[2023-02-23 13:07:04,012][root][INFO] - PPO with CNN: False
+[2023-02-23 13:07:04,012][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:07:04,012][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:07:04,012][root][INFO] - => Done in 1.031 s
+[2023-02-23 13:07:04,012][root][INFO] - 
+[2023-02-23 13:07:04,012][root][INFO] - => Watcher setup ...
+[2023-02-23 13:07:04,012][root][INFO] - => Done in 75.102 us
+[2023-02-23 13:07:04,012][root][INFO] - 
+[2023-02-23 13:07:04,012][root][INFO] - => Runner setup ...
+[2023-02-23 13:07:04,047][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:07:04,455][root][INFO] - => Done in 442.415 ms
+[2023-02-23 13:07:04,455][root][INFO] - 
+[2023-02-23 13:07:56,194][root][INFO] - => Global setup ...
+[2023-02-23 13:07:59,835][root][INFO] - => Done in 3.641 s
+[2023-02-23 13:07:59,835][root][INFO] - 
+[2023-02-23 13:07:59,835][root][INFO] - => Env setup ...
+[2023-02-23 13:07:59,839][root][INFO] - Env Type: meta | Inner Episode Length: 10
+[2023-02-23 13:07:59,839][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:07:59,839][root][INFO] - => Done in 3.841 ms
+[2023-02-23 13:07:59,839][root][INFO] - 
+[2023-02-23 13:07:59,839][root][INFO] - => Agent setup ...
+[2023-02-23 13:08:00,997][root][INFO] - PPO with CNN: False
+[2023-02-23 13:08:00,998][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:08:00,998][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:08:00,998][root][INFO] - => Done in 1.158 s
+[2023-02-23 13:08:00,998][root][INFO] - 
+[2023-02-23 13:08:00,998][root][INFO] - => Watcher setup ...
+[2023-02-23 13:08:00,998][root][INFO] - => Done in 98.944 us
+[2023-02-23 13:08:00,998][root][INFO] - 
+[2023-02-23 13:08:00,998][root][INFO] - => Runner setup ...
+[2023-02-23 13:08:01,067][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:08:01,656][root][INFO] - => Done in 658.435 ms
+[2023-02-23 13:08:01,657][root][INFO] - 
+[2023-02-23 13:09:19,822][root][INFO] - => Global setup ...
+[2023-02-23 13:09:23,772][root][INFO] - => Done in 3.950 s
+[2023-02-23 13:09:23,773][root][INFO] - 
+[2023-02-23 13:09:23,773][root][INFO] - => Env setup ...
+[2023-02-23 13:09:23,778][root][INFO] - Env Type: meta | Inner Episode Length: 10
+[2023-02-23 13:09:23,778][root][INFO] - Outer Episode Length: 1
+[2023-02-23 13:09:23,778][root][INFO] - => Done in 5.160 ms
+[2023-02-23 13:09:23,778][root][INFO] - 
+[2023-02-23 13:09:23,778][root][INFO] - => Agent setup ...
+[2023-02-23 13:09:24,863][root][INFO] - PPO with CNN: False
+[2023-02-23 13:09:24,864][root][INFO] - Agent Pair: PPO | Tabular
+[2023-02-23 13:09:24,864][root][INFO] - Agent seeds: 0 | 1
+[2023-02-23 13:09:24,864][root][INFO] - => Done in 1.086 s
+[2023-02-23 13:09:24,864][root][INFO] - 
+[2023-02-23 13:09:24,864][root][INFO] - => Watcher setup ...
+[2023-02-23 13:09:24,864][root][INFO] - => Done in 104.189 us
+[2023-02-23 13:09:24,864][root][INFO] - 
+[2023-02-23 13:09:24,864][root][INFO] - => Runner setup ...
+[2023-02-23 13:09:24,904][root][INFO] - Evolution Strategy: OpenES
+[2023-02-23 13:09:25,392][root][INFO] - => Done in 528.358 ms
+[2023-02-23 13:09:25,393][root][INFO] - 
