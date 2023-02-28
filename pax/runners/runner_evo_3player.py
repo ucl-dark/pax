@@ -387,8 +387,9 @@ class TensorEvoRunner:
             _env_params: Any,
         ):
             # env reset
+            _rng_run, env_reset_rng = jax.random.split(_rng_run)
             rngs = jnp.concatenate(
-                [jax.random.split(_rng_run, args.num_envs)]
+                [jax.random.split(env_reset_rng, args.num_envs)]
                 * args.num_opps
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
@@ -403,29 +404,42 @@ class TensorEvoRunner:
             # Player 1
             _a1_state = _a1_state._replace(params=_params)
             _a1_mem = agent1.batch_reset(_a1_mem, False)
-            # Player 2
-            if args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(obs[1])
 
-            else:
-                # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(
-                        _rng_run, args.popsize * args.num_opps
-                    ).reshape(args.popsize, args.num_opps, -1),
-                    agent2._mem.hidden,
+            if self.args.env_type not in ["meta"]:
+                raise RuntimeError(
+                    "Only meta-experiments are supported with evo runner"
                 )
-            if args.agent3 == "NaiveEx":
-                a3_state, a3_mem = agent3.batch_init(obs[2])
+            # _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
+            # _rng_run, agent2_rng = jax.random.split(_rng_run, 2)
+            # # meta-experiments - init 2nd agent per trial
+            # a2_state, a2_mem = agent2.batch_init(
+            #     jax.random.split(
+            #         agent1_rng, args.popsize * args.num_opps
+            #     ).reshape(args.popsize, args.num_opps, -1),
+            #     agent2._mem.hidden,
+            # )
+            # # meta-experiments - init 3nd agent per trial
+            # a3_state, a3_mem = agent3.batch_init(
+            #     jax.random.split(
+            #         agent2_rng, args.popsize * args.num_opps
+            #     ).reshape(args.popsize, args.num_opps, -1),
+            #     agent3._mem.hidden,
+            # )
 
-            else:
-                # meta-experiments - init 2nd agent per trial
-                a3_state, a3_mem = agent3.batch_init(
-                    jax.random.split(
-                        _rng_run, args.popsize * args.num_opps
-                    ).reshape(args.popsize, args.num_opps, -1),
-                    agent3._mem.hidden,
-                )
+            # meta-experiments - init 2nd agent per trial
+            a2_state, a2_mem = agent2.batch_init(
+                jax.random.split(
+                    _rng_run, args.popsize * args.num_opps
+                ).reshape(args.popsize, args.num_opps, -1),
+                agent2._mem.hidden,
+            )
+            # meta-experiments - init 3nd agent per trial
+            a3_state, a3_mem = agent3.batch_init(
+                jax.random.split(
+                    _rng_run, args.popsize * args.num_opps
+                ).reshape(args.popsize, args.num_opps, -1),
+                agent3._mem.hidden,
+            )
 
             # run trials
             vals, stack = jax.lax.scan(

@@ -349,15 +349,25 @@ class TensorEvalRunner:
             _a1_mem = agent1.batch_reset(_a1_mem, False)
 
             if self.args.env_type in ["meta"]:
+                _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
+                _rng_run, agent2_rng = jax.random.split(_rng_run, 2)
                 # meta-experiments - init other agents per trial
                 _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
+                    jax.random.split(agent1_rng, self.num_opps), _a2_mem.hidden
                 )
                 _a3_state, _a3_mem = agent3.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a3_mem.hidden
+                    jax.random.split(agent2_rng, self.num_opps), _a3_mem.hidden
                 )
+                # meta-experiments - init 2nd agent per trial
+                # _a2_state, _a2_mem = agent2.batch_init(
+                #     jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
+                # )
+                # # meta-experiments - init 3rd agent per trial
+                # _a3_state, _a3_mem = agent3.batch_init(
+                #     jax.random.split(_rng_run, self.num_opps), _a3_mem.hidden
+                # )
             # run trials
-            vals, stack = jax.lax.scan(  # @alex understand this
+            vals, stack = jax.lax.scan(  # @alex understand this?
                 _outer_rollout,
                 (
                     rngs,

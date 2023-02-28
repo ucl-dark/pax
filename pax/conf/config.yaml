@@ -34,7 +34,6 @@ runner: rl
 num_envs: 100
 num_generations: 100
 num_opps: 1
-num_steps: 16 # total number of steps per episode (this is num_inner_steps * num_outer_steps)
 num_inner_steps: 16 # number of inner steps
 total_timesteps: 1.0e8
 
