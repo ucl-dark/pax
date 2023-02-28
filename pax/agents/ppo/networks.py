@@ -45,12 +45,12 @@ class CategoricalValueHead_ipd(hk.Module):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
             num_values,
-            w_init=hk.initializers.Orthogonal(0.5),
+            w_init=hk.initializers.Constant(0.5),
             with_bias=False,
         )
         self._value_layer = hk.Linear(
             1,
-            w_init=hk.initializers.Orthogonal(0.5),
+            w_init=hk.initializers.Constant(0.5),
             with_bias=False,
         )
 
