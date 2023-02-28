@@ -416,18 +416,22 @@ def make_GRU_ipditm_network(
         layer_norm1 = hk.LayerNorm(
             axis=-2, create_scale=True, create_offset=True
         )
+
+        num_heads = 8
         shape_attn = hk.MultiHeadAttention(
-            num_heads=24,
-            key_size=hidden_size,
+            num_heads=num_heads,
+            key_size=hidden_size // num_heads,
             w_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
-            model_size=hidden_size,
         )
 
-        # layer_norm2 = hk.LayerNorm(axis=-2, create_scale=True, create_offset=True)
-        # shape_mlp = hk.Linear(
-        #     hidden_size,
-        #     w_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
-        #     b_init=hk.initializers.Constant(0))
+        layer_norm2 = hk.LayerNorm(
+            axis=-2, create_scale=True, create_offset=True
+        )
+        shape_mlp = hk.Linear(
+            hidden_size,
+            w_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            b_init=hk.initializers.Constant(0),
+        )
 
         if separate:
             cvh = CategoricalValueHeadSeparate_ipditm(
@@ -439,11 +443,10 @@ def make_GRU_ipditm_network(
 
         # shaper network to obfuscated
         print("state", state.shape)
-        _state = layer_norm1(state)
-        _state = shape_attn(_state, _state, _state)
-        state = state + _state
-        print("state", state.shape)
-        # if necessary reshape here then pass through then undo reshape
+        state_attn = layer_norm1(state)
+        state_attn = shape_attn(state_attn, state_attn, state_attn)
+        state = layer_norm2(state + state_attn)
+        state = shape_mlp(state)
         embedding, state = gru(embedding, state)
         logits, values = cvh(embedding)
         return (logits, values), state
