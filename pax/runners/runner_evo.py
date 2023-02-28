@@ -507,12 +507,15 @@ class EvoRunner:
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
-            # Reshape over devices
+            # Aggregate over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
-            # Maximize fitness
-            fitness_re = fit_shaper.apply(x, fitness)
+
             # Tell
+            fitness_re = fit_shaper.apply(x, fitness)
+
+            if self.args.es.mean_reduce:
+                fitness_re = fitness_re - fitness_re.mean()
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
 
             # Logging

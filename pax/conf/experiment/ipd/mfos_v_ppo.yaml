@@ -64,6 +64,7 @@ es:
   w_decay: 0        # Decay old elite fitness 
   maximise: True      # Maximise fitness 
   z_score: True      # Normalise fitness 
+  mean_reduce: True    # Remove mean
   
 # Logging setup
 wandb:

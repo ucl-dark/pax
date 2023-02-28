@@ -101,7 +101,8 @@ es:
   w_decay: 0.1        # Decay old elite fitness 
   maximise: True      # Maximise fitness 
   z_score: False      # Normalise fitness 
-  
+  mean_reduce: False    # Remove mean
+    
 # Logging setup
 wandb:
   entity: "ucl-dark"
