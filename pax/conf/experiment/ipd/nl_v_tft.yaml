@@ -15,13 +15,12 @@ num_envs: 100
 num_opps: 1
 num_outer_steps: 1
 num_inner_steps: 150 # number of steps per episode
-total_timesteps: 4_000_000
-save_interval: 4e6
+num_iters: 4e3
+save_interval: 4e3
 # Runner
 runner: rl
 
 # Useful information
-# num_episodes = total_timesteps / num_steps
 # batch_size = num_envs * num_steps
 
 # Naive agent parameters

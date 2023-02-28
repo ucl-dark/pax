@@ -18,8 +18,8 @@ num_envs: 50
 num_opps: 1
 num_outer_steps: 1
 num_inner_steps: 152 
-total_timesteps: 1.52e6
-save_interval: 1e6
+num_iters: 1e3
+save_interval: 1e3
 
 # Evaluation 
 run_path: ucl-dark/cg/3sp0y2cy

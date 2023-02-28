@@ -16,10 +16,9 @@ num_envs: 1
 num_opps: 4000
 num_outer_steps: 4
 num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
-total_timesteps: 0.5e9
+num_iters: 1e5
 
 # Useful information
-# num_episodes = total_timesteps / (num_steps * num_envs) 
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters
@@ -53,6 +52,7 @@ naive:
   learning_rate: 0.1
   adam_epsilon: 1e-5
   entropy_coeff: 0
+
 # Logging setup
 wandb:
   entity: "ucl-dark"

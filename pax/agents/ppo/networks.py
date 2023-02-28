@@ -34,6 +34,32 @@ class CategoricalValueHead(hk.Module):
         return (distrax.Categorical(logits=logits), value)
 
 
+class CategoricalValueHead_ipd(hk.Module):
+    """Network head that produces a categorical distribution and value."""
+
+    def __init__(
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+    ):
+        super().__init__(name=name)
+        self._logit_layer = hk.Linear(
+            num_values,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+        self._value_layer = hk.Linear(
+            1,
+            w_init=hk.initializers.Constant(0.5),
+            with_bias=False,
+        )
+
+    def __call__(self, inputs: jnp.ndarray):
+        logits = self._logit_layer(inputs)
+        value = jnp.squeeze(self._value_layer(inputs), axis=-1)
+        return (distrax.Categorical(logits=logits), value)
+
+
 class CategoricalValueHeadSeparate(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
@@ -287,7 +313,7 @@ def make_ipd_network(num_actions: int, tabular: bool, hidden_size: int):
         if tabular:
             layers.extend(
                 [
-                    CategoricalValueHead(num_values=num_actions),
+                    CategoricalValueHead_ipd(num_values=num_actions),
                 ]
             )
         else:
@@ -300,7 +326,7 @@ def make_ipd_network(num_actions: int, tabular: bool, hidden_size: int):
                         activate_final=True,
                         activation=jnp.tanh,
                     ),
-                    CategoricalValueHead(num_values=num_actions),
+                    CategoricalValueHead_ipd(num_values=num_actions),
                 ]
             )
         policy_value_network = hk.Sequential(layers)
@@ -432,7 +458,7 @@ def make_GRU_ipd_network(num_actions: int, hidden_size: int):
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)
-        logits, values = CategoricalValueHead(num_actions)(embedding)
+        logits, values = CategoricalValueHead_ipd(num_actions)(embedding)
         return (logits, values), state
 
     network = hk.without_apply_rng(hk.transform(forward_fn))

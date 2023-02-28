@@ -18,7 +18,7 @@ num_envs: 100
 num_opps: 1
 num_outer_steps: 1
 num_inner_steps: 150 # number of steps per episode
-total_timesteps: 5e6
+num_iters: 1e3
 
 # Evaluation 
 run_path: ucl-dark/ipd/w1x0vqb7

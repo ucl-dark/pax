@@ -227,7 +227,7 @@ python -m pax.experiment
 We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydra.cc/docs) for configs. Hyperparameters are stored `/conf/experiment` as `.yaml` files. Depending on your needs, you can specify hyperparameters through the CLI or by changing the `.yaml` files directly. 
 
 ```bash
-python -m pax.experiment +total_timesteps=1_000_000 +num_envs=10
+python -m pax.experiment +train_iters=1e3 +num_envs=10
 ```
 
 We currently support two major environments: `MatrixGames` and `CoinGame`.

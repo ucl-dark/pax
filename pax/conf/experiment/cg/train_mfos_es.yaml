@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
+agent1: 'MFOS'
 agent2: 'PPO_memory'
 
 # Environment
@@ -16,6 +16,7 @@ save: True
 save_interval: 100
 benchmark: False
 
+
 # Runner 
 runner: evo
 
@@ -28,13 +29,13 @@ num_opps: 1
 num_devices: 4
 num_outer_steps: 600
 num_inner_steps: 16 
-num_generations: 3000
+num_iters: 3000
 
 # Evaluation
 run_path: ucl-dark/cg/3mpgbfm2
 model_path: exp/coin_game-EARL-PPO_memory-vs-Random/run-seed-0/2022-09-08_20.41.03.643377/generation_30
 
-# num_generations = total_timesteps / (num_envs*num_opps*num_steps)
+
 # PPO agent parameters
 ppo1:
   num_minibatches: 8
@@ -52,13 +53,13 @@ ppo1:
   lr_scheduling: False
   learning_rate: 0.005
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: False
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True # only works with CNN
   hidden_size: 16
-
+  
 ppo2:
   num_minibatches: 8
   num_epochs: 2 
@@ -99,7 +100,11 @@ es:
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
   elite_ratio: 0.1
-
+  centered_rank: True     # Fitness centered_rank
+  w_decay: 0.1        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: False      # Normalise fitness 
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"

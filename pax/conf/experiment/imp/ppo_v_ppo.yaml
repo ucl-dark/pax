@@ -17,7 +17,7 @@ runner: rl
 num_envs: 100
 num_opps: 1
 num_steps: 150 # number of steps per episode
-total_timesteps: 150_000
+num_iters: 100
 
 # Evaluation 
 

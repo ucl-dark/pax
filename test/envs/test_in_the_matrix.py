@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 
-from pax.envs.ipd_in_the_matrix import (
-    IPDInTheMatrix,
+from pax.envs.in_the_matrix import (
+    InTheMatrix,
     EnvParams,
     EnvState,
 )
@@ -10,7 +10,7 @@ from pax.envs.ipd_in_the_matrix import (
 
 def test_ipditm_shapes():
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(
+    env = InTheMatrix(
         num_inner_steps=8, num_outer_steps=2, fixed_coin_location=True
     )
 
@@ -36,7 +36,7 @@ def test_ipditm_shapes():
 
 def test_ipditm_collision():
     rng = jax.random.PRNGKey(0)
-    env = IPDInTheMatrix(142, 100, True)
+    env = InTheMatrix(142, 100, True)
     params = EnvParams(
         payoff_matrix=jnp.array([[[1, -2], [1, -2]], [[1, -2], [1, -2]]]),
         freeze_penalty=5,

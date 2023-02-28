@@ -43,7 +43,6 @@ class PPO(AgentInterface):
         random_key: jnp.ndarray,
         obs_spec: Tuple,
         num_envs: int = 4,
-        num_steps: int = 500,
         num_minibatches: int = 16,
         num_epochs: int = 4,
         clip_value: bool = True,
@@ -417,8 +416,6 @@ class PPO(AgentInterface):
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
-        self._num_steps = num_steps  # number of steps per environment
-        self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
 
@@ -464,6 +461,7 @@ def make_agent(
     obs_spec,
     action_spec,
     seed: int,
+    num_iterations: int,
     player_id: int,
     tabular=False,
 ):
@@ -496,14 +494,8 @@ def make_agent(
         )
 
     # Optimizer
-    batch_size = int(
-        args.num_envs * args.num_inner_steps * args.num_outer_steps
-    )
     transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * agent_args.num_epochs
-        * agent_args.num_minibatches
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:
@@ -535,8 +527,6 @@ def make_agent(
         random_key=random_key,
         obs_spec=obs_spec,
         num_envs=args.num_envs,
-        num_steps=args.num_inner_steps
-        * args.num_outer_steps,  # TODO: assume outer agent!
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,

@@ -13,7 +13,6 @@ payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 # Runner 
 runner: evo 
 
-
 # Training
 top_k: 5
 popsize: 1000
@@ -21,8 +20,7 @@ num_envs: 2
 num_opps: 1
 num_outer_steps: 100 
 num_inner_steps: 100 
-num_generations: 5000
-total_timesteps: 1e11
+num_iters: 5000
 
 # PPO agent parameters
 ppo1:
@@ -82,7 +80,11 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-
+  centered_rank: False # Fitness centered_rank
+  w_decay: 0           # Decay old elite fitness 
+  maximise: True       # Maximise fitness 
+  z_score: False       # Normalise fitness 
+  mean_reduce: True    # Remove mean
 # Logging setup
 wandb:
   entity: "ucl-dark"
