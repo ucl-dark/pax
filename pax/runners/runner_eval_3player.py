@@ -346,7 +346,8 @@ class TensorEvalRunner:
                 jnp.zeros((args.num_opps, args.num_envs)),
             ]
             # Player 1
-            _a1_mem = agent1.batch_reset(_a1_mem, False)
+            # TODO UNDO
+            # _a1_mem = agent1.batch_reset(_a1_mem, False)
 
             if self.args.env_type in ["meta"]:
                 _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
@@ -358,14 +359,6 @@ class TensorEvalRunner:
                 _a3_state, _a3_mem = agent3.batch_init(
                     jax.random.split(agent2_rng, self.num_opps), _a3_mem.hidden
                 )
-                # meta-experiments - init 2nd agent per trial
-                # _a2_state, _a2_mem = agent2.batch_init(
-                #     jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
-                # )
-                # # meta-experiments - init 3rd agent per trial
-                # _a3_state, _a3_mem = agent3.batch_init(
-                #     jax.random.split(_rng_run, self.num_opps), _a3_mem.hidden
-                # )
             # run trials
             vals, stack = jax.lax.scan(  # @alex understand this?
                 _outer_rollout,
@@ -405,18 +398,12 @@ class TensorEvalRunner:
             ) = vals
             traj_1, traj_2, traj_3, a2_metrics, a3_metrics = stack
 
-            # # update outer agent
-            # a1_state, _, a1_metrics = agent1.update(
-            #     reduce_outer_traj(traj_1),
-            #     self.reduce_opp_dim(obs1),
-            #     a1_state,
-            #     self.reduce_opp_dim(a1_mem),
-            # )
-
             # reset memory
-            a1_mem = agent1.batch_reset(a1_mem, False)
-            a2_mem = agent2.batch_reset(a2_mem, False)
-            a3_mem = agent3.batch_reset(a3_mem, False)
+            # this is here because in sequential, we don't reset memory earlier
+            # TODO UNDO
+            # a1_mem = agent1.batch_reset(a1_mem, False)
+            # a2_mem = agent2.batch_reset(a2_mem, False)
+            # a3_mem = agent3.batch_reset(a3_mem, False)
 
             env_stats = jax.tree_util.tree_map(
                 lambda x: x.mean(),

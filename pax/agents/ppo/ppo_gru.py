@@ -515,6 +515,10 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )
+    elif args.env_id == "iterated_tensor_game":
+        network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
 
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(
@@ -532,7 +536,12 @@ def make_gru_agent(
     )
 
     # Optimizer
-    batch_size = int(args.num_envs * args.num_steps * args.num_opps)
+    batch_size = int(
+        args.num_envs
+        * args.num_inner_steps
+        * args.num_outer_steps
+        * args.num_opps
+    )
     transition_steps = (
         args.total_timesteps
         / batch_size
@@ -572,7 +581,7 @@ def make_gru_agent(
         obs_spec=obs_spec,
         batch_size=None,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
+        num_steps=args.num_inner_steps * args.num_outer_steps,
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,

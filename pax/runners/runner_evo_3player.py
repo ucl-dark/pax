@@ -409,34 +409,19 @@ class TensorEvoRunner:
                 raise RuntimeError(
                     "Only meta-experiments are supported with evo runner"
                 )
-            # _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
-            # _rng_run, agent2_rng = jax.random.split(_rng_run, 2)
-            # # meta-experiments - init 2nd agent per trial
-            # a2_state, a2_mem = agent2.batch_init(
-            #     jax.random.split(
-            #         agent1_rng, args.popsize * args.num_opps
-            #     ).reshape(args.popsize, args.num_opps, -1),
-            #     agent2._mem.hidden,
-            # )
-            # # meta-experiments - init 3nd agent per trial
-            # a3_state, a3_mem = agent3.batch_init(
-            #     jax.random.split(
-            #         agent2_rng, args.popsize * args.num_opps
-            #     ).reshape(args.popsize, args.num_opps, -1),
-            #     agent3._mem.hidden,
-            # )
-
+            _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
+            _rng_run, agent2_rng = jax.random.split(_rng_run, 2)
             # meta-experiments - init 2nd agent per trial
             a2_state, a2_mem = agent2.batch_init(
                 jax.random.split(
-                    _rng_run, args.popsize * args.num_opps
+                    agent1_rng, args.popsize * args.num_opps
                 ).reshape(args.popsize, args.num_opps, -1),
                 agent2._mem.hidden,
             )
             # meta-experiments - init 3nd agent per trial
             a3_state, a3_mem = agent3.batch_init(
                 jax.random.split(
-                    _rng_run, args.popsize * args.num_opps
+                    agent2_rng, args.popsize * args.num_opps
                 ).reshape(args.popsize, args.num_opps, -1),
                 agent3._mem.hidden,
             )
@@ -615,7 +600,7 @@ class TensorEvoRunner:
             log = es_logging.update(log, x, fitness)
 
             # Saving
-            if gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0 or gen == 50:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
