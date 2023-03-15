@@ -152,8 +152,9 @@ class RLRunner:
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            a2_rng = jax.random.split(agent2._state.random_key, args.num_opps)
             agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opps),
+                a2_rng,
                 init_hidden,
             )
 
@@ -321,9 +322,8 @@ class RLRunner:
 
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
-                _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
-                )
+                a2_rng = jax.random.split(_rng_run, self.num_opps)
+                _a2_state, _a2_mem = agent2.batch_init(a2_rng, _a2_mem.hidden)
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
