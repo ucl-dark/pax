@@ -163,12 +163,13 @@ class EvoRunner:
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
 
-            key = jax.random.split(
-                agent2._state.random_key, args.popsize * args.num_opps
+            a2_rng = jnp.concatenate(
+                [jax.random.split(agent2._state.random_key, args.num_opps)]
+                * args.popsize
             ).reshape(args.popsize, args.num_opps, -1)
 
             agent2._state, agent2._mem = agent2.batch_init(
-                key,
+                a2_rng,
                 init_hidden,
             )
 
