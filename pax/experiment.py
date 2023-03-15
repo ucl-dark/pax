@@ -285,9 +285,10 @@ def agent_setup(args, env, env_params, logger):
 
     def get_PPO_memory_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
-        num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
+        else:
+            num_iterations = args.num_iters
         return make_gru_agent(
             args,
             player_args,
@@ -332,10 +333,11 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
-        agent_args = args.ppo1
-        num_iterations = args.num_iters
+        agent_args = args.ppo1 if player_id == 1 else args.ppo2
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
+        else:
+            num_iterations = args.num_iters
         ppo_agent = make_mfos_agent(
             args,
             agent_args,
@@ -453,7 +455,11 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+        ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -465,7 +471,11 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+        ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
