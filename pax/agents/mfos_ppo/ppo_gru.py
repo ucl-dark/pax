@@ -61,9 +61,7 @@ class PPO(AgentInterface):
         random_key: jnp.ndarray,
         gru_dim: int,
         obs_spec: Tuple,
-        batch_size: int = 2000,
         num_envs: int = 4,
-        num_steps: int = 500,
         num_minibatches: int = 16,
         num_epochs: int = 4,
         clip_value: bool = True,
@@ -479,15 +477,12 @@ class PPO(AgentInterface):
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
-        self._num_steps = num_steps  # number of steps per environment
-        self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
@@ -573,8 +568,7 @@ def make_mfos_agent(
 
     # Optimizer
     transition_steps = (
-        num_iterations,
-        *agent_args.num_epochs * agent_args.num_minibatches,
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches,
     )
 
     if agent_args.lr_scheduling:
@@ -607,9 +601,7 @@ def make_mfos_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=None,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,

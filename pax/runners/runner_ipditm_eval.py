@@ -76,32 +76,17 @@ class IPDITMEvalRunner:
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
 
-        def _reshape_opp_dim(x):
-            # x: [num_opps, num_envs ...]
-            # x: [batch_size, ...]
-            batch_size = args.num_envs * args.num_opps
-            return jax.tree_util.tree_map(
-                lambda x: x.reshape((batch_size,) + x.shape[2:]), x
-            )
-
-        self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
-        self.ipditm_stats = jax.jit(ipditm_stats)
-        # VMAP for num opps: we vmap over the rng but not params
-        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
-        env.step = jax.jit(
-            jax.vmap(
-                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
-            )
-        )
 
-        self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+        self.ipditm_stats = jax.jit(ipditm_stats)
+        self.split = jax.vmap(jax.random.split, (0, None))
         self.num_outer_steps = self.args.num_outer_steps
 
         agent1, agent2 = agents
@@ -112,18 +97,10 @@ class IPDITMEvalRunner:
             agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
         else:
             # batch MemoryState not TrainingState
-            agent1.batch_init = jax.vmap(
-                agent1.make_initial_state,
-                (None, 0),
-                (None, 0),
-            )
-        agent1.batch_reset = jax.jit(
-            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
-        )
+            agent1.batch_init = jax.jit(agent1.make_initial_state)
 
-        agent1.batch_policy = jax.jit(
-            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
-        )
+        agent1.batch_reset = jax.jit(agent1.reset_memory, static_argnums=1)
+        agent1.batch_policy = jax.jit(agent1._policy)
 
         # batch all for Agent2
         if args.agent2 == "NaiveEx":
@@ -131,26 +108,25 @@ class IPDITMEvalRunner:
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
             agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0
+                agent2.make_initial_state,
+                (None, 0),
+                (None, 0),
             )
-        agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
-        agent2.batch_reset = jax.jit(
-            jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
-        )
-        agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
+        agent2.batch_reset = jax.jit(agent2.reset_memory, static_argnums=1)
+        agent2.batch_policy = jax.jit(agent2._policy)
 
         if args.agent1 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            init_hidden = agent1._mem.hidden
             agent1._state, agent1._mem = agent1.batch_init(
                 agent1._state.random_key, init_hidden
             )
 
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            init_hidden = jnp.tile(agent2._mem.hidden, (1, 1))
             agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opps),
+                agent2._state.random_key,
                 init_hidden,
             )
 
@@ -172,11 +148,10 @@ class IPDITMEvalRunner:
 
             # unpack rngs
             rngs = self.split(rngs, 4)
-            env_rng = rngs[:, :, 0, :]
+            env_rng = rngs[:, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
-            rngs = rngs[:, :, 3, :]
-
+            rngs = rngs[:, 3, :]
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -188,6 +163,7 @@ class IPDITMEvalRunner:
                 obs2,
                 a2_mem,
             )
+
             (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
@@ -258,13 +234,8 @@ class IPDITMEvalRunner:
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
-            # update second agent
-            a2_state, a2_mem, a2_metrics = agent2.batch_update(
-                trajectories[1],
-                obs2,
-                a2_state,
-                a2_mem,
-            )
+            if args.agent2 == "MFOS":
+                a2_mem = agent2.meta_policy(a2_mem)
             return (
                 rngs,
                 obs1,
@@ -277,7 +248,7 @@ class IPDITMEvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
-            ), (*trajectories, a2_metrics)
+            ), trajectories
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -288,30 +259,18 @@ class IPDITMEvalRunner:
             _env_params: Any,
         ):
             # env reset
-            rngs = jnp.concatenate(
-                [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
-            ).reshape((args.num_opps, args.num_envs, -1))
-
+            rngs = jax.random.split(_rng_run, args.num_envs)
             obs, env_state = env.reset(rngs, _env_params)
             rewards = [
-                jnp.zeros((args.num_opps, args.num_envs)),
-                jnp.zeros((args.num_opps, args.num_envs)),
+                jnp.zeros(args.num_envs),
+                jnp.zeros(args.num_envs),
             ]
             # Player 1
             _a1_mem = agent1.batch_reset(_a1_mem, False)
 
             # Player 2
-            if args.agent1 == "NaiveEx":
-                _a1_state, _a1_mem = agent1.batch_init(obs[0])
+            _a2_mem = agent2.batch_reset(_a2_mem, False)
 
-            if args.agent2 == "NaiveEx":
-                _a2_state, _a2_mem = agent2.batch_init(obs[1])
-
-            elif self.args.env_type in ["meta"]:
-                # meta-experiments - init 2nd agent per trial
-                _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
-                )
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -327,7 +286,7 @@ class IPDITMEvalRunner:
                     _env_params,
                 ),
                 None,
-                length=num_outer_steps,
+                length=self.args.num_outer_steps,
             )
 
             (
@@ -343,7 +302,7 @@ class IPDITMEvalRunner:
                 env_state,
                 env_params,
             ) = vals
-            traj_1, traj_2, a2_metrics = stack
+            traj_1, traj_2 = stack
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
@@ -384,7 +343,6 @@ class IPDITMEvalRunner:
                 a1_mem,
                 a2_state,
                 a2_mem,
-                a2_metrics,
                 traj_1,
                 traj_2,
             )
@@ -407,6 +365,7 @@ class IPDITMEvalRunner:
             root=os.getcwd(),
         )
 
+        print("Loading First Agent")
         pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
 
@@ -431,7 +390,6 @@ class IPDITMEvalRunner:
             a1_mem,
             a2_state,
             a2_mem,
-            a2_metrics,
             traj,
             other_traj,
         ) = self.rollout(
@@ -447,13 +405,13 @@ class IPDITMEvalRunner:
 
         if watchers:
             # metrics [outer_timesteps, num_opps]
-            flattened_metrics_2 = jax.tree_util.tree_map(
-                lambda x: x.flatten(), a2_metrics
-            )
-            list_of_metrics = [
-                {k: v[i] for k, v in flattened_metrics_2.items()}
-                for i in range(len(list(flattened_metrics_2.values())[0]))
-            ]
+            # flattened_metrics_2 = jax.tree_util.tree_map(
+            #     lambda x: x.flatten(), a2_metrics
+            # )
+            # list_of_metrics = [
+            #     {k: v[i] for k, v in flattened_metrics_2.items()}
+            #     for i in range(len(list(flattened_metrics_2.values())[0]))
+            # ]
             env_state = traj.env_state
             list_of_env_states = [
                 EnvState(
@@ -522,11 +480,11 @@ class IPDITMEvalRunner:
             watchers[0](agents[0])
 
             # log the inner episodes
-            for i, metric in enumerate(list_of_metrics):
-                agents[1]._logger.metrics = metric
-                agents[1]._logger.metrics["sgd_steps"] = i
-                watchers[1](agents[1])
-                wandb.log({"train_iteration": i} | list_of_env_stats[i])
+            # for i, metric in enumerate(list_of_metrics):
+            #     agents[1]._logger.metrics = metric
+            #     agents[1]._logger.metrics["sgd_steps"] = i
+            #     watchers[1](agents[1])
+            #     wandb.log({"train_iteration": i} | list_of_env_stats[i])
 
             wandb.log(
                 {
@@ -561,11 +519,10 @@ class IPDITMEvalRunner:
                 lambda x: x.reshape((x.shape[0] * x.shape[1], *x.shape[2:])),
                 env_state,
             )
-            env_idx = jax.random.choice(rng, env_state.red_pos.shape[2])
-            opp_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
+            env_idx = jax.random.choice(rng, env_state.red_pos.shape[1])
 
             env_state = jax.tree_util.tree_map(
-                lambda x: x[:, opp_idx, env_idx, ...], env_state
+                lambda x: x[:, env_idx, ...], env_state
             )
             env_states = [
                 EnvState(
