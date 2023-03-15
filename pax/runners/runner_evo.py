@@ -308,13 +308,13 @@ class EvoRunner:
             _env_params: Any,
         ):
             # env reset
-            rngs = jnp.concatenate(
+            env_rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)]
                 * args.num_opps
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
 
-            obs, env_state = env.reset(rngs, _env_params)
+            obs, env_state = env.reset(env_rngs, _env_params)
             rewards = [
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
@@ -329,10 +329,11 @@ class EvoRunner:
 
             else:
                 # meta-experiments - init 2nd agent per trial
+                a2_rng = jnp.concatenate(
+                    [jax.random.split(_rng_run, args.num_opps)] * args.popsize
+                ).reshape(args.popsize, args.num_opps, -1)
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(
-                        _rng_run, args.popsize * args.num_opps
-                    ).reshape(args.popsize, args.num_opps, -1),
+                    a2_rng,
                     agent2._mem.hidden,
                 )
 
@@ -340,7 +341,7 @@ class EvoRunner:
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (
-                    rngs,
+                    env_rngs,
                     *obs,
                     *rewards,
                     _a1_state,
@@ -355,7 +356,7 @@ class EvoRunner:
             )
 
             (
-                rngs,
+                env_rngs,
                 obs1,
                 obs2,
                 r1,
@@ -480,18 +481,19 @@ class EvoRunner:
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
         )
+        a1_rng = jax.random.split(rng, popsize)
         agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
+            a1_rng,
             init_hidden,
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
 
         for gen in range(num_gens):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, rng_run, rng_evo, rng_key = jax.random.split(rng, 4)
 
             # Ask
-            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
+            x, evo_state = strategy.ask(rng_evo, evo_state, es_params)
             params = param_reshaper.reshape(x)
             if self.args.num_devices == 1:
                 params = jax.tree_util.tree_map(
