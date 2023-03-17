@@ -40,12 +40,12 @@ class MFOSSample(NamedTuple):
 @jax.jit
 def reduce_outer_traj(traj: Sample) -> Sample:
     """Used to collapse lax.scan outputs dims"""
-    # x: [outer_loop, inner_loop, num_opps, num_envs ...]
+    # x: [inner_loop, num_opps, num_envs ...]
     # x: [timestep, batch_size, ...]
-    num_envs = traj.rewards.shape[2] * traj.rewards.shape[3]
-    num_timesteps = traj.rewards.shape[0] * traj.rewards.shape[1]
+    num_envs = traj.rewards.shape[1] * traj.rewards.shape[2]
+    num_timesteps = traj.rewards.shape[0]
     return jax.tree_util.tree_map(
-        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[4:]),
+        lambda x: x.reshape((num_timesteps, num_envs) + x.shape[3:]),
         traj,
     )
 
@@ -270,8 +270,8 @@ class RLRunner:
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
-            a1_state, _, a1_metrics = agent1.update(
-                trajectories[0],
+            a1_state, _, _ = agent1.update(
+                reduce_outer_traj(trajectories[0]),
                 self.reduce_opp_dim(obs1),
                 a1_state,
                 self.reduce_opp_dim(a1_mem),
@@ -420,7 +420,6 @@ class RLRunner:
                 rewards_2,
                 a1_state,
                 a1_mem,
-                a1_metrics,
                 a2_state,
                 a2_mem,
                 a2_metrics,
@@ -458,7 +457,7 @@ class RLRunner:
                 rewards_2,
                 a1_state,
                 a1_mem,
-                a1_metrics,
+                # a1_metrics,
                 a2_state,
                 a2_mem,
                 a2_metrics,
@@ -495,12 +494,12 @@ class RLRunner:
 
                 if watchers:
                     # metrics [outer_timesteps]
-                    flattened_metrics_1 = jax.tree_util.tree_map(
-                        lambda x: jnp.mean(x), a1_metrics
-                    )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
+                    # flattened_metrics_1 = jax.tree_util.tree_map(
+                    #     lambda x: jnp.mean(x), a1_metrics
+                    # )
+                    # agent1._logger.metrics = (
+                    #     agent1._logger.metrics | flattened_metrics_1
+                    # )
                     # metrics [outer_timesteps, num_opps]
                     flattened_metrics_2 = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
@@ -509,8 +508,8 @@ class RLRunner:
                         agent2._logger.metrics | flattened_metrics_2
                     )
 
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
+                    # for watcher, agent in zip(watchers, agents):
+                    # watcher(agent)
 
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.item(), env_stats
