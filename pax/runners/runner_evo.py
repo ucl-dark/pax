@@ -163,12 +163,13 @@ class EvoRunner:
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
 
-            key = jax.random.split(
-                agent2._state.random_key, args.popsize * args.num_opps
+            a2_rng = jnp.concatenate(
+                [jax.random.split(agent2._state.random_key, args.num_opps)]
+                * args.popsize
             ).reshape(args.popsize, args.num_opps, -1)
 
             agent2._state, agent2._mem = agent2.batch_init(
-                key,
+                a2_rng,
                 init_hidden,
             )
 
@@ -308,13 +309,13 @@ class EvoRunner:
             _env_params: Any,
         ):
             # env reset
-            rngs = jnp.concatenate(
+            env_rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)]
                 * args.num_opps
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
 
-            obs, env_state = env.reset(rngs, _env_params)
+            obs, env_state = env.reset(env_rngs, _env_params)
             rewards = [
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
@@ -329,10 +330,11 @@ class EvoRunner:
 
             else:
                 # meta-experiments - init 2nd agent per trial
+                a2_rng = jnp.concatenate(
+                    [jax.random.split(_rng_run, args.num_opps)] * args.popsize
+                ).reshape(args.popsize, args.num_opps, -1)
                 a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(
-                        _rng_run, args.popsize * args.num_opps
-                    ).reshape(args.popsize, args.num_opps, -1),
+                    a2_rng,
                     agent2._mem.hidden,
                 )
 
@@ -340,7 +342,7 @@ class EvoRunner:
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (
-                    rngs,
+                    env_rngs,
                     *obs,
                     *rewards,
                     _a1_state,
@@ -355,7 +357,7 @@ class EvoRunner:
             )
 
             (
-                rngs,
+                env_rngs,
                 obs1,
                 obs2,
                 r1,
@@ -435,14 +437,14 @@ class EvoRunner:
         self,
         env_params,
         agents,
-        num_generations: int,
+        num_iters: int,
         watchers: Callable,
     ):
         """Run training of agents in environment"""
         print("Training")
         print("------------------------------")
-        log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
-        print(f"Number of Generations: {num_generations}")
+        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_iters}")
         print(f"Number of Meta Episodes: {self.num_outer_steps}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {self.args.num_envs}")
@@ -454,7 +456,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
-        num_gens = num_generations
+        num_gens = num_iters
         strategy = self.strategy
         es_params = self.es_params
         param_reshaper = self.param_reshaper
@@ -462,7 +464,10 @@ class EvoRunner:
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
         fit_shaper = FitnessShaper(
-            maximize=True, centered_rank=True, w_decay=0.1
+            maximize=self.args.es.maximise,
+            centered_rank=self.args.es.centered_rank,
+            w_decay=self.args.es.w_decay,
+            z_score=self.args.es.z_score,
         )
         es_logging = ESLog(
             param_reshaper.total_params,
@@ -477,18 +482,19 @@ class EvoRunner:
             agent1._mem.hidden,
             (popsize, num_opps, 1, 1),
         )
+        a1_rng = jax.random.split(rng, popsize)
         agent1._state, agent1._mem = agent1.batch_init(
-            jax.random.split(agent1._state.random_key, popsize),
+            a1_rng,
             init_hidden,
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
 
         for gen in range(num_gens):
-            rng, rng_run, rng_gen, rng_key = jax.random.split(rng, 4)
+            rng, rng_run, rng_evo, rng_key = jax.random.split(rng, 4)
 
             # Ask
-            x, evo_state = strategy.ask(rng_gen, evo_state, es_params)
+            x, evo_state = strategy.ask(rng_evo, evo_state, es_params)
             params = param_reshaper.reshape(x)
             if self.args.num_devices == 1:
                 params = jax.tree_util.tree_map(
@@ -504,12 +510,15 @@ class EvoRunner:
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
-            # Reshape over devices
+            # Aggregate over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
-            # Maximize fitness
-            fitness_re = fit_shaper.apply(x, fitness)
+
             # Tell
+            fitness_re = fit_shaper.apply(x, fitness)
+
+            if self.args.es.mean_reduce:
+                fitness_re = fitness_re - fitness_re.mean()
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
 
             # Logging

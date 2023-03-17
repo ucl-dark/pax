@@ -20,8 +20,7 @@ num_envs: 2
 num_opps: 1
 num_steps: 10_000 
 num_inner_steps: 100 
-num_generations: 5000
-total_timesteps: 1e11
+num_iters: 5000
 num_devices: 1
 
 # EARL vs. PPO trained on seed=0
@@ -87,7 +86,11 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-
+  centered_rank: False     # Fitness centered_rank
+  w_decay: 0        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: True      # Normalise fitness 
+  mean_reduce: True    # Remove mean
 # Logging setup
 wandb:
   entity: "ucl-dark"

@@ -549,6 +549,7 @@ def make_mfos_agent(
     action_spec,
     seed: int,
     player_id: int,
+    num_iterations: int,
 ):
     """Make PPO agent"""
     # Network
@@ -571,17 +572,9 @@ def make_mfos_agent(
     gru_dim = initial_hidden_state.shape[1]
 
     # Optimizer
-    # TODO: this is a hack - we assume memory agent is outer agent - we should pass through explicitly
-    batch_size = int(
-        args.num_envs
-        * (args.num_outer_steps * args.num_inner_steps)
-        * args.num_opps
-    )
     transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * agent_args.num_epochs
-        * agent_args.num_minibatches
+        num_iterations,
+        *agent_args.num_epochs * agent_args.num_minibatches,
     )
 
     if agent_args.lr_scheduling:

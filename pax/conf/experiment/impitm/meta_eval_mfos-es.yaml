@@ -20,7 +20,6 @@ num_envs: 50
 num_opps: 1
 num_outer_steps: 1000
 num_inner_steps: 152 
-total_timesteps: 5e7
 save_interval: 100 
 
 # Evaluation
