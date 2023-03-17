@@ -270,6 +270,13 @@ class RLRunner:
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
+            a1_state, _, a1_metrics = agent1.update(
+                trajectories[0],
+                self.reduce_opp_dim(obs1),
+                a1_state,
+                self.reduce_opp_dim(a1_mem),
+            )
+
             # update second agent
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
@@ -358,12 +365,12 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(obs1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
+            # a1_state, _, a1_metrics = agent1.update(
+            #     reduce_outer_traj(traj_1),
+            #     self.reduce_opp_dim(obs1),
+            #     a1_state,
+            #     self.reduce_opp_dim(a1_mem),
+            # )
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
