@@ -6074,3 +6074,43 @@
 [2023-03-08 10:37:05,855][root][INFO] - Training with tensor eval Runner
 [2023-03-08 10:37:06,801][root][INFO] - => Done in 945.504 ms
 [2023-03-08 10:37:06,801][root][INFO] - 
+[2023-03-12 02:12:29,532][root][INFO] - => Global setup ...
+[2023-03-12 02:12:33,333][root][INFO] - => Done in 3.801 s
+[2023-03-12 02:12:33,333][root][INFO] - 
+[2023-03-12 02:12:33,333][root][INFO] - => Env setup ...
+[2023-03-12 02:12:33,337][root][INFO] - Env Type: meta s| Inner Episode Length: 200
+[2023-03-12 02:12:33,338][root][INFO] - => Done in 4.404 ms
+[2023-03-12 02:12:33,338][root][INFO] - 
+[2023-03-12 02:12:33,338][root][INFO] - => Agent setup ...
+[2023-03-12 02:12:34,194][root][INFO] - Agent Pair: PPO_memory | PPO_memory| PPO_memory
+[2023-03-12 02:12:34,194][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-03-12 02:12:34,194][root][INFO] - Using EvolutionaryLearners
+[2023-03-12 02:12:34,194][root][INFO] - => Done in 856.782 ms
+[2023-03-12 02:12:34,195][root][INFO] - 
+[2023-03-12 02:12:34,195][root][INFO] - => Watcher setup ...
+[2023-03-12 02:12:34,195][root][INFO] - => Done in 111.818 us
+[2023-03-12 02:12:34,195][root][INFO] - 
+[2023-03-12 02:12:34,195][root][INFO] - => Runner setup ...
+[2023-03-12 02:12:34,233][root][INFO] - Evolution Strategy: OpenES
+[2023-03-12 02:12:35,727][root][INFO] - => Done in 1.533 s
+[2023-03-12 02:12:35,728][root][INFO] - 
+[2023-03-14 10:08:52,981][root][INFO] - => Global setup ...
+[2023-03-14 10:08:55,932][root][INFO] - => Done in 2.951 s
+[2023-03-14 10:08:55,932][root][INFO] - 
+[2023-03-14 10:08:55,932][root][INFO] - => Env setup ...
+[2023-03-14 10:08:55,937][root][INFO] - Env Type: meta s| Inner Episode Length: 100
+[2023-03-14 10:08:55,937][root][INFO] - => Done in 4.903 ms
+[2023-03-14 10:08:55,937][root][INFO] - 
+[2023-03-14 10:08:55,937][root][INFO] - => Agent setup ...
+[2023-03-14 10:08:56,677][root][INFO] - Agent Pair: PPO_memory | PPO_memory| PPO_memory
+[2023-03-14 10:08:56,677][root][INFO] - Agent seeds: 0 | 1| 2
+[2023-03-14 10:08:56,677][root][INFO] - Using EvolutionaryLearners
+[2023-03-14 10:08:56,677][root][INFO] - => Done in 740.191 ms
+[2023-03-14 10:08:56,677][root][INFO] - 
+[2023-03-14 10:08:56,677][root][INFO] - => Watcher setup ...
+[2023-03-14 10:08:56,677][root][INFO] - => Done in 110.149 us
+[2023-03-14 10:08:56,678][root][INFO] - 
+[2023-03-14 10:08:56,678][root][INFO] - => Runner setup ...
+[2023-03-14 10:08:56,711][root][INFO] - Evolution Strategy: OpenES
+[2023-03-14 10:08:58,200][root][INFO] - => Done in 1.523 s
+[2023-03-14 10:08:58,200][root][INFO] - 
