@@ -14,8 +14,8 @@ runner: rl
 # env_batch_size = num_envs * num_opponents
 num_envs: 1
 num_opps: 4000
-num_outer_steps: 4
-num_inner_steps: 50 # number of inner steps (only for MetaFinite Env)
+num_outer_steps: 100
+num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
 num_iters: 1e5
 
 # Useful information
