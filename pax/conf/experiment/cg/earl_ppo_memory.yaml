@@ -21,7 +21,7 @@ num_envs: 10 #50
 num_opps: 1
 num_outer_steps: 600
 num_inner_steps: 16 
-num_generations: 5000
+num_iters: 5000
 
 # Evaluation
 run_path: ucl-dark/cg/20o5qob2

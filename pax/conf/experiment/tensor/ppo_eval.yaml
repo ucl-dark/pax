@@ -16,7 +16,7 @@ runner: tensor_eval
 
 # Training hyperparameters
 num_envs: 2
-num_opps: 1
+num_opps: 10
 num_inner_steps: 100
 num_outer_steps: 1 # number of steps per episode
 total_timesteps: 200000 #100 games # inner_steps * outer_steps *num_envs * num_oppps

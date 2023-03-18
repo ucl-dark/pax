@@ -21,11 +21,10 @@ num_envs: 100
 num_opps: 1
 num_outer_steps: 1
 num_inner_steps: 150 # number of steps per episode
-total_timesteps: 2e7
-save_interval: 2e7
+num_iters: 2e5
+save_interval: 1
 
 # Useful information
-# num_episodes = total_timesteps / num_steps
 # batch_size = num_envs * num_steps
 
 # PPO agent parameters

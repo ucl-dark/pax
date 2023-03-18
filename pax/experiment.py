@@ -333,12 +333,16 @@ def agent_setup(args, env, env_params, logger):
 
     def get_PPO_memory_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         return make_gru_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
+            num_iterations=num_iterations,
             player_id=player_id,
         )
 
@@ -351,11 +355,17 @@ def agent_setup(args, env, env_params, logger):
             player_args = args.ppo3
         else:
             raise RuntimeError("player_id must be 1, 2, or 3")
+
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
+        else:
+            num_iterations = args.num_iters
         ppo_agent = make_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
+            num_iterations=num_iterations,
             seed=seed,
             player_id=player_id,
         )
@@ -363,12 +373,16 @@ def agent_setup(args, env, env_params, logger):
 
     def get_PPO_tabular_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         ppo_agent = make_agent(
             args,
             player_args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
+            num_iterations=num_iterations,
             player_id=player_id,
             tabular=True,
         )
@@ -376,10 +390,14 @@ def agent_setup(args, env, env_params, logger):
 
     def get_mfos_agent(seed, player_id):
         agent_args = args.ppo1
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         ppo_agent = make_mfos_agent(
             args,
             agent_args,
             obs_spec=obs_shape,
+            num_iterations=num_iterations,
             action_spec=num_actions,
             seed=seed,
             player_id=player_id,
@@ -534,7 +552,12 @@ def watcher_setup(args, logger):
         agent,
     ):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+        ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -546,12 +569,16 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        # TODO fix this
-        # if args.env_id not in ["coin_game", "InTheMatrix"]:
-        #     policy = policy_logger_ppo(agent, three_players)
-        #     value = value_logger_ppo(agent, three_players)
-        #     losses.update(value)
-        #     losses.update(policy)
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+        ]:
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
+            losses.update(value)
+            losses.update(policy)
         if args.wandb.log:
             losses = jax.tree_util.tree_map(
                 lambda x: x.item() if isinstance(x, jax.Array) else x, losses
@@ -663,37 +690,26 @@ def main(args):
     if not args.wandb.log:
         watchers = False
 
+    print(f"Number of Training Iterations: {args.num_iters}")
+
     if args.runner == "evo" or args.runner == "tensor_evo":
-        num_iters = args.num_generations  # number of generations
-        print(f"Number of Generations: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+        runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "rl" or args.runner == "tensor_rl":
-        num_iters = int(
-            args.total_timesteps
-            / (args.num_outer_steps * args.num_inner_steps)
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+        # number of episodes
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "ipditm_eval":
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":
-        num_iters = int(
-            args.total_timesteps / args.num_steps
-        )  # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env, env_params, agent_pair, num_iters, watchers)
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "eval" or args.runner == "tensor_eval":
-        num_iters = int(
-            args.total_timesteps
-            / (args.num_outer_steps * args.num_inner_steps)
-        )
-        # number of episodes
-        print(f"Number of Episodes: {num_iters}")
-        runner.run_loop(env_params, agent_pair, num_iters, watchers)
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
     wandb.finish()
 

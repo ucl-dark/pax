@@ -439,20 +439,16 @@ class PPO(AgentInterface):
         return state, mem, metrics
 
 
-def make_hyper(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_hyper(
+    args, obs_spec, action_spec, seed: int, num_iterations: int, player_id: int
+):
     """Make PPO agent"""
 
     network = make_network(action_spec)
 
     # Optimizer
-    batch_size = int(
-        args.num_envs * (args.num_outer_steps * args.num_inner_steps)
-    )
     transition_steps = (
-        args.total_timesteps
-        / batch_size
-        * args.ppo.num_epochs
-        * args.ppo.num_minibatches
+        num_iterations * args.ppo.num_epochs * args.ppo.num_minibatches
     )
 
     if args.ppo.lr_scheduling:

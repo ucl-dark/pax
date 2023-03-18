@@ -29,7 +29,7 @@ num_opps: 1
 num_devices: 8
 num_outer_steps: 500
 num_inner_steps: 152 
-num_generations: 5000
+num_iters: 5000
 
 # Evaluation
 run_path: ucl-dark/cg/3mpgbfm2
@@ -100,7 +100,12 @@ es:
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
   elite_ratio: 0.1
-
+  centered_rank: True     # Fitness centered_rank
+  w_decay: 0.1        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: False      # Normalise fitness 
+  mean_reduce: False    # Remove mean
+  
 # Logging setup
 wandb:
   entity: "ucl-dark"
