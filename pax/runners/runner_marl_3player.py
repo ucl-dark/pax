@@ -107,10 +107,6 @@ class TensorRLRunner:
         num_outer_steps = self.args.num_outer_steps
 
         agent1, agent2, agent3 = agents
-        # agent1.state, agent1.mem, agent1.batch_init, agent1.batch_reset, agent1.batch_policy = init_first_agent(args.agent1, agent1, args.num_opps)
-
-        # agent2.state, agent2.mem, agent2.batch_init, agent2.batch_update,agent2.batch_reset, agent2.batch_policy = init_other_agent(args.agent2, agent2, args.num_opps)
-        # agent3.state, agent3.mem, agent3.batch_init, agent3.batch_update,agent3.batch_reset, agent3.batch_policy = init_other_agent(args.agent3, agent3, args.num_opps)
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -156,8 +152,9 @@ class TensorRLRunner:
         if args.agent2 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            a2_rng = jax.random.split(agent2._state.random_key, args.num_opps)
             agent2._state, agent2._mem = agent2.batch_init(
-                jax.random.split(agent2._state.random_key, args.num_opps),
+                a2_rng,
                 init_hidden,
             )
 
@@ -177,8 +174,9 @@ class TensorRLRunner:
         if args.agent3 != "NaiveEx":
             # NaiveEx requires env first step to init.
             init_hidden = jnp.tile(agent3._mem.hidden, (args.num_opps, 1, 1))
+            a3_rng = jax.random.split(agent3._state.random_key, args.num_opps)
             agent3._state, agent3._mem = agent3.batch_init(
-                jax.random.split(agent3._state.random_key, args.num_opps),
+                a3_rng,
                 init_hidden,
             )
 
@@ -383,27 +381,27 @@ class TensorRLRunner:
             # Player 1
             _a1_mem = agent1.batch_reset(_a1_mem, False)
 
-            # Player 2
             if args.agent1 == "NaiveEx":
                 _a1_state, _a1_mem = agent1.batch_init(obs[0])
 
+            # getting separate rngs for each agent
+            _rng_run, agent2_rng, agent3_rng = jax.random.split(_rng_run, 3)
+            # Player 2
             if args.agent2 == "NaiveEx":
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
-                _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a2_mem.hidden
-                )
+                a2_rng = jax.random.split(agent2_rng, self.num_opps)
+                _a2_state, _a2_mem = agent2.batch_init(a2_rng, _a2_mem.hidden)
 
             if args.agent3 == "NaiveEx":
                 _a3_state, _a3_mem = agent3.batch_init(obs[2])
 
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 3rd agent per trial
-                _a3_state, _a3_mem = agent3.batch_init(
-                    jax.random.split(_rng_run, self.num_opps), _a3_mem.hidden
-                )
+                a3_rng = jax.random.split(agent3_rng, self.num_opps)
+                _a3_state, _a3_mem = agent3.batch_init(a3_rng, _a3_mem.hidden)
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -512,9 +510,7 @@ class TensorRLRunner:
             int(num_iters / (self.args.num_envs * self.num_opps)), 1
         )
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
-        save_interval = int(
-            num_iters * self.args.save_interval / self.args.total_timesteps
-        )
+        save_interval = self.args.save_interval
         agent1, agent2, agent3 = agents
         rng, _ = jax.random.split(self.random_key)
 
