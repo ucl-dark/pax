@@ -493,27 +493,12 @@ def ipd_visitation(
 
 def tensor_ipd_visitation(
     observations: jnp.ndarray,
-    actions: jnp.ndarray,
-    final_obs: jnp.ndarray,
-    agent_idx=1,
 ) -> dict:
-    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
-    # final_t [num_opps, num_envs, ...]
-    num_timesteps = observations.shape[0] * observations.shape[1]
-    # obs = [0....8], a = [0, 1]
-    # combine = [0, .... 17]
-    state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
-    state_actions = jnp.reshape(
-        state_actions,
-        (num_timesteps,) + state_actions.shape[2:],
-    )
-    # assume final step taken is cooperate
-    final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
-    state_actions = jnp.append(state_actions, final_obs, axis=0)
-    hist = jnp.bincount(state_actions.flatten(), length=18)
-    state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
-    state_probs = state_freq / state_freq.sum()
-    action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, num_states]
+    state_actions = jnp.argmax(observations, axis=-1)
+    hist = jnp.bincount(state_actions.flatten(), length=9)
+    state_freq = hist
+    state_probs = hist / hist.sum()
     return {
         "state_visitation/CCC": state_freq[0],
         "state_visitation/CCD": state_freq[1],

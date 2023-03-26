@@ -77,7 +77,7 @@ from pax.watchers import (
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
-    if not args.runner == "eval" and not args.runner == "tensor_eval":
+    if not args.runner == "eval":
         os.makedirs(
             save_dir,
             exist_ok=True,
@@ -700,14 +700,13 @@ def main(args):
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "ipditm_eval":
+    elif args.runner == "ipditm_eval" or args.runner == "tensor_eval":
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
-
-    elif args.runner == "eval" or args.runner == "tensor_eval":
+    elif args.runner == "eval":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 

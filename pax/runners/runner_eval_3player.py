@@ -7,7 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save, load
-from pax.watchers import tensor_ipd_visitation
+from pax.watchers import ipditm_stats, tensor_ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -68,6 +68,7 @@ class TensorEvalRunner:
             A tuple of experiment arguments used (usually provided by HydraConfig).
     """
 
+    # flake8: noqa: C901
     def __init__(self, agents, env, save_dir, args):
         self.train_steps = 0
         self.train_episodes = 0
@@ -78,7 +79,6 @@ class TensorEvalRunner:
         self.save_dir = save_dir
 
         def _reshape_opp_dim(x):
-            # We collapse the opponent and env dims into a single batch dim
             # x: [num_opps, num_envs ...]
             # x: [batch_size, ...]
             batch_size = args.num_envs * args.num_opps
@@ -88,14 +88,12 @@ class TensorEvalRunner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.tensor_ipd_stats = jax.jit(tensor_ipd_visitation)
-        # self.cg_stats = jax.jit(cg_visitation)
-
-        # Composing vmaps for num_envs * num_opps games, keeping the params constant
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
+        self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num opps: we vmap over the rng but not params
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
@@ -104,27 +102,22 @@ class TensorEvalRunner:
             )
         )
 
-        self.split = jax.vmap(
-            jax.vmap(jax.random.split, (0, None)), (0, None)
-        )  # @alex skipped
-        num_outer_steps = (
-            1
-            if self.args.env_type
-            == "sequential"  # TODO: enforce one of these instead of both
-            else self.args.num_outer_steps
-        )
+        self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+        self.num_outer_steps = self.args.num_outer_steps
 
         agent1, agent2, agent3 = agents
 
-        # batch MemoryState not TrainingState
-        agent1.batch_init = jax.vmap(
-            agent1.make_initial_state,
-            (None, 0),  # batch not over rng, but over hidden
-            (
-                None,
-                0,
-            ),  # batch not over training state, but over memory state
-        )
+        # set up agents
+        if args.agent1 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
+        else:
+            # batch MemoryState not TrainingState
+            agent1.batch_init = jax.vmap(
+                agent1.make_initial_state,
+                (None, 0),
+                (None, 0),
+            )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
         )
@@ -133,39 +126,55 @@ class TensorEvalRunner:
             jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
         )
 
-        init_hidden = jnp.tile(
-            agent1._mem.hidden, (args.num_opps, 1, 1)
-        )  # @alex why is this not *num_env too?
-        agent1._state, agent1._mem = agent1.batch_init(
-            agent1._state.random_key, init_hidden
-        )
-
         # batch all for Agent2
-
-        agent2.batch_init = jax.vmap(agent2.make_initial_state, (0, None), 0)
+        if args.agent2 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
+        else:
+            agent2.batch_init = jax.vmap(
+                agent2.make_initial_state, (0, None), 0
+            )
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
             jax.vmap(agent2.reset_memory, (0, None), 0), static_argnums=1
         )
         agent2.batch_update = jax.jit(jax.vmap(agent2.update, (1, 0, 0, 0), 0))
-        init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
-        agent2._state, agent2._mem = agent2.batch_init(
-            jax.random.split(agent2._state.random_key, args.num_opps),
-            init_hidden,
-        )
 
         # batch all for Agent3
-        agent3.batch_init = jax.vmap(agent3.make_initial_state, (0, None), 0)
+        if args.agent3 == "NaiveEx":
+            # special case where NaiveEx has a different call signature
+            agent3.batch_init = jax.jit(jax.vmap(agent3.make_initial_state))
+        else:
+            agent3.batch_init = jax.vmap(
+                agent3.make_initial_state, (0, None), 0
+            )
         agent3.batch_policy = jax.jit(jax.vmap(agent3._policy))
         agent3.batch_reset = jax.jit(
             jax.vmap(agent3.reset_memory, (0, None), 0), static_argnums=1
         )
         agent3.batch_update = jax.jit(jax.vmap(agent3.update, (1, 0, 0, 0), 0))
-        init_hidden = jnp.tile(agent3._mem.hidden, (args.num_opps, 1, 1))
-        agent3._state, agent3._mem = agent3.batch_init(
-            jax.random.split(agent3._state.random_key, args.num_opps),
-            init_hidden,
-        )
+
+        if args.agent1 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
+            agent1._state, agent1._mem = agent1.batch_init(
+                agent1._state.random_key, init_hidden
+            )
+
+        if args.agent2 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+            agent2._state, agent2._mem = agent2.batch_init(
+                jax.random.split(agent2._state.random_key, args.num_opps),
+                init_hidden,
+            )
+        if args.agent3 != "NaiveEx":
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent3._mem.hidden, (args.num_opps, 1, 1))
+            agent3._state, agent3._mem = agent3.batch_init(
+                jax.random.split(agent3._state.random_key, args.num_opps),
+                init_hidden,
+            )
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -190,12 +199,16 @@ class TensorEvalRunner:
             # unpack rngs
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, 0, :]
+            # a1_rng = rngs[:, :, 1, :]
+            # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
+
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
                 a1_mem,
             )
+
             a2, a2_state, new_a2_mem = agent2.batch_policy(
                 a2_state,
                 obs2,
@@ -262,7 +275,11 @@ class TensorEvalRunner:
                 new_a3_mem,
                 env_state,
                 env_params,
-            ), (traj1, traj2, traj3)
+            ), (
+                traj1,
+                traj2,
+                traj3,
+            )
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
@@ -273,7 +290,6 @@ class TensorEvalRunner:
                 None,
                 length=self.args.num_inner_steps,
             )
-
             (
                 rngs,
                 obs1,
@@ -291,6 +307,9 @@ class TensorEvalRunner:
                 env_state,
                 env_params,
             ) = vals
+            # MFOS has to take a meta-action for each episode
+            if args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
 
             # update second agent
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
@@ -299,7 +318,6 @@ class TensorEvalRunner:
                 a2_state,
                 a2_mem,
             )
-            # update third agent
             a3_state, a3_mem, a3_metrics = agent3.batch_update(
                 trajectories[2],
                 obs3,
@@ -346,21 +364,30 @@ class TensorEvalRunner:
                 jnp.zeros((args.num_opps, args.num_envs)),
             ]
             # Player 1
-            # TODO UNDO
-            # _a1_mem = agent1.batch_reset(_a1_mem, False)
+            _a1_mem = agent1.batch_reset(_a1_mem, False)
 
-            if self.args.env_type in ["meta"]:
-                _rng_run, agent1_rng = jax.random.split(_rng_run, 2)
+            # Player 2
+            if args.agent1 == "NaiveEx":
+                _a1_state, _a1_mem = agent1.batch_init(obs[0])
+
+            if args.agent2 == "NaiveEx":
+                _a2_state, _a2_mem = agent2.batch_init(obs[1])
+            if args.agent3 == "NaiveEx":
+                _a3_state, _a3_mem = agent3.batch_init(obs[2])
+
+            elif self.args.env_type in ["meta"]:
                 _rng_run, agent2_rng = jax.random.split(_rng_run, 2)
-                # meta-experiments - init other agents per trial
+                _rng_run, agent3_rng = jax.random.split(_rng_run, 2)
+                # meta-experiments - init 2nd agent per trial
                 _a2_state, _a2_mem = agent2.batch_init(
-                    jax.random.split(agent1_rng, self.num_opps), _a2_mem.hidden
+                    jax.random.split(agent2_rng, self.num_opps), _a2_mem.hidden
                 )
+                # meta-experiments - init 3nd agent per trial
                 _a3_state, _a3_mem = agent3.batch_init(
-                    jax.random.split(agent2_rng, self.num_opps), _a3_mem.hidden
+                    jax.random.split(agent3_rng, self.num_opps), _a3_mem.hidden
                 )
             # run trials
-            vals, stack = jax.lax.scan(  # @alex understand this?
+            vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (
                     rngs,
@@ -376,7 +403,7 @@ class TensorEvalRunner:
                     _env_params,
                 ),
                 None,
-                length=num_outer_steps,
+                length=self.args.num_outer_steps,
             )
 
             (
@@ -399,174 +426,163 @@ class TensorEvalRunner:
             traj_1, traj_2, traj_3, a2_metrics, a3_metrics = stack
 
             # reset memory
-            # this is here because in sequential, we don't reset memory earlier
-            # TODO UNDO
-            # a1_mem = agent1.batch_reset(a1_mem, False)
-            # a2_mem = agent2.batch_reset(a2_mem, False)
-            # a3_mem = agent3.batch_reset(a3_mem, False)
-
-            env_stats = jax.tree_util.tree_map(
-                lambda x: x.mean(),
-                self.tensor_ipd_stats(
-                    traj_1.observations,
-                    traj_1.actions,
-                    obs1,
-                ),
-            )
-            rewards_1 = traj_1.rewards.mean()
-            rewards_2 = traj_2.rewards.mean()
-            rewards_3 = traj_3.rewards.mean()
+            a1_mem = agent1.batch_reset(a1_mem, False)
+            a2_mem = agent2.batch_reset(a2_mem, False)
+            a3_mem = agent3.batch_reset(a3_mem, False)
+            # Stats
+            if args.env_id == "iterated_tensor_game":
+                total_env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.tensor_ipd_stats(
+                        traj_1.observations,
+                    ),
+                )
+                total_rewards_1 = traj_1.rewards.mean()
+                total_rewards_2 = traj_2.rewards.mean()
+                total_rewards_3 = traj_3.rewards.mean()
+            else:
+                total_env_stats = {}
+                total_rewards_1 = traj_1.rewards.mean()
+                total_rewards_2 = traj_2.rewards.mean()
+                total_rewards_3 = traj_3.rewards.mean()
 
             return (
-                env_stats,
-                rewards_1,
-                rewards_2,
-                rewards_3,
+                total_env_stats,
+                total_rewards_1,
+                total_rewards_2,
+                total_rewards_3,
                 a1_state,
                 a1_mem,
-                # a1_metrics,
                 a2_state,
                 a2_mem,
                 a2_metrics,
                 a3_state,
                 a3_mem,
                 a3_metrics,
+                traj_1,
+                traj_2,
+                traj_3,
             )
 
         # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
-    def run_loop(self, env_params, agents, num_iters, watchers):
+    def run_loop(self, env_params, agents, watchers):
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
         agent1, agent2, agent3 = agents
         rng, _ = jax.random.split(self.random_key)
-
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
         a3_state, a3_mem = agent3._state, agent3._mem
 
-        if watchers:
-            wandb.restore(
-                name=self.args.model_path,
-                run_path=self.args.run_path,
-                root=os.getcwd(),
-            )
-        pretrained_params = load(self.args.model_path)
+        wandb.restore(
+            name=self.args.model_path1,
+            run_path=self.args.run_path1,
+            root=os.getcwd(),
+        )
+
+        pretrained_params = load(self.args.model_path1)
         a1_state = a1_state._replace(params=pretrained_params)
 
-        num_iters = max(
-            int(num_iters / (self.args.num_envs * self.num_opps)),
-            1,  # @alex get rid of this, this is redundant if using env and opps instead
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-
-        print(f"Log Interval {log_interval}")
-
         # run actual loop
-        for i in range(num_iters):
-            rng, rng_run = jax.random.split(rng, 2)
-            # RL Rollout
-            (
-                env_stats,
-                rewards_1,
-                rewards_2,
-                rewards_3,
-                a1_state,
-                a1_mem,
-                # a1_metrics,
-                a2_state,
-                a2_mem,
-                a2_metrics,
-                a3_state,
-                a3_mem,
-                a3_metrics,
-            ) = self.rollout(
-                rng_run,
-                a1_state,
-                a1_mem,
-                a2_state,
-                a2_mem,
-                a3_state,
-                a3_mem,
-                env_params,
+        rng, rng_run = jax.random.split(rng, 2)
+        # RL Rollout
+        (
+            env_stats,
+            total_rewards_1,
+            total_rewards_2,
+            total_rewards_3,
+            a1_state,
+            a1_mem,
+            a2_state,
+            a2_mem,
+            a2_metrics,
+            a3_state,
+            a3_mem,
+            a3_metrics,
+            traj1,
+            traj2,
+            traj3,
+        ) = self.rollout(
+            rng_run,
+            a1_state,
+            a1_mem,
+            a2_state,
+            a2_mem,
+            a3_state,
+            a3_mem,
+            env_params,
+        )
+
+        for stat in env_stats.keys():
+            print(stat + f": {env_stats[stat].item()}")
+        print(
+            f"Total Episode Reward: {float(total_rewards_1.mean()), float(total_rewards_2.mean()), float(total_rewards_3.mean())}"
+        )
+        print()
+
+        if watchers:
+
+            list_traj1 = [
+                Sample(
+                    observations=jax.tree_util.tree_map(
+                        lambda x: x[i, ...], traj1.observations
+                    ),
+                    actions=traj1.actions[i, ...],
+                    rewards=traj1.rewards[i, ...],
+                    dones=traj1.dones[i, ...],
+                    # env_state=None,
+                    behavior_log_probs=traj1.behavior_log_probs[i, ...],
+                    behavior_values=traj1.behavior_values[i, ...],
+                    hiddens=traj1.hiddens[i, ...],
+                )
+                for i in range(self.args.num_outer_steps)
+            ]
+
+            list_of_env_stats = [
+                jax.tree_util.tree_map(
+                    lambda x: x.item(),
+                    self.tensor_ipd_stats(
+                        traj.observations,
+                    ),
+                )
+                for traj in list_traj1
+            ]
+
+            # log agent one
+            watchers[0](agents[0])
+            # log the inner episodes
+            for i in range(len(list_of_env_stats)):
+                wandb.log(
+                    {
+                        "train_iteration": i,
+                        "eval/reward_per_timestep/player_1": float(
+                            traj1.rewards[i].mean().item()
+                        ),
+                        "eval/reward_per_timestep/player_2": float(
+                            traj2.rewards[i].mean().item()
+                        ),
+                        "eval/reward_per_timestep/player_3": float(
+                            traj3.rewards[i].mean().item()
+                        ),
+                    }
+                    | list_of_env_stats[i]
+                )
+            wandb.log(
+                {
+                    "episodes": 1,
+                    "eval/meta_reward/player_1": float(
+                        total_rewards_1.mean().item()
+                    ),
+                    "eval/meta_reward/player_2": float(
+                        total_rewards_2.mean().item()
+                    ),
+                    "eval/meta_reward/player_3": float(
+                        total_rewards_3.mean().item()
+                    ),
+                }
             )
 
-            if self.args.save and i % self.args.save_interval == 0:
-                log_savepath1 = os.path.join(
-                    self.save_dir, f"agent1_iteration_{i}"
-                )
-                log_savepath2 = os.path.join(
-                    self.save_dir, f"agent2_iteration_{i}"
-                )
-                log_savepath3 = os.path.join(
-                    self.save_dir, f"agent3_iteration_{i}"
-                )
-                save(a1_state.params, log_savepath1)
-                save(a2_state.params, log_savepath2)
-                save(a3_state.params, log_savepath3)
-                if watchers:
-                    print(f"Saving iteration {i} locally and to WandB")
-                    wandb.save(log_savepath1)
-                    wandb.save(log_savepath2)
-                    wandb.save(log_savepath3)
-                else:
-                    print(f"Saving iteration {i} locally")
-
-            # logging
-            self.train_episodes += 1
-            if i % log_interval == 0:
-                print(f"Episode {i}")
-
-                print(f"Env Stats: {env_stats}")
-                print(
-                    "Total Episode Reward:"
-                    + f"{float(rewards_1.mean()), float(rewards_2.mean()), float(rewards_3.mean())}"
-                )
-                print()
-
-                if watchers:
-                    # metrics [outer_timesteps]
-                    # flattened_metrics_1 = jax.tree_util.tree_map(
-                    #     lambda x: jnp.mean(x), a1_metrics
-                    # )
-                    # agent1._logger.metrics = (
-                    #     agent1._logger.metrics | flattened_metrics_1
-                    # )
-                    # metrics [outer_timesteps, num_opps]
-                    flattened_metrics_2 = jax.tree_util.tree_map(
-                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                    )
-                    agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics_2
-                    )
-                    flattened_metrics_3 = jax.tree_util.tree_map(
-                        lambda x: jnp.sum(jnp.mean(x, 1)), a3_metrics
-                    )
-                    agent3._logger.metrics = (
-                        agent3._logger.metrics | flattened_metrics_3
-                    )
-
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
-                    wandb.log(
-                        {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
-                            ),
-                            "train/episode_reward/player_2": float(
-                                rewards_2.mean()
-                            ),
-                            "train/episode_reward/player_3": float(
-                                rewards_3.mean()
-                            ),
-                        }
-                        | env_stats,
-                    )
-
-        agents[0]._state = a1_state
-        agents[1]._state = a2_state
-        agents[2]._state = a3_state
         return agents
