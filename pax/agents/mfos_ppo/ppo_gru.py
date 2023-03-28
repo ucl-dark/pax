@@ -554,7 +554,7 @@ def make_mfos_agent(
     """Make PPO agent"""
     # Network
 
-    if args.env_id == "coin_game":
+    if args.env_id == "coin_game" or args.env_id == "iterated_matrix_game":
         network, initial_hidden_state = make_mfos_network(
             action_spec,
             agent_args.hidden_size,
