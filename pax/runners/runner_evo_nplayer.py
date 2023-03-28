@@ -250,6 +250,7 @@ class NPlayerEvoRunner:
                 actions,
                 env_params,
             )
+
             first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
             first_agent_reward, *other_agent_rewards = all_agent_rewards
 
@@ -314,7 +315,6 @@ class NPlayerEvoRunner:
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
                 first_agent_mem = agent1.meta_policy(first_agent_mem)
-
             # update opponents, we start with agent2
             for agent_idx, non_first_agent in enumerate(other_agents):
                 (
@@ -443,7 +443,9 @@ class NPlayerEvoRunner:
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.ipd_stats(first_agent_obs, args.num_players),
+                    self.ipd_stats(
+                        trajectories[0].observations, args.num_players
+                    ),
                 )
                 first_agent_reward = trajectories[0].rewards.mean()
                 other_agent_rewards = [

@@ -1,16 +1,15 @@
 # @package _global_
 
 # Agents  
-agent1: 'Tabular'
+agent1: 'PPO'
 agent2: 'TitForTatCooperate'
 agent3: 'TitForTatCooperate'
 
 # Environment
-env_id: iterated_nplayer_tensor_game
 num_players: 3
 env_type: meta
 env_discount: 0.99
-# payoff: [[7, 7, 7], [3, 3,9], [3,9,3], [0,5,5], [9,3,3],[5,0,5], [5,5,0],[1,1,1]]
+payoff: [[4,4,4], [2.66,2.66,5.66], [2.66,5.66,2.66], [1.33,4.33,4.33], [5.66,2.66,2.66],[4.33,1.33,4.33], [4.33,4.33,1.33],[3,3,3]]
 payoff_table: [
     [4, -1000],
     [2.66, 5.66],
@@ -18,14 +17,17 @@ payoff_table: [
     [-10000, 3],
 ]
 # Runner 
-runner: tensor_evo_nplayer
+env_id: iterated_tensor_game
+runner: tensor_evo
+# env_id: iterated_tensor_game_nplayer
+# runner: tensor_evo_nplayer
 
 # Training hyperparameters
 num_envs: 2
 num_opps: 1
 num_inner_steps: 100
-num_outer_steps: 1
-num_iters: 10
+num_outer_steps: 100
+num_iters: 50
 num_devices: 1
 top_k: 5
 popsize: 50

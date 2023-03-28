@@ -512,7 +512,6 @@ def n_player_ipd_visitation(
     visitation_dict = dict(zip(visitation_strs, state_freq)) | dict(
         zip(prob_strs, state_probs)
     )
-
     return visitation_dict
 
 
