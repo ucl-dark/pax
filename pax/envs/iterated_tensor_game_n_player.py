@@ -86,7 +86,7 @@ class IteratedTensorGameNPlayer(environment.Environment):
                 # one hot encode
                 obs = jax.nn.one_hot(obs, len_one_hot, dtype=jnp.int8)
                 all_obs.append(obs)
-
+            all_obs = tuple(all_obs)
             # out step keeping
             inner_t = jax.lax.select(
                 reset_inner, jnp.zeros_like(inner_t), inner_t

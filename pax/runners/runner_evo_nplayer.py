@@ -72,8 +72,8 @@ class NPlayerEvoRunner:
         self.top_k = args.top_k
         self.train_steps = 0
         self.train_episodes = 0
-        # can't jit on num_players
-        self.ipd_stats = jax.jit(n_player_ipd_visitation, static_argnums=(0,))
+        # TODO JIT this
+        self.ipd_stats = n_player_ipd_visitation
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -197,8 +197,10 @@ class NPlayerEvoRunner:
             """Runner for inner episode"""
             (
                 rngs,
-                obs,
-                rewards,
+                first_agent_obs,
+                other_agent_obs,
+                first_agent_reward,
+                other_agent_rewards,
                 first_agent_state,
                 other_agent_state,
                 first_agent_mem,
@@ -206,8 +208,6 @@ class NPlayerEvoRunner:
                 env_state,
                 env_params,
             ) = carry
-            first_agent_obs = obs[0]
-            other_agent_obs = obs[1:]
             new_other_agent_mem = [None] * len(other_agents)
             # unpack rngs
             rngs = self.split(rngs, 4)
@@ -216,9 +216,9 @@ class NPlayerEvoRunner:
             # a1_rng = rngs[:, :, :, 1, :]
             # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
-
+            actions = []
             (
-                first_agent,
+                first_action,
                 first_agent_state,
                 new_first_agent_mem,
             ) = agent1.batch_policy(
@@ -226,9 +226,10 @@ class NPlayerEvoRunner:
                 first_agent_obs,
                 first_agent_mem,
             )
+            actions.append(first_action)
             for agent_idx, non_first_agent in enumerate(other_agents):
                 (
-                    non_first_agent,
+                    non_first_action,
                     other_agent_state[agent_idx],
                     new_other_agent_mem[agent_idx],
                 ) = non_first_agent.batch_policy(
@@ -236,6 +237,7 @@ class NPlayerEvoRunner:
                     other_agent_obs[agent_idx],
                     other_agent_mem[agent_idx],
                 )
+                actions.append(non_first_action)
             (
                 all_agent_next_obs,
                 env_state,
@@ -245,7 +247,7 @@ class NPlayerEvoRunner:
             ) = env.step(
                 env_rng,
                 env_state,
-                agents,
+                actions,
                 env_params,
             )
             first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
@@ -253,7 +255,7 @@ class NPlayerEvoRunner:
 
             traj1 = Sample(
                 first_agent_next_obs,
-                agent1,
+                first_action,
                 first_agent_reward,
                 new_first_agent_mem.extras["log_probs"],
                 new_first_agent_mem.extras["values"],
@@ -263,21 +265,21 @@ class NPlayerEvoRunner:
             other_traj = [
                 Sample(
                     other_agent_next_obs[agent_idx],
-                    non_first_agent,
+                    actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],
                     new_other_agent_mem[agent_idx].extras["values"],
                     done,
                     other_agent_mem[agent_idx].hidden,
                 )
-                for agent_idx, non_first_agent in enumerate(other_agents)
+                for agent_idx in range(len(other_agents))
             ]
             return (
                 rngs,
                 first_agent_next_obs,
-                other_agent_next_obs,
+                tuple(other_agent_next_obs),
                 first_agent_reward,
-                other_agent_rewards,
+                tuple(other_agent_rewards),
                 first_agent_state,
                 other_agent_state,
                 new_first_agent_mem,
@@ -337,7 +339,7 @@ class NPlayerEvoRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (*trajectories, other_agent_metrics)
+            ), (trajectories, other_agent_metrics)
 
         def _rollout(
             _params: jnp.ndarray,
@@ -376,7 +378,7 @@ class NPlayerEvoRunner:
                     (
                         other_agent_mem[agent_idx],
                         other_agent_state[agent_idx],
-                    ) = non_first_agent.batch_init(obs[1])
+                    ) = non_first_agent.batch_init(obs[agent_idx + 1])
                 else:
                     # meta-experiments - init 2nd agent per trial
                     non_first_agent_rng = jnp.concatenate(
@@ -400,8 +402,10 @@ class NPlayerEvoRunner:
                 _outer_rollout,
                 (
                     env_rngs,
-                    obs,
-                    rewards,
+                    obs[0],
+                    tuple(obs[1:]),
+                    rewards[0],
+                    tuple(rewards[1:]),
                     _a1_state,
                     other_agent_state,
                     _a1_mem,
@@ -434,17 +438,12 @@ class NPlayerEvoRunner:
                 for traj in trajectories[1:]
             ]
             # # Stats
-
             if args.env_id in [
                 "iterated_nplayer_tensor_game",
             ]:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.ipd_stats(
-                        trajectories[0].observations,
-                        trajectories[0].actions,
-                        first_agent_obs,
-                    ),
+                    self.ipd_stats(first_agent_obs, args.num_players),
                 )
                 first_agent_reward = trajectories[0].rewards.mean()
                 other_agent_rewards = [
@@ -591,7 +590,7 @@ class NPlayerEvoRunner:
                     "--------------------------------------------------------------------------"
                 )
                 print(
-                    f"Fitness: {fitness.mean()} | Other Fitness: {other_fitness.mean()}"
+                    f"Fitness: {fitness.mean()} | Other Fitness: {[fitness.mean() for fitness in other_fitness]}"
                 )
                 print(
                     f"Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_reward]}"
