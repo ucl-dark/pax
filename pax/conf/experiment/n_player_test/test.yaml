@@ -55,9 +55,9 @@ ppo1:
 wandb:
   # entity: "ucl-dark"
   project: tensor
-  group: 'ppo-vs-tft-defect-coop'
+  group: 'nplayer_test'
   name: run-seed-${seed}
-  log: False
+  log: True
 
 # ES parameters 
 es: 

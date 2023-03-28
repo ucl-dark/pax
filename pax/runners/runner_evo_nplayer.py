@@ -646,6 +646,10 @@ class NPlayerEvoRunner:
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
+                    "train/fitness/player_1": float(fitness.mean()),
+                    "train/reward_per_timestep/player_1": float(
+                        first_agent_reward.mean()
+                    ),
                 } | rewards_dict
                 wandb_log = wandb_log | fitness_dict
                 wandb_log.update(env_stats)
@@ -662,18 +666,19 @@ class NPlayerEvoRunner:
 
                 # other player metrics
                 # metrics [outer_timesteps, num_opps]
-                for agent, metrics in (agents[1:], other_agent_metrics):
+                for agent, metrics in zip(agents[1:], other_agent_metrics):
                     flattened_metrics = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), metrics
                     )
 
                     agent._logger.metrics.update(flattened_metrics)
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
-                    wandb_log = jax.tree_util.tree_map(
-                        lambda x: x.item() if isinstance(x, jax.Array) else x,
-                        wandb_log,
-                    )
-                    wandb.log(wandb_log)
+                # TODO fix agent logger
+                # for watcher, agent in zip(watchers, agents):
+                # watcher(agent)
+                wandb_log = jax.tree_util.tree_map(
+                    lambda x: x.item() if isinstance(x, jax.Array) else x,
+                    wandb_log,
+                )
+                wandb.log(wandb_log)
 
         return agents
