@@ -516,7 +516,7 @@ def agent_setup(args, env, env_params, logger):
             logger.info("Using Independent Learners")
             return agent_1
 
-    elif "num_players" in args:
+    else:
         for i in range(1, args.num_players + 1):
             assert (
                 omegaconf.OmegaConf.select(args, "agent" + str(i))
@@ -543,36 +543,7 @@ def agent_setup(args, env, env_params, logger):
         )
         logger.info(f"Agent seeds: {seeds}")
 
-        if args.runner in ["tensor_rl"]:
-            logger.info("Using Independent Learners")
-            return agents
-        elif args.runner in ["tensor_eval"]:
-            logger.info("Using Independent Learners")
-            return agents
-        elif (
-            args.runner == "tensor_evo" or args.runner == "tensor_evo_nplayer"
-        ):
-            logger.info("Using EvolutionaryLearners")
-            return agents
-    else:
-        assert args.agent1 in strategies
-        assert args.agent2 in strategies
-        assert omegaconf.OmegaConf.select(args, "agent3") is None
-        num_agents = 2
-        seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
-        # Create Player IDs by normalizing seeds to 1, 2 respectively
-        pids = [
-            seed % seed + i if seed != 0 else 1
-            for seed, i in zip(seeds, range(1, num_agents + 1))
-        ]
-        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
-
-        if args.agent1 in ["PPO", "PPO_memory"]:
-            logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
-        logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
-        logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
-        return (agent_0, agent_1)
+        return agents
 
 
 def watcher_setup(args, logger):
