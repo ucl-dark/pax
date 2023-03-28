@@ -489,8 +489,6 @@ class TensorEvoRunner:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
-                        traj_1.observations,
-                        traj_1.actions,
                         obs1,
                     ),
                 )

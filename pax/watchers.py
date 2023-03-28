@@ -546,37 +546,37 @@ def tensor_ipd_visitation(
     }
 
 
-def tensor_ipd_coop_probs(
-    observations: jnp.ndarray,
-    actions: jnp.ndarray,
-    final_obs: jnp.ndarray,
-    agent_idx: int = 1,
-) -> dict:
-    num_timesteps = observations.shape[0] * observations.shape[1]
-    # obs = [0....8], a = [0, 1]
-    # combine = [0, .... 17]
-    state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
-    state_actions = jnp.reshape(
-        state_actions,
-        (num_timesteps,) + state_actions.shape[2:],
-    )
-    final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
-    state_actions = jnp.append(state_actions, final_obs, axis=0)
-    hist = jnp.bincount(state_actions.flatten(), length=18)
-    state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
-    action_probs = jnp.nan_to_num(hist[::2] / state_freq)
-    # THIS IS FROM AGENTS OWN PERSPECTIVE
-    return {
-        f"cooperation_probability/{agent_idx}/CCC": action_probs[0],
-        f"cooperation_probability/{agent_idx}/CCD": action_probs[1],
-        f"cooperation_probability/{agent_idx}/CDC": action_probs[2],
-        f"cooperation_probability/{agent_idx}/CDD": action_probs[3],
-        f"cooperation_probability/{agent_idx}/DCC": action_probs[4],
-        f"cooperation_probability/{agent_idx}/DCD": action_probs[5],
-        f"cooperation_probability/{agent_idx}/DDC": action_probs[6],
-        f"cooperation_probability/{agent_idx}/DDD": action_probs[7],
-        f"cooperation_probability/{agent_idx}/START": action_probs[8],
-    }
+# def tensor_ipd_coop_probs(
+#     observations: jnp.ndarray,
+#     actions: jnp.ndarray,
+#     final_obs: jnp.ndarray,
+#     agent_idx: int = 1,
+# ) -> dict:
+#     num_timesteps = observations.shape[0] * observations.shape[1]
+#     # obs = [0....8], a = [0, 1]
+#     # combine = [0, .... 17]
+#     state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
+#     state_actions = jnp.reshape(
+#         state_actions,
+#         (num_timesteps,) + state_actions.shape[2:],
+#     )
+#     final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
+#     state_actions = jnp.append(state_actions, final_obs, axis=0)
+#     hist = jnp.bincount(state_actions.flatten(), length=18)
+#     state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+#     action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+#     # THIS IS FROM AGENTS OWN PERSPECTIVE
+#     return {
+#         f"cooperation_probability/{agent_idx}/CCC": action_probs[0],
+#         f"cooperation_probability/{agent_idx}/CCD": action_probs[1],
+#         f"cooperation_probability/{agent_idx}/CDC": action_probs[2],
+#         f"cooperation_probability/{agent_idx}/CDD": action_probs[3],
+#         f"cooperation_probability/{agent_idx}/DCC": action_probs[4],
+#         f"cooperation_probability/{agent_idx}/DCD": action_probs[5],
+#         f"cooperation_probability/{agent_idx}/DDC": action_probs[6],
+#         f"cooperation_probability/{agent_idx}/DDD": action_probs[7],
+#         f"cooperation_probability/{agent_idx}/START": action_probs[8],
+#     }
 
 
 def cg_visitation(state: NamedTuple) -> dict:
