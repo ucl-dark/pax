@@ -6,15 +6,21 @@ agent2: 'PPO_memory'
 agent3: 'PPO_memory'
 
 # Environment
-env_id: iterated_tensor_game
+env_id: iterated_nplayer_tensor_game
 num_players: 3
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1, -1], [-3, -3,0], [-3,0,-3], [-5,-2,-2], [0,-3,-3],[-2,-5,-2], [-2,-2,-5],[-4,-4,-4]]
+# payoff: [[-1, -1, -1], [-3, -3,0], [-3,0,-3], [-5,-2,-2], [0,-3,-3],[-2,-5,-2], [-2,-2,-5],[-4,-4,-4]]
+payoff_table: [
+    [-1, -1000],
+    [-3, 0],
+    [-5, -2],
+    [-10000, -4],
+]
 # Runner 
-runner: tensor_eval
-run_path1: ucl-dark/tensor/ovqkw4xy
-model_path1: exp/3pl-ipd/shaper_vs_ppo_mem_3/2023-03-28_10.02.13.518909/generation_1300
+runner: tensor_eval_nplayer
+run_path1: ucl-dark/tensor/8fw7ushl
+model_path1: exp/3pl-ipd/shaper_vs_ppo_mem_0/2023-03-25_01.34.42.743390/generation_900
 
 # Training
 num_envs: 2
@@ -113,5 +119,5 @@ wandb:
   entity: "ucl-dark"
   project: tensor
   group: 'eval'
-  name: eval_shaper_vs_ppo_mem_3}
+  name: nplayer_eval_shaper_vs_ppo_mem_0}
   log: True

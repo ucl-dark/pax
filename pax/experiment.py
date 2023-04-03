@@ -53,6 +53,7 @@ from pax.envs.iterated_tensor_game_n_player import (
 )
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_3player import TensorEvalRunner
+from pax.runners.runner_eval_nplayer import NPlayerEvalRunner
 from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_3player import TensorEvoRunner
 from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
@@ -209,6 +210,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "tensor_eval":
         logger.info("Training with tensor eval Runner")
         return TensorEvalRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_eval_nplayer":
+        logger.info("Training with n-player tensor eval Runner")
+        return NPlayerEvalRunner(agents, env, save_dir, args)
     elif args.runner == "ipditm_eval":
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
@@ -699,7 +703,11 @@ def main(args):
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "ipditm_eval" or args.runner == "tensor_eval":
+    elif (
+        args.runner == "ipditm_eval"
+        or args.runner == "tensor_eval"
+        or args.runner == "tensor_eval_nplayer"
+    ):
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":

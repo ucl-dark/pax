@@ -46,7 +46,7 @@ class IteratedTensorGameNPlayer(environment.Environment):
             # calculate rewards
             # row of payoff table is number of defectors
             # column of payoff table is whether player defected or not
-            payoff_array = jnp.array(params.payoff_table)
+            payoff_array = jnp.array(params.payoff_table, dtype=jnp.float32)
             action_array = jnp.array(actions, dtype=jnp.int8)
             relevant_row = payoff_array[num_defect]
 
