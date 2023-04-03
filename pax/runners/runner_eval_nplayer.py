@@ -345,9 +345,7 @@ class NPlayerEvalRunner:
             # Player 1
             first_agent_mem = agent1.batch_reset(first_agent_mem, False)
             # Other players
-            _rng_run, other_agent_rng = jax.random.split(
-                _rng_run, 2
-            )
+            _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
             for agent_idx, non_first_agent in enumerate(other_agents):
                 # indexing starts at 2 for args
                 agent_arg = f"agent{agent_idx+2}"
@@ -364,9 +362,7 @@ class NPlayerEvalRunner:
                         other_agent_state[agent_idx],
                         other_agent_mem[agent_idx],
                     ) = non_first_agent.batch_init(
-                        jax.random.split(
-                            other_agent_rng, self.num_opps
-                        ),
+                        jax.random.split(other_agent_rng, self.num_opps),
                         non_first_agent._mem.hidden,
                     )
                     _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
