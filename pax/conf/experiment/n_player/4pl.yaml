@@ -6,13 +6,19 @@ agent2: 'PPO_memory'
 agent3: 'PPO_memory'
 
 # Environment
-env_id: iterated_tensor_game
-num_players: 3
+env_id: iterated_nplayer_tensor_game
+num_players: 4
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1, -1], [-3, -3,0], [-3,0,-3], [-5,-2,-2], [0,-3,-3],[-2,-5,-2], [-2,-2,-5],[-4,-4,-4]]
+payoff_table: [
+    [4, -1000],
+    [3, 6],
+    [2, 5],
+    [1, 4],
+    [-10000, 3],
+]
 # Runner 
-runner: tensor_evo
+runner: tensor_evo_nplayer
 
 
 # Training
@@ -22,7 +28,7 @@ num_envs: 2
 num_opps: 10
 num_inner_steps: 100 
 num_outer_steps: 1000
-num_iters: 1000
+num_iters: 2000
 # total_timesteps: 2.5e7
 num_devices: 1
 # Evaluation 
@@ -114,6 +120,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: '3pl-ipd'
-  name: shaper_vs_ppo_mem_${seed}
+  group: 'n-player'
+  name: 4pl
   log: True
