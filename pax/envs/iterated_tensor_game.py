@@ -34,8 +34,8 @@ class IteratedTensorGame(environment.Environment):
         ):
             inner_t, outer_t = state.inner_t, state.outer_t
             a1, a2, a3 = actions
-            reset_inner = inner_t == num_inner_steps
             inner_t += 1
+            reset_inner = inner_t == num_inner_steps
 
             ccc_p1 = (
                 params.payoff_matrix[0][0]

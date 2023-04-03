@@ -1,34 +1,37 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'Altruistic'
-agent3: 'Altruistic'
+agent1: 'PPO'
+agent2: 'TitForTatCooperate'
+agent3: 'TitForTatCooperate'
 
 # Environment
-env_id: iterated_tensor_game
 num_players: 3
 env_type: meta
-env_discount: 0.96
-payoff: [[-1, -1, -1], [-3, -3,0], [-3,0,-3], [-5,-2,-2], [0,-3,-3],[-2,-5,-2], [-2,-2,-5],[-4,-4,-4]]
+env_discount: 0.99
+payoff: [[4,4,4], [2.66,2.66,5.66], [2.66,5.66,2.66], [1.33,4.33,4.33], [5.66,2.66,2.66],[4.33,1.33,4.33], [4.33,4.33,1.33],[3,3,3]]
+payoff_table: [
+    [4, -1000],
+    [2.66, 5.66],
+    [1.33, 4.33],
+    [-10000, 3],
+]
 # Runner 
+env_id: iterated_tensor_game
 runner: tensor_evo
+# env_id: iterated_tensor_game_nplayer
+# runner: tensor_evo_nplayer
 
-
-# Training
+# Training hyperparameters
+num_envs: 2
+num_opps: 1
+num_inner_steps: 100
+num_outer_steps: 100
+num_iters: 50
+num_devices: 1
 top_k: 5
 popsize: 50
-num_envs: 2
-num_opps: 10
-num_inner_steps: 100 
-num_outer_steps: 1000
-num_iters: 100
-# total_timesteps: 2.5e7
-num_devices: 1
-# Evaluation 
 
-
-# PPO agent parameters
 ppo1:
   num_minibatches: 10
   num_epochs: 4 
@@ -49,6 +52,15 @@ ppo1:
   with_cnn: False
   separate: False
   hidden_size: 16
+
+# Logging setup
+wandb:
+  # entity: "ucl-dark"
+  project: tensor
+  group: 'nplayer_test'
+  name: run-seed-${seed}
+  log: True
+
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES]
@@ -70,10 +82,3 @@ es:
   maximise: True       # Maximise fitness 
   z_score: False       # Normalise fitness 
   mean_reduce: True    # Remove mean
-# Logging setup
-wandb:
-  entity: "ucl-dark"
-  project: tensor
-  group: '3pl-ipd'
-  name: shaper_vs_altruist_${seed}
-  log: True
