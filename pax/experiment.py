@@ -3,18 +3,12 @@ import os
 from datetime import datetime
 from functools import partial
 
-# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
-# uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
-
+import gymnax
 import hydra
+import jax
 import jax.numpy as jnp
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
-import gymnax
-import jax
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
@@ -37,21 +31,37 @@ from pax.agents.strategies import (
     Stay,
     TitForTat,
 )
+from pax.agents.tensor_strategies import (
+    TitForTatCooperate,
+    TitForTatDefect,
+    TitForTatStrictStay,
+    TitForTatStrictSwitch,
+)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
+from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
+from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
-from pax.envs.in_the_matrix import InTheMatrix
-from pax.envs.in_the_matrix import (
-    EnvParams as InTheMatrixParams,
+from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
+from pax.envs.iterated_tensor_game import IteratedTensorGame
+from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
+from pax.envs.iterated_tensor_game_n_player import (
+    EnvParams as IteratedTensorGameNPlayerParams,
 )
 from pax.runners.runner_eval import EvalRunner
+from pax.runners.runner_eval_3player import TensorEvalRunner
+from pax.runners.runner_eval_nplayer import NPlayerEvalRunner
 from pax.runners.runner_evo import EvoRunner
-from pax.runners.runner_marl import RLRunner
-from pax.runners.runner_sarl import SARLRunner
+from pax.runners.runner_evo_3player import TensorEvoRunner
+from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
+from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_marl_3player import TensorRLRunner
+from pax.runners.runner_marl_nplayer import NplayerRLRunner
+from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
     logger_hyper,
@@ -63,6 +73,12 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_ppo,
 )
+
+# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
+# uncomment to debug multi-devices on CPU
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
 
 
 def global_setup(args):
@@ -108,6 +124,33 @@ def env_setup(args, logger=None):
                 f"Env Type: {args.env_type} | Inner Episode Length: {args.num_inner_steps}"
             )
             logger.info(f"Outer Episode Length: {args.num_outer_steps}")
+    elif args.env_id == "iterated_tensor_game":
+        payoff = jnp.array(args.payoff)
+
+        env = IteratedTensorGame(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = IteratedTensorGameParams(payoff_matrix=payoff)
+
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == "iterated_nplayer_tensor_game":
+        payoff = jnp.array(args.payoff_table)
+
+        env = IteratedTensorGameNPlayer(
+            num_players=args.num_players,
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = IteratedTensorGameNPlayerParams(payoff_table=payoff)
+
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
+            )
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
@@ -165,12 +208,22 @@ def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
+    elif args.runner == "tensor_eval":
+        logger.info("Training with tensor eval Runner")
+        return TensorEvalRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_eval_nplayer":
+        logger.info("Training with n-player tensor eval Runner")
+        return NPlayerEvalRunner(agents, env, save_dir, args)
     elif args.runner == "ipditm_eval":
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo":
-        agent1, _ = agents
+    if (
+        args.runner == "evo"
+        or args.runner == "tensor_evo"
+        or args.runner == "tensor_evo_nplayer"
+    ):
+        agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
@@ -254,14 +307,45 @@ def runner_setup(args, env, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
+        if args.runner == "evo":
+            return EvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+        elif args.runner == "tensor_evo":
+            return TensorEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+        elif args.runner == "tensor_evo_nplayer":
+            return NPlayerEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return RLRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_rl":
+        logger.info("Training with tensor RL Runner")
+        return TensorRLRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_rl_nplayer":
+        return NplayerRLRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -272,7 +356,12 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-    if args.env_id == "iterated_matrix_game":
+
+    if (
+        args.env_id == "iterated_matrix_game"
+        or args.env_id == "iterated_tensor_game"
+        or args.env_id == "iterated_nplayer_tensor_game"
+    ):
         obs_shape = env.observation_space(env_params).n
     elif args.env_id == "InTheMatrix":
         obs_shape = jax.tree_map(
@@ -299,10 +388,12 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_agent(seed, player_id):
-        player_args = args.ppo1 if player_id == 1 else args.ppo2
-        num_iterations = args.num_iters
+        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id))
+
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
+        else:
+            num_iterations = args.num_iters
         ppo_agent = make_agent(
             args,
             player_args,
@@ -384,12 +475,16 @@ def agent_setup(args, env, env_params, logger):
 
     # flake8: noqa: C901
     def get_stay_agent(seed, player_id):
-        agent = Stay(num_actions, args.num_envs)
+        agent = Stay(num_actions, args.num_envs, args.num_players)
         agent.player_id = player_id
         return agent
 
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
+        "TitForTatStrictStay": partial(TitForTatStrictStay, args.num_envs),
+        "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
+        "TitForTatCooperate": partial(TitForTatCooperate, args.num_envs),
+        "TitForTatDefect": partial(TitForTatDefect, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Random": get_random_agent,
@@ -427,33 +522,51 @@ def agent_setup(args, env, env_params, logger):
         if args.runner in ["eval", "sarl"]:
             logger.info("Using Independent Learners")
             return agent_1
-    else:
-        assert args.agent1 in strategies
-        assert args.agent2 in strategies
 
-        num_agents = 2
-        seeds = [seed for seed in range(args.seed, args.seed + num_agents)]
-        # Create Player IDs by normalizing seeds to 1, 2 respectively
+    else:
+        for i in range(1, args.num_players + 1):
+            assert (
+                omegaconf.OmegaConf.select(args, "agent" + str(i))
+                in strategies
+            )
+
+        seeds = [
+            seed for seed in range(args.seed, args.seed + args.num_players)
+        ]
+        # Create Player IDs by normalizing seeds to 1, 2, 3 ..n respectively
         pids = [
             seed % seed + i if seed != 0 else 1
-            for seed, i in zip(seeds, range(1, num_agents + 1))
+            for seed, i in zip(seeds, range(1, args.num_players + 1))
         ]
-        agent_0 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-        agent_1 = strategies[args.agent2](seeds[1], pids[1])  # player 2
+        agents = []
+        for i in range(args.num_players):
+            agents.append(
+                strategies[
+                    omegaconf.OmegaConf.select(args, "agent" + str(i + 1))
+                ](seeds[i], pids[i])
+            )
+        logger.info(
+            f"Agent Pair: {[omegaconf.OmegaConf.select(args, 'agent' + str(i)) for i in range(1, args.num_players + 1)]}"
+        )
+        logger.info(f"Agent seeds: {seeds}")
 
-        if args.agent1 in ["PPO", "PPO_memory"]:
-            logger.info(f"PPO with CNN: {args.ppo1.with_cnn}")
-        logger.info(f"Agent Pair: {args.agent1} | {args.agent2}")
-        logger.info(f"Agent seeds: {seeds[0]} | {seeds[1]}")
-        return (agent_0, agent_1)
+        return agents
 
 
 def watcher_setup(args, logger):
     """Set up watcher variables."""
 
-    def ppo_memory_log(agent):
+    def ppo_memory_log(
+        agent,
+    ):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
+        ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -465,7 +578,13 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
+        ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -501,7 +620,11 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if args.env_id in ["finite_matrix_game"]:
+        if args.env_id in [
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
+        ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -533,6 +656,10 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
+        "TitForTatStrictStay": dumb_log,
+        "TitForTatStrictSwitch": dumb_log,
+        "TitForTatCooperate": dumb_log,
+        "TitForTatDefect": dumb_log,
     }
 
     if args.runner == "sarl":
@@ -542,13 +669,11 @@ def watcher_setup(args, logger):
 
         return agent_1_log
     else:
-        assert args.agent1 in strategies
-        assert args.agent2 in strategies
-
-        agent_0_log = strategies[args.agent1]
-        agent_1_log = strategies[args.agent2]
-
-        return [agent_0_log, agent_1_log]
+        agent_log = []
+        for i in range(1, args.num_players + 1):
+            assert getattr(args, f"agent{i}") in strategies
+            agent_log.append(strategies[getattr(args, f"agent{i}")])
+        return agent_log
 
 
 @hydra.main(config_path="conf", config_name="config")
@@ -575,21 +700,32 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner == "evo":
+    if (
+        args.runner == "evo"
+        or args.runner == "tensor_evo"
+        or args.runner == "tensor_evo_nplayer"
+    ):
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "rl":
+    elif (
+        args.runner == "rl"
+        or args.runner == "tensor_rl"
+        or args.runner == "tensor_rl_nplayer"
+    ):
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "ipditm_eval":
+    elif (
+        args.runner == "ipditm_eval"
+        or args.runner == "tensor_eval"
+        or args.runner == "tensor_eval_nplayer"
+    ):
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
-
     elif args.runner == "eval":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)

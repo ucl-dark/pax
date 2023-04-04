@@ -16,6 +16,7 @@ save_interval: 100
 debug: False
 
 # Agents  
+num_players: 2
 agent1: 'PPO'
 agent2: 'PPO'
 
