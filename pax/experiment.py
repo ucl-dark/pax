@@ -60,6 +60,7 @@ from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_3player import TensorRLRunner
+from pax.runners.runner_marl_nplayer import NplayerRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -343,6 +344,8 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "tensor_rl":
         logger.info("Training with tensor RL Runner")
         return TensorRLRunner(agents, env, save_dir, args)
+    elif args.runner == "tensor_rl_nplayer":
+        return NplayerRLRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -562,6 +565,7 @@ def watcher_setup(args, logger):
             "InTheMatrix",
             "iterated_matrix_game",
             "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
         ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
@@ -579,6 +583,7 @@ def watcher_setup(args, logger):
             "InTheMatrix",
             "iterated_matrix_game",
             "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
@@ -607,7 +612,7 @@ def watcher_setup(args, logger):
 
     def naive_logger(agent):
         losses = losses_naive(agent)
-        policy = logger_naive_exact(agent), three_players
+        policy = logger_naive_exact(agent)
         losses.update(policy)
         if args.wandb.log:
             wandb.log(losses)
@@ -615,9 +620,13 @@ def watcher_setup(args, logger):
 
     def naive_pg_log(agent):
         losses = naive_pg_losses(agent)
-        if args.env_id in ["iterated_matrix_game", "iterated_tensor_game"]:
-            policy = policy_logger_ppo(agent, three_players)
-            value = value_logger_ppo(agent, three_players)
+        if args.env_id in [
+            "iterated_matrix_game",
+            "iterated_tensor_game",
+            "iterated_nplayer_tensor_game",
+        ]:
+            policy = policy_logger_ppo(agent)
+            value = value_logger_ppo(agent)
             losses.update(value)
             losses.update(policy)
         if args.wandb.log:
@@ -698,7 +707,11 @@ def main(args):
     ):
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "rl" or args.runner == "tensor_rl":
+    elif (
+        args.runner == "rl"
+        or args.runner == "tensor_rl"
+        or args.runner == "tensor_rl_nplayer"
+    ):
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)

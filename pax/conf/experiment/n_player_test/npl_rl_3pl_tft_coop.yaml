@@ -1,21 +1,25 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent1: 'PPO'
+agent2: 'TitForTatCooperate'
+agent3: 'TitForTatCooperate'
 
 # Environment
-env_id: iterated_matrix_game
-env_type: sequential
+num_players: 3
+env_type: meta
 env_discount: 0.99
-payoff: [[-1,-1], [-3,0], [0,-3], [-2,-2]]
-
+# payoff: [[4,4,4], [2.66,2.66,5.66], [2.66,5.66,2.66], [1.33,4.33,4.33], [5.66,2.66,2.66],[4.33,1.33,4.33], [4.33,4.33,1.33],[3,3,3]]
+payoff_table: [
+    [4, -1000],
+    [2.66, 5.66],
+    [1.33, 4.33],
+    [-10000, 3],
+]
+# Environment
+env_id: iterated_nplayer_tensor_game
 # Runner
-runner: rl
-
-# Runner 
-evo: False
-eval: False
+runner: tensor_rl_nplayer
 # Training hyperparameters
 num_envs: 100
 num_opps: 1
@@ -51,7 +55,7 @@ ppo1:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: ipd
-  group: 'PPO_memory-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  project: tensor
+  group: 'nplayer_test'
+  name: 3pl_tft_rl_runner
   log: True
