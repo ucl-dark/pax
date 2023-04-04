@@ -53,6 +53,9 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
+from pax.envs.iterated_tensor_game import IteratedTensorGame
+from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
@@ -63,6 +66,14 @@ from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_multishaper import MultishaperEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_eval_3player import TensorEvalRunner
+from pax.runners.runner_eval_nplayer import NPlayerEvalRunner
+from pax.runners.runner_evo import EvoRunner
+from pax.runners.runner_evo_3player import TensorEvoRunner
+from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
+from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
+from pax.runners.runner_marl import RLRunner
+from pax.runners.runner_marl_3player import TensorRLRunner
 from pax.runners.runner_marl_nplayer import NplayerRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
@@ -77,12 +88,11 @@ from pax.watchers import (
     value_logger_ppo,
 )
 
-# NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
+# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
-
-# config.update("jax_disable_jit", True)
+# config.update('jax_disable_jit', True)
 
 
 def global_setup(args):
@@ -330,6 +340,7 @@ def runner_setup(args, env, agents, save_dir, logger):
                 save_dir,
                 args,
             )
+
         elif args.runner == "multishaper_evo":
             logger.info("Training with multishaper EVO runner")
             return MultishaperEvoRunner(
@@ -659,6 +670,10 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
+        "TitForTatStrictStay": dumb_log,
+        "TitForTatStrictSwitch": dumb_log,
+        "TitForTatCooperate": dumb_log,
+        "TitForTatDefect": dumb_log,
     }
 
     if args.runner == "sarl":
@@ -709,7 +724,6 @@ def main(args):
 
     elif args.runner == "ipditm_eval" or args.runner == "multishaper_eval":
         runner.run_loop(env_params, agent_pair, watchers)
-
     elif args.runner == "sarl":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)

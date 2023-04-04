@@ -528,6 +528,15 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_fishery_network(
             action_spec, agent_args.hidden_size
         )
+    elif args.env_id == "iterated_tensor_game":
+        network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
+
+    elif args.env_id == "iterated_nplayer_tensor_game":
+        network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(
             action_spec,
