@@ -322,7 +322,7 @@ class NPlayerEvoRunner:
                     other_agent_mem[agent_idx],
                     other_agent_metrics[agent_idx],
                 ) = non_first_agent.batch_update(
-                    trajectories[1],
+                    trajectories[agent_idx + 1],
                     other_agent_obs[agent_idx],
                     other_agent_state[agent_idx],
                     other_agent_mem[agent_idx],
