@@ -1,4 +1,5 @@
 import enum
+import itertools
 import pickle
 from functools import partial
 from typing import NamedTuple
@@ -11,8 +12,8 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
-from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 from pax.envs.in_the_matrix import InTheMatrix
+from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -23,8 +24,30 @@ DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
 
+START_3P = jnp.array([[0, 0, 0, 0, 0, 0, 0, 0, 1]])
+CCC = jnp.array([[1, 0, 0, 0, 0, 0, 0, 0, 0]])
+CCD = jnp.array([[0, 1, 0, 0, 0, 0, 0, 0, 0]])
+CDC = jnp.array([[0, 0, 1, 0, 0, 0, 0, 0, 0]])
+CDD = jnp.array([[0, 0, 0, 1, 0, 0, 0, 0, 0]])
+DCC = jnp.array([[0, 0, 0, 0, 1, 0, 0, 0, 0]])
+DCD = jnp.array([[0, 0, 0, 0, 0, 1, 0, 0, 0]])
+DDC = jnp.array([[0, 0, 0, 0, 0, 0, 1, 0, 0]])
+DDD = jnp.array([[0, 0, 0, 0, 0, 0, 0, 1, 0]])
+STATE_NAMES_3P = [
+    "START",
+    "CCC",
+    "CCD",
+    "CDC",
+    "CDD",
+    "DCC",
+    "DCD",
+    "DDC",
+    "DDD",
+]
+ALL_STATES_3P = [START, CCC, CCD, CDC, CDD, DCC, DCD, DDC, DDD]
 
-class State(enum.IntEnum):
+
+class State_2P(enum.IntEnum):
     CC = 0
     CD = 1
     DC = 2
@@ -32,82 +55,123 @@ class State(enum.IntEnum):
     START = 4
 
 
-def policy_logger(agent) -> dict:
+class State_3P(enum.IntEnum):
+    CCC = 0
+    CCD = 1
+    CDC = 2
+    CDD = 3
+    DCC = 4
+    DCD = 5
+    DDC = 6
+    DDD = 7
+    START = 8
+
+
+class State_4P(enum.IntEnum):
+    CCCC = 0
+    CCCD = 1
+    CCDC = 2
+    CCDD = 3
+    CDCC = 4
+    CDCD = 5
+    CDDC = 6
+    CDDD = 7
+    DCCC = 8
+    DCCD = 9
+    DCDC = 10
+    DCDD = 11
+    DDCC = 12
+    DDCD = 13
+    DDDC = 14
+    DDDD = 15
+    START = 16
+
+
+STATE_DICT = {2: State_2P, 3: State_3P, 4: State_4P}
+
+
+def policy_logger(agent, num_players=2) -> dict:
     weights = agent.actor_optimizer.target["Dense_0"][
         "kernel"
     ]  # [layer_name]['w']
     log_pi = nn.softmax(weights)
+    state = STATE_DICT[num_players]
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
+        "policy/" + str(s): p[0] for (s, p) in zip(state, log_pi)
     }  # probability of cooperating is p[0]
     return probs
 
 
-def value_logger(agent) -> dict:
+def value_logger(agent, num_players=2) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
+    state = STATE_DICT[num_players]
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(state, weights)}
     )
     return values
 
 
-def policy_logger_dqn(agent) -> None:
+def policy_logger_dqn(agent, num_players=2) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    state = STATE_DICT[num_players]
     probs = {
         f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update(
         {
             f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, pi)
+            for (s, p) in zip(state, pi)
         }
     )
     probs.update({"policy/target_step_updates": target_steps})
     return probs
 
 
-def value_logger_dqn(agent) -> dict:
+def value_logger_dqn(agent, num_players=2) -> dict:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    state = STATE_DICT[num_players]
     values = {
         f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, weights)
+        for (s, p) in zip(state, weights)
     }
     values.update(
         {
             f"value/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, weights)
+            for (s, p) in zip(state, weights)
         }
     )
     values.update({"value/target_step_updates": target_steps})
     return values
 
 
-def policy_logger_ppo(agent: PPO) -> dict:
+def policy_logger_ppo(agent: PPO, num_players=2) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    state = STATE_DICT[num_players]
+    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(state, pi)}
     probs.update({"policy/total_steps": sgd_steps})
     return probs
 
 
-def value_logger_ppo(agent: PPO) -> dict:
+def value_logger_ppo(agent: PPO, num_players=2) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear_1"][
         "w"
     ]  # 5 x 1 matrix
     sgd_steps = agent._total_steps / agent._num_steps
+    state = STATE_DICT[num_players]
     probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
@@ -193,25 +257,27 @@ def losses_naive(agent: NaiveExact) -> dict:
     return losses
 
 
-def logger_naive_exact(agent: NaiveExact) -> dict:
+def logger_naive_exact(agent: NaiveExact, num_players=2) -> dict:
     params = agent._mem.hidden
     pid = agent.player_id
     params = params.mean(axis=0)
     cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
-    for i, state_name in enumerate(STATE_NAMES):
+    state = STATE_DICT[num_players]
+    for i, state_name in enumerate(state_names):
         cooperation_probs[
             f"policy/naive_learner_{pid}/avg/{state_name}"
         ] = float(params[i])
     return cooperation_probs
 
 
-def policy_logger_naive(agent) -> None:
+def policy_logger_naive(agent, num_players=2) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
+    state = STATE_DICT[num_players]
     probs = {
         f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
@@ -423,6 +489,30 @@ def ipd_visitation(
         "cooperation_probability/DD": action_probs[3],
         "cooperation_probability/START": action_probs[4],
     }
+
+
+# we cannot jit on numplayers because we need to use jnp.bincount
+def n_player_ipd_visitation(
+    observations: jnp.ndarray,
+    num_players: int,
+) -> dict:
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, num_states]
+    state_actions = jnp.argmax(observations, axis=-1)
+    # 2**num_players is the number of possible states plus start state
+    hist = jnp.bincount(state_actions.flatten(), length=2**num_players + 1)
+    state_freq = hist
+    state_probs = hist / hist.sum()
+    # generate the dict keys for logging
+    letters = ["C", "D"]
+    combinations = list(itertools.product(letters, repeat=num_players))
+    combinations = ["".join(c) for c in combinations] + ["START"]
+
+    visitation_strs = ["state_visitation/" + c for c in combinations]
+    prob_strs = ["state_probability/" + c for c in combinations]
+    visitation_dict = dict(zip(visitation_strs, state_freq)) | dict(
+        zip(prob_strs, state_probs)
+    )
+    return visitation_dict
 
 
 def cg_visitation(state: NamedTuple) -> dict:
