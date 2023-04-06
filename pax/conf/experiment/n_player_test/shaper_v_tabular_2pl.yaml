@@ -5,29 +5,32 @@ agent1: 'PPO_memory'
 agent2: 'Tabular'
 
 # Environment
-env_id: iterated_matrix_game
+env_id: iterated_nplayer_tensor_game
+num_players: 2
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
-
+# payoff: [[7, 7, 7], [3, 3,9], [3,9,3], [0,5,5], [9,3,3],[5,0,5], [5,5,0],[1,1,1]]
+# payoff_table: [
+#     [4, -1000],
+#     [2.66, 5.66],
+#     [1.33, 4.33],
+#     [-10000, 3],
+# ]
+# payoff_table: [[-1., -1], [-3, 0], [0, -3], [-2, -2]]
+payoff_table: [[-1., -1], [-3, 0], [0, -3], [-2, -2]]
 # Runner 
-runner: evo 
+runner: tensor_evo_nplayer
 
-# Training
-top_k: 5
-popsize: 1000
+# Training hyperparameters
 num_envs: 2
-num_opps: 1
-num_outer_steps: 100 
-num_inner_steps: 100 
+num_opps: 10
+num_inner_steps: 100
+num_outer_steps: 100
 num_iters: 5000
 num_devices: 1
+top_k: 5
+popsize: 1000
 
-# Evaluation 
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
-
-# PPO agent parameters
 ppo1:
   num_minibatches: 4
   num_epochs: 2
@@ -44,11 +47,10 @@ ppo1:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: True
+  with_memory: False
   with_cnn: False
   hidden_size: 16
 
-# PPO agent parameters
 ppo2:
   num_minibatches: 4
   num_epochs: 2
@@ -65,10 +67,17 @@ ppo2:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: True
+  with_memory: False
   with_cnn: False
   hidden_size: 16
 
+# Logging setup
+wandb:
+  # entity: "ucl-dark"
+  project: tensor
+  group: 'nplayer_test'
+  name: run-seed-${seed}
+  log: True
 
 # ES parameters 
 es: 
@@ -80,7 +89,7 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1    # Initial learning rate
+  lrate_init: 0.1     # Initial learning rate
   lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
@@ -91,13 +100,3 @@ es:
   maximise: True       # Maximise fitness 
   z_score: False       # Normalise fitness 
   mean_reduce: True    # Remove mean
-  
-# Logging setup
-wandb:
-  entity: "ucl-dark"
-  project: ipd
-  group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
-  log: False
-
-
