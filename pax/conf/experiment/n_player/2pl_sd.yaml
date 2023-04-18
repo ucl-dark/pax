@@ -22,7 +22,7 @@ runner: tensor_evo_nplayer
 top_k: 5
 popsize: 50
 num_envs: 2
-num_opps: 10
+num_opps: 5
 num_inner_steps: 100 
 num_outer_steps: 1000
 num_iters: 2000
