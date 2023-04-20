@@ -281,6 +281,7 @@ class InTheMatrix(environment.Environment):
                 (state.red_pos[2] - state.blue_pos[2]) % 4,
                 -1,
             )
+            print(angle2.shape, 'angle 2 shape 1')
             angle2 = jax.nn.one_hot(angle2, 4)
 
             # sends 0 -> -1 and droped by one_hot
@@ -288,8 +289,9 @@ class InTheMatrix(environment.Environment):
             # make agent 2 think it is agent 1
             _grid2 = grid2.at[:, :, 0].set(grid2[:, :, 1])
             _grid2 = _grid2.at[:, :, 1].set(grid2[:, :, 0])
+            print(angle2.shape, 'angle 2')
             _obs2 = jnp.concatenate([_grid2, angle2], axis=-1)
-
+            print(state.red_inventory.shape, 'red inventory shape')
             red_pickup = jnp.sum(state.red_inventory) > INTERACT_THRESHOLD
             blue_pickup = jnp.sum(state.blue_inventory) > INTERACT_THRESHOLD
 
@@ -297,7 +299,8 @@ class InTheMatrix(environment.Environment):
                 state.freeze >= 0, state.blue_inventory, 0
             )
             red_to_show = jnp.where(state.freeze >= 0, state.red_inventory, 0)
-
+            print(obs1.shape, 'obs shape')
+            print(state.red_inventory[0].shape, 'red inventory 0 shape')
             return {
                 "observation": obs1,
                 "inventory": jnp.array(
@@ -1373,6 +1376,8 @@ if __name__ == "__main__":
         obs, state, reward, done, info = env.step(
             rng, old_state, (a1 * action, a2 * action), params
         )
+        print(actions, 'actions')
+        print(state.red_pos, 'agent positions')
 
         if (state.red_pos[:2] == state.blue_pos[:2]).all():
             import pdb
