@@ -23,6 +23,7 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
+from pax.agents.shaper_att.ppo_gru import make_shaper_agent
 from pax.agents.strategies import (
     Altruistic,
     Defect,
@@ -283,6 +284,21 @@ def agent_setup(args, env, env_params, logger):
 
     num_actions = env.num_actions
 
+    def get_Shaper_agent(seed, player_id):
+        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
+        return make_shaper_agent(
+            args,
+            player_args,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
+            seed=seed,
+            num_iterations=num_iterations,
+            player_id=player_id,
+        )
+    
     def get_PPO_memory_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2
         num_iterations = args.num_iters
@@ -400,6 +416,7 @@ def agent_setup(args, env, env_params, logger):
         "RandomGreedy": partial(RandomGreedy, args.num_envs),
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
+        "Shaper": get_Shaper_agent,
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
@@ -524,6 +541,7 @@ def watcher_setup(args, logger):
         "MFOS": dumb_log,
         "PPO": ppo_log,
         "PPO_memory": ppo_memory_log,
+        "Shaper": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,
         "NaiveEx": naive_logger,
