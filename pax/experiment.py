@@ -23,6 +23,7 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
+from pax.agents.shaper.ppo_gru import make_shaper_agent
 from pax.agents.strategies import (
     Altruistic,
     Defect,
@@ -388,6 +389,23 @@ def agent_setup(args, env, env_params, logger):
         agent.player_id = player_id
         return agent
 
+    def get_shaper_agent(seed, player_id):
+        agent_args = args.ppo1
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
+        agent = make_shaper_agent(
+            args,
+            agent_args,
+            obs_spec=obs_shape,
+            num_iterations=num_iterations,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+        agent.player_id = player_id
+        return agent
+
     strategies = {
         "TitForTat": partial(TitForTat, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
@@ -409,6 +427,7 @@ def agent_setup(args, env, env_params, logger):
         "HyperAltruistic": partial(HyperAltruistic, args.num_envs),
         "HyperDefect": partial(HyperDefect, args.num_envs),
         "HyperTFT": partial(HyperTFT, args.num_envs),
+        "Shaper": get_shaper_agent,
     }
 
     if args.runner == "sarl":
@@ -453,7 +472,11 @@ def watcher_setup(args, logger):
 
     def ppo_memory_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+        ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
         if args.wandb.log:
@@ -465,7 +488,11 @@ def watcher_setup(args, logger):
 
     def ppo_log(agent):
         losses = losses_ppo(agent)
-        if args.env_id not in ["coin_game", "InTheMatrix", "iterated_matrix_game"]:
+        if args.env_id not in [
+            "coin_game",
+            "InTheMatrix",
+            "iterated_matrix_game",
+        ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
@@ -533,6 +560,7 @@ def watcher_setup(args, logger):
         "Tabular": ppo_log,
         "PPO_memory_pretrained": ppo_memory_log,
         "MFOS_pretrained": dumb_log,
+        "Shaper": dumb_log,
     }
 
     if args.runner == "sarl":

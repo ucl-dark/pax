@@ -437,14 +437,14 @@ class EvoRunner:
         self,
         env_params,
         agents,
-        num_iters: int,
+        num_generations: int,
         watchers: Callable,
     ):
         """Run training of agents in environment"""
         print("Training")
         print("------------------------------")
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-        print(f"Number of Generations: {num_iters}")
+        log_interval = max(num_generations / MAX_WANDB_CALLS, 5)
+        print(f"Number of Generations: {num_generations}")
         print(f"Number of Meta Episodes: {self.num_outer_steps}")
         print(f"Population Size: {self.popsize}")
         print(f"Number of Environments: {self.args.num_envs}")
@@ -456,7 +456,7 @@ class EvoRunner:
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
-        num_gens = num_iters
+        num_gens = num_generations
         strategy = self.strategy
         es_params = self.es_params
         param_reshaper = self.param_reshaper
@@ -464,10 +464,7 @@ class EvoRunner:
         num_opps = self.num_opps
         evo_state = strategy.initialize(rng, es_params)
         fit_shaper = FitnessShaper(
-            maximize=self.args.es.maximise,
-            centered_rank=self.args.es.centered_rank,
-            w_decay=self.args.es.w_decay,
-            z_score=self.args.es.z_score,
+            maximize=True, centered_rank=True, w_decay=0.1
         )
         es_logging = ESLog(
             param_reshaper.total_params,
@@ -510,15 +507,12 @@ class EvoRunner:
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
 
-            # Aggregate over devices
+            # Reshape over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
-
-            # Tell
+            # Maximize fitness
             fitness_re = fit_shaper.apply(x, fitness)
-
-            if self.args.es.mean_reduce:
-                fitness_re = fitness_re - fitness_re.mean()
+            # Tell
             evo_state = strategy.tell(x, fitness_re, evo_state, es_params)
 
             # Logging
