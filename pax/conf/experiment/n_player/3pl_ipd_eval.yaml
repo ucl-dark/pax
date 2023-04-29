@@ -11,26 +11,24 @@ num_players: 3
 env_type: meta
 env_discount: 0.96
 payoff_table: [
-[ 3.0 , 1000 ],
-[ 1.0 , 4.0 ],
-[ -3 , 0 ],
-[ 1000 , 0 ],
+    [ 4 , 1000 ],
+    [ 2 , 5 ],
+    [ 0 , 3 ],
+    [ -1000 , 1 ],
 ]
 # Runner 
-runner: tensor_evo_nplayer
-
+runner: tensor_eval_nplayer
+run_path1: ucl-dark/tensor/20ocac86
+model_path1: exp/n-player/3pl/2023-04-18_05.03.28.510538/generation_500
 
 # Training
-top_k: 5
-popsize: 50
 num_envs: 2
 num_opps: 10
 num_inner_steps: 100 
-num_outer_steps: 1000
-num_iters: 2000
+num_outer_steps: 1000 #
+num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
-# Evaluation 
 
 
 # PPO agent parameters
@@ -94,31 +92,10 @@ ppo3:
   with_cnn: False
   separate: False
   hidden_size: 16
-# ES parameters 
-es: 
-  algo: OpenES        # [OpenES, CMA_ES]
-  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
-  sigma_decay: 0.999  # Multiplicative decay factor
-  sigma_limit: 0.01   # Smallest possible scale
-  init_min: 0.0       # Range of parameter mean initialization - Min
-  init_max: 0.0       # Range of parameter mean initialization - Max
-  clip_min: -1e10     # Range of parameter proposals - Min
-  clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1     # Initial learning rate
-  lrate_decay: 0.9999 # Multiplicative decay factor
-  lrate_limit: 0.001  # Smallest possible lrate
-  beta_1: 0.99        # Adam - beta_1
-  beta_2: 0.999       # Adam - beta_2
-  eps: 1e-8           # eps constant,
-  centered_rank: False # Fitness centered_rank
-  w_decay: 0           # Decay old elite fitness 
-  maximise: True       # Maximise fitness 
-  z_score: False       # Normalise fitness 
-  mean_reduce: True    # Remove mean
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: tensor
   group: 'n-player'
-  name: 3pl-sh
+  name: 3pl_ipd_eval
   log: True

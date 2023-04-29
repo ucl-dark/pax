@@ -452,17 +452,17 @@ class NPlayerEvalRunner:
                 non_first_agent._state,
                 non_first_agent._mem,
             )
+        if "model_path1" in self.args:
+            wandb.restore(
+                name=self.args.model_path1,
+                run_path=self.args.run_path1,
+                root=os.getcwd(),
+            )
 
-        wandb.restore(
-            name=self.args.model_path1,
-            run_path=self.args.run_path1,
-            root=os.getcwd(),
-        )
-
-        pretrained_params = load(self.args.model_path1)
-        first_agent_state = first_agent_state._replace(
-            params=pretrained_params
-        )
+            pretrained_params = load(self.args.model_path1)
+            first_agent_state = first_agent_state._replace(
+                params=pretrained_params
+            )
 
         # run actual loop
         rng, rng_run = jax.random.split(rng, 2)

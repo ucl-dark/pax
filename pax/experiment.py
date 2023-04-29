@@ -34,6 +34,8 @@ from pax.agents.strategies import (
 from pax.agents.tensor_strategies import (
     TitForTatCooperate,
     TitForTatDefect,
+    TitForTatHarsh,
+    TitForTatSoft,
     TitForTatStrictStay,
     TitForTatStrictSwitch,
 )
@@ -488,6 +490,8 @@ def agent_setup(args, env, env_params, logger):
         "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
         "TitForTatCooperate": partial(TitForTatCooperate, args.num_envs),
         "TitForTatDefect": partial(TitForTatDefect, args.num_envs),
+        "TitForTatHarsh": partial(TitForTatHarsh, args.num_envs),
+        "TitForTatSoft": partial(TitForTatSoft, args.num_envs),
         "Defect": partial(Defect, args.num_envs),
         "Altruistic": partial(Altruistic, args.num_envs),
         "Random": get_random_agent,
@@ -663,6 +667,8 @@ def watcher_setup(args, logger):
         "TitForTatStrictSwitch": dumb_log,
         "TitForTatCooperate": dumb_log,
         "TitForTatDefect": dumb_log,
+        "TitForTatHarsh": dumb_log,
+        "TitForTatSoft": dumb_log,
     }
 
     if args.runner == "sarl":
