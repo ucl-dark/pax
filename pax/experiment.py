@@ -308,6 +308,7 @@ def runner_setup(args, env, agents, save_dir, logger):
 
         logger.info(f"Evolution Strategy: {algo}")
         if args.runner == "evo":
+            logger.info("Training with EVO runner")
             return EvoRunner(
                 agents,
                 env,
@@ -318,6 +319,7 @@ def runner_setup(args, env, agents, save_dir, logger):
                 args,
             )
         elif args.runner == "tensor_evo":
+            logger.info("Training with 3pl EVO runner")
             return TensorEvoRunner(
                 agents,
                 env,
@@ -328,6 +330,7 @@ def runner_setup(args, env, agents, save_dir, logger):
                 args,
             )
         elif args.runner == "tensor_evo_nplayer":
+            logger.info("Training with n-player EVO runner")
             return NPlayerEvoRunner(
                 agents,
                 env,

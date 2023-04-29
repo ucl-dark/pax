@@ -7,14 +7,13 @@ agent3: 'PPO_memory'
 
 # Environment
 env_id: iterated_nplayer_tensor_game
-num_players: 4
+num_players: 3
 env_type: meta
 env_discount: 0.96
 payoff_table: [
     [ 6 , 1000 ],
     [ 4 , 7 ],
     [ 2 , 5 ],
-    [ 0 , 3 ],
     [ -1000 , 1 ],
 ]
 # Runner 
@@ -122,4 +121,4 @@ wandb:
   project: tensor
   group: 'n-player'
   name: 3pl
-  log: True
+  log: False

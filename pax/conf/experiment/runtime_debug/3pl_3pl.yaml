@@ -116,4 +116,4 @@ wandb:
   project: tensor
   group: 'n-player'
   name: 3pl
-  log: True
+  log: False
