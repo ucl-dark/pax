@@ -142,5 +142,5 @@ wandb:
   entity: "ucl-dark"
   project: tensor
   group: 'n-player'
-  name: 4pl-sh
+  name: 4pl-tc
   log: True
