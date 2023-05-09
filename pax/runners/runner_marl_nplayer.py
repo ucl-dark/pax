@@ -352,6 +352,8 @@ class NplayerRLRunner:
             ] * args.num_players
             # Player 1
             first_agent_mem = agent1.batch_reset(first_agent_mem, False)
+            # Other players
+            _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
 
             # Resetting Agents if necessary
             if args.agent1 == "NaiveEx":
@@ -369,16 +371,14 @@ class NplayerRLRunner:
 
                 elif self.args.env_type in ["meta"]:
                     # meta-experiments - init 2nd agent per trial
-                    non_first_agent_rng = jax.random.split(
-                        _rng_run, self.num_opps
-                    )
                     (
                         other_agent_state[agent_idx],
                         other_agent_mem[agent_idx],
                     ) = non_first_agent.batch_init(
-                        non_first_agent_rng,
+                        jax.random.split(other_agent_rng, self.num_opps),
                         non_first_agent._mem.hidden,
                     )
+                    _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -428,35 +428,30 @@ class NplayerRLRunner:
                 other_agent_mem[agent_idx] = non_first_agent.batch_reset(
                     other_agent_mem[agent_idx], False
                 )
-
+            # Stats
             if args.env_id == "iterated_nplayer_tensor_game":
-                env_stats = jax.tree_util.tree_map(
+                total_env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.ipd_stats(
-                        trajectories[0].observations, args.num_players
+                        trajectories[0].observations,
+                        num_players=args.num_players,
                     ),
                 )
-                first_agent_reward = trajectories[0].rewards.mean()
-                other_agent_rewards = [
-                    traj.rewards.mean() for traj in trajectories[1:]
-                ]
+                total_rewards = [traj.rewards.mean() for traj in trajectories]
             else:
-                env_stats = {}
-                first_agent_reward = trajectories[0].rewards.mean()
-                other_agent_rewards = [
-                    traj.rewards.mean() for traj in trajectories[1:]
-                ]
+                total_env_stats = {}
+                total_rewards = [traj.rewards.mean() for traj in trajectories]
 
             return (
-                env_stats,
-                first_agent_reward,
-                other_agent_rewards,
+                total_env_stats,
+                total_rewards,
                 first_agent_state,
-                first_agent_mem,
-                first_agent_metrics,
                 other_agent_state,
+                first_agent_mem,
                 other_agent_mem,
+                first_agent_metrics,
                 other_agent_metrics,
+                trajectories,
             )
 
         # self.rollout = _rollout
@@ -466,18 +461,17 @@ class NplayerRLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        num_iters = max(
-            int(num_iters / (self.args.num_envs * self.num_opps)), 1
-        )
-        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
+        # log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
+        log_interval = 100
         save_interval = self.args.save_interval
 
         agent1, *other_agents = agents
         rng, _ = jax.random.split(self.random_key)
 
         first_agent_state, first_agent_mem = agent1._state, agent1._mem
-        other_agent_state = [None] * len(other_agents)
         other_agent_mem = [None] * len(other_agents)
+        other_agent_state = [None] * len(other_agents)
+
         for agent_idx, non_first_agent in enumerate(other_agents):
             other_agent_state[agent_idx], other_agent_mem[agent_idx] = (
                 non_first_agent._state,
@@ -493,14 +487,14 @@ class NplayerRLRunner:
             # RL Rollout
             (
                 env_stats,
-                first_agent_reward,
-                other_agent_rewards,
+                total_rewards,
                 first_agent_state,
-                first_agent_mem,
-                first_agent_metrics,
                 other_agent_state,
+                first_agent_mem,
                 other_agent_mem,
+                first_agent_metrics,
                 other_agent_metrics,
+                trajectories,
             ) = self.rollout(
                 rng_run,
                 first_agent_state,
@@ -511,61 +505,63 @@ class NplayerRLRunner:
             )
 
             # saving
-            if i % save_interval == 0:
-                log_savepath1 = os.path.join(
-                    self.save_dir, f"agent1_iteration_{i}"
-                )
-                if watchers:
-                    print(f"Saving iteration {i} locally and to WandB")
-                    wandb.save(log_savepath1)
-                else:
-                    print(f"Saving iteration {i} locally")
+            # if i % save_interval == 0:
+            #     log_savepath1 = os.path.join(
+            #         self.save_dir, f"agent1_iteration_{i}"
+            #     )
+            #     if watchers:
+            #         print(f"Saving iteration {i} locally and to WandB")
+            #         wandb.save(log_savepath1)
+            #     else:
+            #         print(f"Saving iteration {i} locally")
 
             # logging
-            if i % log_interval == 0:
-                print(f"Episode {i}")
-                for stat in env_stats.keys():
-                    print(stat + f": {env_stats[stat].item()}")
-                print(
-                    f"Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_rewards]}"
+            # if i % log_interval == 0:
+            #     print(f"Episode {i}")
+            #     for stat in env_stats.keys():
+            #         print(stat + f": {env_stats[stat].item()}")
+            #     print(
+            #         f"Reward Per Timestep: {[float(reward.mean()) for reward in total_rewards]}"
+            #     )
+            #     print()
+
+            if watchers:
+                # metrics [outer_timesteps]
+                flattened_metrics_1 = jax.tree_util.tree_map(
+                    lambda x: jnp.mean(x), first_agent_metrics
                 )
-                print()
+                agent1._logger.metrics = (
+                    agent1._logger.metrics | flattened_metrics_1
+                )
 
-                if watchers:
-                    # metrics [outer_timesteps]
-                    flattened_metrics_1 = jax.tree_util.tree_map(
-                        lambda x: jnp.mean(x), first_agent_metrics
-                    )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
+                for watcher, agent in zip(watchers, agents):
+                    watcher(agent)
 
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
-
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(), env_stats
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.item(), env_stats
+                )
+                rewards_strs = [
+                    "train/reward_per_timestep/player_" + str(i)
+                    for i in range(1, len(total_rewards) + 1)
+                ]
+                rewards_val = [
+                    float(reward.mean()) for reward in total_rewards
+                ]
+                global_welfare = {
+                    f"train/global_welfare_per_timestep": float(
+                        sum(reward.mean().item() for reward in total_rewards)
                     )
-                    rewards_strs = [
-                        "train/reward_per_timestep/player_" + str(i)
-                        for i in range(2, len(other_agent_rewards) + 2)
-                    ]
-                    rewards_val = [
-                        float(reward.mean()) for reward in other_agent_rewards
-                    ]
-                    rewards_dict = dict(zip(rewards_strs, rewards_val))
-                    wandb_log = (
-                        {
-                            "train_iteration": i,
-                            "train/reward_per_timestep/player_1": float(
-                                first_agent_reward.mean().item()
-                            ),
-                        }
-                        | rewards_dict
-                        | env_stats
-                    )
+                    / len(total_rewards)
+                }
 
-                    wandb.log(wandb_log)
+                rewards_dict = dict(zip(rewards_strs, rewards_val))
+                wandb_log = (
+                    {"train_iteration": i}
+                    | rewards_dict
+                    | env_stats
+                    | global_welfare
+                )
+                wandb.log(wandb_log)
 
         agents[0]._state = first_agent_state
         for agent_idx, non_first_agent in enumerate(other_agents):

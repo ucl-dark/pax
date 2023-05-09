@@ -634,7 +634,10 @@ class NPlayerEvoRunner:
                     float(fitness.mean()) for fitness in other_fitness
                 ]
                 fitness_dict = dict(zip(fitness_str, fitness_val))
-
+                all_rewards = other_agent_reward + [first_agent_reward]
+                global_welfare = float(
+                    sum([reward.mean() for reward in all_rewards])
+                )
                 wandb_log = {
                     "train_iteration": gen,
                     "train/fitness/top_overall_mean": log["log_top_mean"][gen],
@@ -652,6 +655,7 @@ class NPlayerEvoRunner:
                     "train/reward_per_timestep/player_1": float(
                         first_agent_reward.mean()
                     ),
+                    "train/global_welfare": global_welfare,
                 } | rewards_dict
                 wandb_log = wandb_log | fitness_dict
                 wandb_log.update(env_stats)

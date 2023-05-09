@@ -535,6 +535,19 @@ class NPlayerEvalRunner:
                 }
                 for i in range(len(list_of_env_stats))
             ]
+            # log avg reward for players combined
+            global_welfare_log = [
+                {
+                    f"eval/global_welfare_per_timestep": float(
+                        sum(
+                            traj.rewards[i].mean().item()
+                            for traj in trajectories
+                        )
+                    )
+                    / len(trajectories)
+                }
+                for i in range(len(list_of_env_stats))
+            ]
 
             for i in range(len(list_of_env_stats)):
                 wandb.log(
@@ -543,6 +556,7 @@ class NPlayerEvalRunner:
                     }
                     | list_of_env_stats[i]
                     | rewards_log[i]
+                    | global_welfare_log[i]
                 )
             total_rewards_log = {
                 f"eval/meta_reward/player_{idx+1}": float(rew.mean().item())

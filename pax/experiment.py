@@ -576,11 +576,11 @@ def watcher_setup(args, logger):
         ]:
             policy = policy_logger_ppo_with_memory(agent)
             losses.update(policy)
-        if args.wandb.log:
-            losses = jax.tree_util.tree_map(
-                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
-            )
-            wandb.log(losses)
+        # if args.wandb.log:
+        #     losses = jax.tree_util.tree_map(
+        #         lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+        #     )
+        #     wandb.log(losses)
         return
 
     def ppo_log(agent):

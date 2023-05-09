@@ -502,6 +502,34 @@ def n_player_ipd_visitation(
     hist = jnp.bincount(state_actions.flatten(), length=2**num_players + 1)
     state_freq = hist
     state_probs = hist / hist.sum()
+
+    num_def_vis = jnp.zeros(
+        (2 * num_players + 1,)
+    )  # 2 choices for first player * numpl different amount of defectors + start state
+    for state_idx in range(2**num_players):  # not dealing with start state
+        # check what first agent did
+        if state_idx >= 2 ** (num_players - 1):  # if first agent defected
+            num_def_state_idx = num_players  # we start with D, add more later
+            new_state_idx = state_idx - 2 ** (
+                num_players - 1
+            )  # get rid of first agent
+        else:
+            num_def_state_idx = 0  # we start with C, add more later
+            new_state_idx = state_idx
+
+        # count how many defectors there are amongst opponents
+        num_def = bin(new_state_idx).count("1")
+        # add it to the index
+        num_def_state_idx = num_def_state_idx + num_def
+        num_def_vis = num_def_vis.at[num_def_state_idx].add(hist[state_idx])
+
+    # dealing with start state
+    num_def_vis = num_def_vis.at[2 * num_players].add(
+        hist[2**num_players]
+    )  # num start state vis is the last
+    grouped_state_freq = num_def_vis
+    grouped_state_probs = grouped_state_freq / grouped_state_freq.sum()
+
     # generate the dict keys for logging
     letters = ["C", "D"]
     combinations = list(itertools.product(letters, repeat=num_players))
@@ -509,8 +537,35 @@ def n_player_ipd_visitation(
 
     visitation_strs = ["state_visitation/" + c for c in combinations]
     prob_strs = ["state_probability/" + c for c in combinations]
-    visitation_dict = dict(zip(visitation_strs, state_freq)) | dict(
-        zip(prob_strs, state_probs)
+
+    def generate_grouped_combs_strs(num_players):
+        # eg 4 pl order is
+        # C3C0D, C2C1D, C1C2D, C0C3D,   idx (0...num_pl-1  )
+        # D3C0D, D2C1D, D1C2D, D0C3D,  idx (num_pl... 2*num_pl-1 )
+        # START                      idx (2*num_pl)
+        grouped_combs = []
+        for n in range(0, num_players):  # num_players-1 opponents
+            string_1 = f"C{n}D"
+            grouped_combs.append(string_1)
+        for n in range(0, num_players):
+            string_2 = f"D{n}D"
+            grouped_combs.append(string_2)
+        grouped_combs.append("START")
+        return grouped_combs
+
+    grouped_comb_strs = generate_grouped_combs_strs(num_players)
+    grouped_visitation_strs = [
+        "grouped_state_visitation/" + c for c in grouped_comb_strs
+    ]
+    grouped_prob_strs = [
+        "grouped_state_probability/" + c for c in grouped_comb_strs
+    ]
+
+    visitation_dict = (
+        dict(zip(visitation_strs, state_freq))
+        | dict(zip(prob_strs, state_probs))
+        | dict(zip(grouped_visitation_strs, grouped_state_freq))
+        | dict(zip(grouped_prob_strs, grouped_state_probs))
     )
     return visitation_dict
 
