@@ -329,8 +329,10 @@ def make_GRU_ipd_avg_network(num_actions: int, hidden_size: int):
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
+        old_state = state
         print(state.shape, 'STATE shape')
-        state = jnp.mean(state, axis=0, keepdims=True).repeat(2, axis=0)
+        state = jnp.mean(state, axis=0, keepdims=True).repeat(state.shape[0], axis=0)
+        state = 0.5*state + 0.5*old_state
         print(state.shape, 'STATE shape')
         embedding, state = gru(inputs, state)
 
@@ -354,11 +356,12 @@ def make_GRU_ipd_att_network(num_actions: int, hidden_size: int):
             axis=-2, create_scale=True, create_offset=True
         )
 
-        num_heads = 8
+        num_heads = 1
         shape_attn = hk.MultiHeadAttention(
             num_heads=num_heads,
             key_size=hidden_size // num_heads,
-            w_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_init=hk.initializers.Orthogonal(1/jnp.sqrt(hidden_size)),
+            # w_init=hk.initializers.Constant(0.5),
         )
 
         layer_norm2 = hk.LayerNorm(
@@ -366,14 +369,17 @@ def make_GRU_ipd_att_network(num_actions: int, hidden_size: int):
         )
         shape_mlp = hk.Linear(
             hidden_size,
-            w_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_init=hk.initializers.Orthogonal(1/jnp.sqrt(hidden_size)),
+            # w_init=hk.initializers.Constant(0.5),
             b_init=hk.initializers.Constant(0),
+            # with_bias=False,
         )
-
+        old_state = state
         state_attn = layer_norm1(state)
         state_attn = shape_attn(state_attn, state_attn, state_attn)
-        state = layer_norm2(state + state_attn)
+        state = layer_norm2(state_attn + state)
         state = shape_mlp(state)
+        state = 0.5*old_state + 0.5*state
         embedding, state = gru(inputs, state)
 
         logits, values = CategoricalValueHead_ipd(num_actions)(embedding)
@@ -605,6 +611,52 @@ def make_GRU_ipditm_att_network(
         state_attn = shape_attn(state_attn, state_attn, state_attn)
         state = layer_norm2(state + state_attn)
         state = shape_mlp(state)
+        embedding, state = gru(embedding, state)
+        logits, values = cvh(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+def make_GRU_ipditm_avg_network(
+    num_actions: int,
+    hidden_size: int,
+    separate: bool,
+    output_channels: int,
+    kernel_shape: Tuple[int],
+):
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        """forward function"""
+
+        # input_shape = [num_opps, num_envs, obs_spec...]
+        # num_opps is our true batch size
+        # num_envs is actually part of our featuer space
+        # lets use attention network to over the hidden_states
+
+        torso = CNN_ipditm(output_channels, kernel_shape)
+        gru = hk.GRU(
+            hidden_size,
+            w_i_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_h_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            b_init=hk.initializers.Constant(0),
+        )
+        old_state = state
+        state = jnp.mean(state, axis=0, keepdims=True).repeat(state.shape[0], axis=0)
+        state = 0.5*state + 0.5*old_state
+
+        if separate:
+            cvh = CategoricalValueHeadSeparate_ipditm(
+                num_values=num_actions, hidden_size=hidden_size
+            )
+        else:
+            cvh = CategoricalValueHead(num_values=num_actions)
+        embedding = torso(inputs)
+
+        # shaper network to obfuscated
         embedding, state = gru(embedding, state)
         logits, values = cvh(embedding)
         return (logits, values), state

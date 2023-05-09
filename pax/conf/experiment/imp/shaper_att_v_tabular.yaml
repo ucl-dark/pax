@@ -8,7 +8,7 @@ agent2: 'Tabular'
 env_id: iterated_matrix_game
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
 runner: evo 
@@ -95,9 +95,9 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: ipd
+  project: imp
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}-att-type-${att_type}
+  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
   log: False
 
 

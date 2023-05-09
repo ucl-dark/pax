@@ -12,6 +12,7 @@ from pax.agents.agent import AgentInterface
 from pax.agents.mfos_ppo.networks import (
     make_mfos_ipditm_network,
     make_mfos_network,
+    make_mfos_avg_network,
 )
 from pax.utils import TrainingState, get_advantages
 
@@ -63,7 +64,6 @@ class PPO(AgentInterface):
         obs_spec: Tuple,
         batch_size: int = 2000,
         num_envs: int = 4,
-        num_steps: int = 500,
         num_minibatches: int = 16,
         num_epochs: int = 4,
         clip_value: bool = True,
@@ -479,8 +479,8 @@ class PPO(AgentInterface):
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
-        self._num_steps = num_steps  # number of steps per environment
-        self._batch_size = int(num_envs * num_steps)  # number in one batch
+        # self._num_steps = num_steps  # number of steps per environment
+        # self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
@@ -566,6 +566,17 @@ def make_mfos_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
+    elif args.env_id == "iterated_matrix_game":
+        if args.att_type=='att':
+            raise ValueError("Attention not supported")
+        elif args.att_type=='avg':
+            network, initial_hidden_state = make_mfos_avg_network(
+                action_spec, agent_args.hidden_size
+            )
+        elif args.att_type=='nothing':
+            network, initial_hidden_state = make_mfos_network(
+                action_spec, agent_args.hidden_size
+            )
     else:
         raise ValueError("Unsupported environment")
 
@@ -573,8 +584,7 @@ def make_mfos_agent(
 
     # Optimizer
     transition_steps = (
-        num_iterations,
-        *agent_args.num_epochs * agent_args.num_minibatches,
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:
@@ -609,7 +619,6 @@ def make_mfos_agent(
         obs_spec=obs_spec,
         batch_size=None,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
         clip_value=agent_args.clip_value,

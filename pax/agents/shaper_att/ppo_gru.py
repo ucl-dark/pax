@@ -16,6 +16,7 @@ from pax.agents.shaper_att.networks import (
     make_GRU_ipd_avg_network,
     make_GRU_ipd_att_network,
     make_GRU_ipditm_att_network,
+    make_GRU_ipditm_avg_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
 
@@ -530,13 +531,22 @@ def make_shaper_agent(
             )
 
     elif args.env_id == "InTheMatrix":
-        network, initial_hidden_state = make_GRU_ipditm_att_network(
-            action_spec,
-            agent_args.hidden_size,
-            agent_args.separate,
-            agent_args.output_channels,
-            agent_args.kernel_shape,
-        )
+        if args.att_type=='avg':
+            network, initial_hidden_state = make_GRU_ipditm_avg_network(
+                action_spec,
+                agent_args.hidden_size,
+                agent_args.separate,
+                agent_args.output_channels,
+                agent_args.kernel_shape,
+            )
+        if args.att_type=='att':         
+            network, initial_hidden_state = make_GRU_ipditm_att_network(
+                action_spec,
+                agent_args.hidden_size,
+                agent_args.separate,
+                agent_args.output_channels,
+                agent_args.kernel_shape,
+            )
 
     gru_dim = initial_hidden_state.shape[1]
 
