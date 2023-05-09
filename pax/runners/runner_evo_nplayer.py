@@ -637,7 +637,7 @@ class NPlayerEvoRunner:
                 all_rewards = other_agent_reward + [first_agent_reward]
                 global_welfare = float(
                     sum([reward.mean() for reward in all_rewards])
-                    / len(self.args.num_players)
+                    / self.args.num_players
                 )
                 wandb_log = {
                     "train_iteration": gen,
