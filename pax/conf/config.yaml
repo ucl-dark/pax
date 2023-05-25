@@ -8,16 +8,19 @@ hydra:
     root:
       level: INFO
 
-# Global variables 
+# Global variables
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 save: True
 save_interval: 100
 debug: False
 
-# Agents  
+
+# Agents
 num_players: 2
 num_shapers: 1
+
+# Agents
 agent1: 'PPO'
 agent2: 'PPO'
 
@@ -28,3 +31,5 @@ wandb:
   group: ??
   name: run-seed-${seed}
   log: True
+  mode: online
+  tags: []

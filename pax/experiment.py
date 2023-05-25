@@ -44,6 +44,8 @@ from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
 from pax.envs.in_the_matrix import InTheMatrix
+from pax.envs.cournot import EnvParams as CournotParams
+from pax.envs.cournot import CournotGame
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
@@ -98,6 +100,7 @@ def global_setup(args):
             project=str(args.wandb.project),
             group=str(args.wandb.group),
             name=str(args.wandb.name),
+            mode=str(args.wandb.mode),
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),  # type: ignore
@@ -181,6 +184,17 @@ def env_setup(args, logger=None):
         if logger:
             logger.info(
                 f"Env Type: InTheMatrix | Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == "CournotGame":
+        env_params = CournotParams(
+            a=args.a, b=args.b, marginal_cost=args.marginal_cost
+        )
+        env = CournotGame(
+            num_steps=args.num_iters
+        )
+        if logger:
+            logger.info(
+                f"Env Type: CournotGame | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)

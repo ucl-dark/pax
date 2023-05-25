@@ -336,6 +336,30 @@ def make_ipd_network(num_actions: int, tabular: bool, hidden_size: int):
     return network
 
 
+def make_cournot_network(num_actions: int, hidden_size: int):
+    """Creates a hk network using the baseline hyperparameters from OpenAI"""
+
+    def forward_fn(inputs):
+        layers = []
+        layers.extend(
+                [
+                    hk.nets.MLP(
+                        [hidden_size, hidden_size],
+                        w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                        b_init=hk.initializers.Constant(0),
+                        activate_final=True,
+                        activation=jnp.tanh,
+                    ),
+                    ContinuousValueHead(num_values=num_actions),
+                ]
+            )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
 def make_coingame_network(
     num_actions: int,
     tabular: bool,

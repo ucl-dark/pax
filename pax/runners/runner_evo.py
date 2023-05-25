@@ -33,7 +33,7 @@ class EvoRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
-    run an RL agent (optimised by an Evolutionary Strategy) against an Reinforcement Learner.
+    run an RL agent (optimised by an Evolutionary Strategy) against a Reinforcement Learner.
     It composes together agents, watchers, and the environment.
     Within the init, we declare vmaps and pmaps for training.
     The environment provided must conform to a meta-environment.

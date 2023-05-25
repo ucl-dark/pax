@@ -15,5 +15,5 @@ numpy
 optax
 pytest
 wandb
-pytest
 pytest-cov
+bsuite

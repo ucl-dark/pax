@@ -85,7 +85,7 @@ class IteratedMatrixGame(environment.Environment):
 
         def _reset(
             key: chex.PRNGKey, params: EnvParams
-        ) -> Tuple[chex.Array, EnvState]:
+        ) -> Tuple[Tuple, EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
                 outer_t=jnp.zeros((), dtype=jnp.int8),

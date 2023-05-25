@@ -14,6 +14,7 @@ from pax.agents.ppo.networks import (
     make_ipd_network,
     make_ipditm_network,
     make_sarl_network,
+    make_cournot_network,
 )
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
@@ -470,10 +471,10 @@ def make_agent(
     tabular=False,
 ):
     """Make PPO agent"""
+    print(f"Making network for {args.env_id}")
     if args.runner == "sarl":
         network = make_sarl_network(action_spec)
     elif args.env_id == "coin_game":
-        print(f"Making network for {args.env_id}")
         network = make_coingame_network(
             action_spec,
             tabular,
@@ -492,6 +493,8 @@ def make_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
+    elif args.env_id == "CournotGame":
+        network = make_cournot_network(action_spec, agent_args.hidden_size)
     else:
         network = make_ipd_network(
             action_spec, tabular, agent_args.hidden_size
