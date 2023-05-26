@@ -48,7 +48,9 @@ from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.in_the_matrix import (
     EnvParams as InTheMatrixParams,
 )
+from pax.runners.runner_stevie import StevieRunner
 from pax.runners.runner_eval import EvalRunner
+from pax.runners.runner_eval_hardstop import EvalHardstopRunner
 from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
@@ -166,6 +168,15 @@ def runner_setup(args, env, agents, save_dir, logger):
     if args.runner == "eval":
         logger.info("Evaluating with EvalRunner")
         return EvalRunner(agents, env, args)
+
+    elif args.runner == "stevie":
+        logger.info("Activating Stevie Wonder Mode")
+        return StevieRunner(agents, env, args)
+
+    elif args.runner == "eval_hardstop":
+        logger.info("Activating Eval Hardstop")
+        return EvalHardstopRunner(agents, env, args)
+
     elif args.runner == "ipditm_eval":
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
@@ -608,7 +619,7 @@ def main(args):
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
-    elif args.runner == "eval":
+    elif args.runner == "eval" or args.runner == 'stevie' or args.runner == "eval_hardstop":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 

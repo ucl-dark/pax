@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'PPO'
 agent2: 'Tabular'
 
 # Environment
@@ -11,20 +11,58 @@ env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-runner: evo 
+runner: eval_hardstop 
 
 # Training
 top_k: 5
 popsize: 1000
 num_envs: 2
-num_opps: 10
-num_outer_steps: 100 
+num_opps: 1
+num_steps: 10000
+num_outer_steps: 100
 num_inner_steps: 100 
-num_iters: 5000
+num_iters: 1
+att_type: 'nothing'
+stop: 2
 
+# run_path: ucl-dark/ipd/3ipiqfwz
+# model_path: exp/GS-PPO-vs-Tabular/run-seed-0-pop-size-1000/2023-05-23_13.41.36.367352/generation_900
+
+run_path: ucl-dark/ipd/hl9q06ix
+model_path: exp/GS-PPO-vs-Tabular/run-seed-0-pop-size-1000/2023-05-23_15.00.59.246054/generation_300
 # Evaluation 
-run_path: ucl-dark/ipd/1ui7wfop
-model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
+# # AVG-model 0
+# run_path: ucl-dark/ipd/1n313hkb
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-65-OpenES-pop-size-1000-num-opps-10-att-type-avg/2023-05-11_15.31.22.592492/generation_900
+
+## avg-model 1 seed23
+# run_path: ucl-dark/ipd/2jtks2rd
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-23-OpenES-pop-size-1000-num-opps-10-att-type-avg/2023-05-11_12.29.16.667285/generation_900
+
+## avg-model 2 seed 6
+# run_path: ucl-dark/ipd/2d4s9hl2
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-6-OpenES-pop-size-1000-num-opps-10-att-type-avg/2023-05-11_09.27.30.020298/generation_900
+
+
+# # nothing-model 0
+# run_path: ucl-dark/ipd/2jpssoai
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-36-OpenES-pop-size-1000-num-opps-10/2023-04-26_03.30.19.506954/generation_900
+
+# # nothing-model 1 seed 65
+# run_path: ucl-dark/ipd/2m3wh5g7
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-65-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_22.17.07.592872/generation_900
+
+# # nothing-model 2 47
+# run_path: ucl-dark/ipd/1jk5zly5
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-47-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_20.46.58.588813/generation_900
+
+# # nothing-model 3 23
+# run_path: ucl-dark/ipd/1cvpiolk
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-23-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_19.16.56.990716/generation_900
+
+# # nothing-model 4 6
+# run_path: ucl-dark/ipd/3vml0wjy
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-6-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_16.16.19.180942/generation_900
 
 # PPO agent parameters
 ppo1:
@@ -96,7 +134,7 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
+  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}-att-type-${att_type}-hardstop
   log: False
 
 

@@ -8,25 +8,66 @@ agent2: 'Tabular'
 env_id: iterated_matrix_game
 env_type: meta
 env_discount: 0.96
-payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-runner: evo
+runner: stevie
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
-num_opps: 10
+num_envs: 20
+num_opps: 1
 num_outer_steps: 100 
 num_inner_steps: 100 
-num_iters: 1000
+num_steps: 10000
+num_iters: 1
 num_devices: 1
 att_type: 'avg'
+seed: 23
 
 # MFOS vs. Tabular trained on seed = 0
-run_path: ucl-dark/ipd/1r9txdso
-model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400
+# AVG model seed=23
+run_path: ucl-dark/ipd/4ykf9oe8
+model_path: exp/MFOS-vs-Tabular/run-seed-23-pop-size-1000/2023-05-11_14.58.45.927266/generation_900
+
+## avg model 1 seed=65
+# run_path: ucl-dark/ipd/eopf93re
+# model_path: exp/MFOS-vs-Tabular/run-seed-65-pop-size-1000/2023-05-11_20.31.48.530245/generation_900
+
+# #avg model 2 seed=47
+# run_path: ucl-dark/ipd/1sqbd09n
+# model_path: exp/MFOS-vs-Tabular/run-seed-47-pop-size-1000/2023-05-11_17.45.03.318240/generation_900
+
+# ## avg model 3 seed=8
+# run_path: ucl-dark/ipd/3n7l8ods
+# model_path: exp/MFOS-vs-Tabular/run-seed-8-pop-size-1000/2023-05-11_12.12.19.914211/generation_900
+
+# ## avg model 4 seed=6
+# run_path: ucl-dark/ipd/4mf1ecxq
+# model_path: exp/MFOS-vs-Tabular/run-seed-6-pop-size-1000/2023-05-11_09.25.40.656392/generation_900
+
+# #nothing model, seed=23
+# run_path: ucl-dark/ipd/3i5m1agd
+# model_path:  exp/MFOS-vs-Tabular/run-seed-23-pop-size-1000/2023-05-14_21.53.30.316487/generation_900
+
+# #nothing model, seed=65
+# run_path: ucl-dark/ipd/1s3kty0d
+# model_path:  exp/MFOS-vs-Tabular/run-seed-65-pop-size-1000 /2023-05-15_03.29.53.728701/generation_900
+
+# #nothing model, seed=47
+# run_path: ucl-dark/ipd/37v877f5
+# model_path: exp/MFOS-vs-Tabular/run-seed-47-pop-size-1000/2023-05-15_00.41.45.864580/generation_900
+
+# #nothing model, seed=8
+# run_path: ucl-dark/ipd/1wcrrl9h
+# model_path: exp/MFOS-vs-Tabular/run-seed-8-pop-size-1000/2023-05-14_19.05.09.345813/generation_900
+
+# #nothing model, seed=6
+# run_path: ucl-dark/ipd/1vkddd7q
+# model_path: exp/MFOS-vs-Tabular/run-seed-6-pop-size-1000/2023-05-14_16.16.28.014913/generation_900
+
+ 
 # MFOS vs. Tabular trained on seed = 1
 # run_path: ucl-dark/ipd/13srlkhp
 # model_path: exp/GS-MFOS-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_20.33.11.352762/generation_4300
@@ -107,9 +148,9 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: imp
+  project: ipd
   group: '${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-pop-size-${popsize}
+  name: run-seed-${seed}-pop-size-${popsize}-stevie 
   log: False
 
 

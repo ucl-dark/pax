@@ -330,10 +330,8 @@ def make_GRU_ipd_avg_network(num_actions: int, hidden_size: int):
         """forward function"""
         gru = hk.GRU(hidden_size)
         old_state = state
-        print(state.shape, 'STATE shape')
         state = jnp.mean(state, axis=0, keepdims=True).repeat(state.shape[0], axis=0)
         state = 0.5*state + 0.5*old_state
-        print(state.shape, 'STATE shape')
         embedding, state = gru(inputs, state)
 
         logits, values = CategoricalValueHead_ipd(num_actions)(embedding)
