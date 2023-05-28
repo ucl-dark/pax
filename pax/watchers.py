@@ -1,4 +1,5 @@
 import enum
+import itertools
 import pickle
 from functools import partial
 from typing import NamedTuple
@@ -11,8 +12,8 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
-from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 from pax.envs.in_the_matrix import InTheMatrix
+from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -23,8 +24,30 @@ DD = jnp.array([[0, 0, 0, 1, 0]])
 STATE_NAMES = ["START", "CC", "CD", "DC", "DD"]
 ALL_STATES = [START, CC, CD, DC, DD]
 
+START_3P = jnp.array([[0, 0, 0, 0, 0, 0, 0, 0, 1]])
+CCC = jnp.array([[1, 0, 0, 0, 0, 0, 0, 0, 0]])
+CCD = jnp.array([[0, 1, 0, 0, 0, 0, 0, 0, 0]])
+CDC = jnp.array([[0, 0, 1, 0, 0, 0, 0, 0, 0]])
+CDD = jnp.array([[0, 0, 0, 1, 0, 0, 0, 0, 0]])
+DCC = jnp.array([[0, 0, 0, 0, 1, 0, 0, 0, 0]])
+DCD = jnp.array([[0, 0, 0, 0, 0, 1, 0, 0, 0]])
+DDC = jnp.array([[0, 0, 0, 0, 0, 0, 1, 0, 0]])
+DDD = jnp.array([[0, 0, 0, 0, 0, 0, 0, 1, 0]])
+STATE_NAMES_3P = [
+    "START",
+    "CCC",
+    "CCD",
+    "CDC",
+    "CDD",
+    "DCC",
+    "DCD",
+    "DDC",
+    "DDD",
+]
+ALL_STATES_3P = [START, CCC, CCD, CDC, CDD, DCC, DCD, DDC, DDD]
 
-class State(enum.IntEnum):
+
+class State_2P(enum.IntEnum):
     CC = 0
     CD = 1
     DC = 2
@@ -32,82 +55,123 @@ class State(enum.IntEnum):
     START = 4
 
 
-def policy_logger(agent) -> dict:
+class State_3P(enum.IntEnum):
+    CCC = 0
+    CCD = 1
+    CDC = 2
+    CDD = 3
+    DCC = 4
+    DCD = 5
+    DDC = 6
+    DDD = 7
+    START = 8
+
+
+class State_4P(enum.IntEnum):
+    CCCC = 0
+    CCCD = 1
+    CCDC = 2
+    CCDD = 3
+    CDCC = 4
+    CDCD = 5
+    CDDC = 6
+    CDDD = 7
+    DCCC = 8
+    DCCD = 9
+    DCDC = 10
+    DCDD = 11
+    DDCC = 12
+    DDCD = 13
+    DDDC = 14
+    DDDD = 15
+    START = 16
+
+
+STATE_DICT = {2: State_2P, 3: State_3P, 4: State_4P}
+
+
+def policy_logger(agent, num_players=2) -> dict:
     weights = agent.actor_optimizer.target["Dense_0"][
         "kernel"
     ]  # [layer_name]['w']
     log_pi = nn.softmax(weights)
+    state = STATE_DICT[num_players]
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
+        "policy/" + str(s): p[0] for (s, p) in zip(state, log_pi)
     }  # probability of cooperating is p[0]
     return probs
 
 
-def value_logger(agent) -> dict:
+def value_logger(agent, num_players=2) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
+    state = STATE_DICT[num_players]
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(state, weights)}
     )
     return values
 
 
-def policy_logger_dqn(agent) -> None:
+def policy_logger_dqn(agent, num_players=2) -> None:
     # this assumes using a linear layer, so this logging won't work using MLP
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pi = nn.softmax(weights)
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    state = STATE_DICT[num_players]
     probs = {
         f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update(
         {
             f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, pi)
+            for (s, p) in zip(state, pi)
         }
     )
     probs.update({"policy/target_step_updates": target_steps})
     return probs
 
 
-def value_logger_dqn(agent) -> dict:
+def value_logger_dqn(agent, num_players=2) -> dict:
     weights = agent._state.target_params["linear"]["w"]  # 5 x 2 matrix
     pid = agent.player_id
     target_steps = agent.target_step_updates
+    state = STATE_DICT[num_players]
     values = {
         f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, weights)
+        for (s, p) in zip(state, weights)
     }
     values.update(
         {
             f"value/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, weights)
+            for (s, p) in zip(state, weights)
         }
     )
     values.update({"value/target_step_updates": target_steps})
     return values
 
 
-def policy_logger_ppo(agent: PPO) -> dict:
+def policy_logger_ppo(agent: PPO, num_players=2) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    state = STATE_DICT[num_players]
+    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(state, pi)}
     probs.update({"policy/total_steps": sgd_steps})
     return probs
 
 
-def value_logger_ppo(agent: PPO) -> dict:
+def value_logger_ppo(agent: PPO, num_players=2) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear_1"][
         "w"
     ]  # 5 x 1 matrix
     sgd_steps = agent._total_steps / agent._num_steps
+    state = STATE_DICT[num_players]
     probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(state, weights)
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
@@ -193,25 +257,27 @@ def losses_naive(agent: NaiveExact) -> dict:
     return losses
 
 
-def logger_naive_exact(agent: NaiveExact) -> dict:
+def logger_naive_exact(agent: NaiveExact, num_players=2) -> dict:
     params = agent._mem.hidden
     pid = agent.player_id
     params = params.mean(axis=0)
     cooperation_probs = {"episode": agent._logger.metrics["total_steps"]}
-    for i, state_name in enumerate(STATE_NAMES):
+    state = STATE_DICT[num_players]
+    for i, state_name in enumerate(state_names):
         cooperation_probs[
             f"policy/naive_learner_{pid}/avg/{state_name}"
         ] = float(params[i])
     return cooperation_probs
 
 
-def policy_logger_naive(agent) -> None:
+def policy_logger_naive(agent, num_players=2) -> None:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
+    state = STATE_DICT[num_players]
     probs = {
         f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(state, pi)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
@@ -423,6 +489,148 @@ def ipd_visitation(
         "cooperation_probability/DD": action_probs[3],
         "cooperation_probability/START": action_probs[4],
     }
+
+
+# we cannot jit on numplayers because we need to use jnp.bincount
+def n_player_ipd_visitation(
+    observations: jnp.ndarray,
+    num_players: int,
+) -> dict:
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, num_states]
+    state_actions = jnp.argmax(observations, axis=-1)
+    # 2**num_players is the number of possible states plus start state
+    hist = jnp.bincount(state_actions.flatten(), length=2**num_players + 1)
+    state_freq = hist
+    state_probs = hist / hist.sum()
+
+    num_def_vis = jnp.zeros(
+        (2 * num_players + 1,)
+    )  # 2 choices for first player * numpl different amount of defectors + start state
+    for state_idx in range(2**num_players):  # not dealing with start state
+        # check what first agent did
+        if state_idx >= 2 ** (num_players - 1):  # if first agent defected
+            num_def_state_idx = num_players  # we start with D, add more later
+            new_state_idx = state_idx - 2 ** (
+                num_players - 1
+            )  # get rid of first agent
+        else:
+            num_def_state_idx = 0  # we start with C, add more later
+            new_state_idx = state_idx
+
+        # count how many defectors there are amongst opponents
+        num_def = bin(new_state_idx).count("1")
+        # add it to the index
+        num_def_state_idx = num_def_state_idx + num_def
+        num_def_vis = num_def_vis.at[num_def_state_idx].add(hist[state_idx])
+
+    # dealing with start state
+    num_def_vis = num_def_vis.at[2 * num_players].add(
+        hist[2**num_players]
+    )  # num start state vis is the last
+    grouped_state_freq = num_def_vis
+    grouped_state_probs = grouped_state_freq / grouped_state_freq.sum()
+
+    # generate the dict keys for logging
+    letters = ["C", "D"]
+    combinations = list(itertools.product(letters, repeat=num_players))
+    combinations = ["".join(c) for c in combinations] + ["START"]
+
+    visitation_strs = ["state_visitation/" + c for c in combinations]
+    prob_strs = ["state_probability/" + c for c in combinations]
+
+    def generate_grouped_combs_strs(num_players):
+        # eg 4 pl order is
+        # C3C0D, C2C1D, C1C2D, C0C3D,   idx (0...num_pl-1  )
+        # D3C0D, D2C1D, D1C2D, D0C3D,  idx (num_pl... 2*num_pl-1 )
+        # START                      idx (2*num_pl)
+        grouped_combs = []
+        for n in range(0, num_players):  # num_players-1 opponents
+            string_1 = f"C{n}D"
+            grouped_combs.append(string_1)
+        for n in range(0, num_players):
+            string_2 = f"D{n}D"
+            grouped_combs.append(string_2)
+        grouped_combs.append("START")
+        return grouped_combs
+
+    grouped_comb_strs = generate_grouped_combs_strs(num_players)
+    grouped_visitation_strs = [
+        "grouped_state_visitation/" + c for c in grouped_comb_strs
+    ]
+    grouped_prob_strs = [
+        "grouped_state_probability/" + c for c in grouped_comb_strs
+    ]
+
+    visitation_dict = (
+        dict(zip(visitation_strs, state_freq))
+        | dict(zip(prob_strs, state_probs))
+        | dict(zip(grouped_visitation_strs, grouped_state_freq))
+        | dict(zip(grouped_prob_strs, grouped_state_probs))
+    )
+    return visitation_dict
+
+
+def tensor_ipd_visitation(
+    observations: jnp.ndarray,
+) -> dict:
+    # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, num_states]
+    state_actions = jnp.argmax(observations, axis=-1)
+    hist = jnp.bincount(state_actions.flatten(), length=9)
+    state_freq = hist
+    state_probs = hist / hist.sum()
+    return {
+        "state_visitation/CCC": state_freq[0],
+        "state_visitation/CCD": state_freq[1],
+        "state_visitation/CDC": state_freq[2],
+        "state_visitation/CDD": state_freq[3],
+        "state_visitation/DCC": state_freq[4],
+        "state_visitation/DCD": state_freq[5],
+        "state_visitation/DDC": state_freq[6],
+        "state_visitation/DDD": state_freq[7],
+        "state_visitation/START": state_freq[8],
+        "state_probability/CCC": state_probs[0],
+        "state_probability/CCD": state_probs[1],
+        "state_probability/CDC": state_probs[2],
+        "state_probability/CDD": state_probs[3],
+        "state_probability/DCC": state_probs[4],
+        "state_probability/DCD": state_probs[5],
+        "state_probability/DDC": state_probs[6],
+        "state_probability/DDD": state_probs[7],
+        "state_probability/START": state_probs[8],
+    }
+
+
+# def tensor_ipd_coop_probs(
+#     observations: jnp.ndarray,
+#     actions: jnp.ndarray,
+#     final_obs: jnp.ndarray,
+#     agent_idx: int = 1,
+# ) -> dict:
+#     num_timesteps = observations.shape[0] * observations.shape[1]
+#     # obs = [0....8], a = [0, 1]
+#     # combine = [0, .... 17]
+#     state_actions = 2 * jnp.argmax(observations, axis=-1) + actions
+#     state_actions = jnp.reshape(
+#         state_actions,
+#         (num_timesteps,) + state_actions.shape[2:],
+#     )
+#     final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
+#     state_actions = jnp.append(state_actions, final_obs, axis=0)
+#     hist = jnp.bincount(state_actions.flatten(), length=18)
+#     state_freq = hist.reshape((int(hist.shape[0] / 2), 2)).sum(axis=1)
+#     action_probs = jnp.nan_to_num(hist[::2] / state_freq)
+#     # THIS IS FROM AGENTS OWN PERSPECTIVE
+#     return {
+#         f"cooperation_probability/{agent_idx}/CCC": action_probs[0],
+#         f"cooperation_probability/{agent_idx}/CCD": action_probs[1],
+#         f"cooperation_probability/{agent_idx}/CDC": action_probs[2],
+#         f"cooperation_probability/{agent_idx}/CDD": action_probs[3],
+#         f"cooperation_probability/{agent_idx}/DCC": action_probs[4],
+#         f"cooperation_probability/{agent_idx}/DCD": action_probs[5],
+#         f"cooperation_probability/{agent_idx}/DDC": action_probs[6],
+#         f"cooperation_probability/{agent_idx}/DDD": action_probs[7],
+#         f"cooperation_probability/{agent_idx}/START": action_probs[8],
+#     }
 
 
 def cg_visitation(state: NamedTuple) -> dict:

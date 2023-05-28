@@ -82,4 +82,4 @@ wandb:
   project: cg
   group: 'GS-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
-  log: False
+  log: True

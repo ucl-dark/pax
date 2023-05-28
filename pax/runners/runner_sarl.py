@@ -4,8 +4,8 @@ from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
-import wandb
 
+import wandb
 from pax.utils import MemoryState, TrainingState, save
 
 # from jax.config import config

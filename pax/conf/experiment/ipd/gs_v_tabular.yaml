@@ -15,7 +15,7 @@ runner: evo
 
 # Training
 top_k: 5
-popsize: 1000
+popsize: 10
 num_envs: 2
 num_opps: 1
 num_outer_steps: 1 
@@ -74,7 +74,7 @@ ppo1:
   entropy_coeff_start: 0.02
   entropy_coeff_horizon: 2000000
   entropy_coeff_end: 0.001
-  lr_scheduling: False
+  lr_scheduling: sFalse
   learning_rate: 1
   adam_epsilon: 1e-5
   with_memory: False

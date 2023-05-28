@@ -1,0 +1,61 @@
+# @package _global_
+
+# Agents  
+agent1: 'PPO'
+agent2: 'TitForTatCooperate'
+agent3: 'TitForTatCooperate'
+
+# Environment
+num_players: 3
+env_type: meta
+env_discount: 0.99
+# payoff: [[4,4,4], [2.66,2.66,5.66], [2.66,5.66,2.66], [1.33,4.33,4.33], [5.66,2.66,2.66],[4.33,1.33,4.33], [4.33,4.33,1.33],[3,3,3]]
+payoff_table: [
+    [4, -1000],
+    [2.66, 5.66],
+    [1.33, 4.33],
+    [-10000, 3],
+]
+# Environment
+env_id: iterated_nplayer_tensor_game
+# Runner
+runner: tensor_rl_nplayer
+# Training hyperparameters
+num_envs: 100
+num_opps: 1
+num_outer_steps: 1
+num_inner_steps: 150 # number of steps per episode
+num_iters: 2e5
+save_interval: 1
+
+# Useful information
+# batch_size = num_envs * num_steps
+
+# PPO agent parameters
+ppo1:
+  num_minibatches: 4
+  num_epochs: 2 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 1e7
+  entropy_coeff_end: 0.001
+  lr_scheduling: True
+  learning_rate: 0.001
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  hidden_size: 4
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: tensor
+  group: 'nplayer_test'
+  name: 3pl_tft_rl_runner
+  log: True
