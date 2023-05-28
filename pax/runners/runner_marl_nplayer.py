@@ -504,18 +504,18 @@ class NplayerRLRunner:
                 env_params,
             )
 
-            # saving
-            # if i % save_interval == 0:
-            #     log_savepath1 = os.path.join(
-            #         self.save_dir, f"agent1_iteration_{i}"
-            #     )
-            #     if watchers:
-            #         print(f"Saving iteration {i} locally and to WandB")
-            #         wandb.save(log_savepath1)
-            #     else:
-            #         print(f"Saving iteration {i} locally")
+            #saving
+            if i % save_interval == 0:
+                log_savepath1 = os.path.join(
+                    self.save_dir, f"agent1_iteration_{i}"
+                )
+                if watchers:
+                    print(f"Saving iteration {i} locally and to WandB")
+                    wandb.save(log_savepath1)
+                else:
+                    print(f"Saving iteration {i} locally")
 
-            # logging
+            # #logging
             # if i % log_interval == 0:
             #     print(f"Episode {i}")
             #     for stat in env_stats.keys():

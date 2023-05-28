@@ -10,28 +10,31 @@ agent5: 'PPO_memory'
 # Environment
 env_id: iterated_nplayer_tensor_game
 num_players: 5
-env_type: sequential
+env_type: meta
 env_discount: 0.96
 payoff_table: [
-    [ 8 , 1000 ],
-    [ 6 , 9 ],
-    [ 4 , 7 ],
-    [ 2 , 5 ],
-    [ 0 , 3 ],
-    [ -1000 , 1 ],
+    [ 3.0 , 6.0 ],
+    [ 1.8 , 4.8 ],
+    [ 0.6 , 3.6 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
 ]
 # Runner 
-runner: tensor_rl_nplayer
+runner: tensor_eval_nplayer
+# run_path1: ucl-dark/tensor/1pbmyx7s
+# model_path1: exp/n-player/5pl/2023-04-19_10.14.33.264968/generation_500
 
 
 # Training
 num_envs: 2
-num_opps: 50
-num_inner_steps: 100 # one game length
-num_outer_steps: 1 # sequential 
-num_iters: 2000  #games
+num_opps: 10
+num_inner_steps: 100
+num_outer_steps: 1000 #
+num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
+
 
 # PPO agent parameters
 ppo1:
@@ -134,11 +137,10 @@ ppo5:
   with_cnn: False
   separate: False
   hidden_size: 16
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'naive_5pl_ipd'
-  name: naive_5pl_ipd-${seed}
+  group: 'n-player'
+  name: 5pl_sh_eval
   log: True

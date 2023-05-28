@@ -24,10 +24,10 @@ runner: tensor_rl_nplayer
 
 # Training
 num_envs: 2
-num_opps: 10
+num_opps: 50
 num_inner_steps: 100 # one game length
 num_outer_steps: 1 # sequential 
-num_iters: 1000  #games
+num_iters: 2000  #games
 # total_timesteps: 2.5e7
 num_devices: 1
 
@@ -119,6 +119,6 @@ ppo4:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: naive-4pl-sd
+  group: 'naive_4pl_sd'
+  name: naive_4pl_sd-${seed}
   log: True
