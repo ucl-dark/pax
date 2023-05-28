@@ -24,9 +24,9 @@ runner: tensor_eval_nplayer
 
 # Training
 num_envs: 2
-num_opps: 10
+num_opps: 100
 num_inner_steps: 100
-num_outer_steps: 1000 #
+num_outer_steps: 5000 #
 num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
@@ -98,6 +98,6 @@ ppo4:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: tft_soft_baseline_4pl_ipd
+  group: 'tft_soft_baseline_4pl_ipd'
+  name: tft_soft_baseline_4pl_ipd-${seed}
   log: True
