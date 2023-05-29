@@ -7843,3 +7843,200 @@
 [2023-05-09 18:16:10,413][root][INFO] - Training with n-player tensor eval Runner
 [2023-05-09 18:16:11,101][root][INFO] - => Done in 688.518 ms
 [2023-05-09 18:16:11,102][root][INFO] - 
+[2023-05-19 13:29:55,516][root][INFO] - => Global setup ...
+[2023-05-19 13:29:55,518][root][INFO] - => Done in 1.606 ms
+[2023-05-19 13:29:55,518][root][INFO] - 
+[2023-05-19 13:29:55,518][root][INFO] - => Env setup ...
+[2023-05-19 13:29:55,520][root][INFO] - Env Type: sequential s| Inner Episode Length: 100
+[2023-05-19 13:29:55,520][root][INFO] - => Done in 2.501 ms
+[2023-05-19 13:29:55,520][root][INFO] - 
+[2023-05-19 13:29:55,520][root][INFO] - => Agent setup ...
+[2023-05-19 13:29:56,161][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory', 'PPO_memory', 'PPO_memory']
+[2023-05-19 13:29:56,161][root][INFO] - Agent seeds: [0, 1, 2, 3]
+[2023-05-19 13:29:56,161][root][INFO] - => Done in 641.216 ms
+[2023-05-19 13:29:56,161][root][INFO] - 
+[2023-05-19 13:29:56,162][root][INFO] - => Watcher setup ...
+[2023-05-19 13:29:56,162][root][INFO] - => Done in 102.043 us
+[2023-05-19 13:29:56,162][root][INFO] - 
+[2023-05-19 13:29:56,162][root][INFO] - => Runner setup ...
+[2023-05-19 13:29:56,990][root][INFO] - => Done in 828.289 ms
+[2023-05-19 13:29:56,990][root][INFO] - 
+[2023-05-19 13:30:37,805][root][INFO] - => Global setup ...
+[2023-05-19 13:30:37,806][root][INFO] - => Done in 1.303 ms
+[2023-05-19 13:30:37,806][root][INFO] - 
+[2023-05-19 13:30:37,806][root][INFO] - => Env setup ...
+[2023-05-19 13:30:37,809][root][INFO] - Env Type: meta s| Inner Episode Length: 100
+[2023-05-19 13:30:37,809][root][INFO] - => Done in 2.394 ms
+[2023-05-19 13:30:37,809][root][INFO] - 
+[2023-05-19 13:30:37,809][root][INFO] - => Agent setup ...
+[2023-05-19 13:30:38,410][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory', 'PPO_memory', 'PPO_memory']
+[2023-05-19 13:30:38,410][root][INFO] - Agent seeds: [0, 1, 2, 3]
+[2023-05-19 13:30:38,411][root][INFO] - => Done in 601.722 ms
+[2023-05-19 13:30:38,411][root][INFO] - 
+[2023-05-19 13:30:38,411][root][INFO] - => Watcher setup ...
+[2023-05-19 13:30:38,411][root][INFO] - => Done in 97.990 us
+[2023-05-19 13:30:38,411][root][INFO] - 
+[2023-05-19 13:30:38,411][root][INFO] - => Runner setup ...
+[2023-05-19 13:30:38,445][root][INFO] - Evolution Strategy: OpenES
+[2023-05-19 13:30:38,445][root][INFO] - Training with n-player EVO runner
+[2023-05-19 13:30:39,533][root][INFO] - => Done in 1.123 s
+[2023-05-19 13:30:39,533][root][INFO] - 
+[2023-05-19 16:49:14,310][root][INFO] - => Global setup ...
+[2023-05-19 16:49:18,567][root][INFO] - => Done in 4.257 s
+[2023-05-19 16:49:18,567][root][INFO] - 
+[2023-05-19 16:49:18,568][root][INFO] - => Env setup ...
+[2023-05-19 16:49:18,575][root][INFO] - Env Type: sequential s| Inner Episode Length: 100
+[2023-05-19 16:49:18,575][root][INFO] - => Done in 7.858 ms
+[2023-05-19 16:49:18,576][root][INFO] - 
+[2023-05-19 16:49:18,576][root][INFO] - => Agent setup ...
+[2023-05-19 16:49:19,203][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory', 'PPO_memory', 'PPO_memory', 'PPO_memory']
+[2023-05-19 16:49:19,203][root][INFO] - Agent seeds: [0, 1, 2, 3, 4]
+[2023-05-19 16:49:19,203][root][INFO] - => Done in 627.766 ms
+[2023-05-19 16:49:19,204][root][INFO] - 
+[2023-05-19 16:49:19,204][root][INFO] - => Watcher setup ...
+[2023-05-19 16:49:19,204][root][INFO] - => Done in 155.926 us
+[2023-05-19 16:49:19,204][root][INFO] - 
+[2023-05-19 16:49:19,204][root][INFO] - => Runner setup ...
+[2023-05-19 16:49:19,992][root][INFO] - => Done in 788.213 ms
+[2023-05-19 16:49:19,992][root][INFO] - 
+[2023-05-29 00:39:42,544][root][INFO] - => Global setup ...
+[2023-05-29 00:39:47,052][root][INFO] - => Done in 4.508 s
+[2023-05-29 00:39:47,053][root][INFO] - 
+[2023-05-29 00:39:47,053][root][INFO] - => Env setup ...
+[2023-05-29 00:39:47,058][root][INFO] - Env Type: sequential s| Inner Episode Length: 100
+[2023-05-29 00:39:47,058][root][INFO] - => Done in 5.062 ms
+[2023-05-29 00:39:47,058][root][INFO] - 
+[2023-05-29 00:39:47,058][root][INFO] - => Agent setup ...
+[2023-05-29 00:39:47,669][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 00:39:47,669][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 00:39:47,669][root][INFO] - => Done in 611.054 ms
+[2023-05-29 00:39:47,669][root][INFO] - 
+[2023-05-29 00:39:47,669][root][INFO] - => Watcher setup ...
+[2023-05-29 00:39:47,670][root][INFO] - => Done in 190.973 us
+[2023-05-29 00:39:47,670][root][INFO] - 
+[2023-05-29 00:39:47,670][root][INFO] - => Runner setup ...
+[2023-05-29 00:39:48,434][root][INFO] - => Done in 763.964 ms
+[2023-05-29 00:39:48,434][root][INFO] - 
+[2023-05-29 00:42:25,006][root][INFO] - => Global setup ...
+[2023-05-29 00:42:29,033][root][INFO] - => Done in 4.027 s
+[2023-05-29 00:42:29,034][root][INFO] - 
+[2023-05-29 00:42:29,034][root][INFO] - => Env setup ...
+[2023-05-29 00:42:29,040][root][INFO] - Env Type: sequential s| Inner Episode Length: 100
+[2023-05-29 00:42:29,040][root][INFO] - => Done in 6.384 ms
+[2023-05-29 00:42:29,040][root][INFO] - 
+[2023-05-29 00:42:29,040][root][INFO] - => Agent setup ...
+[2023-05-29 00:42:29,590][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 00:42:29,591][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 00:42:29,591][root][INFO] - => Done in 550.240 ms
+[2023-05-29 00:42:29,591][root][INFO] - 
+[2023-05-29 00:42:29,591][root][INFO] - => Watcher setup ...
+[2023-05-29 00:42:29,591][root][INFO] - => Done in 272.989 us
+[2023-05-29 00:42:29,591][root][INFO] - 
+[2023-05-29 00:42:29,591][root][INFO] - => Runner setup ...
+[2023-05-29 00:42:30,405][root][INFO] - => Done in 813.904 ms
+[2023-05-29 00:42:30,405][root][INFO] - 
+[2023-05-29 15:54:42,357][root][INFO] - => Global setup ...
+[2023-05-29 15:54:46,361][root][INFO] - => Done in 4.004 s
+[2023-05-29 15:54:46,361][root][INFO] - 
+[2023-05-29 15:54:46,362][root][INFO] - => Env setup ...
+[2023-05-29 15:54:46,366][root][INFO] - Env Type: meta | Inner Episode Length: 100
+[2023-05-29 15:54:46,366][root][INFO] - Outer Episode Length: 100
+[2023-05-29 15:54:46,366][root][INFO] - => Done in 4.862 ms
+[2023-05-29 15:54:46,366][root][INFO] - 
+[2023-05-29 15:54:46,367][root][INFO] - => Agent setup ...
+[2023-05-29 15:54:46,931][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 15:54:46,931][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 15:54:46,931][root][INFO] - => Done in 564.780 ms
+[2023-05-29 15:54:46,931][root][INFO] - 
+[2023-05-29 15:54:46,931][root][INFO] - => Watcher setup ...
+[2023-05-29 15:54:46,932][root][INFO] - => Done in 109.911 us
+[2023-05-29 15:54:46,932][root][INFO] - 
+[2023-05-29 15:54:46,932][root][INFO] - => Runner setup ...
+[2023-05-29 15:54:46,932][root][INFO] - => Done in 257.969 us
+[2023-05-29 15:54:46,932][root][INFO] - 
+[2023-05-29 15:57:12,440][root][INFO] - => Global setup ...
+[2023-05-29 15:57:15,837][root][INFO] - => Done in 3.398 s
+[2023-05-29 15:57:15,838][root][INFO] - 
+[2023-05-29 15:57:15,838][root][INFO] - => Env setup ...
+[2023-05-29 15:57:15,841][root][INFO] - Env Type: meta | Inner Episode Length: 100
+[2023-05-29 15:57:15,841][root][INFO] - Outer Episode Length: 100
+[2023-05-29 15:57:15,841][root][INFO] - => Done in 3.798 ms
+[2023-05-29 15:57:15,841][root][INFO] - 
+[2023-05-29 15:57:15,842][root][INFO] - => Agent setup ...
+[2023-05-29 15:57:16,358][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 15:57:16,358][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 15:57:16,358][root][INFO] - => Done in 516.615 ms
+[2023-05-29 15:57:16,358][root][INFO] - 
+[2023-05-29 15:57:16,358][root][INFO] - => Watcher setup ...
+[2023-05-29 15:57:16,358][root][INFO] - => Done in 109.196 us
+[2023-05-29 15:57:16,358][root][INFO] - 
+[2023-05-29 15:57:16,359][root][INFO] - => Runner setup ...
+[2023-05-29 15:57:16,394][root][INFO] - Evolution Strategy: OpenES
+[2023-05-29 15:57:16,394][root][INFO] - Training with EVO runner
+[2023-05-29 15:57:16,876][root][INFO] - => Done in 517.709 ms
+[2023-05-29 15:57:16,876][root][INFO] - 
+[2023-05-29 16:01:52,717][root][INFO] - => Global setup ...
+[2023-05-29 16:01:56,053][root][INFO] - => Done in 3.336 s
+[2023-05-29 16:01:56,053][root][INFO] - 
+[2023-05-29 16:01:56,054][root][INFO] - => Env setup ...
+[2023-05-29 16:01:56,057][root][INFO] - Env Type: meta | Inner Episode Length: 100
+[2023-05-29 16:01:56,057][root][INFO] - Outer Episode Length: 100
+[2023-05-29 16:01:56,057][root][INFO] - => Done in 3.135 ms
+[2023-05-29 16:01:56,057][root][INFO] - 
+[2023-05-29 16:01:56,057][root][INFO] - => Agent setup ...
+[2023-05-29 16:01:56,562][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 16:01:56,562][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 16:01:56,562][root][INFO] - => Done in 505.464 ms
+[2023-05-29 16:01:56,562][root][INFO] - 
+[2023-05-29 16:01:56,562][root][INFO] - => Watcher setup ...
+[2023-05-29 16:01:56,563][root][INFO] - => Done in 175.953 us
+[2023-05-29 16:01:56,563][root][INFO] - 
+[2023-05-29 16:01:56,563][root][INFO] - => Runner setup ...
+[2023-05-29 16:01:56,597][root][INFO] - Evolution Strategy: OpenES
+[2023-05-29 16:01:56,597][root][INFO] - Training with EVO runner
+[2023-05-29 16:01:57,032][root][INFO] - => Done in 469.023 ms
+[2023-05-29 16:01:57,032][root][INFO] - 
+[2023-05-29 16:41:55,009][root][INFO] - => Global setup ...
+[2023-05-29 16:41:58,681][root][INFO] - => Done in 3.672 s
+[2023-05-29 16:41:58,681][root][INFO] - 
+[2023-05-29 16:41:58,682][root][INFO] - => Env setup ...
+[2023-05-29 16:41:58,684][root][INFO] - => Done in 2.894 ms
+[2023-05-29 16:41:58,685][root][INFO] - 
+[2023-05-29 16:42:45,952][root][INFO] - => Global setup ...
+[2023-05-29 16:42:49,359][root][INFO] - => Done in 3.407 s
+[2023-05-29 16:42:49,359][root][INFO] - 
+[2023-05-29 16:42:49,359][root][INFO] - => Env setup ...
+[2023-05-29 16:42:49,365][root][INFO] - Env Type: meta s| Inner Episode Length: 100
+[2023-05-29 16:42:49,365][root][INFO] - => Done in 6.157 ms
+[2023-05-29 16:42:49,365][root][INFO] - 
+[2023-05-29 16:42:49,365][root][INFO] - => Agent setup ...
+[2023-05-29 16:42:49,935][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 16:42:49,936][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 16:42:49,936][root][INFO] - => Done in 570.382 ms
+[2023-05-29 16:42:49,936][root][INFO] - 
+[2023-05-29 16:42:49,936][root][INFO] - => Watcher setup ...
+[2023-05-29 16:42:49,936][root][INFO] - => Done in 102.043 us
+[2023-05-29 16:42:49,936][root][INFO] - 
+[2023-05-29 16:42:49,936][root][INFO] - => Runner setup ...
+[2023-05-29 16:42:49,936][root][INFO] - => Done in 221.968 us
+[2023-05-29 16:42:49,936][root][INFO] - 
+[2023-05-29 16:43:04,258][root][INFO] - => Global setup ...
+[2023-05-29 16:43:07,664][root][INFO] - => Done in 3.407 s
+[2023-05-29 16:43:07,665][root][INFO] - 
+[2023-05-29 16:43:07,665][root][INFO] - => Env setup ...
+[2023-05-29 16:43:07,669][root][INFO] - Env Type: meta s| Inner Episode Length: 100
+[2023-05-29 16:43:07,669][root][INFO] - => Done in 4.695 ms
+[2023-05-29 16:43:07,670][root][INFO] - 
+[2023-05-29 16:43:07,670][root][INFO] - => Agent setup ...
+[2023-05-29 16:43:08,196][root][INFO] - Agent Pair: ['PPO_memory', 'PPO_memory']
+[2023-05-29 16:43:08,196][root][INFO] - Agent seeds: [0, 1]
+[2023-05-29 16:43:08,196][root][INFO] - => Done in 526.467 ms
+[2023-05-29 16:43:08,196][root][INFO] - 
+[2023-05-29 16:43:08,196][root][INFO] - => Watcher setup ...
+[2023-05-29 16:43:08,196][root][INFO] - => Done in 140.190 us
+[2023-05-29 16:43:08,197][root][INFO] - 
+[2023-05-29 16:43:08,197][root][INFO] - => Runner setup ...
+[2023-05-29 16:43:08,229][root][INFO] - Evolution Strategy: OpenES
+[2023-05-29 16:43:08,229][root][INFO] - Training with n-player EVO runner
+[2023-05-29 16:43:08,678][root][INFO] - => Done in 481.813 ms
+[2023-05-29 16:43:08,679][root][INFO] - 
