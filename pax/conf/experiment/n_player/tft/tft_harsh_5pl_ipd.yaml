@@ -28,7 +28,7 @@ runner: tensor_eval_nplayer
 num_envs: 2
 num_opps: 100
 num_inner_steps: 100
-num_outer_steps: 2000 #
+num_outer_steps: 100 #
 num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
