@@ -16,7 +16,7 @@ runner: eval_hardstop
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
+num_envs: 20
 num_opps: 1
 num_steps: 10000
 num_outer_steps: 100
@@ -40,12 +40,12 @@ stop: 2
 
 
 # # nothing-model 0
-run_path: ucl-dark/ipd/2jpssoai
-model_path: exp/EARL-Shaper-vs-Tabular/run-seed-36-OpenES-pop-size-1000-num-opps-10/2023-04-26_03.30.19.506954/generation_900
+# run_path: ucl-dark/ipd/2jpssoai
+# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-36-OpenES-pop-size-1000-num-opps-10/2023-04-26_03.30.19.506954/generation_900
 
 # # nothing-model 1 seed 65
-# run_path: ucl-dark/ipd/2m3wh5g7
-# model_path: exp/EARL-Shaper-vs-Tabular/run-seed-65-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_22.17.07.592872/generation_900
+run_path: ucl-dark/ipd/2m3wh5g7
+model_path: exp/EARL-Shaper-vs-Tabular/run-seed-65-OpenES-pop-size-1000-num-opps-10-att-type-nothing/2023-05-14_22.17.07.592872/generation_900
 
 # # nothing-model 2 47
 # run_path: ucl-dark/ipd/1jk5zly5
