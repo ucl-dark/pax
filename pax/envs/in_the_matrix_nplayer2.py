@@ -401,6 +401,7 @@ class InTheMatrix(environment.Environment):
             
             vmap_get_target = jax.vmap(get_target, (0, None), (0, 0, 0, 0, 0, 0))
             agent_positions, target, target_ahead, target_right, target_left, interact_targets = vmap_get_target(state.agent_positions, state.grid)
+            print(target, target_ahead, target_right, target_left, interact_targets,'target, target_ahead, target_right, target_left, interact_targets')
 
             def update_grid_interact(i, val):
                 grid, target, target_ahead, target_right, target_left, zaps = val
@@ -450,7 +451,7 @@ class InTheMatrix(environment.Environment):
                 return pairs
 
             agent_pairs = jnp.array(generate_agent_pairs(num_agents))
-            print(agent_pairs.shape, 'agent pairs')
+            # print(agent_pairs.shape, 'agent pairs')
 
             # Sort the agent pairs randomly using the provided rng_key
             random_key, subkey = jax.random.split(rng_key)
@@ -458,13 +459,14 @@ class InTheMatrix(environment.Environment):
 
             # Create a boolean array to track whether each agent is in an interaction
             agent_interaction_mask = jnp.zeros((num_agents,), dtype=bool)
+            pairwise_mask = jnp.zeros((agent_pairs.shape[0],), dtype=bool)
 
             def process_agent_interactions(i, val):
-                agent_interaction_mask, shuffled_indices, interact_targets, agent_inventories = val
+                agent_interaction_mask, shuffled_indices, interact_targets, agent_inventories, pairwise_mask = val
                 pair_idx = shuffled_indices[i]
                 agent0, agent1 = agent_pairs[pair_idx]
-                agent1_in_agent0 = jnp.isin(agent1, interact_targets[agent0])
-                agent0_in_agent1 = jnp.isin(agent0, interact_targets[agent1])
+                agent1_in_agent0 = jnp.isin(agent1+1, interact_targets[agent0])
+                agent0_in_agent1 = jnp.isin(agent0+1, interact_targets[agent1])
                 pickup0 = agent_inventories[agent0].sum() > INTERACT_THRESHOLD
                 pickup1 = agent_inventories[agent1].sum() > INTERACT_THRESHOLD
                 is_interacting = jnp.logical_and(agent1_in_agent0, agent0_in_agent1)
@@ -472,25 +474,37 @@ class InTheMatrix(environment.Environment):
                 interacting = jnp.logical_and(is_interacting, jnp.logical_not(agent_interaction_mask[agent0] | agent_interaction_mask[agent1]))
                 agent_interaction_mask = agent_interaction_mask.at[agent0].set(interacting)
                 agent_interaction_mask = agent_interaction_mask.at[agent1].set(interacting)
+                pairwise_mask = pairwise_mask.at[pair_idx].set(interacting)
 
-
-
-                return (agent_interaction_mask,  shuffled_indices, interact_targets, agent_inventories)
+                return (agent_interaction_mask,  shuffled_indices, interact_targets, agent_inventories, pairwise_mask)
             
-            agent_interaction_mask, _, _, _ = jax.lax.fori_loop(0, num_agents, process_agent_interactions, 
+            for agent0,agent1 in [(0,1),(0,2),(1,2)]:
+
+                agent1_in_agent0 = jnp.isin(agent1+1, interact_targets[agent0])
+                agent0_in_agent1 = jnp.isin(agent0+1, interact_targets[agent1])
+                print('##')
+                print(agent0, agent1, 'agent0, agent1:')
+                print(agent1_in_agent0, 'agent1_in_agent0')
+                print(agent0_in_agent1, 'agent0_in_agent1')
+                print('##')
+
+
+
+            agent_interaction_mask, _, _, _,pairwise_mask = jax.lax.fori_loop(0, num_agents, process_agent_interactions, 
                                                           (agent_interaction_mask,
                                                            shuffled_indices,
                                                            interact_targets,
-                                                           state.agent_inventories))
+                                                           state.agent_inventories, pairwise_mask))
 
 
-            def get_interaction_mask(pair, agent_interaction_mask):
-                i, j = pair[0], pair[1]
-                return agent_interaction_mask[i] & agent_interaction_mask[j]
+            # def get_interaction_mask(pair, agent_interaction_mask):
+            #     i, j = pair[0], pair[1]
+            #     return agent_interaction_mask[i] & agent_interaction_mask[j]
 
-            interaction_masks = jax.vmap(get_interaction_mask, in_axes=(0, None))(agent_pairs, agent_interaction_mask)
+            # interaction_masks = jax.vmap(get_interaction_mask, in_axes=(0, None))(agent_pairs, agent_interaction_mask)
+            interaction_masks = pairwise_mask
             
-            print(interaction_masks.shape, 'interaction mask shape')
+            # print(interaction_masks.shape, 'interaction mask shape')
             # selected_interactions = interaction_masks.all(axis=-1)
             # print(selected_interactions.shape, 'selected_interactions shape')
 
@@ -507,10 +521,10 @@ class InTheMatrix(environment.Environment):
             
             vmap_get_selected_pairs = jax.vmap(get_selected_pairs, (0,0,0), (0,0))
             selected_pairs, selected_rewards = vmap_get_selected_pairs(interaction_masks, agent_pairs, rewards_for_pairs)
-            print(selected_pairs.shape, 'selected pairs shape')
+            # print(selected_pairs.shape, 'selected pairs shape')
 
             rewards = jnp.zeros((num_agents,))
-            print(rewards_for_pairs.shape,'rewards for pairs')
+            # print(rewards_for_pairs.shape,'rewards for pairs')
             def assign_reward(i, val):
                 rewards, agent_pairs, selected_rewards = val
                 agent0, agent1 = agent_pairs[i]
@@ -520,7 +534,7 @@ class InTheMatrix(environment.Environment):
             
             rewards, _, _ = jax.lax.fori_loop(0, selected_rewards.shape[0], assign_reward, (rewards, agent_pairs, selected_rewards))
             # rewards = rewards.at[selected_pairs.ravel()].set(rewards_for_pairs.ravel())
-            print(rewards.shape, 'rewards shape')
+            # print(rewards.shape, 'rewards shape')
             # Update the grid with the selected interact positions
             # def update_grid(i, val):
             #     grid, selected_interact_positions, interact_idx = val
@@ -556,7 +570,8 @@ class InTheMatrix(environment.Environment):
         ):
 
             """Step the environment."""
-
+            original_agent_pos = state.agent_positions
+            print(original_agent_pos, 'original agent pos')
             # freeze check
             # action_0, action_1 = actions
             # action_0 = jnp.where(state.freeze > 0, Actions.stay, action_0)
@@ -566,7 +581,6 @@ class InTheMatrix(environment.Environment):
                 return action
             vmap_freeze_check = jax.vmap(freeze_check, (0, 0), 0)
             actions = vmap_freeze_check(jnp.array(actions), state.agent_freezes)
-
             def turning_and_moving(agent_pos, action):
                 # turning red
                 new_pos = jnp.int8(
@@ -589,20 +603,23 @@ class InTheMatrix(environment.Environment):
                 )
 
                 # if you bounced back to ur original space, we change your move to stay (for collision logic)
-                move = (new_pos[:2] != agent_pos[:2]).any()
+                move = (new_agent_pos[:2] != agent_pos[:2]).any()
                 return new_agent_pos, move
 
             vmap_turning_and_moving = jax.vmap(turning_and_moving, (0, 0), (0, 0))
             new_agent_positions, moves = vmap_turning_and_moving(state.agent_positions, actions)
 
-            # if collision, priority to whoever didn't move
+
             def check_collision(agent1_pos, agent2_pos):
                 collision = jnp.all(agent1_pos[:2] == agent2_pos[:2])
                 return collision
 
+            #check if there are collisions
             vmap_check_collision = jax.vmap(jax.vmap(check_collision, (None, 0), 0), (0, None), 0)
-            collisions = vmap_check_collision(state.agent_positions, state.agent_positions)
+            collisions = vmap_check_collision(new_agent_positions,new_agent_positions)
 
+            # if collision, priority to whoever didn't move
+            # if collision and we are trying to move to a taken spot we stay
             def update_position(new_agent_pos, old_agent_pos, move1, move2, collision):
                 new_agent_pos = jnp.where(
                 collision
@@ -621,6 +638,7 @@ class InTheMatrix(environment.Environment):
             mask = jnp.eye(n, dtype=bool)
             row_selector = ~mask
             collision_matrix = jnp.where(row_selector, collisions, collisions[0])[:, 1:]
+
             
             vmap_update_position = jax.vmap(jax.vmap(update_position, (None, None, None, 0, 0), 0), (0, 0, 0, 0, 0), 0)
             updated_position = vmap_update_position(new_agent_positions, state.agent_positions, moves, move_matrix, collision_matrix)
@@ -650,7 +668,6 @@ class InTheMatrix(environment.Environment):
             mask = jnp.eye(n, dtype=bool)
             row_selector = ~mask
             takes_square_matrix = jnp.where(row_selector, takes_square_matrix, takes_square_matrix[0])[:, 1:]
-
             def update_rand_pos(pos_old, pos_new, collision, move1, move2, takes_square):
                 new_pos = jnp.where(
                 collision
@@ -666,7 +683,6 @@ class InTheMatrix(environment.Environment):
             vmap_update_rand_pos = jax.vmap(jax.vmap(update_rand_pos, (None, None, 0, None, 0, 0), 0), (0, 0, 0, 0, 0, 0), 0)
             updated_position = vmap_update_rand_pos(state.agent_positions, updated_position_coll, collision_matrix, moves, move_matrix, takes_square_matrix)
             updated_position = vmap_process_positions(updated_position, state.agent_positions, updated_position_coll)
-
             def update_inventories(new_pos, inventory):
                 coop_matches = (
                 state.grid[new_pos[0], new_pos[1]] == Items.cooperation_coin
@@ -693,8 +709,6 @@ class InTheMatrix(environment.Environment):
                 )
                 return (grid, old_pos, new_pos)
 
-            grid, _, _ = jax.lax.fori_loop(0, num_agents, pos_fun, (state.grid, state.agent_positions, updated_position))
-            state = state.replace(grid=grid)
             state.agent_positions = updated_position
             key, subkey = jax.random.split(key)
             red_reward, blue_reward = 0, 0
@@ -703,6 +717,7 @@ class InTheMatrix(environment.Environment):
                 state, 
                 interacted_agents
             ) = _interact(state, actions, params, key)
+            print(interacted_agents, 'interacted agents')
 
             def update_freeze(freeze, interact):
                 freeze = jnp.where(
@@ -711,7 +726,6 @@ class InTheMatrix(environment.Environment):
                 return freeze
             vmap_update_freeze = jax.vmap(update_freeze, (0, 0), 0)
 
-            print(interacted_agents.shape, 'interacted agents')
             # interact_vector = interacted_agents.any(axis=1)
             state.agent_freezes -= 1 
             state.agent_freezes = vmap_update_freeze(state.agent_freezes, interacted_agents)
@@ -728,7 +742,7 @@ class InTheMatrix(environment.Environment):
             sft_re_player_pos = jnp.array(
                 [agent_pos[:num_agents, 0], agent_pos[:num_agents, 1], player_dir]
             ).T
-
+            print(sft_re_player_pos, 'sft_re_player_pos')
             def update_positions_freezes(new_player_pos, agent_positions, agent_freezes):
                 agent_positions = jnp.where(
                                         agent_freezes==0,
@@ -744,8 +758,13 @@ class InTheMatrix(environment.Environment):
             
             vmap_update_positions_freezes = jax.vmap(update_positions_freezes, (0, 0, 0), (0,0))
             agent_positions, agent_freezes = vmap_update_positions_freezes(sft_re_player_pos, state.agent_positions, state.agent_freezes)
+            print(state.agent_freezes, 'agent freezes')
+            print(agent_positions, 'agent positions after freezes')
+            grid, _, _ = jax.lax.fori_loop(0, num_agents, pos_fun, (state.grid, original_agent_pos, agent_positions))
             state = state.replace(agent_freezes=agent_freezes)
             state = state.replace(agent_positions=agent_positions)
+            state = state.replace(grid=grid)
+            # TODO @Alex - reset inventory after freeze
             # state = jax.tree_map(
             #     lambda x, y: jnp.where(state.freeze = 0, x, y),
             #     state_sft_re,
@@ -778,13 +797,13 @@ class InTheMatrix(environment.Environment):
             reset_inner = inner_t == num_inner_steps
 
             # # if inner episode is done, return start state for next game
-            # state_re = _reset_state(key, params)
-            # state_re = state_re.replace(outer_t=outer_t + 1)
-            # state = jax.tree_map(
-            #     lambda x, y: jax.lax.select(reset_inner, x, y),
-            #     state_re,
-            #     state_nxt,
-            # )
+            state_re = _reset_state(key, params)
+            state_re = state_re.replace(outer_t=outer_t + 1)
+            state = jax.tree_map(
+                lambda x, y: jax.lax.select(reset_inner, x, y),
+                state_re,
+                state_nxt,
+            )
 
             obs = _get_obs(state)
             rewards = jnp.where(reset_inner, 0, rewards)
@@ -1203,7 +1222,7 @@ if __name__ == "__main__":
     num_inner_steps = 150
     num_agents=3
 
-    rng = jax.random.PRNGKey(0)
+    rng = jax.random.PRNGKey(1)
     env = InTheMatrix(num_inner_steps, num_outer_steps, num_agents, True)
     num_actions = env.action_space().n
     params = EnvParams(
@@ -1216,6 +1235,7 @@ if __name__ == "__main__":
     pics2 = []
 
     img = env.render(old_state, params)
+    Image.fromarray(img).save("state_pics/init_state.png")
     # img1 = env.render_agent_view(old_state, agent=0)
     # img2 = env.render_agent_view(old_state, agent=1)
     pics.append(img)
@@ -1238,14 +1258,17 @@ if __name__ == "__main__":
         actions = [jax.random.choice(
             rngs[a], a=num_actions, p=jnp.array([0.1, 0.1, 0.5, 0.1, 0.4])
         ) for a in range(num_agents)]
-        print(actions, 'actions')
+        print('###################')
+        print(f'timestep: {t} to {t+1}')
+        print([action.item() for action in actions], 'actions')
+        print("###################")
 
         obs, state, reward, done, info = env.step(
             rng, old_state, [a*action for a in actions], params
         )
         # print(actions.shape, 'actions')
-        print(state.agent_positions.shape, 'agent positions')
-        print(state.agent_freezes.shape, 'agent freezes')
+        # print(state.agent_positions.shape, 'agent positions')
+        # print(state.agent_freezes.shape, 'agent freezes')
         # if (state.grid == old_state.grid).all():
         #     print(t, 'hello there')
 
@@ -1260,16 +1283,26 @@ if __name__ == "__main__":
         #     print(state.red_pos, state.blue_pos)
 
         img = env.render(state, params)
+        Image.fromarray(img).save(f"state_pics/state_{t+1}.png")
         pics.append(img)
 
         if render_agent_view:
             img1 = env.render_agent_view(state, agent=0)
             img2 = env.render_agent_view(state, agent=1)
+            img3 = env.render_agent_view(state, agent=2)
+            Image.fromarray(img1).save(f"state_pics/view_ag1_{t+1}.png")
+            Image.fromarray(img2).save(f"state_pics/view_ag2_{t+1}.png")
+            Image.fromarray(img3).save(f"state_pics/view_ag3_{t+1}.png")
             pics1.append(img1)
             pics2.append(img2)
         old_state = state
+        # if True:
+        # if  t==74 or t==75 or t==76:
+            # jax.debug.breakpoint()
+        # if t>76:
+        #     raise
     print("Saving GIF")
-    pics = [Image.fromarray(img) for img in pics]
+    pics = [Image.fromarray(img) for img in pics]        
     pics[0].save(
         "state.gif",
         format="GIF",

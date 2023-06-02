@@ -8,6 +8,20 @@ from pax.envs.in_the_matrix_nplayer2 import (
 )
 
 
+# tests to write:
+# moving in grid
+# collisions - 3 onto same square?
+# picking up coins
+# agent's view
+# agent's inventory
+# agent's freeze
+# agent's interaction - 3 zapping 3? 3 zapping pairwise zapping?
+# showing inventory of frozen agents
+# env resets
+# test to make sure agents don't spawn
+
+
+
 def test_ipditm_shapes():
     rng = jax.random.PRNGKey(0)
     env = InTheMatrix(
@@ -82,3 +96,6 @@ def test_ipditm_collision():
 
     obs, new_state, _, _, _ = env.step(rng, state, actions, params)
     assert (new_state.red_pos[:2] != new_state.blue_pos[:2]).any()
+
+
+
