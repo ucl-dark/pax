@@ -1,5 +1,5 @@
-# two shapers, both trained against PPO mem agents playing each other
 # @package _global_
+# two shapers, both trained against PPO mem agents playing each other
 
 # Agents  
 agent1: 'PPO_memory'
@@ -19,15 +19,15 @@ payoff_table: [
 [ -1000 , -2 ],
 ]
 # Runner 
-runner: tensor_evo_nplayer
+runner: multishaper_evo
 
 # Training
 top_k: 5
-popsize: 1000
+popsize: 50
 num_envs: 2
-num_opps: 100
-num_inner_steps: 100 
-num_outer_steps: 100
+num_opps: 10
+num_inner_steps: 10
+num_outer_steps: 10
 num_iters: 2000
 num_devices: 1
 
@@ -100,7 +100,7 @@ wandb:
   entity: "ucl-dark"
   project: tensor
   group: 'multi_shapers'
-  name: shaper_vs_ppo_mem_ipd_${seed}
+  name: 2pl_2shap_ipd_${seed}
   log: True
 
 

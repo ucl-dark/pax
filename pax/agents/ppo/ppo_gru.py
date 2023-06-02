@@ -513,16 +513,11 @@ def make_gru_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
-    elif args.env_id == "iterated_matrix_game":
-        network, initial_hidden_state = make_GRU_ipd_network(
-            action_spec, agent_args.hidden_size
-        )
-    elif args.env_id == "iterated_tensor_game":
-        network, initial_hidden_state = make_GRU_ipd_network(
-            action_spec, agent_args.hidden_size
-        )
-
-    elif args.env_id == "iterated_nplayer_tensor_game":
+    elif args.env_id in [
+        "iterated_matrix_game",
+        "iterated_tensor_game",
+        "iterated_nplayer_tensor_game",
+    ]:
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )

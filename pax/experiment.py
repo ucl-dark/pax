@@ -55,9 +55,11 @@ from pax.envs.iterated_tensor_game_n_player import (
 )
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_3player import TensorEvalRunner
+from pax.runners.runner_eval_multipshaper import MultishaperEvalRunner
 from pax.runners.runner_eval_nplayer import NPlayerEvalRunner
 from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_3player import TensorEvoRunner
+from pax.runners.runner_evo_multishaper import MultishaperEvoRunner
 from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
@@ -76,7 +78,7 @@ from pax.watchers import (
     value_logger_ppo,
 )
 
-# NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
+# NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 # from jax.config import config
@@ -224,6 +226,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         args.runner == "evo"
         or args.runner == "tensor_evo"
         or args.runner == "tensor_evo_nplayer"
+        or args.runner == "multishaper_evo"
     ):
         agent1 = agents[0]
         algo = args.es.algo
@@ -334,6 +337,17 @@ def runner_setup(args, env, agents, save_dir, logger):
         elif args.runner == "tensor_evo_nplayer":
             logger.info("Training with n-player EVO runner")
             return NPlayerEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+        elif args.runner == "multishaper_evo":
+            logger.info("Training with multishaper EVO runner")
+            return MultishaperEvoRunner(
                 agents,
                 env,
                 strategy,
@@ -713,6 +727,7 @@ def main(args):
         args.runner == "evo"
         or args.runner == "tensor_evo"
         or args.runner == "tensor_evo_nplayer"
+        or args.runner == "multishaper_evo"
     ):
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
