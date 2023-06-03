@@ -291,6 +291,11 @@ class MultishaperEvoRunner:
                 )
                 for agent_idx in range(self.num_targets)
             ]
+            # jax.debug.breakpoint()
+            # print(len(shapers_next_obs))
+            # print(len(targets_next_obs))
+            # print(shapers_next_obs[0].shape)
+            # print(targets_next_obs[0].shape)
             return (
                 rngs,
                 tuple(shapers_next_obs),
