@@ -1,8 +1,11 @@
 # @package _global_
+# two shapers, both trained against PPO mem agents playing each other
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'Tabular'
+agent2: 'PPO_memory'
+agent3: 'PPO_memory'
+
 
 # Environment
 env_id: iterated_nplayer_tensor_game
@@ -10,21 +13,23 @@ env_type: meta
 env_discount: 0.96
 
 # Runner 
-num_players: 2
+num_players: 3
+num_shapers: 2
 payoff_table: [
-[ -1 , 1000 ],
-[ -3 , 0 ],
-[ -1000 , -2 ],
+    [ 4 , 1000 ],
+    [ 2 , 5 ],
+    [ 0 , 3 ],
+    [ -1000 , 1 ],
 ]
 # Runner 
-runner: tensor_evo_nplayer
+runner: multishaper_evo
 
 # Training
 top_k: 5
-popsize: 100
+popsize: 50
 num_envs: 2
-num_opps: 50
-num_inner_steps: 100 
+num_opps: 100
+num_inner_steps: 100
 num_outer_steps: 100
 num_iters: 2000
 num_devices: 1
@@ -98,7 +103,6 @@ wandb:
   entity: "ucl-dark"
   project: tensor
   group: 'multi_shapers'
-  name: shaper_vs_ppo_mem_ipd_${seed}
+  name: 3pl_2shap_ipd_${seed}
   log: True
-
 

@@ -241,7 +241,7 @@ class MultishaperEvoRunner:
                 (
                     target_action,
                     targets_state[agent_idx],
-                    targets_mem[agent_idx],
+                    new_targets_mem[agent_idx],
                 ) = target_agent.batch_policy(
                     targets_state[agent_idx],
                     targets_obs[agent_idx],
