@@ -31,7 +31,7 @@ num_envs: 2
 num_opps: 100
 num_inner_steps: 100
 num_outer_steps: 100
-num_iters: 2000
+num_iters: 200000
 num_devices: 1
 
 # PPO agent parameters
