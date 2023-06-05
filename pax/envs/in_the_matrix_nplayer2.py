@@ -662,16 +662,22 @@ class InTheMatrix(environment.Environment):
             choices = jnp.array([0, 1])
             upper_triangle_indices = jnp.triu_indices(n, k=1)
             upper_triangle_values = jax.random.choice(subkey, choices, shape=(n * (n - 1) // 2,))
+            lower_triangle_values = (upper_triangle_values + 1 )% 2
             
             upper_triangle_matrix = jnp.zeros((n, n))
             upper_triangle_matrix = upper_triangle_matrix.at[upper_triangle_indices].set(upper_triangle_values)
+            lower_triangle_matrix = jnp.zeros((n, n))
+            lower_triangle_matrix = lower_triangle_matrix.at[upper_triangle_indices].set(lower_triangle_values) #reusing upper indices and then transposing
+            # utm_transposed = upper_triangle_matrix.T + 1 % 2
             
-            takes_square_matrix = upper_triangle_matrix + upper_triangle_matrix.T
+            takes_square_matrix = upper_triangle_matrix + lower_triangle_matrix.T
+            print(takes_square_matrix, 'takes square matrix 1')
 
             n = takes_square_matrix.shape[0]
             mask = jnp.eye(n, dtype=bool)
             row_selector = ~mask
             takes_square_matrix = jnp.where(row_selector, takes_square_matrix, takes_square_matrix[0])[:, 1:]
+            print(takes_square_matrix, 'takes square matrix 2')
             def update_rand_pos(pos_old, pos_new, collision, move1, move2, takes_square):
                 new_pos = jnp.where(
                 collision
@@ -1230,7 +1236,7 @@ if __name__ == "__main__":
     action = 1
     render_agent_view = False
     num_outer_steps = 1
-    num_inner_steps = 30
+    num_inner_steps = 150
     num_agents=3
 
     rng = jax.random.PRNGKey(1)
