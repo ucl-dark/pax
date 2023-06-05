@@ -345,7 +345,7 @@ class InTheMatrix(environment.Environment):
             agent_orientations = state.agent_positions[:, 2]
 
             zaps = actions == Actions.interact
-
+            print(zaps, 'zaps')
             def get_target(agent_pos, grid):
                 target = jnp.clip(
                     agent_pos + STEP[agent_pos[2]], 0, GRID_SIZE - 1
@@ -462,7 +462,7 @@ class InTheMatrix(environment.Environment):
             pairwise_mask = jnp.zeros((agent_pairs.shape[0],), dtype=bool)
 
             def process_agent_interactions(i, val):
-                agent_interaction_mask, shuffled_indices, interact_targets, agent_inventories, pairwise_mask = val
+                agent_interaction_mask, shuffled_indices, interact_targets, agent_inventories, pairwise_mask, zaps = val
                 pair_idx = shuffled_indices[i]
                 agent0, agent1 = agent_pairs[pair_idx]
                 agent1_in_agent0 = jnp.isin(agent1+1, interact_targets[agent0])
@@ -471,12 +471,14 @@ class InTheMatrix(environment.Environment):
                 pickup1 = agent_inventories[agent1].sum() > INTERACT_THRESHOLD
                 is_interacting = jnp.logical_and(agent1_in_agent0, agent0_in_agent1)
                 is_interacting = jnp.logical_and(is_interacting, jnp.logical_and(pickup0, pickup1))
+                is_interacting = jnp.logical_and(is_interacting, zaps[agent0])
+                is_interacting = jnp.logical_and(is_interacting, zaps[agent1])
                 interacting = jnp.logical_and(is_interacting, jnp.logical_not(agent_interaction_mask[agent0] | agent_interaction_mask[agent1]))
                 agent_interaction_mask = agent_interaction_mask.at[agent0].set(interacting)
                 agent_interaction_mask = agent_interaction_mask.at[agent1].set(interacting)
                 pairwise_mask = pairwise_mask.at[pair_idx].set(interacting)
 
-                return (agent_interaction_mask,  shuffled_indices, interact_targets, agent_inventories, pairwise_mask)
+                return (agent_interaction_mask,  shuffled_indices, interact_targets, agent_inventories, pairwise_mask, zaps)
             
             # for agent0,agent1 in [(0,1),(0,2),(1,2)]:
 
@@ -490,11 +492,11 @@ class InTheMatrix(environment.Environment):
 
 
 
-            agent_interaction_mask, _, _, _,pairwise_mask = jax.lax.fori_loop(0, num_agents, process_agent_interactions, 
+            agent_interaction_mask, _, _, _,pairwise_mask, _ = jax.lax.fori_loop(0, num_agents, process_agent_interactions, 
                                                           (agent_interaction_mask,
                                                            shuffled_indices,
                                                            interact_targets,
-                                                           state.agent_inventories, pairwise_mask))
+                                                           state.agent_inventories, pairwise_mask, zaps))
 
 
             # def get_interaction_mask(pair, agent_interaction_mask):
@@ -640,10 +642,10 @@ class InTheMatrix(environment.Environment):
             row_selector = ~mask
             collision_matrix = jnp.where(row_selector, collisions, collisions[0])[:, 1:]
 
-            print('moves', moves)
-            print('move matrix', move_matrix)
-            print('collisions', collisions)
-            print('collision matrix', collision_matrix)
+            # print('moves', moves)
+            # print('move matrix', move_matrix)
+            # print('collisions', collisions)
+            # print('collision matrix', collision_matrix)
             vmap_update_position = jax.vmap(jax.vmap(update_position, (None, None, None, 0, 0), 0), (0, 0, 0, 0, 0), 0)
             updated_position = vmap_update_position(new_agent_positions, state.agent_positions, moves, move_matrix, collision_matrix)
 
@@ -671,13 +673,13 @@ class InTheMatrix(environment.Environment):
             # utm_transposed = upper_triangle_matrix.T + 1 % 2
             
             takes_square_matrix = upper_triangle_matrix + lower_triangle_matrix.T
-            print(takes_square_matrix, 'takes square matrix 1')
+            # print(takes_square_matrix, 'takes square matrix 1')
 
             n = takes_square_matrix.shape[0]
             mask = jnp.eye(n, dtype=bool)
             row_selector = ~mask
             takes_square_matrix = jnp.where(row_selector, takes_square_matrix, takes_square_matrix[0])[:, 1:]
-            print(takes_square_matrix, 'takes square matrix 2')
+            # print(takes_square_matrix, 'takes square matrix 2')
             def update_rand_pos(pos_old, pos_new, collision, move1, move2, takes_square):
                 new_pos = jnp.where(
                 collision
@@ -717,7 +719,7 @@ class InTheMatrix(environment.Environment):
                 state, 
                 interacted_agents
             ) = _interact(state, actions, params, key)
-            # print(interacted_agents, 'interacted agents')
+            print(interacted_agents, 'interacted agents')
 
             def update_freeze(freeze, interact):
                 freeze = jnp.where(
@@ -758,7 +760,7 @@ class InTheMatrix(environment.Environment):
             
             vmap_update_positions_freezes = jax.vmap(update_positions_freezes, (0, 0, 0), (0,0))
             agent_positions, agent_freezes = vmap_update_positions_freezes(sft_re_player_pos, state.agent_positions, state.agent_freezes)
-            # print(state.agent_freezes, 'agent freezes')
+            print(state.agent_freezes, 'agent freezes')
             # print(agent_positions, 'agent positions after freezes')
 
             def pos_remove(i, val):
@@ -1236,10 +1238,10 @@ if __name__ == "__main__":
     action = 1
     render_agent_view = False
     num_outer_steps = 1
-    num_inner_steps = 150
+    num_inner_steps = 40
     num_agents=3
 
-    rng = jax.random.PRNGKey(1)
+    rng = jax.random.PRNGKey(2)
     env = InTheMatrix(num_inner_steps, num_outer_steps, num_agents, True)
     num_actions = env.action_space().n
     params = EnvParams(
