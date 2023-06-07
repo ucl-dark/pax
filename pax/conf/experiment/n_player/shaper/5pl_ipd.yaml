@@ -28,10 +28,10 @@ runner: tensor_evo_nplayer
 top_k: 5
 popsize: 50
 num_envs: 2
-num_opps: 10
+num_opps: 100
 num_inner_steps: 100 
-num_outer_steps: 1000
-num_iters: 2000
+num_outer_steps: 100
+num_iters: 500
 # total_timesteps: 2.5e7
 num_devices: 1
 # Evaluation 
@@ -163,6 +163,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 5pl_ipd
+  group: '5pl-1shap-ipd'
+  name: 5pl-ipd-${seed}
   log: True

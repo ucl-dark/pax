@@ -28,9 +28,9 @@ runner: multishaper_evo
 
 # Training
 top_k: 5
-popsize: 200
-num_envs: 10
-num_opps: 1
+popsize: 100
+num_envs: 2
+num_opps: 10
 num_inner_steps: 100
 num_outer_steps: 100
 num_iters: 20000
