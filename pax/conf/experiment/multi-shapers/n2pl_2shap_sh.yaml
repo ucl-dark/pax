@@ -28,7 +28,7 @@ num_envs: 10
 num_opps: 1
 num_inner_steps: 100
 num_outer_steps: 100
-num_iters: 200000
+num_iters: 1000
 num_devices: 1
 
 # PPO agent parameters
@@ -99,7 +99,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'multi_shapers'
+  group: 'multi_shapers_sh'
   name: 2pl_2shap_sh_${seed}
   log: True
 

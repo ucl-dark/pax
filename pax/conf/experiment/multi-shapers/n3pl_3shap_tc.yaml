@@ -16,10 +16,10 @@ env_discount: 0.96
 num_players: 3
 num_shapers: 3
 payoff_table: [
-[ 3.0 , 1000 ],
-[ 1.0 , 4.0 ],
+[ 2 , 5 ],
+[ 2 , 5 ],
 [ -3 , 0 ],
-[ 1000 , 0 ],
+[ -3 , 0 ],
 ]
 # Runner 
 runner: multishaper_evo
@@ -31,8 +31,8 @@ num_envs: 10
 num_opps: 1
 num_inner_steps: 100
 num_outer_steps: 100
-num_iters: 1000
-num_devices: 1
+num_iters: 2000
+num_devices: 
 
 # PPO agent parameters
 # PPO agent parameters
@@ -102,7 +102,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'multi_shapers_sh'
-  name: 3pl_3shap_sh_${seed}
+  group: 'multi_shapers_tc'
+  name: 3pl_3shap_tc_${seed}
   log: True
 

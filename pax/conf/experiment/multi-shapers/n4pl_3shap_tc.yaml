@@ -5,6 +5,7 @@
 agent1: 'PPO_memory'
 agent2: 'PPO_memory'
 agent3: 'PPO_memory'
+agent4: 'PPO_memory'
 
 
 # Environment
@@ -13,25 +14,26 @@ env_type: meta
 env_discount: 0.96
 
 # Runner 
-num_players: 3
+num_players: 4
 num_shapers: 3
 payoff_table: [
-[ 3.0 , 1000 ],
-[ 1.0 , 4.0 ],
+[ 2 , 5 ],
+[ 2 , 5 ],
 [ -3 , 0 ],
-[ 1000 , 0 ],
+[ -3 , 0 ],
+[ -3 , 0 ],
 ]
 # Runner 
 runner: multishaper_evo
 
 # Training
 top_k: 5
-popsize: 200
-num_envs: 10
-num_opps: 1
+popsize: 100
+num_envs: 2
+num_opps: 10
 num_inner_steps: 100
 num_outer_steps: 100
-num_iters: 1000
+num_iters: 20000
 num_devices: 1
 
 # PPO agent parameters
@@ -102,7 +104,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'multi_shapers_sh'
-  name: 3pl_3shap_sh_${seed}
+  group: 'multi_shapers_tc'
+  name: 4pl_3shap_tc_${seed}
   log: True
 
