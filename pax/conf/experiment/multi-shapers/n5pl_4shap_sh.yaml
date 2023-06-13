@@ -18,12 +18,12 @@ env_discount: 0.96
 num_players: 5
 num_shapers: 4
 payoff_table: [
-    [ 8 , 1000 ],
-    [ 6 , 9 ],
-    [ 4 , 7 ],
-    [ 2 , 5 ],
-    [ 0 , 3 ],
-    [ -1000 , 1 ],
+    [ 3.0 , 6.0 ],
+    [ 1.8 , 4.8 ],
+    [ 0.6 , 3.6 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
 ]
 # Runner 
 runner: multishaper_evo
