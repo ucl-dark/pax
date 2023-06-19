@@ -509,7 +509,7 @@ class EvoRunner:
                 rewards_2,
                 a2_metrics,
             ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
-
+            jax.debug.breakpoint()
             # Aggregate over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
