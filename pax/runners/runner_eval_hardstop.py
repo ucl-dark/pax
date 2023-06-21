@@ -404,10 +404,9 @@ class EvalHardstopRunner:
             traj_2_rewards = jnp.concatenate([traj_2.rewards, traj_2_fixed.rewards], axis=0)
             traj_1_rewards = traj_1_rewards.mean(axis=(1,3))
             traj_2_rewards = traj_2_rewards.mean(axis=(1,3))
-            # jax.debug.breakpoint()
             for i in range(len(traj_1_rewards)):
-                wandb.log({"r1": traj_1_rewards[i]}, step=i)
-                wandb.log({"r2": traj_2_rewards[i]}, step=i)
+                wandb.log({"r1": traj_1_rewards[i].item()}, step=i)
+                wandb.log({"r2": traj_2_rewards[i].item()}, step=i)
 
             self.train_episodes += 1
             if i % log_interval == 0:

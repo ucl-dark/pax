@@ -316,6 +316,12 @@ class EvalRunner:
 
             # reset second agent memory
             a2_mem = agent2.batch_reset(a2_mem, False)
+            # jax.debug.breakpoint()
+            traj_1_rewards = traj_1.rewards.mean(axis=(1,3))
+            traj_2_rewards = traj_2.rewards.mean(axis=(1,3))
+            for i in range(len(traj_1_rewards)):
+                wandb.log({"r1": traj_1_rewards[i].item()}, step=i)
+                wandb.log({"r2": traj_2_rewards[i].item()}, step=i)
 
             # logging
             self.train_episodes += 1
