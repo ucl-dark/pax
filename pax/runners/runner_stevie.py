@@ -10,6 +10,8 @@ from pax.utils import load
 from pax.watchers import cg_visitation, ipd_visitation
 
 MAX_WANDB_CALLS = 10000
+NUM_ENVS = 10
+
 
 
 class Sample(NamedTuple):
@@ -24,12 +26,9 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvalRunner:
+class StevieRunner:
     """
-    Evaluation runner provides a convenient example for quickly writing
-    a shaping eval runner for PAX. The EvalRunner class can be used to
-    run any two agents together either in a meta-game or regular game, it composes together agents,
-    watchers, and the environment. Within the init, we declare vmaps and pmaps for training.
+    Runner in which a small number of the principal agent is unable to see what is happening.
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is important for
@@ -115,6 +114,15 @@ class EvalRunner:
                 init_hidden,
             )
 
+
+        # BLIND_IDX = [] #For Timon to crank up that conspiracy
+        # BLIND_MASK = jnp.array(
+        #     [[[0,0,0,0,0] if idx in BLIND_IDX else [1,1,1,1,1] for idx in range(args.num_envs)]],
+        #     dtype=jnp.int8)
+
+        # NOT_BLIND_MASK = jnp.logical_not(BLIND_MASK)
+        BLIND_STATE = jnp.tile(jnp.array([0, 0, 0, 0, 1]), (args.num_opps, args.num_envs, 1))
+
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
             (
@@ -129,15 +137,18 @@ class EvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                BLIND_MASK,
+                NOT_BLIND_MASK,
             ) = carry
 
             # unpack rngs
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, 0, :]
             # a1_rng = rngs[:, :, 1, :]
+
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
-
+            obs1 = BLIND_MASK * obs1 + NOT_BLIND_MASK*BLIND_STATE
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -185,6 +196,8 @@ class EvalRunner:
                 new_a2_mem,
                 env_state,
                 env_params,
+                BLIND_MASK,
+                NOT_BLIND_MASK,
             ), (
                 traj1,
                 traj2,
@@ -211,6 +224,8 @@ class EvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                BLIND_MASK,
+                NOT_BLIND_MASK,
             ) = vals
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
@@ -235,156 +250,164 @@ class EvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                BLIND_MASK,
+                NOT_BLIND_MASK,
             ), (*trajectories, a2_metrics)
 
         self.rollout = jax.jit(_outer_rollout)
 
     def run_loop(self, env, env_params, agents, num_episodes, watchers):
         """Run evaluation of agents in environment"""
-        print("Training")
+        print("Eval")
         print("-----------------------")
-        agent1, agent2 = agents
-        rng, _ = jax.random.split(self.random_key)
+        for s in range(self.args.num_envs):
+            print(f"Number of blind dims: {s}")
+            BLIND_IDX = jnp.arange(s) #For Timon to crank up that conspiracy
+            BLIND_MASK = jnp.array(
+            [[[0,0,0,0,0] if idx in BLIND_IDX else [1,1,1,1,1] for idx in range(self.args.num_envs)]],
+            dtype=jnp.int8)
 
-        a1_state, a1_mem = agent1._state, agent1._mem
-        a2_state, a2_mem = agent2._state, agent2._mem
+            NOT_BLIND_MASK = jnp.logical_not(BLIND_MASK)
+            agent1, agent2 = agents
+            rng, _ = jax.random.split(self.random_key)
 
-        if watchers:
-            wandb.restore(
-                name=self.model_path, run_path=self.run_path, root=os.getcwd()
-            )
-        pretrained_params = load(self.model_path)
-        a1_state = a1_state._replace(params=pretrained_params)
+            a1_state, a1_mem = agent1._state, agent1._mem
+            a2_state, a2_mem = agent2._state, agent2._mem
 
-        num_iters = max(
-            int(num_episodes / (self.args.num_envs * self.args.num_opps)), 1
-        )
-        log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
-        print(f"Log Interval {log_interval}")
-
-        # RNG are the same for num_opps but different for num_envs
-        rngs = jnp.concatenate(
-            [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
-        ).reshape((self.args.num_opps, self.args.num_envs, -1))
-        # run actual loop
-        for i in range(num_episodes):
-            obs, env_state = env.reset(rngs, env_params)
-            rewards = [
-                jnp.zeros((self.args.num_opps, self.args.num_envs)),
-                jnp.zeros((self.args.num_opps, self.args.num_envs)),
-            ]
-
-            if self.args.agent2 == "NaiveEx":
-                a2_state, a2_mem = agent2.batch_init(obs[1])
-            elif self.args.env_type in ["meta"]:
-                # meta-experiments - init 2nd agent per trial
-                a2_state, a2_mem = agent2.batch_init(
-                    jax.random.split(rng, self.num_opps), a2_mem.hidden
+            if watchers:
+                wandb.restore(
+                    name=self.model_path, run_path=self.run_path, root=os.getcwd()
                 )
-            # run trials
-            vals, stack = jax.lax.scan(
-                self.rollout,
+            pretrained_params = load(self.model_path)
+            a1_state = a1_state._replace(params=pretrained_params)
+
+            num_iters = max(
+                int(num_episodes / (self.args.num_envs * self.args.num_opps)), 1
+            )
+            log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
+            print(f"Log Interval {log_interval}")
+
+            # RNG are the same for num_opps but different for num_envs
+            rngs = jnp.concatenate(
+                [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
+            ).reshape((self.args.num_opps, self.args.num_envs, -1))
+            # run actual loop
+            for i in range(num_episodes):
+                obs, env_state = env.reset(rngs, env_params)
+                rewards = [
+                    jnp.zeros((self.args.num_opps, self.args.num_envs)),
+                    jnp.zeros((self.args.num_opps, self.args.num_envs)),
+                ]
+
+                if self.args.agent2 == "NaiveEx":
+                    a2_state, a2_mem = agent2.batch_init(obs[1])
+                elif self.args.env_type in ["meta"]:
+                    # meta-experiments - init 2nd agent per trial
+                    a2_state, a2_mem = agent2.batch_init(
+                        jax.random.split(rng, self.num_opps), a2_mem.hidden
+                    )
+                # run trials
+                vals, stack = jax.lax.scan(
+                    self.rollout,
+                    (
+                        rngs,
+                        *obs,
+                        *rewards,
+                        a1_state,
+                        a1_mem,
+                        a2_state,
+                        a2_mem,
+                        env_state,
+                        env_params,
+                        BLIND_MASK,
+                        NOT_BLIND_MASK,
+                    ),
+                    None,
+                    length=self.args.num_steps // self.args.num_inner_steps,
+                )
+
                 (
                     rngs,
-                    *obs,
-                    *rewards,
+                    obs1,
+                    obs2,
+                    r1,
+                    r2,
                     a1_state,
                     a1_mem,
                     a2_state,
                     a2_mem,
                     env_state,
                     env_params,
-                ),
-                None,
-                length=self.args.num_steps // self.args.num_inner_steps,
-            )
+                    BLIND_MASK,
+                    NOT_BLIND_MASK,
+                ) = vals
+                traj_1, traj_2, a2_metrics = stack
 
-            (
-                rngs,
-                obs1,
-                obs2,
-                r1,
-                r2,
-                a1_state,
-                a1_mem,
-                a2_state,
-                a2_mem,
-                env_state,
-                env_params,
-            ) = vals
-            traj_1, traj_2, a2_metrics = stack
+                # reset second agent memory
+                a2_mem = agent2.batch_reset(a2_mem, False)
+                # jax.debug.breakpoint()
+                # logging
+                self.train_episodes += 1
+                if i % log_interval == 0:
+                    print(f"Episode {i}")
+                    if self.args.env_id == "coin_game":
+                        env_stats = jax.tree_util.tree_map(
+                            lambda x: x.item(),
+                            self.cg_stats(env_state),
+                        )
+                        rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                        rewards_2 = traj_2.rewards.sum(axis=1).mean()
 
-            # reset second agent memory
-            a2_mem = agent2.batch_reset(a2_mem, False)
-            # jax.debug.breakpoint()
-            traj_1_rewards = traj_1.rewards.mean(axis=(1,3))
-            traj_2_rewards = traj_2.rewards.mean(axis=(1,3))
-            for i in range(len(traj_1_rewards)):
-                wandb.log({"r1": traj_1_rewards[i].item()}, step=i)
-                wandb.log({"r2": traj_2_rewards[i].item()}, step=i)
-
-            # logging
-            self.train_episodes += 1
-            if i % log_interval == 0:
-                print(f"Episode {i}")
-                if self.args.env_id == "coin_game":
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.cg_stats(env_state),
-                    )
-                    rewards_1 = traj_1.rewards.sum(axis=1).mean()
-                    rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
-                elif self.args.env_type in [
-                    "meta",
-                    "sequential",
-                ]:
-                    env_stats = jax.tree_util.tree_map(
-                        lambda x: x.item(),
-                        self.ipd_stats(
-                            traj_1.observations,
-                            traj_1.actions,
-                            obs1,
-                        ),
-                    )
-                    rewards_1 = traj_1.rewards.mean()
-                    rewards_2 = traj_2.rewards.mean()
-
-                else:
-                    rewards_1 = traj_1.rewards.mean()
-                    rewards_2 = traj_2.rewards.mean()
-                    env_stats = {}
-
-                print(f"Env Stats: {env_stats}")
-                print(
-                    f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
-                )
-                print()
-
-                if watchers:
-                    # metrics [outer_timesteps, num_opps]
-                    flattened_metrics = jax.tree_util.tree_map(
-                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                    )
-                    agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics
-                    )
-
-                    for watcher, agent in zip(watchers, agents):
-                        watcher(agent)
-                    wandb.log(
-                        {
-                            "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
+                    elif self.args.env_type in [
+                        "meta",
+                        "sequential",
+                    ]:
+                        env_stats = jax.tree_util.tree_map(
+                            lambda x: x.item(),
+                            self.ipd_stats(
+                                traj_1.observations,
+                                traj_1.actions,
+                                obs1,
                             ),
-                            "train/episode_reward/player_2": float(
-                                rewards_2.mean()
-                            ),
-                        }
-                        | env_stats,
-                    )
+                        )
+                        rewards_1 = traj_1.rewards.mean()
+                        rewards_2 = traj_2.rewards.mean()
 
-        agents[0]._state = a1_state
-        agents[1]._state = a2_state
+                    else:
+                        rewards_1 = traj_1.rewards.mean()
+                        rewards_2 = traj_2.rewards.mean()
+                        env_stats = {}
+
+                    print(f"Env Stats: {env_stats}")
+                    print(
+                        f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
+                    )
+                    print()
+
+                    if watchers:
+                        # metrics [outer_timesteps, num_opps]
+                        flattened_metrics = jax.tree_util.tree_map(
+                            lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                        )
+                        agent2._logger.metrics = (
+                            agent2._logger.metrics | flattened_metrics
+                        )
+
+                        for watcher, agent in zip(watchers, agents):
+                            watcher(agent)
+                        wandb.log(
+                            {
+                                "episodes": s,
+                                "train/episode_reward/player_1": float(
+                                    rewards_1.mean()
+                                ),
+                                "train/episode_reward/player_2": float(
+                                    rewards_2.mean()
+                                ),
+                            }
+                            | env_stats,
+                        )
+
+            agents[0]._state = a1_state
+            agents[1]._state = a2_state
         return agents

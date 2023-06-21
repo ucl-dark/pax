@@ -24,7 +24,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvalRunner:
+class EvalHardstopRunner:
     """
     Evaluation runner provides a convenient example for quickly writing
     a shaping eval runner for PAX. The EvalRunner class can be used to
@@ -237,7 +237,56 @@ class EvalRunner:
                 env_params,
             ), (*trajectories, a2_metrics)
 
+        def _outer_rollout_fixed(carry, unused):
+            """Runner for trial"""
+            # play episode of the game
+            vals, trajectories = jax.lax.scan(
+                _inner_rollout,
+                carry,
+                None,
+                length=self.args.num_inner_steps,
+            )
+            (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals
+            # MFOS has to take a meta-action for each episode
+            if args.agent1 == "MFOS":
+                a1_mem = agent1.meta_policy(a1_mem)
+
+            # update second agent
+            _, _, a2_metrics = agent2.batch_update(
+                trajectories[1],
+                obs2,
+                a2_state,
+                a2_mem,
+            )
+
+            return (
+                rngs,
+                obs1,
+                obs2,
+                r1,
+                r2,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ), (*trajectories, a2_metrics)
+
         self.rollout = jax.jit(_outer_rollout)
+        self.rollout_fixed = jax.jit(_outer_rollout_fixed)
 
     def run_loop(self, env, env_params, agents, num_episodes, watchers):
         """Run evaluation of agents in environment"""
@@ -267,7 +316,9 @@ class EvalRunner:
             [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
         ).reshape((self.args.num_opps, self.args.num_envs, -1))
         # run actual loop
+        print('num episodes', num_episodes)
         for i in range(num_episodes):
+            
             obs, env_state = env.reset(rngs, env_params)
             rewards = [
                 jnp.zeros((self.args.num_opps, self.args.num_envs)),
@@ -282,6 +333,7 @@ class EvalRunner:
                     jax.random.split(rng, self.num_opps), a2_mem.hidden
                 )
             # run trials
+
             vals, stack = jax.lax.scan(
                 self.rollout,
                 (
@@ -296,7 +348,37 @@ class EvalRunner:
                     env_params,
                 ),
                 None,
-                length=self.args.num_steps // self.args.num_inner_steps,
+                length=self.args.stop,
+            )
+            traj_1, traj_2, a2_metrics = stack
+            (
+                rngs,
+                _,
+                _,
+                _,
+                _,
+                a1_state,
+                a1_mem,
+                a2_state,
+                a2_mem,
+                env_state,
+                env_params,
+            ) = vals     
+            vals, stack = jax.lax.scan(
+                self.rollout_fixed,
+                (
+                    rngs,
+                    *obs,
+                    *rewards,
+                    a1_state,
+                    a1_mem,
+                    a2_state,
+                    a2_mem,
+                    env_state,
+                    env_params,
+                ),
+                None,
+                length=(self.args.num_steps // self.args.num_inner_steps)-self.args.stop,
             )
 
             (
@@ -312,18 +394,20 @@ class EvalRunner:
                 env_state,
                 env_params,
             ) = vals
-            traj_1, traj_2, a2_metrics = stack
+            traj_1_fixed, traj_2_fixed, a2_metrics_fixed = stack
 
             # reset second agent memory
             a2_mem = agent2.batch_reset(a2_mem, False)
-            # jax.debug.breakpoint()
-            traj_1_rewards = traj_1.rewards.mean(axis=(1,3))
-            traj_2_rewards = traj_2.rewards.mean(axis=(1,3))
+
+            # logging
+            traj_1_rewards = jnp.concatenate([traj_1.rewards, traj_1_fixed.rewards], axis=0)
+            traj_2_rewards = jnp.concatenate([traj_2.rewards, traj_2_fixed.rewards], axis=0)
+            traj_1_rewards = traj_1_rewards.mean(axis=(1,3))
+            traj_2_rewards = traj_2_rewards.mean(axis=(1,3))
             for i in range(len(traj_1_rewards)):
                 wandb.log({"r1": traj_1_rewards[i].item()}, step=i)
                 wandb.log({"r2": traj_2_rewards[i].item()}, step=i)
 
-            # logging
             self.train_episodes += 1
             if i % log_interval == 0:
                 print(f"Episode {i}")

@@ -1,14 +1,14 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
+agent1: 'Shaper'
 agent2: 'Tabular'
 
 # Environment
 env_id: iterated_matrix_game
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+payoff: [[1, -1], [-1, 1], [-1, 1], [1, -1]]
 
 # Runner 
 runner: evo 
@@ -20,7 +20,8 @@ num_envs: 2
 num_opps: 10
 num_outer_steps: 100 
 num_inner_steps: 100 
-num_iters: 5000
+num_iters: 1000
+att_type: 'avg'
 
 # Evaluation 
 run_path: ucl-dark/ipd/1ui7wfop
@@ -94,7 +95,7 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: ipd
+  project: imp
   group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
   log: False

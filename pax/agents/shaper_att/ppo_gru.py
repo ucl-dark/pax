@@ -1,6 +1,6 @@
 # Adapted from https://github.com/deepmind/acme/blob/master/acme/agents/jax/ppo/learning.py
 
-from typing import Any, Dict, Mapping, NamedTuple, Tuple
+from typing import Any, Dict, NamedTuple, Tuple
 
 import haiku as hk
 import jax
@@ -9,21 +9,18 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.mfos_ppo.networks import (
-    make_mfos_ipditm_network,
-    make_mfos_network,
-    make_mfos_avg_network,
+from pax.agents.shaper_att.networks import (
+    make_GRU_cartpole_network,
+    make_GRU_coingame_att_network,
+    make_GRU_ipd_network,
+    make_GRU_ipd_avg_network,
+    make_GRU_ipd_att_network,
+    make_GRU_ipditm_att_network,
+    make_GRU_ipditm_avg_network,
 )
-from pax.utils import TrainingState, get_advantages
+from pax.utils import MemoryState, TrainingState, get_advantages
 
-
-class MemoryState(NamedTuple):
-    """State consists of network extras (to be batched)"""
-
-    hidden: jnp.ndarray
-    th: jnp.ndarray
-    curr_th: jnp.ndarray
-    extras: Mapping[str, jnp.ndarray]
+# from dm_env import TimeStep
 
 
 class Batch(NamedTuple):
@@ -43,9 +40,6 @@ class Batch(NamedTuple):
     # GRU specific
     hiddens: jnp.ndarray
 
-    # MFOS specific
-    meta_actions: jnp.ndarray
-
 
 class Logger:
     metrics: dict
@@ -62,7 +56,6 @@ class PPO(AgentInterface):
         random_key: jnp.ndarray,
         gru_dim: int,
         obs_spec: Tuple,
-        batch_size: int = 2000,
         num_envs: int = 4,
         num_minibatches: int = 16,
         num_epochs: int = 4,
@@ -83,21 +76,14 @@ class PPO(AgentInterface):
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
-            (dist, values), (_current_th, hidden) = network.apply(
-                state.params,
-                (observation, mem.th),
-                mem.hidden,
+            (dist, values), hidden_state = network.apply(
+                state.params, observation, mem.hidden
             )
 
             actions = dist.sample(seed=subkey)
             mem.extras["values"] = values
             mem.extras["log_probs"] = dist.log_prob(actions)
-
-            # update the hiddens and running th
-            mem = mem._replace(
-                hidden=hidden, curr_th=_current_th, extras=mem.extras
-            )
-
+            mem = mem._replace(hidden=hidden_state, extras=mem.extras)
             state = state._replace(random_key=key)
             return (
                 actions,
@@ -105,6 +91,7 @@ class PPO(AgentInterface):
                 mem,
             )
 
+        @jax.jit
         def gae_advantages(
             rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
@@ -112,7 +99,6 @@ class PPO(AgentInterface):
             arguments are of length = rollout length + 1"""
             # 'Zero out' the terminated states
             discounts = gamma * jnp.logical_not(dones)
-
             reverse_batch = (
                 jnp.flip(values[:-1], axis=0),
                 jnp.flip(rewards, axis=0),
@@ -144,11 +130,10 @@ class PPO(AgentInterface):
             advantages: jnp.array,
             behavior_values: jnp.array,
             hiddens: jnp.ndarray,
-            meta_actions: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
             (distribution, values), _ = network.apply(
-                params, (observations, meta_actions), hiddens
+                params, observations, hiddens
             )
 
             log_prob = distribution.log_prob(actions)
@@ -215,6 +200,7 @@ class PPO(AgentInterface):
                 "entropy_cost": entropy_cost,
             }
 
+        @jax.jit
         def sgd_step(
             state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
@@ -228,7 +214,6 @@ class PPO(AgentInterface):
                 behavior_values,
                 dones,
                 hiddens,
-                meta_actions,
             ) = (
                 sample.observations,
                 sample.actions,
@@ -237,7 +222,6 @@ class PPO(AgentInterface):
                 sample.behavior_values,
                 sample.dones,
                 sample.hiddens,
-                sample.meta_actions,
             )
 
             # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
@@ -256,7 +240,6 @@ class PPO(AgentInterface):
                 target_values=target_values,
                 behavior_values=behavior_values,
                 hiddens=hiddens,
-                meta_actions=meta_actions,
             )
             # Concatenate all trajectories. Reshape from [num_envs, num_steps, ..]
             # to [num_envs * num_steps,..]
@@ -272,7 +255,7 @@ class PPO(AgentInterface):
             batch = jax.tree_util.tree_map(
                 lambda x: x.reshape((batch_size,) + x.shape[2:]), trajectories
             )
-
+            # Compute gradients.
             grad_fn = jax.jit(jax.grad(loss, has_aux=True))
 
             def model_update_minibatch(
@@ -298,7 +281,6 @@ class PPO(AgentInterface):
                     advantages,
                     minibatch.behavior_values,
                     minibatch.hiddens,
-                    minibatch.meta_actions,
                 )
 
                 # Apply updates
@@ -370,8 +352,6 @@ class PPO(AgentInterface):
 
             new_memory = MemoryState(
                 hidden=jnp.zeros(shape=(self._num_envs,) + (gru_dim,)),
-                th=jnp.ones(shape=(self._num_envs,) + (gru_dim // 3,)),
-                curr_th=jnp.ones(shape=(self._num_envs,) + (gru_dim // 3,)),
                 extras={
                     "log_probs": jnp.zeros(self._num_envs),
                     "values": jnp.zeros(self._num_envs),
@@ -389,23 +369,15 @@ class PPO(AgentInterface):
             key, subkey = jax.random.split(key)
 
             if isinstance(obs_spec, dict):
-                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
-                dummy_obs = {
-                    "inventory": jnp.zeros(obs_spec["inventory"]),
-                    "observation": jnp.zeros(obs_spec["observation"]),
-                }
+                dummy_obs = {}
+                for k, v in obs_spec.items():
+                    dummy_obs[k] = jnp.zeros(shape=v)
+
             else:
                 dummy_obs = jnp.zeros(shape=obs_spec)
-
             dummy_obs = utils.add_batch_dim(dummy_obs)
-            hidden_size = initial_hidden_state.shape[-1]
-
-            dummy_meta = jnp.zeros(shape=hidden_size // 3)
-            dummy_meta = utils.add_batch_dim(dummy_meta)
-            dummy_input = (dummy_obs, dummy_meta)
-
             initial_params = network.init(
-                subkey, dummy_input, initial_hidden_state
+                subkey, dummy_obs, initial_hidden_state
             )
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(
@@ -414,16 +386,16 @@ class PPO(AgentInterface):
                 opt_state=initial_opt_state,
                 timesteps=0,
             ), MemoryState(
-                hidden=jnp.zeros((num_envs, hidden_size)),
-                th=jnp.ones((num_envs, hidden_size // 3)),
-                curr_th=jnp.ones((num_envs, hidden_size // 3)),
+                hidden=jnp.zeros(
+                    (num_envs, initial_hidden_state.shape[-1])
+                ),  # initial_hidden_state,
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
             )
 
-        @jax.jit
+        # @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple,
             done: Any,
@@ -431,7 +403,6 @@ class PPO(AgentInterface):
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
-
             _value = jax.lax.select(
                 done,
                 jnp.zeros_like(action_extras["values"]),
@@ -455,7 +426,7 @@ class PPO(AgentInterface):
 
         self.make_initial_state = make_initial_state
 
-        self.prepare_batch = prepare_batch
+        self._prepare_batch = prepare_batch
         self._sgd_step = jax.jit(sgd_step)
 
         # Set up counters and logger
@@ -479,23 +450,18 @@ class PPO(AgentInterface):
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
-        # self._num_steps = num_steps  # number of steps per environment
-        # self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._num_minibatches = num_minibatches  # number of minibatches
         self._num_epochs = num_epochs  # number of epochs to use sample
         self._gru_dim = gru_dim
 
     def reset_memory(self, memory, eval=False) -> TrainingState:
         num_envs = 1 if eval else self._num_envs
-
         memory = memory._replace(
             extras={
                 "values": jnp.zeros(num_envs),
                 "log_probs": jnp.zeros(num_envs),
             },
             hidden=jnp.zeros((num_envs, self._gru_dim)),
-            th=jnp.ones((num_envs, self._gru_dim // 3)),
-            curr_th=jnp.ones((num_envs, self._gru_dim // 3)),
         )
         return memory
 
@@ -508,8 +474,9 @@ class PPO(AgentInterface):
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
+
         _, _, mem = self._policy(state, obs, mem)
-        traj_batch = self.prepare_batch(
+        traj_batch = self._prepare_batch(
             traj_batch, traj_batch.dones[-1, ...], mem.extras
         )
         state, mem, metrics = self._sgd_step(state, traj_batch)
@@ -526,61 +493,66 @@ class PPO(AgentInterface):
         self._logger.metrics["entropy_cost"] = metrics["entropy_cost"]
         return state, mem, metrics
 
-    def meta_policy(self, mem: MemoryState):
-        """Policy function for the meta agent"""
-
-        # update memory with the running th from previous epsiode
-        mem = mem._replace(th=mem.curr_th)
-
-        # reset memory of agent
-        mem = mem._replace(
-            hidden=jnp.zeros_like(mem.hidden),
-            curr_th=jnp.ones_like(mem.curr_th),
-        )
-
-        return mem
-
 
 # TODO: seed, and player_id not used in CartPole
-def make_mfos_agent(
+def make_shaper_agent(
     args,
     agent_args,
     obs_spec,
     action_spec,
     seed: int,
-    player_id: int,
     num_iterations: int,
+    player_id: int,
 ):
     """Make PPO agent"""
     # Network
-
-    if args.env_id == "coin_game":
-        network, initial_hidden_state = make_mfos_network(
+    if args.env_id == "CartPole-v1":
+        network, initial_hidden_state = make_GRU_cartpole_network(action_spec)
+    elif args.env_id == "coin_game":
+        network, initial_hidden_state = make_GRU_coingame_att_network(
             action_spec,
-            agent_args.hidden_size,
-        )
-    elif args.env_id == "InTheMatrix":
-        network, initial_hidden_state = make_mfos_ipditm_network(
-            action_spec,
+            agent_args.with_cnn,
             agent_args.hidden_size,
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
     elif args.env_id == "iterated_matrix_game":
         if args.att_type=='att':
-            raise ValueError("Attention not supported")
+            network, initial_hidden_state = make_GRU_ipd_att_network(
+                action_spec, agent_args.hidden_size
+            )
         elif args.att_type=='avg':
-            network, initial_hidden_state = make_mfos_avg_network(
+            network, initial_hidden_state = make_GRU_ipd_avg_network(
                 action_spec, agent_args.hidden_size
             )
         elif args.att_type=='nothing':
-            network, initial_hidden_state = make_mfos_network(
+            network, initial_hidden_state = make_GRU_ipd_network(
                 action_spec, agent_args.hidden_size
             )
-    else:
-        raise ValueError("Unsupported environment")
+
+    elif args.env_id == "InTheMatrix":
+        if args.att_type=='avg':
+            network, initial_hidden_state = make_GRU_ipditm_avg_network(
+                action_spec,
+                agent_args.hidden_size,
+                agent_args.separate,
+                agent_args.output_channels,
+                agent_args.kernel_shape,
+            )
+        if args.att_type=='att':         
+            network, initial_hidden_state = make_GRU_ipditm_att_network(
+                action_spec,
+                agent_args.hidden_size,
+                agent_args.separate,
+                agent_args.output_channels,
+                agent_args.kernel_shape,
+            )
 
     gru_dim = initial_hidden_state.shape[1]
+
+    initial_hidden_state = jnp.zeros(
+        (args.num_envs, initial_hidden_state.shape[1])
+    )
 
     # Optimizer
     transition_steps = (
@@ -589,7 +561,7 @@ def make_mfos_agent(
 
     if agent_args.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=agent_args.ppo.learning_rate,
+            init_value=agent_args.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )
@@ -617,7 +589,6 @@ def make_mfos_agent(
         random_key=random_key,
         gru_dim=gru_dim,
         obs_spec=obs_spec,
-        batch_size=None,
         num_envs=args.num_envs,
         num_minibatches=agent_args.num_minibatches,
         num_epochs=agent_args.num_epochs,
