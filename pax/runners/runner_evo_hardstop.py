@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoRunner:
+class EvoHardstopRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -192,6 +192,7 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                counter,
             ) = carry
 
             # unpack rngs
@@ -249,6 +250,7 @@ class EvoRunner:
                 new_a2_mem,
                 env_state,
                 env_params,
+                counter,
             ), (
                 traj1,
                 traj2,
@@ -275,18 +277,22 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                counter,
             ) = vals
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
-
+            # jax.debug.print("Step Size: {x}", x=a2_state.opt_state[2].hyperparams['step_size'][0])
+            # jax.debug.print("Counter: {x}", x=counter[0])
             # update second agent
+            a2_state.opt_state[2].hyperparams['step_size'] = jnp.where(counter <= 0, 0.0, a2_state.opt_state[2].hyperparams['step_size'])
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
                 obs2,
                 a2_state,
                 a2_mem,
             )
+            
             return (
                 rngs,
                 obs1,
@@ -299,6 +305,7 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                counter - 1,
             ), (*trajectories, a2_metrics)
 
         def _rollout(
@@ -338,11 +345,12 @@ class EvoRunner:
                     agent2._mem.hidden,
                 )
                 # generate an array of shape [10]
-                random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
+                random_numbers = jax.random.uniform(_rng_run, minval=1, maxval=self.num_outer_steps, shape=(10,))
                 # repeat the array 1000 times along the first dimension
-                learning_rates = jnp.tile(random_numbers, (1000, 1))
-                a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                counter = jnp.tile(random_numbers, (1000, 1))
+                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
                 # jax.debug.breakpoint()
+            
 
             # run trials
             vals, stack = jax.lax.scan(
@@ -357,6 +365,7 @@ class EvoRunner:
                     a2_mem,
                     env_state,
                     _env_params,
+                    counter,
                 ),
                 None,
                 length=self.num_outer_steps,
@@ -374,6 +383,7 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 _env_params,
+                counter,
             ) = vals
             traj_1, traj_2, a2_metrics = stack
 

@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'Shaper'
-agent2: 'Tabular'
+agent2: 'PPO'
 
 # Environment
 env_id: iterated_matrix_game
@@ -11,7 +11,7 @@ env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
 
 # Runner 
-runner: evo_hardstop
+runner: evo 
 
 # Training
 top_k: 5
@@ -21,7 +21,8 @@ num_opps: 10
 num_outer_steps: 100 
 num_inner_steps: 100 
 num_iters: 1000
-att_type: 'avg'
+num_devices: 1
+att_type: 'nothing'
 
 # Evaluation 
 run_path: ucl-dark/ipd/1ui7wfop
@@ -69,7 +70,6 @@ ppo2:
   with_cnn: False
   hidden_size: 16
 
-
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES]
@@ -80,7 +80,7 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1    # Initial learning rate
+  lrate_init: 0.01    # Initial learning rate
   lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
@@ -97,7 +97,7 @@ wandb:
   entity: "ucl-dark"
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}-att-type-${att_type}
+  name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
   log: False
 
 
