@@ -18,12 +18,13 @@ class EnvParams:
     b: float
     marginal_cost: float
 
+def to_obs_array(params: EnvParams) -> jnp.ndarray:
+    return jnp.array([params.a, params.b, params.marginal_cost])
 
 class CournotGame(environment.Environment):
-    def __init__(self, num_steps: int):
+    def __init__(self, num_inner_steps: int):
         super().__init__()
 
-        # TODO handle overproduction
         def _step(
             key: chex.PRNGKey,
             state: EnvState,
@@ -37,10 +38,10 @@ class CournotGame(environment.Environment):
             p = params.a - params.b * (q1 + q2)
             r1 = jnp.squeeze(p * q1 - params.marginal_cost * q1)
             r2 = jnp.squeeze(p * q2 - params.marginal_cost * q2)
-            obs1 = jnp.concatenate([q2, p])
-            obs2 = jnp.concatenate([q1, p])
+            obs1 = jnp.concatenate([to_obs_array(params), jnp.array(q2), jnp.array(p)])
+            obs2 = jnp.concatenate([to_obs_array(params), jnp.array(q1), jnp.array(p)])
 
-            done = t >= num_steps
+            done = t >= num_inner_steps
             state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t + 1
             )
@@ -49,8 +50,7 @@ class CournotGame(environment.Environment):
                 state,
                 (r1, r2),
                 done,
-                # TODO needed?
-                {"discount": jnp.zeros((), dtype=jnp.int8)},
+                {},
             )
 
         def _reset(
@@ -61,6 +61,7 @@ class CournotGame(environment.Environment):
                 outer_t=jnp.zeros((), dtype=jnp.int8),
             )
             obs = jax.random.uniform(key, (2,))
+            obs = jnp.concatenate([to_obs_array(params), obs])
             return (obs, obs), state
 
         self.step = jax.jit(_step)
@@ -84,4 +85,4 @@ class CournotGame(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        return spaces.Box(low=0, high=float('inf'), shape=2, dtype=jnp.float32)
+        return spaces.Box(low=0, high=float('inf'), shape=5, dtype=jnp.float32)

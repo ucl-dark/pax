@@ -5,11 +5,15 @@ agent1: 'PPO'
 agent2: 'PPO'
 
 # Environment
-env_id: CournotGame
+env_id: Fishery
 env_type: sequential
-a: 100
-b: 10
-marginal_cost: 1
+g: 0.15
+e: 0.009
+P: 200
+w: 0.9
+s_0: 0.5
+s_max: 1.0
+
 # This means the optimum quantity is 2(a-marginal_cost)/3b = 60
 runner: rl
 
@@ -17,7 +21,7 @@ runner: rl
 num_envs: 1
 num_opps: 4000
 num_outer_steps: 4
-num_inner_steps: 1 # number of inner steps (only for MetaFinite Env)
+num_inner_steps: 300 # number of inner steps (only for MetaFinite Env)
 num_iters: 1e7
 
 # Useful information

@@ -46,6 +46,8 @@ from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
 from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.cournot import EnvParams as CournotParams
 from pax.envs.cournot import CournotGame
+from pax.envs.fishery import EnvParams as FisheryParams
+from pax.envs.fishery import Fishery
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
@@ -190,11 +192,27 @@ def env_setup(args, logger=None):
             a=args.a, b=args.b, marginal_cost=args.marginal_cost
         )
         env = CournotGame(
-            num_steps=args.num_iters
+            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
                 f"Env Type: CournotGame | Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == "Fishery":
+        env_params = FisheryParams(
+            g=args.g,
+            e=args.e,
+            P=args.P,
+            w=args.w,
+            s_0=args.s_0,
+            s_max=args.s_max,
+        )
+        env = Fishery(
+            num_inner_steps=args.num_inner_steps,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: Fishery | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
@@ -571,6 +589,7 @@ def watcher_setup(args, logger):
             "InTheMatrix",
             "iterated_matrix_game",
             "iterated_nplayer_tensor_game",
+            "CournotGame", "Fishery"
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)

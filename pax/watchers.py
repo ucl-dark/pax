@@ -1168,3 +1168,8 @@ def ipditm_stats(
         "train/final_reward/player1": f_rewards1,
         "train/final_reward/player2": f_rewards2,
     }
+
+def cournot_stats(state: CournotEnvState, params: CournotEnvParams) -> dict:
+    # TODO
+    return {}
+

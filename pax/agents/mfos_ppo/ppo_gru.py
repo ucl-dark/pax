@@ -11,7 +11,7 @@ from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.mfos_ppo.networks import (
     make_mfos_ipditm_network,
-    make_mfos_network,
+    make_mfos_network, make_mfos_continuous_network,
 )
 from pax.utils import TrainingState, get_advantages
 
@@ -559,6 +559,11 @@ def make_mfos_agent(
             action_spec,
             agent_args.hidden_size,
         )
+    elif args.env_id == "CournotGame":
+        network, initial_hidden_state = make_mfos_continuous_network(
+            action_spec,
+            agent_args.hidden_size,
+        )
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_mfos_ipditm_network(
             action_spec,
@@ -573,8 +578,7 @@ def make_mfos_agent(
 
     # Optimizer
     transition_steps = (
-        num_iterations,
-        *agent_args.num_epochs * agent_args.num_minibatches,
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches,
     )
 
     if agent_args.lr_scheduling:
