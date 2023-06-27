@@ -8,8 +8,8 @@ agent2: 'PPO'
 env_id: CournotGame
 env_type: meta
 a: 100
-b: 10
-marginal_cost: 1
+b: 1
+marginal_cost: 10
 
 # Runner
 runner: evo

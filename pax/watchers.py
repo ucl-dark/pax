@@ -15,6 +15,7 @@ from pax.agents.naive_exact import NaiveExact
 from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 
+
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
 CC = jnp.array([[1, 0, 0, 0, 0]])
@@ -219,7 +220,7 @@ def policy_logger_naive(agent) -> None:
 
 class ESLog(object):
     def __init__(
-        self, num_dims: int, num_generations: int, top_k: int, maximize: bool
+            self, num_dims: int, num_generations: int, top_k: int, maximize: bool
     ):
         """Simple jittable logging tool for ES rollouts."""
         self.num_dims = num_dims
@@ -232,54 +233,55 @@ class ESLog(object):
         """Initialize the logger storage."""
         log = {
             "top_fitness": jnp.zeros(self.top_k)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                           - 1e10 * self.maximize
+                           + 1e10 * (1 - self.maximize),
             "top_params": jnp.zeros((self.top_k, self.num_dims))
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                          - 1e10 * self.maximize
+                          + 1e10 * (1 - self.maximize),
             "log_top_1": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                         - 1e10 * self.maximize
+                         + 1e10 * (1 - self.maximize),
             "log_top_mean": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                            - 1e10 * self.maximize
+                            + 1e10 * (1 - self.maximize),
             "log_top_std": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                           - 1e10 * self.maximize
+                           + 1e10 * (1 - self.maximize),
             "top_gen_fitness": jnp.zeros(self.top_k)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                               - 1e10 * self.maximize
+                               + 1e10 * (1 - self.maximize),
             "top_gen_params": jnp.zeros((self.top_k, self.num_dims))
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                              - 1e10 * self.maximize
+                              + 1e10 * (1 - self.maximize),
             "log_gen_1": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                         - 1e10 * self.maximize
+                         + 1e10 * (1 - self.maximize),
             "log_top_gen_mean": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                                - 1e10 * self.maximize
+                                + 1e10 * (1 - self.maximize),
             "log_top_gen_std": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                               - 1e10 * self.maximize
+                               + 1e10 * (1 - self.maximize),
             "log_gen_mean": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                            - 1e10 * self.maximize
+                            + 1e10 * (1 - self.maximize),
             "log_gen_std": jnp.zeros(self.num_generations)
-            - 1e10 * self.maximize
-            + 1e10 * (1 - self.maximize),
+                           - 1e10 * self.maximize
+                           + 1e10 * (1 - self.maximize),
             "gen_counter": 0,
         }
         return log
 
     # @partial(jax.jit, static_argnums=(0,))
     def update(
-        self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
+            self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
         """Update the logging storage with newest data."""
+
         # Check if there are solutions better than current archive
         def get_top_idx(maximize: bool, vals: jnp.ndarray) -> jnp.ndarray:
             top_idx = maximize * ((-1) * vals).argsort() + (
-                (1 - maximize) * vals.argsort()
+                    (1 - maximize) * vals.argsort()
             )
             return top_idx
 
@@ -343,13 +345,13 @@ class ESLog(object):
         return es_logger
 
     def plot(
-        self,
-        log,
-        title,
-        ylims=None,
-        fig=None,
-        ax=None,
-        no_legend=False,
+            self,
+            log,
+            title,
+            ylims=None,
+            fig=None,
+            ax=None,
+            no_legend=False,
     ):
         """Plot fitness trajectory from evo logger over generations."""
         import matplotlib.pyplot as plt
@@ -387,7 +389,7 @@ class ESLog(object):
 
 
 def ipd_visitation(
-    observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
+        observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
 ) -> dict:
     # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
     # final_t [num_opps, num_envs, ...]
@@ -1117,16 +1119,16 @@ def cg_visitation(state: NamedTuple) -> dict:
 
 
 def ipditm_stats(
-    state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
+        state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
 ) -> dict:
     from pax.envs.in_the_matrix import Actions
 
     """Compute statistics for IPDITM."""
     interacts1 = (
-        jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
+            jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
     )
     interacts2 = (
-        jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
+            jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
     )
 
     soft_reset_mask = jnp.where(traj1.rewards != 0, 1, 0)
@@ -1134,17 +1136,17 @@ def ipditm_stats(
 
     num_sft_resets = jnp.maximum(1, num_soft_resets)
     coops1 = (
-        soft_reset_mask * traj1.observations["inventory"][..., 0]
-    ).sum() / (num_envs * num_sft_resets)
+                     soft_reset_mask * traj1.observations["inventory"][..., 0]
+             ).sum() / (num_envs * num_sft_resets)
     defect1 = (
-        soft_reset_mask * traj1.observations["inventory"][..., 1]
-    ).sum() / (num_envs * num_sft_resets)
+                      soft_reset_mask * traj1.observations["inventory"][..., 1]
+              ).sum() / (num_envs * num_sft_resets)
     coops2 = (
-        soft_reset_mask * traj2.observations["inventory"][..., 0]
-    ).sum() / (num_envs * num_sft_resets)
+                     soft_reset_mask * traj2.observations["inventory"][..., 0]
+             ).sum() / (num_envs * num_sft_resets)
     defect2 = (
-        soft_reset_mask * traj2.observations["inventory"][..., 1]
-    ).sum() / (num_envs * num_sft_resets)
+                      soft_reset_mask * traj2.observations["inventory"][..., 1]
+              ).sum() / (num_envs * num_sft_resets)
 
     rewards1 = traj1.rewards.sum() / num_envs
     rewards2 = traj2.rewards.sum() / num_envs
@@ -1169,8 +1171,17 @@ def ipditm_stats(
         "train/final_reward/player2": f_rewards2,
     }
 
+
 def cournot_stats(traj1: NamedTuple, traj2: NamedTuple, params: CournotEnvParams) -> dict:
+    opt_quantity = CournotGame.optimal_policy(params)
+    average_quantity = (traj1.actions + traj2.actions) / 2
 
-
-    return {}
-
+    return {
+        "quantity/1": jnp.mean(traj1.actions),
+        "quantity/2": jnp.mean(traj2.actions),
+        "quantity": jnp.mean(average_quantity),
+        "opt_quantity": opt_quantity,
+        # How strongly do the joint actions deviate from the optimal quantity?
+        # Since the reward is a linear function of the quantity there is no need to consider it separately.
+        "anarchy_quantity_loss": jnp.mean((opt_quantity - traj1.actions - traj2.actions) ** 2),
+    }

@@ -8,8 +8,8 @@ agent2: 'PPO'
 env_id: CournotGame
 env_type: meta
 a: 100
-b: 10
-marginal_cost: 1
+b: 1
+marginal_cost: 10
 # This means the optimum quantity is 2(a-marginal_cost)/3b = 60
 
 # Runner

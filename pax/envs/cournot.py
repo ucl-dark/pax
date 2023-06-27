@@ -92,3 +92,9 @@ class CournotGame(environment.Environment):
     @staticmethod
     def optimal_policy(params: EnvParams) -> float:
         return 2 * (params.a - params.marginal_cost) / (3 * params.b)
+
+    @staticmethod
+    def optimal_reward(params: EnvParams) -> float:
+        q = CournotGame.optimal_policy(params)
+        p = params.a - params.b * q
+        return p * q - params.marginal_cost * q

@@ -22,7 +22,9 @@ def test_single_cournot_game():
     assert rewards[0] == rewards[1]
     # p_opt = 100 - (30 + 30) = 40
     # r1_opt = 40 * 30 - 10 * 30 = 900
-    assert jnp.isclose(900, rewards[0], atol=0.01)
+    optimal_reward = CournotGame.optimal_reward(env_params)
+    assert optimal_reward == 1800
+    assert jnp.isclose(optimal_reward / 2, rewards[0], atol=0.01)
     assert jnp.allclose(obs[0][3:], jnp.array([30, 40]), atol=0.01)
     assert jnp.allclose(obs[1][3:], jnp.array([30, 40]), atol=0.01)
 

@@ -13,7 +13,8 @@ from pax.utils import (
     copy_state_and_network,
     save,
 )
-from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
+from pax.utils import MemoryState, TrainingState, save
+from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats, cournot_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -105,6 +106,7 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.cournot_stats = jax.jit(cournot_stats)
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
@@ -419,6 +421,8 @@ class RLRunner:
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
+            rewards_1 = traj_1.rewards.mean()
+            rewards_2 = traj_2.rewards.mean()
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -428,7 +432,6 @@ class RLRunner:
 
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
             elif args.env_id == "iterated_matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -438,8 +441,6 @@ class RLRunner:
                         obs1,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
             elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -450,12 +451,17 @@ class RLRunner:
                         args.num_envs,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "CournotGame":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cournot_stats(
+                        traj_1,
+                        traj_2,
+                        env_params,
+                    ),
+                )
             else:
                 env_stats = {}
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
 
             return (
                 env_stats,
