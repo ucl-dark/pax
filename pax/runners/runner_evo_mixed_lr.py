@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoRunner:
+class EvoMixedLRRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -212,6 +212,7 @@ class EvoRunner:
                 obs2,
                 a2_mem,
             )
+            jax.debug.print("env_params: {x}", x=env_params)
             (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
@@ -338,10 +339,10 @@ class EvoRunner:
                     agent2._mem.hidden,
                 )
                 # generate an array of shape [10]
-                # random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
+                random_numbers = jax.random.uniform(_rng_run, minval=1.0, maxval=1.0, shape=(10,))
                 # # repeat the array 1000 times along the first dimension
-                # learning_rates = jnp.tile(random_numbers, (1000, 1))
-                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                learning_rates = jnp.tile(random_numbers, (1000, 1))
+                a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
                 # jax.debug.breakpoint()
 
             # run trials

@@ -53,6 +53,7 @@ from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_hardstop import EvalHardstopRunner
 from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_hardstop import EvoHardstopRunner
+from pax.runners.runner_evo_mixed_lr import EvoMixedLRRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
@@ -182,7 +183,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo":
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop"]:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -267,99 +268,18 @@ def runner_setup(args, env, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
-    if args.runner == "evo_hardstop":
-        agent1, _ = agents
-        algo = args.es.algo
-        strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
-        assert algo in strategies, f"{algo} not in evolution strategies"
-
-        def get_ga_strategy(agent):
-            """Returns the SimpleGA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(
-                agent._state.params, n_devices=args.num_devices
+        if args.runner == "evo_hardstop":
+            return EvoHardstopRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
-            strategy = SimpleGA(
-                num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
+        elif args.runner == "evo":
+            return EvoRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
-            es_params = strategy.default_params
-            return strategy, es_params, param_reshaper
-
-        def get_cma_strategy(agent):
-            """Returns the CMA strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(
-                agent._state.params, n_devices=args.num_devices
+        elif args.runner == "evo_mixed_lr":
+            return EvoMixedLRRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
-            strategy = CMA_ES(
-                num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
-                elite_ratio=args.es.elite_ratio,
-            )
-            es_params = strategy.default_params
-            return strategy, es_params, param_reshaper
-
-        def get_openes_strategy(agent):
-            """Returns the OpenES strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(
-                agent._state.params, n_devices=args.num_devices
-            )
-            strategy = OpenES(
-                num_dims=param_reshaper.total_params,
-                popsize=args.popsize * args.num_devices,
-            )
-            # Update basic parameters of OpenES strategy
-            es_params = strategy.default_params.replace(
-                sigma_init=args.es.sigma_init,
-                sigma_decay=args.es.sigma_decay,
-                sigma_limit=args.es.sigma_limit,
-                init_min=args.es.init_min,
-                init_max=args.es.init_max,
-                clip_min=args.es.clip_min,
-                clip_max=args.es.clip_max,
-            )
-
-            # Update optimizer-specific parameters of Adam
-            es_params = es_params.replace(
-                opt_params=es_params.opt_params.replace(
-                    lrate_init=args.es.lrate_init,
-                    lrate_decay=args.es.lrate_decay,
-                    lrate_limit=args.es.lrate_limit,
-                    beta_1=args.es.beta_1,
-                    beta_2=args.es.beta_2,
-                    eps=args.es.eps,
-                )
-            )
-            return strategy, es_params, param_reshaper
-
-        def get_pgpe_strategy(agent):
-            """Returns the PGPE strategy, es params, and param_reshaper"""
-            param_reshaper = ParameterReshaper(agent._state.params)
-            strategy = PGPE(
-                num_dims=param_reshaper.total_params,
-                popsize=args.popsize,
-                elite_ratio=args.es.elite_ratio,
-            )
-            es_params = strategy.default_params
-            return strategy, es_params, param_reshaper
-
-        if algo == "CMA_ES":
-            strategy, es_params, param_reshaper = get_cma_strategy(agent1)
-        elif algo == "OpenES":
-            strategy, es_params, param_reshaper = get_openes_strategy(agent1)
-        elif algo == "PGPE":
-            strategy, es_params, param_reshaper = get_pgpe_strategy(agent1)
-        elif algo == "SimpleGA":
-            strategy, es_params, param_reshaper = get_ga_strategy(agent1)
-
-        logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoHardstopRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -694,10 +614,8 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner == "evo":
-        runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
-
-    if args.runner == "evo_hardstop":
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop"]:
+        print(f"Running {args.runner}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "rl":
