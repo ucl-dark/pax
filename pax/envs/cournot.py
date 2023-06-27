@@ -18,18 +18,20 @@ class EnvParams:
     b: float
     marginal_cost: float
 
+
 def to_obs_array(params: EnvParams) -> jnp.ndarray:
     return jnp.array([params.a, params.b, params.marginal_cost])
+
 
 class CournotGame(environment.Environment):
     def __init__(self, num_inner_steps: int):
         super().__init__()
 
         def _step(
-            key: chex.PRNGKey,
-            state: EnvState,
-            actions: Tuple[float, float],
-            params: EnvParams,
+                key: chex.PRNGKey,
+                state: EnvState,
+                actions: Tuple[float, float],
+                params: EnvParams,
         ):
             t = state.outer_t
             key, _ = jax.random.split(key, 2)
@@ -54,7 +56,7 @@ class CournotGame(environment.Environment):
             )
 
         def _reset(
-            key: chex.PRNGKey, params: EnvParams
+                key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[Tuple, EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
@@ -78,7 +80,7 @@ class CournotGame(environment.Environment):
         return 1
 
     def action_space(
-        self, params: Optional[EnvParams] = None
+            self, params: Optional[EnvParams] = None
     ) -> spaces.Box:
         """Action space of the environment."""
         return spaces.Box(low=0, high=float('inf'), shape=(1,))
@@ -86,3 +88,7 @@ class CournotGame(environment.Environment):
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
         return spaces.Box(low=0, high=float('inf'), shape=5, dtype=jnp.float32)
+
+    @staticmethod
+    def optimal_policy(params: EnvParams) -> float:
+        return 2 * (params.a - params.marginal_cost) / (3 * params.b)
