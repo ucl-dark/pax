@@ -649,7 +649,7 @@ class MultishaperEvoRunner:
             ]
 
             # Saving
-            if gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0 or gen == num_gens - 1:
                 for shaper_idx in range(self.num_shapers):
                     log_savepath = os.path.join(
                         self.save_dir, f"generation_{gen}_agent_{shaper_idx}"
