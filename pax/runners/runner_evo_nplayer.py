@@ -563,7 +563,7 @@ class NPlayerEvoRunner:
             log = es_logging.update(log, x, fitness)
 
             # Saving
-            if gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0 or gen == num_gens - 1:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
