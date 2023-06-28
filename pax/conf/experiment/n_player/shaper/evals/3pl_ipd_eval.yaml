@@ -18,15 +18,15 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor/20ocac86
-model_path1: exp/n-player/3pl/2023-04-18_05.03.28.510538/generation_500
+run_path1: ucl-dark/tensor/4p23ml1r
+model_path1: exp/3pl-1shap-ipd/3pl-ipd-1/2023-06-07_23.25.05.927447/generation_300
 
 # Training
 num_envs: 2
 num_opps: 10
 num_inner_steps: 100 
-num_outer_steps: 1000 #
-num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
+num_outer_steps: 500 #
+num_iters: 1 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
 
@@ -96,6 +96,6 @@ ppo3:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 3pl_ipd_eval
+  group: '3pl-1shap-ipd'
+  name: 3pl-ipd-1-eval
   log: True
