@@ -702,6 +702,7 @@ def watcher_setup(args, logger):
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
     """Set up main."""
+    os.environ["WANDB__SERVICE_WAIT"] = "300"
     logger = logging.getLogger()
     with Section("Global setup", logger=logger):
         save_dir = global_setup(args)
