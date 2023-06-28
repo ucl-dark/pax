@@ -163,6 +163,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 5pl_sd
+  group: '5pl-1shap-sd'
+  name:  5pl-sd-${seed}
   log: True
