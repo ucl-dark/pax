@@ -18,9 +18,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor/g2ytb6cq
-model_path1: exp/n-player/3pl-tc/2023-05-03_19.18.50.049625/generation_900
-
+run_path1: ucl-dark/tensor/rqd3519y
+model_path1: exp/3pl-1shap-tc/3pl-tc-1/2023-06-28_18.50.46.042707/generation_800
 # Training
 num_envs: 2
 num_opps: 10
@@ -96,6 +95,6 @@ ppo3:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 3pl_tc_eval
+  group: '3pl-1shap-tc'
+  name:  3pl-tc-1-eval-gen800
   log: True

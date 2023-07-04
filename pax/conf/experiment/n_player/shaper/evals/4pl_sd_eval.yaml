@@ -20,13 +20,13 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-# run_path1: ucl-dark/tensor/lftrhfvg
-# model_path1: exp/n-player/4pl/2023-04-18_15.35.22.263992/generation_700
+run_path1: ucl-dark/tensor/cr56vm9u
+model_path1: exp/4pl-1shap-sd/4pl-sd-1/2023-06-28_17.11.57.274281/generation_99
 
 
 # Training
-num_envs: 2
-num_opps: 10
+num_envs: 1
+num_opps: 1
 num_inner_steps: 100
 num_outer_steps: 1000 #
 num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
@@ -120,6 +120,6 @@ ppo4:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 4pl_sd_eval
+  group: '4pl-1shap-sd'
+  name:  4pl-sd-0-eval-1000-meta
   log: True

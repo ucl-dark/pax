@@ -28,7 +28,7 @@ model_path1: exp/n-player/4pl/2023-04-18_15.35.22.263992/generation_700
 num_envs: 2
 num_opps: 10
 num_inner_steps: 100
-num_outer_steps: 1000 #
+num_outer_steps: 5000 #
 num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
@@ -120,6 +120,6 @@ ppo4:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 4pl_ipd_eval
+  group: '4pl-1shap-ipd'
+  name: 4pl-ipd-0-eval-1000meta
   log: True

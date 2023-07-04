@@ -20,8 +20,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor/xu7t3aum
-model_path1: exp/n-player/4pl-tc/2023-05-03_19.27.23.045901/generation_600
+run_path1: ucl-dark/tensor/ipyuzmel
+model_path1: exp/4pl-1shap-tc/4pl-tc-1/2023-06-29_11.13.38.044672/generation_1100
 
 
 # Training
@@ -120,6 +120,6 @@ ppo4:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 4pl_tc_eval
+  group: '4pl-1shap-tc'
+  name:  4pl-tc-1-eval
   log: True

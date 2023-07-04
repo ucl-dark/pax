@@ -96,6 +96,6 @@ ppo3:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 3pl_sd_eval
+  group: '3pl-1shap-sd'
+  name:  3pl-sd-1-1000-eval
   log: True

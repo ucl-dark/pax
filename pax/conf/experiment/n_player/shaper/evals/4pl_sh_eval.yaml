@@ -20,8 +20,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor/c2fts8qu
-model_path1: exp/n-player/4pl/2023-04-18_15.35.22.263992/generation_700
+run_path1: ucl-dark/tensor/ktrw4qbr
+model_path1: exp/4pl-1shap-sh/4pl-sh-1/2023-06-28_16.54.23.226386/generation_99
 
 
 # Training
@@ -121,5 +121,5 @@ wandb:
   entity: "ucl-dark"
   project: tensor
   group: '4pl-1shap-sh'
-  name:  4pl-sh-${seed}-eval
+  name:  4pl-sh-1-eval
   log: True

@@ -22,8 +22,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-# run_path1: ucl-dark/tensor/1pbmyx7s
-# model_path1: exp/n-player/5pl/2023-04-19_10.14.33.264968/generation_500
+run_path1: ucl-dark/tensor/uscv2waj
+model_path1: exp/5pl-1shap-sd/5pl-sd-0/2023-06-28_16.32.41.469546/generation_1999
 
 
 # Training
@@ -31,7 +31,7 @@ num_envs: 2
 num_opps: 10
 num_inner_steps: 100
 num_outer_steps: 1000 #
-num_iters: 100 # shouldn't do anything, just for lr scheduler to not complain
+num_iters: 1 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
 
@@ -141,6 +141,6 @@ ppo5:
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'n-player'
-  name: 5pl_sd_eval
+  group: '5pl-1shap-sd'
+  name:  5pl-sd-0-eval
   log: True
