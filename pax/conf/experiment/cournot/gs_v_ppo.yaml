@@ -21,8 +21,8 @@ popsize: 1000
 num_envs: 2
 num_opps: 1
 num_outer_steps: 100
-num_inner_steps: 1
-num_iters: 5000
+num_inner_steps: 50
+num_iters: 4000
 num_devices: 1
 
 # PPO agent parameters
@@ -94,7 +94,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cournot
-  group: 'GS-${agent1}-vs-${agent2}'
+  group: 'cournot-GS-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 

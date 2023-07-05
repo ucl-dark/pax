@@ -17,11 +17,11 @@ runner: evo
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 100
+num_envs: 4
 num_opps: 1
 num_outer_steps: 100
-num_inner_steps: 1
-num_iters: 5000
+num_inner_steps: 50
+num_iters: 4000
 num_devices: 1
 num_steps: '${num_inner_steps}'
 
@@ -92,7 +92,7 @@ es:
 wandb:
   entity: "ucl-dark"
   project: cournot
-  group: '${agent1}-vs-${agent2}'
+  group: 'cournot-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 

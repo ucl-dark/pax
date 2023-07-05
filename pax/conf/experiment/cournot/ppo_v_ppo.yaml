@@ -14,14 +14,14 @@ marginal_cost: 10
 runner: rl
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 100
-num_opps: 4000
+num_envs: 10
+num_opps: 400
 num_outer_steps: 4
-num_inner_steps: 1 # number of inner steps (only for MetaFinite Env)
-num_iters: 1e7
+num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
+num_iters: 1e6
 
 # Useful information
-# batch_size = num_envs * num_steps
+# batch_size = num_envs * num_inner_steps
 # batch_size % num_minibatches == 0 must hold
 
 # PPO agent parameters
@@ -69,6 +69,6 @@ ppo2:
 wandb:
   entity: "ucl-dark"
   project: cournot
-  group: 'MARL^2-${agent1}-vs-${agent2}-parity'
+  group: 'cournot-MARL^2-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

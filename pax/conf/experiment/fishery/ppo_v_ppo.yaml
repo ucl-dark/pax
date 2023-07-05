@@ -71,7 +71,7 @@ ppo2:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: cournot
-  group: 'MARL^2-${agent1}-vs-${agent2}-parity'
+  project: fishery
+  group: 'fishery-MARL^2-${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
   log: True

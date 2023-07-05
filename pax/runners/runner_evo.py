@@ -12,7 +12,7 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats
+from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats, cournot_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -31,7 +31,7 @@ class Sample(NamedTuple):
 
 class EvoRunner:
     """
-    Evoluationary Strategy runner provides a convenient example for quickly writing
+    Evolutionary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
     run an RL agent (optimised by an Evolutionary Strategy) against a Reinforcement Learner.
     It composes together agents, watchers, and the environment.
@@ -77,6 +77,7 @@ class EvoRunner:
         self.ipditm_stats = jax.jit(
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
+        self.cournot_stats = jax.jit(cournot_stats)
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -374,6 +375,9 @@ class EvoRunner:
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
             other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            rewards_1 = traj_1.rewards.mean()
+            rewards_2 = traj_2.rewards.mean()
+
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -383,7 +387,6 @@ class EvoRunner:
 
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
             elif args.env_id in [
                 "iterated_matrix_game",
             ]:
@@ -395,9 +398,6 @@ class EvoRunner:
                         obs1,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
-
             elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -408,12 +408,17 @@ class EvoRunner:
                         args.num_envs,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "CournotGame":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cournot_stats(
+                        traj_1,
+                        traj_2,
+                        _env_params,
+                    ),
+                )
             else:
                 env_stats = {}
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
 
             return (
                 fitness,

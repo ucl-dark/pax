@@ -14,7 +14,9 @@ import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
 from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
-
+from pax.envs.iterated_matrix_game import EnvState
+from pax.envs.cournot import EnvParams as CournotEnvParams, CournotGame
+from pax.envs.fishery import EnvParams as FisheryEnvParams
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -1184,4 +1186,26 @@ def cournot_stats(traj1: NamedTuple, traj2: NamedTuple, params: CournotEnvParams
         # How strongly do the joint actions deviate from the optimal quantity?
         # Since the reward is a linear function of the quantity there is no need to consider it separately.
         "anarchy_quantity_loss": jnp.mean((opt_quantity - traj1.actions - traj2.actions) ** 2),
+    }
+
+
+def fishery_stats(traj1: NamedTuple, traj2: NamedTuple, params: FisheryEnvParams) -> dict:
+    # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
+    # average state over time
+
+    flattened_dones = jnp.ravel(traj1.dones)
+    # Find episode indices based on "done" tensor
+    episode_indices = jnp.arange(flattened_dones.shape[0])[flattened_dones == 1]
+
+    # Group observations by episode
+    stock_obs = traj1.observations[..., 0]
+    flattened_stock_obs = jnp.ravel(stock_obs)
+    episode_observations = jnp.split(flattened_stock_obs, episode_indices[1:])
+
+    return {
+        "stock_per_ep": jnp.mean(episode_observations),
+        "stock_per_ep_std": jnp.std(episode_observations),
+        "stock_per_ep_min": jnp.min(episode_observations),
+        "stock_per_ep_max": jnp.max(episode_observations),
+        "stock_avg": jnp.mean(stock_obs),
     }
