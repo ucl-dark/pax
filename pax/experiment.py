@@ -54,6 +54,11 @@ from pax.runners.runner_eval_hardstop import EvalHardstopRunner
 from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_hardstop import EvoHardstopRunner
 from pax.runners.runner_evo_mixed_lr import EvoMixedLRRunner
+from pax.runners.runner_evo_mixed_payoffs import EvoMixedPayoffRunner
+from pax.runners.runner_evo_mixed_payoffs_input import EvoMixedPayoffInputRunner
+from pax.runners.runner_evo_mixed_payoffs_gen import EvoMixedPayoffGenRunner
+from pax.runners.runner_evo_mixed_payoffs_pred import EvoMixedPayoffPredRunner
+from pax.runners.runner_evo_scanned import EvoScannedRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
@@ -183,7 +188,8 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop"]:
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", 
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -280,6 +286,26 @@ def runner_setup(args, env, agents, save_dir, logger):
             return EvoMixedLRRunner(
                 agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
+        elif args.runner == "evo_mixed_payoff":
+            return EvoMixedPayoffRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_mixed_payoff_gen":
+            return EvoMixedPayoffGenRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_mixed_payoff_input":
+            return EvoMixedPayoffInputRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_mixed_payoff_pred":
+            return EvoMixedPayoffPredRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_scanned":
+            return EvoScannedRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -303,6 +329,13 @@ def agent_setup(args, env, env_params, logger):
     else:
         obs_shape = env.observation_space(env_params).shape
 
+    if args.runner in ["evo_mixed_payoff_input"]:
+        obs_shape_meta = env.observation_space(env_params).n + 8
+    else:
+        obs_shape_meta = obs_shape
+
+    # print(obs_shape, "obs_shape")
+
     num_actions = env.num_actions
 
     def get_Shaper_agent(seed, player_id):
@@ -313,7 +346,7 @@ def agent_setup(args, env, env_params, logger):
         return make_shaper_agent(
             args,
             player_args,
-            obs_spec=obs_shape,
+            obs_spec=obs_shape_meta,
             action_spec=num_actions,
             seed=seed,
             num_iterations=num_iterations,
@@ -614,7 +647,8 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop"]:
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", 
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
         print(f"Running {args.runner}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
