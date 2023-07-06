@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 from gymnax.environments import environment, spaces
 
-
+# a little test hooper
 @chex.dataclass
 class EnvState:
     inner_t: int
