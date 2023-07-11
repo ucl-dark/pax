@@ -57,8 +57,9 @@ class Fishery(environment.Environment):
         ):
             t = state.inner_t
             key, _ = jax.random.split(key, 2)
-            e1 = actions[0]
-            e2 = actions[1]
+            # TODO implement action clipping as part of the runner
+            e1 = jax.nn.sigmoid(actions[0].squeeze())
+            e2 = jax.nn.sigmoid(actions[1].squeeze())
             E = e1 + e2
             H = E * state.s * params.e
             s_next = state.s + params.g * state.s * (1 - state.s / params.s_max) - H
@@ -69,7 +70,7 @@ class Fishery(environment.Environment):
             r2 = params.P * e2 * state.s * params.e - params.w * e2
 
             obs1 = jnp.concatenate([jnp.array([state.s, e1, e2]), to_obs_array(params)])
-            obs2 = jnp.concatenate([jnp.array([state.s, e1, e2]), to_obs_array(params)])
+            obs2 = jnp.concatenate([jnp.array([state.s, e2, e1]), to_obs_array(params)])
 
             done = t >= num_inner_steps
 

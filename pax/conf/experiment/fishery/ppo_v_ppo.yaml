@@ -18,11 +18,11 @@ s_max: 1.0
 runner: rl
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 1
-num_opps: 4000
-num_outer_steps: 4
+num_envs: 100
+num_opps: 1
+num_outer_steps: 1
 num_inner_steps: 300 # number of inner steps (only for MetaFinite Env)
-num_iters: 1e7
+num_iters: 1e6
 
 # Useful information
 # batch_size = num_envs * num_steps
@@ -70,8 +70,6 @@ ppo2:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: fishery
-  group: 'fishery-MARL^2-${agent1}-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  group: fishery
+  name: 'fishery-MARL^2-${agent1}-vs-${agent2}-parity'
   log: True

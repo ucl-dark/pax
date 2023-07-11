@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
+agent1: 'MFOS'
 agent2: 'PPO'
 
 # Environment
@@ -10,7 +10,6 @@ env_type: meta
 a: 100
 b: 1
 marginal_cost: 10
-# This means the optimum quantity is 2(a-marginal_cost)/3b = 60
 
 # Runner
 runner: evo
@@ -20,10 +19,12 @@ top_k: 5
 popsize: 1000
 num_envs: 2
 num_opps: 1
-num_outer_steps: 100
-num_inner_steps: 50
-num_iters: 3000
+num_outer_steps: 1
+num_inner_steps: 100
+num_iters: 5000
 num_devices: 1
+num_steps: '${num_inner_steps}'
+
 
 # PPO agent parameters
 ppo1:
@@ -42,7 +43,7 @@ ppo1:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: False
   hidden_size: 16
 
@@ -63,10 +64,9 @@ ppo2:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: False
   hidden_size: 16
-
 
 # ES parameters
 es:
@@ -93,7 +93,6 @@ es:
 # Logging setup
 wandb:
   group: cournot
-  name: 'cournot-GS-${agent1}-vs-${agent2}'
-  log: False
+  name: 'cournot-SHAPER-${agent1}-vs-${agent2}'
 
 

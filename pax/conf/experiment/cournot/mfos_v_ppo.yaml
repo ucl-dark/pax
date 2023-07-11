@@ -5,7 +5,7 @@ agent1: 'MFOS'
 agent2: 'PPO'
 
 # Environment
-env_id: CournotGame
+env_id: Cournot
 env_type: meta
 a: 100
 b: 1
@@ -21,7 +21,7 @@ num_envs: 4
 num_opps: 1
 num_outer_steps: 100
 num_inner_steps: 50
-num_iters: 4000
+num_iters: 3000
 num_devices: 1
 num_steps: '${num_inner_steps}'
 
@@ -90,10 +90,7 @@ es:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: cournot
-  group: 'cournot-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}-pop-size-${popsize}
-  log: False
+  group: cournot
+  name: 'cournot-MFOS-${agent1}-vs-${agent2}'
 
 

@@ -1175,37 +1175,32 @@ def ipditm_stats(
 
 
 def cournot_stats(traj1: NamedTuple, traj2: NamedTuple, params: CournotEnvParams) -> dict:
-    opt_quantity = CournotGame.optimal_policy(params)
+    opt_quantity = CournotGame.nash_policy(params)
     average_quantity = (traj1.actions + traj2.actions) / 2
 
     return {
         "quantity/1": jnp.mean(traj1.actions),
         "quantity/2": jnp.mean(traj2.actions),
-        "quantity": jnp.mean(average_quantity),
-        "opt_quantity": opt_quantity,
+        "quantity/average": jnp.mean(average_quantity),
+        "quantity/optimal": opt_quantity,
         # How strongly do the joint actions deviate from the optimal quantity?
         # Since the reward is a linear function of the quantity there is no need to consider it separately.
-        "anarchy_quantity_loss": jnp.mean((opt_quantity - traj1.actions - traj2.actions) ** 2),
+        "quantity/loss": jnp.mean((opt_quantity / 2 - average_quantity) ** 2),
+        "opt_quantity": opt_quantity,
     }
 
 
 def fishery_stats(traj1: NamedTuple, traj2: NamedTuple, params: FisheryEnvParams) -> dict:
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
-    # average state over time
-
-    flattened_dones = jnp.ravel(traj1.dones)
-    # Find episode indices based on "done" tensor
-    episode_indices = jnp.arange(flattened_dones.shape[0])[flattened_dones == 1]
-
+    num_inner_steps = traj1.observations.shape[1]
     # Group observations by episode
     stock_obs = traj1.observations[..., 0]
     flattened_stock_obs = jnp.ravel(stock_obs)
-    episode_observations = jnp.split(flattened_stock_obs, episode_indices[1:])
-
+    split_stock_obs = jnp.array(jnp.split(flattened_stock_obs, flattened_stock_obs.shape[0] // num_inner_steps))
     return {
-        "stock_per_ep": jnp.mean(episode_observations),
-        "stock_per_ep_std": jnp.std(episode_observations),
-        "stock_per_ep_min": jnp.min(episode_observations),
-        "stock_per_ep_max": jnp.max(episode_observations),
-        "stock_avg": jnp.mean(stock_obs),
+        "stock/ep_mean": split_stock_obs.mean(axis=1),
+        "stock/ep_std": split_stock_obs.std(axis=1),
+        "stock/ep_min": split_stock_obs.min(axis=1),
+        "stock/ep_max": split_stock_obs.max(axis=1),
+        "stock/avg": jnp.mean(stock_obs),
     }

@@ -72,7 +72,7 @@ class CournotGame(environment.Environment):
     @property
     def name(self) -> str:
         """Environment name."""
-        return "CournotGame-v1"
+        return "Cournot-v1"
 
     @property
     def num_actions(self) -> int:
@@ -90,11 +90,11 @@ class CournotGame(environment.Environment):
         return spaces.Box(low=0, high=float('inf'), shape=5, dtype=jnp.float32)
 
     @staticmethod
-    def optimal_policy(params: EnvParams) -> float:
+    def nash_policy(params: EnvParams) -> float:
         return 2 * (params.a - params.marginal_cost) / (3 * params.b)
 
     @staticmethod
-    def optimal_reward(params: EnvParams) -> float:
-        q = CournotGame.optimal_policy(params)
+    def nash_reward(params: EnvParams) -> float:
+        q = CournotGame.nash_policy(params)
         p = params.a - params.b * q
         return p * q - params.marginal_cost * q

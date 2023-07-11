@@ -452,7 +452,7 @@ class RLRunner:
                         args.num_envs,
                     ),
                 )
-            elif args.env_id == "CournotGame":
+            elif args.env_id == "Cournot":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cournot_stats(
@@ -545,7 +545,7 @@ class RLRunner:
                 for stat in env_stats.keys():
                     print(stat + f": {env_stats[stat].item()}")
                 print(
-                    f"Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
+                    f"Average Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 

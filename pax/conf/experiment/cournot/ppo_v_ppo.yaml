@@ -5,7 +5,7 @@ agent1: 'PPO'
 agent2: 'PPO'
 
 # Environment
-env_id: CournotGame
+env_id: Cournot
 env_type: sequential
 a: 100
 b: 1
@@ -14,11 +14,11 @@ marginal_cost: 10
 runner: rl
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 10
-num_opps: 400
-num_outer_steps: 4
+num_envs: 20
+num_opps: 1
+num_outer_steps: 1
 num_inner_steps: 100 # number of inner steps (only for MetaFinite Env)
-num_iters: 1e6
+num_iters: 1e7
 
 # Useful information
 # batch_size = num_envs * num_inner_steps
@@ -67,8 +67,6 @@ ppo2:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: cournot
-  group: 'cournot-MARL^2-${agent1}-vs-${agent2}-parity'
-  name: run-seed-${seed}
+  group: 'cournot'
+  name: 'cournot-MARL^2-${agent1}-vs-${agent2}-parity'
   log: True

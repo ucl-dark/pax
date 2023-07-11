@@ -1,16 +1,18 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
+agent1: 'MFOS'
 agent2: 'PPO'
 
 # Environment
-env_id: Cournot
+env_id: Fishery
 env_type: meta
-a: 100
-b: 1
-marginal_cost: 10
-# This means the optimum quantity is 2(a-marginal_cost)/3b = 60
+g: 0.15
+e: 0.009
+P: 200
+w: 0.9
+s_0: 0.5
+s_max: 1.0
 
 # Runner
 runner: evo
@@ -18,12 +20,13 @@ runner: evo
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
+num_envs: 4
 num_opps: 1
 num_outer_steps: 100
 num_inner_steps: 50
 num_iters: 3000
 num_devices: 1
+num_steps: '${num_inner_steps}'
 
 # PPO agent parameters
 ppo1:
@@ -46,7 +49,6 @@ ppo1:
   with_cnn: False
   hidden_size: 16
 
-# PPO agent parameters
 ppo2:
   num_minibatches: 4
   num_epochs: 2
@@ -67,7 +69,6 @@ ppo2:
   with_cnn: False
   hidden_size: 16
 
-
 # ES parameters
 es:
   algo: OpenES        # [OpenES, CMA_ES]
@@ -84,16 +85,15 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-  centered_rank: False # Fitness centered_rank
-  w_decay: 0           # Decay old elite fitness
-  maximise: True       # Maximise fitness
-  z_score: False       # Normalise fitness
+  centered_rank: False     # Fitness centered_rank
+  w_decay: 0        # Decay old elite fitness
+  maximise: True      # Maximise fitness
+  z_score: True      # Normalise fitness
   mean_reduce: True    # Remove mean
 
 # Logging setup
 wandb:
   group: cournot
-  name: 'cournot-GS-${agent1}-vs-${agent2}'
-  log: False
+  name: 'cournot-MFOS-${agent1}-vs-${agent2}'
 
 

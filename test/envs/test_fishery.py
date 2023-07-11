@@ -23,7 +23,7 @@ def test_fishery_convergence():
     obs, env_state = env.reset(rng, env_params)
     E = 1.0
     step_reward = 0
-    for i in range(ep_length + 1):
+    for i in range(3 * ep_length + 1):
         if i != 0 and env_state.s > 0:
             E = E + d * step_reward
 

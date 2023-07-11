@@ -7,6 +7,7 @@ import gymnax
 import hydra
 import jax
 import jax.numpy as jnp
+from jax.lib import xla_bridge
 import omegaconf
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
 
@@ -187,7 +188,7 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: InTheMatrix | Inner Episode Length: {args.num_inner_steps}"
             )
-    elif args.env_id == "CournotGame":
+    elif args.env_id == "Cournot":
         env_params = CournotParams(
             a=args.a, b=args.b, marginal_cost=args.marginal_cost
         )
@@ -196,7 +197,7 @@ def env_setup(args, logger=None):
         )
         if logger:
             logger.info(
-                f"Env Type: CournotGame | Inner Episode Length: {args.num_inner_steps}"
+                f"Env Type: Cournot | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.env_id == "Fishery":
         env_params = FisheryParams(
@@ -675,6 +676,8 @@ def watcher_setup(args, logger):
 
 @hydra.main(config_path="conf", config_name="config")
 def main(args):
+    print(f"Jax backend: {xla_bridge.get_backend().platform}")
+
     """Set up main."""
     logger = logging.getLogger()
     with Section("Global setup", logger=logger):

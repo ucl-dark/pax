@@ -12,7 +12,7 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats, cournot_stats
+from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats, cournot_stats, fishery_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -78,6 +78,7 @@ class EvoRunner:
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
         self.cournot_stats = jax.jit(cournot_stats)
+        self.fishery_stats = jax.jit(fishery_stats)
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -408,10 +409,19 @@ class EvoRunner:
                         args.num_envs,
                     ),
                 )
-            elif args.env_id == "CournotGame":
+            elif args.env_id == "Cournot":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cournot_stats(
+                        traj_1,
+                        traj_2,
+                        _env_params,
+                    ),
+                )
+            elif args.env_id == "Fishery":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.fishery_stats(
                         traj_1,
                         traj_2,
                         _env_params,

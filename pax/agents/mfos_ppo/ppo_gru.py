@@ -559,7 +559,12 @@ def make_mfos_agent(
             action_spec,
             agent_args.hidden_size,
         )
-    elif args.env_id == "CournotGame":
+    elif args.env_id == "Cournot":
+        network, initial_hidden_state = make_mfos_continuous_network(
+            action_spec,
+            agent_args.hidden_size,
+        )
+    elif args.env_id == "Fishery":
         network, initial_hidden_state = make_mfos_continuous_network(
             action_spec,
             agent_args.hidden_size,
