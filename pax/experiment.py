@@ -70,6 +70,7 @@ from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_3player import TensorRLRunner
 from pax.runners.runner_marl_nplayer import NplayerRLRunner
+from pax.runners.runner_marl_third_party import ThirdPartyRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
 from pax.watchers import (
@@ -396,6 +397,9 @@ def runner_setup(args, env, agents, save_dir, logger):
         return TensorRLRunner(agents, env, save_dir, args)
     elif args.runner == "tensor_rl_nplayer":
         return NplayerRLRunner(agents, env, save_dir, args)
+    elif args.runner == "third_party_rl":
+        logger.info("Training with 3pp RL Runner")
+        return ThirdPartyRLRunner(agents, env, save_dir, args)
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
@@ -768,6 +772,7 @@ def main(args):
         args.runner == "rl"
         or args.runner == "tensor_rl"
         or args.runner == "tensor_rl_nplayer"
+        or args.runner == "third_party_rl"
     ):
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")
