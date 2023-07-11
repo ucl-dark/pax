@@ -88,7 +88,9 @@ class ThirdPartyRLRunner:
             )
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
-        self.third_party_punishment_stats = jax.jit(third_party_punishment_visitation)
+        self.third_party_punishment_stats = jax.jit(
+            third_party_punishment_visitation
+        )
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -280,7 +282,7 @@ class ThirdPartyRLRunner:
                 new_other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs,traj1, *other_traj)
+            ), (log_obs, traj1, *other_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
@@ -291,7 +293,7 @@ class ThirdPartyRLRunner:
                 None,
                 length=self.args.num_inner_steps,
             )
-            log_obs =stack[0]
+            log_obs = stack[0]
             trajectories = stack[1:]
             other_agent_metrics = [None] * len(other_agents)
             (
@@ -337,7 +339,7 @@ class ThirdPartyRLRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs,trajectories, other_agent_metrics)
+            ), (log_obs, trajectories, other_agent_metrics)
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -358,9 +360,24 @@ class ThirdPartyRLRunner:
                 jnp.zeros((args.num_opps, args.num_envs)),
             ] * args.num_players
             # first action is uniform random CC, CD, DC, DD with no punishment - so action 0,4,8 or 12
-            first_action1 = jax.random.randint(first_action_rng,( args.num_opps, args.num_envs), 0,4) *4
-            first_action2 = jax.random.randint(first_action_rng,( args.num_opps, args.num_envs), 0,4) *4
-            first_action3 = jax.random.randint(first_action_rng,(  args.num_opps, args.num_envs), 0,4) *4
+            first_action1 = (
+                jax.random.randint(
+                    first_action_rng, (args.num_opps, args.num_envs), 0, 4
+                )
+                * 4
+            )
+            first_action2 = (
+                jax.random.randint(
+                    first_action_rng, (args.num_opps, args.num_envs), 0, 4
+                )
+                * 4
+            )
+            first_action3 = (
+                jax.random.randint(
+                    first_action_rng, (args.num_opps, args.num_envs), 0, 4
+                )
+                * 4
+            )
             first_action = [first_action1, first_action2, first_action3]
             # Player 1
             first_agent_mem = agent1.batch_reset(first_agent_mem, False)
@@ -426,7 +443,7 @@ class ThirdPartyRLRunner:
                 env_state,
                 env_params,
             ) = vals
-            log_obs,trajectories, other_agent_metrics = stack
+            log_obs, trajectories, other_agent_metrics = stack
 
             # update outer agent
             first_agent_state, _, first_agent_metrics = agent1.update(

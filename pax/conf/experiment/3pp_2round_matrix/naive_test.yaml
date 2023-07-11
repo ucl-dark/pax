@@ -23,8 +23,8 @@ runner: third_party_rl
 # Training
 # Training
 num_envs: 2
-num_opps: 10
-num_inner_steps: 10 # one game length
+num_opps: 100
+num_inner_steps: 100 # one game length
 num_outer_steps: 1 # sequential 
 num_iters: 2000  #games
 # total_timesteps: 2.5e7

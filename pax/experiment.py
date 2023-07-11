@@ -88,7 +88,8 @@ from pax.watchers import (
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 from jax.config import config
-config.update('jax_disable_jit', True)
+
+config.update("jax_disable_jit", True)
 
 
 def global_setup(args):
@@ -168,13 +169,14 @@ def env_setup(args, logger=None):
             num_inner_steps=args.num_inner_steps,
             num_outer_steps=args.num_outer_steps,
         )
-        env_params = ThirdPartyPunishmentParams(payoff_table=payoff, punishment = args.punishment)
+        env_params = ThirdPartyPunishmentParams(
+            payoff_table=payoff, punishment=args.punishment
+        )
 
         if logger:
             logger.info(
                 f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
             )
-
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
@@ -378,7 +380,7 @@ def runner_setup(args, env, agents, save_dir, logger):
                 args,
             )
         elif args.runner == "third_party_evo":
-            logger.info("Training with third party punishment EVO runner") 
+            logger.info("Training with third party punishment EVO runner")
             return ThirdPartyEvoRunner(
                 agents,
                 env,
