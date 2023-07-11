@@ -135,7 +135,7 @@ class MultishaperEvoRunner:
             )
         # go through opponents, we start with agent2
         for agent_idx, target_agent in enumerate(targets):
-            agent_arg = f"agent{agent_idx+2}"
+            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 # special case where NaiveEx has a different call signature

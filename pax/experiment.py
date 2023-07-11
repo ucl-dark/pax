@@ -53,6 +53,10 @@ from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
+from pax.envs.third_party_punishment import ThirdPartyPunishment
+from pax.envs.third_party_punishment import (
+    EnvParams as ThirdPartyPunishmentParams,
+)
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_3player import TensorEvalRunner
 from pax.runners.runner_eval_multipshaper import MultishaperEvalRunner
@@ -61,6 +65,7 @@ from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_3player import TensorEvoRunner
 from pax.runners.runner_evo_multishaper import MultishaperEvoRunner
 from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
+from pax.runners.runner_evo_third_party import ThirdPartyEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_3player import TensorRLRunner
@@ -81,8 +86,8 @@ from pax.watchers import (
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
+from jax.config import config
+config.update('jax_disable_jit', True)
 
 
 def global_setup(args):
@@ -155,6 +160,20 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
             )
+    elif args.env_id == "third_party_punishment":
+        payoff = jnp.array(args.payoff_table)
+
+        env = ThirdPartyPunishment(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = ThirdPartyPunishmentParams(payoff_table=payoff, punishment = args.punishment)
+
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
+            )
+
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
@@ -227,6 +246,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         or args.runner == "tensor_evo"
         or args.runner == "tensor_evo_nplayer"
         or args.runner == "multishaper_evo"
+        or args.runner == "third_party_evo"
     ):
         agent1 = agents[0]
         algo = args.es.algo
@@ -356,6 +376,17 @@ def runner_setup(args, env, agents, save_dir, logger):
                 save_dir,
                 args,
             )
+        elif args.runner == "third_party_evo":
+            logger.info("Training with third party punishment EVO runner") 
+            return ThirdPartyEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -375,11 +406,11 @@ def runner_setup(args, env, agents, save_dir, logger):
 # flake8: noqa: C901
 def agent_setup(args, env, env_params, logger):
     """Set up agent variables."""
-
     if (
         args.env_id == "iterated_matrix_game"
         or args.env_id == "iterated_tensor_game"
         or args.env_id == "iterated_nplayer_tensor_game"
+        or args.env_id == "third_party_punishment"
     ):
         obs_shape = env.observation_space(env_params).n
     elif args.env_id == "InTheMatrix":
@@ -729,6 +760,7 @@ def main(args):
         or args.runner == "tensor_evo"
         or args.runner == "tensor_evo_nplayer"
         or args.runner == "multishaper_evo"
+        or args.runner == "third_party_evo"
     ):
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 

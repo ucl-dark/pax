@@ -517,6 +517,7 @@ def make_gru_agent(
         "iterated_matrix_game",
         "iterated_tensor_game",
         "iterated_nplayer_tensor_game",
+        "third_party_punishment"
     ]:
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size

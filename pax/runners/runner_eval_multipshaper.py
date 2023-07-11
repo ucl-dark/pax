@@ -108,71 +108,80 @@ class MultishaperEvalRunner:
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
+        self.num_players = args.num_players
+        self.num_shapers = args.num_shapers
+        self.num_targets = args.num_players - args.num_shapers
         self.num_outer_steps = self.args.num_outer_steps
-        agent1, *other_agents = agents
+        shapers = agents[: self.num_shapers]
+        targets = agents[self.num_shapers :]
         # set up agents
-        if args.agent1 == "NaiveEx":
+        # batch MemoryState not TrainingState
+        for agent_idx, shaper_agent in enumerate(shapers):
+            agent_arg = f"agent{agent_idx+1}"
+            if OmegaConf.select(args, agent_arg) == "NaiveEx":
             # special case where NaiveEx has a different call signature
-            agent1.batch_init = jax.jit(jax.vmap(agent1.make_initial_state))
-        else:
-            # batch MemoryState not TrainingState
-            agent1.batch_init = jax.vmap(
-                agent1.make_initial_state,
-                (None, 0),
-                (None, 0),
+                shaper_agent.batch_init = jax.jit(jax.vmap(shaper_agent.make_initial_state))
+            else:
+
+                shaper_agent.batch_init = jax.vmap(
+                    shaper_agent.make_initial_state,
+                    (None, 0),
+                    (None, 0),
+                )
+            shaper_agent.batch_reset = jax.jit(
+                jax.vmap(shaper_agent.reset_memory, (0, None), 0), static_argnums=1
             )
-        agent1.batch_reset = jax.jit(
-            jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
-        )
 
-        agent1.batch_policy = jax.jit(
-            jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))
-        )
+            shaper_agent.batch_policy = jax.jit(
+                jax.vmap(shaper_agent._policy, (None, 0, 0), (0, None, 0))
+            )
 
-        # go through opponents, we start with agent2
-        for agent_idx, non_first_agent in enumerate(other_agents):
-            agent_arg = f"agent{agent_idx+2}"
+        # go through opponents
+        for agent_idx, target_agent in enumerate(targets):
+            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
-                non_first_agent.batch_init = jax.jit(
-                    jax.vmap(non_first_agent.make_initial_state)
+                target_agent.batch_init = jax.jit(
+                    jax.vmap(target_agent.make_initial_state)
                 )
             else:
-                non_first_agent.batch_init = jax.vmap(
-                    non_first_agent.make_initial_state, (0, None), 0
+                target_agent.batch_init = jax.vmap(
+                    target_agent.make_initial_state, (0, None), 0
                 )
-            non_first_agent.batch_policy = jax.jit(
-                jax.vmap(non_first_agent._policy)
+            target_agent.batch_policy = jax.jit(
+                jax.vmap(target_agent._policy)
             )
-            non_first_agent.batch_reset = jax.jit(
-                jax.vmap(non_first_agent.reset_memory, (0, None), 0),
+            target_agent.batch_reset = jax.jit(
+                jax.vmap(target_agent.reset_memory, (0, None), 0),
                 static_argnums=1,
             )
-            non_first_agent.batch_update = jax.jit(
-                jax.vmap(non_first_agent.update, (1, 0, 0, 0), 0)
+            target_agent.batch_update = jax.jit(
+                jax.vmap(target_agent.update, (1, 0, 0, 0), 0)
             )
 
-        if args.agent1 != "NaiveEx":
-            # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent1._mem.hidden, (args.num_opps, 1, 1))
-            agent1._state, agent1._mem = agent1.batch_init(
-                agent1._state.random_key, init_hidden
-            )
+        for agent_idx, shaper_agent in enumerate(shapers):
+            agent_arg = f"agent{agent_idx+1}"
+            if OmegaConf.select(args, agent_arg) == "NaiveEx":
+                # NaiveEx requires env first step to init.
+                init_hidden = jnp.tile(shaper_agent._mem.hidden, (args.num_opps, 1, 1))
+                shaper_agent._state, shaper_agent._mem = shaper_agent.batch_init(
+                    shaper_agent._state.random_key, init_hidden
+                )
 
-        for agent_idx, non_first_agent in enumerate(other_agents):
-            agent_arg = f"agent{agent_idx+2}"
+        for agent_idx,  target_agent in enumerate(targets):
+            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) != "NaiveEx":
                 # NaiveEx requires env first step to init.
                 init_hidden = jnp.tile(
-                    non_first_agent._mem.hidden, (args.num_opps, 1, 1)
+                    target_agent._mem.hidden, (args.num_opps, 1, 1)
                 )
                 (
-                    non_first_agent._state,
-                    non_first_agent._mem,
-                ) = non_first_agent.batch_init(
+                    target_agent._state,
+                    target_agent._mem,
+                ) = target_agent.batch_init(
                     jax.random.split(
-                        non_first_agent._state.random_key, args.num_opps
+                        target_agent._state.random_key, args.num_opps
                     ),
                     init_hidden,
                 )
@@ -181,47 +190,49 @@ class MultishaperEvalRunner:
             """Runner for inner episode"""
             (
                 rngs,
-                first_agent_obs,
-                other_agent_obs,
-                first_agent_reward,
-                other_agent_rewards,
-                first_agent_state,
-                other_agent_state,
-                first_agent_mem,
-                other_agent_mem,
+                shapers_obs,
+                targets_obs,
+                shapers_reward,
+                targets_rewards,
+                shapers_state,
+                targets_state,
+                shapers_mem,
+                targets_mem,
                 env_state,
                 env_params,
             ) = carry
-            new_other_agent_mem = [None] * len(other_agents)
+            new_targets_mem = [None] * self.num_targets
+            new_shapers_mem = [None] * self.num_shapers
             # unpack rngs
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, 0, :]
             # a1_rng = rngs[:, :, 1, :]
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
-            actions = []
-            (
-                first_action,
-                first_agent_state,
-                new_first_agent_mem,
-            ) = agent1.batch_policy(
-                first_agent_state,
-                first_agent_obs,
-                first_agent_mem,
-            )
-
-            actions.append(first_action)
-            for agent_idx, non_first_agent in enumerate(other_agents):
+            shapers_actions = []
+            targets_actions = []
+            for agent_idx, shaper_agent in enumerate(shapers):
                 (
-                    non_first_action,
-                    other_agent_state[agent_idx],
-                    new_other_agent_mem[agent_idx],
-                ) = non_first_agent.batch_policy(
-                    other_agent_state[agent_idx],
-                    other_agent_obs[agent_idx],
-                    other_agent_mem[agent_idx],
+                    shaper_action,
+                    shapers_state[agent_idx],
+                    new_shapers_mem[agent_idx],
+                ) = shaper_agent.batch_policy(
+                    shapers_state[agent_idx],
+                    shapers_obs[agent_idx],
+                    shapers_mem[agent_idx],
                 )
-                actions.append(non_first_action)
+                shapers_actions.append(shaper_action)
+            for agent_idx, target_agent in enumerate(targets):
+                (
+                    target_action,
+                    targets_state[agent_idx],
+                    new_targets_mem[agent_idx],
+                ) = target_agent.batch_policy(
+                    targets_state[agent_idx],
+                    targets_obs[agent_idx],
+                    targets_mem[agent_idx],
+                )
+                targets_actions.append(target_action)
             (
                 all_agent_next_obs,
                 env_state,
@@ -231,46 +242,52 @@ class MultishaperEvalRunner:
             ) = env.step(
                 env_rng,
                 env_state,
-                actions,
+                tuple(shapers_actions + targets_actions),
                 env_params,
             )
-            first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
-            first_agent_reward, *other_agent_rewards = all_agent_rewards
-
-            traj1 = Sample(
-                first_agent_next_obs,
-                first_action,
-                first_agent_reward,
-                new_first_agent_mem.extras["log_probs"],
-                new_first_agent_mem.extras["values"],
-                done,
-                first_agent_mem.hidden,
+            shapers_next_obs = all_agent_next_obs[: self.num_shapers]
+            targets_next_obs = all_agent_next_obs[self.num_shapers :]
+            shapers_reward, targets_reward = (
+                all_agent_rewards[: self.num_shapers],
+                all_agent_rewards[self.num_shapers :],
             )
-            other_traj = [
+
+            shapers_traj = [
                 Sample(
-                    other_agent_next_obs[agent_idx],
-                    actions[agent_idx + 1],
-                    other_agent_rewards[agent_idx],
-                    new_other_agent_mem[agent_idx].extras["log_probs"],
-                    new_other_agent_mem[agent_idx].extras["values"],
+                    shapers_obs[agent_idx],
+                    shapers_actions[agent_idx],
+                    shapers_reward[agent_idx],
+                    new_shapers_mem[agent_idx].extras["log_probs"],
+                    new_shapers_mem[agent_idx].extras["values"],
                     done,
-                    other_agent_mem[agent_idx].hidden,
+                    shapers_mem[agent_idx].hidden,
                 )
-                for agent_idx in range(len(other_agents))
+                for agent_idx in range(self.num_shapers)
+            ]
+            targets_traj = [
+                Sample(
+                    targets_obs[agent_idx],
+                    targets_actions[agent_idx],
+                    targets_rewards[agent_idx],
+                    new_targets_mem[agent_idx].extras["log_probs"],
+                    new_targets_mem[agent_idx].extras["values"],
+                    done,
+                    targets_mem[agent_idx].hidden,
+                )
+                for agent_idx in range(self.num_targets)
             ]
             return (
                 rngs,
-                first_agent_next_obs,
-                tuple(other_agent_next_obs),
-                first_agent_reward,
-                tuple(other_agent_rewards),
-                first_agent_state,
-                other_agent_state,
-                new_first_agent_mem,
-                new_other_agent_mem,
-                env_state,
+                tuple(shapers_next_obs),
+                tuple(targets_next_obs),
+                tuple(shapers_reward),
+                tuple(targets_reward),
+                shapers_state,
+                targets_state,
+                new_shapers_mem,
+                new_targets_mem,
                 env_params,
-            ), (traj1, *other_traj)
+            ), tuple(shapers_traj + targets_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
@@ -281,56 +298,60 @@ class MultishaperEvalRunner:
                 None,
                 length=self.args.num_inner_steps,
             )
-            other_agent_metrics = [None] * len(other_agents)
+            targets_metrics = [None] * self.num_targets
             (
                 rngs,
-                first_agent_obs,
-                other_agent_obs,
-                first_agent_reward,
-                other_agent_rewards,
-                first_agent_state,
-                other_agent_state,
-                first_agent_mem,
-                other_agent_mem,
+                shapers_obs,
+                targets_obs,
+                shapers_rewards,
+                targets_rewards,
+                shapers_state,
+                targets_state,
+                shapers_mem,
+                targets_mem,
                 env_state,
                 env_params,
             ) = vals
             # MFOS has to take a meta-action for each episode
-            if args.agent1 == "MFOS":
-                first_agent_mem = agent1.meta_policy(first_agent_mem)
+            for agent_idx, shaper_agent in enumerate(shapers):
+                agent_arg = f"agent{agent_idx+1}"
+                # equivalent of args.agent_n
+                if OmegaConf.select(args, agent_arg) == "MFOS":
+                    shapers_mem[agent_idx] = shaper_agent.meta_policy(
+                        shapers_mem[agent_idx]
+                    )
 
             # update second agent
-            for agent_idx, non_first_agent in enumerate(other_agents):
+            targets_traj = trajectories[self.num_shapers :]
+            for agent_idx, target_agent in enumerate(targets):
                 (
-                    other_agent_state[agent_idx],
-                    other_agent_mem[agent_idx],
-                    other_agent_metrics[agent_idx],
-                ) = non_first_agent.batch_update(
-                    trajectories[agent_idx + 1],
-                    other_agent_obs[agent_idx],
-                    other_agent_state[agent_idx],
-                    other_agent_mem[agent_idx],
+                    targets_state[agent_idx],
+                    targets_mem[agent_idx],
+                    targets_metrics[agent_idx],
+                ) = target_agent.batch_update(
+                    targets_traj[agent_idx],
+                    targets_obs[agent_idx],
+                    targets_state[agent_idx],
+                    targets_mem[agent_idx],
                 )
             return (
                 rngs,
-                first_agent_obs,
-                other_agent_obs,
-                first_agent_reward,
-                other_agent_rewards,
-                first_agent_state,
-                other_agent_state,
-                first_agent_mem,
-                other_agent_mem,
+                shapers_obs,
+                targets_obs,
+                shapers_rewards,
+                targets_rewards,
+                shapers_state,
+                targets_state,
+                shapers_mem,
+                targets_mem,
                 env_state,
                 env_params,
-            ), (trajectories, other_agent_metrics)
+            ), (trajectories, targets_metrics)
 
         def _rollout(
             _rng_run: jnp.ndarray,
-            first_agent_state: TrainingState,
-            first_agent_mem: MemoryState,
-            other_agent_state: List[TrainingState],
-            other_agent_mem: List[MemoryState],
+            _shapers_state: List[TrainingState],
+            _shapers_mem: List[MemoryState],
             _env_params: Any,
         ):
             # env reset
@@ -339,47 +360,55 @@ class MultishaperEvalRunner:
             ).reshape((args.num_opps, args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, _env_params)
+            shapers_obs = obs[: self.num_shapers]
+            targets_obs = obs[self.num_shapers :]
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs), dtype=jnp.float32)
             ] * args.num_players
             # Player 1
-            first_agent_mem = agent1.batch_reset(first_agent_mem, False)
+            for agent_idx, shaper_agent in enumerate(shapers):
+                _shapers_mem[agent_idx] = shaper_agent.batch_reset(
+                    _shapers_mem[agent_idx], False
+                )
             # Other players
-            _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
-            for agent_idx, non_first_agent in enumerate(other_agents):
-                # indexing starts at 2 for args
-                agent_arg = f"agent{agent_idx+2}"
+            _rng_run, *target_rngs = jax.random.split(
+                _rng_run, self.num_players
+            )
+            targets_mem = [None] * self.num_targets
+            targets_state = [None] * self.num_targets
+            for agent_idx, target_agent in enumerate(targets):
+                # if eg 2 shapers, agent3 is the first non-shaper
+                agent_arg = f"agent{agent_idx+1+self.num_shapers}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "NaiveEx":
                     (
-                        other_agent_mem[agent_idx],
-                        other_agent_state[agent_idx],
-                    ) = non_first_agent.batch_init(obs[agent_idx + 1])
+                        targets_mem[agent_idx],
+                        targets_state[agent_idx],
+                    ) = target_agent.batch_init(targets_obs[agent_idx])
 
                 elif self.args.env_type in ["meta"]:
                     # meta-experiments - init other agents per trial
                     (
-                        other_agent_state[agent_idx],
-                        other_agent_mem[agent_idx],
-                    ) = non_first_agent.batch_init(
-                        jax.random.split(other_agent_rng, self.num_opps),
-                        non_first_agent._mem.hidden,
+                        targets_state[agent_idx],
+                        targets_mem[agent_idx],
+                    ) = target_agent.batch_init(
+                        jax.random.split(target_rngs[agent_idx], self.num_opps),
+                        target_agent._mem.hidden,
                     )
-                    _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
 
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (
                     rngs,
-                    obs[0],
-                    tuple(obs[1:]),
-                    rewards[0],
-                    tuple(rewards[1:]),
-                    first_agent_state,
-                    other_agent_state,
-                    first_agent_mem,
-                    other_agent_mem,
+                    tuple(obs[: self.num_shapers]),
+                    tuple(obs[self.num_shapers :]),
+                    tuple(rewards[: self.num_shapers]),
+                    tuple(rewards[self.num_shapers :]),
+                    _shapers_state,
+                    targets_state,
+                    _shapers_mem,
+                    targets_mem,
                     env_state,
                     _env_params,
                 ),
@@ -389,24 +418,30 @@ class MultishaperEvalRunner:
 
             (
                 rngs,
-                first_agent_obs,
-                other_agent_obs,
-                first_agent_reward,
-                other_agent_rewards,
-                first_agent_state,
-                other_agent_state,
-                first_agent_mem,
-                other_agent_mem,
+                shapers_obs,
+                targets_obs,
+                shapers_rewards,
+                targets_rewards,
+                shapers_state,
+                targets_state,
+                shapers_mem,
+                targets_mem,
                 env_state,
                 env_params,
             ) = vals
-            trajectories, other_agent_metrics = stack
+            trajectories, targets_metrics = stack
+            shapers_traj = trajectories[: self.num_shapers]
+            targets_traj = trajectories[self.num_shapers :]
 
             # reset memory
-            first_agent_mem = agent1.batch_reset(first_agent_mem, False)
-            for agent_idx, non_first_agent in enumerate(other_agents):
-                other_agent_mem[agent_idx] = non_first_agent.batch_reset(
-                    other_agent_mem[agent_idx], False
+            for agent_idx, shaper_agent in enumerate(shapers):
+                shapers_mem[agent_idx] = shaper_agent.batch_reset(
+                    shapers_mem[agent_idx], False
+                )
+
+            for agent_idx, target_agent in enumerate(targets):
+                target_agent[agent_idx] = target_agent.batch_reset(
+                    targets_mem[agent_idx], False
                 )
             # Stats
             if args.env_id == "iterated_nplayer_tensor_game":
@@ -417,19 +452,27 @@ class MultishaperEvalRunner:
                         num_players=args.num_players,
                     ),
                 )
-                total_rewards = [traj.rewards.mean() for traj in trajectories]
+                shapers_rewards = [
+                    shapers_traj[shaper_idx].rewards.mean()
+                    for shaper_idx in range(self.num_shapers)
+                ]
+
+                targets_rewards = [
+                    targets_traj[target_idx].rewards.mean()
+                    for target_idx in range(self.num_targets)
+                ]
             else:
-                total_env_stats = {}
-                total_rewards = [traj.rewards.mean() for traj in trajectories]
+                raise NotImplementedError
 
             return (
                 total_env_stats,
-                total_rewards,
-                first_agent_state,
-                other_agent_state,
-                first_agent_mem,
-                other_agent_mem,
-                other_agent_metrics,
+                shapers_rewards,
+                targets_rewards,
+                shapers_state,
+                targets_state,
+                shapers_mem,
+                targets_mem,
+                targets_metrics,
                 trajectories,
             )
 
@@ -440,36 +483,46 @@ class MultishaperEvalRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        agent1, *other_agents = agents
+        shaper_agents = agents[: self.num_shapers]
+        target_agents = agents[self.num_shapers :]
         rng, _ = jax.random.split(self.random_key)
 
-        first_agent_state, first_agent_mem = agent1._state, agent1._mem
-        other_agent_mem = [None] * len(other_agents)
-        other_agent_state = [None] * len(other_agents)
 
-        for agent_idx, non_first_agent in enumerate(other_agents):
-            other_agent_state[agent_idx], other_agent_mem[agent_idx] = (
-                non_first_agent._state,
-                non_first_agent._mem,
-            )
-        if "model_path1" in self.args:
-            wandb.restore(
-                name=self.args.model_path1,
-                run_path=self.args.run_path1,
-                root=os.getcwd(),
-            )
+        # get initial state and memory
+        shapers_state = []
+        shapers_mem = []
+        for agent_idx, shaper_agent in enumerate(shaper_agents):
+            shapers_state.append(shaper_agent._state)
+            shapers_mem.append(shaper_agent._mem)
+        
+        targets_state = []
+        targets_mem = []
+        for agent_idx, target_agent in enumerate(target_agents):
+            targets_state.append(target_agent._state)
+            targets_mem.append(target_agent._mem)
 
-            pretrained_params = load(self.args.model_path1)
-            first_agent_state = first_agent_state._replace(
-                params=pretrained_params
-            )
+        for agent_idx, shaper_agent in enumerate(shaper_agents):
+            model_path = f"model_path{agent_idx}"
+            run_path = f"run_path{agent_idx}"
+            if f"model_path{agent_idx}" in self.args:
+                wandb.restore(
+                    name=self.args[model_path],
+                    run_path=self.args[run_path],
+                    root=os.getcwd(),
+                )
+
+                pretrained_params = load(self.args[model_path])
+                first_agent_state = shaper_agent._replace(
+                    params=pretrained_params
+                )
 
         # run actual loop
         rng, rng_run = jax.random.split(rng, 2)
         # RL Rollout
         (
             env_stats,
-            total_rewards,
+            shapers_rewards,
+            targets_rewards,
             first_agent_state,
             other_agent_state,
             first_agent_mem,
@@ -478,18 +531,19 @@ class MultishaperEvalRunner:
             trajectories,
         ) = self.rollout(
             rng_run,
-            first_agent_state,
-            first_agent_mem,
-            other_agent_state,
-            other_agent_mem,
+            shapers_state,
+            shapers_mem,
             env_params,
         )
 
         for stat in env_stats.keys():
             print(stat + f": {env_stats[stat].item()}")
-        print(
-            f"Total Episode Reward: {[float(rew.mean()) for rew in total_rewards]}"
-        )
+            print(
+                f"Shapers Reward Per Timestep: {[float(reward.mean()) for reward in shapers_rewards]}"
+            )
+            print(
+                f"Targets Reward Per Timestep: {[float(reward.mean()) for reward in targets_rewards]}"
+            )
         print()
 
         if watchers:
@@ -522,19 +576,31 @@ class MultishaperEvalRunner:
                 )
                 for traj in list_traj1
             ]
+            shaper_traj = trajectories[: self.num_shapers]
+            target_traj = trajectories[self.num_shapers :]
 
             # log agent one
             watchers[0](agents[0])
             # log the inner episodes
-            rewards_log = [
+            shaper_rewards_log = [
                 {
-                    f"eval/reward_per_timestep/player_{agent_idx+1}": float(
+                    f"eval/reward_per_timestep/shaper_{shaper_idx+1}": float(
                         traj.rewards[i].mean().item()
                     )
-                    for (agent_idx, traj) in enumerate(trajectories)
+                    for (shaper_idx, traj) in enumerate(shaper_traj)
+                }
+                for i in range(len(list_of_env_stats)) 
+            ]
+            target_rewards_log = [
+                {
+                    f"eval/reward_per_timestep/target_{target_idx+1}": float(
+                        traj.rewards[i].mean().item()
+                    )
+                    for (target_idx, traj) in enumerate(target_traj)
                 }
                 for i in range(len(list_of_env_stats))
             ]
+            
             # log avg reward for players combined
             global_welfare_log = [
                 {
@@ -548,6 +614,31 @@ class MultishaperEvalRunner:
                 }
                 for i in range(len(list_of_env_stats))
             ]
+            shaper_welfare_log = [
+                {
+                    f"eval/shaper_welfare_per_timestep": float(
+                        sum(
+                            traj.rewards[i].mean().item()
+                            for traj in shaper_traj
+                        )
+                    )
+                    / len(shaper_traj)
+                }
+                for i in range(len(list_of_env_stats))
+            ]
+            target_welfare_log = [
+                {
+                    f"eval/target_welfare_per_timestep": float(
+                        sum(
+                            traj.rewards[i].mean().item()
+                            for traj in target_traj
+                        )
+                    )
+                    / len(target_traj)
+                }
+                for i in range(len(list_of_env_stats))
+            ]
+
 
             for i in range(len(list_of_env_stats)):
                 wandb.log(
@@ -555,18 +646,27 @@ class MultishaperEvalRunner:
                         "train_iteration": i,
                     }
                     | list_of_env_stats[i]
-                    | rewards_log[i]
+                    | shaper_rewards_log[i]
+                    | target_rewards_log[i]
+                    | shaper_welfare_log[i]
+                    | target_welfare_log[i]
                     | global_welfare_log[i]
                 )
-            total_rewards_log = {
-                f"eval/meta_reward/player_{idx+1}": float(rew.mean().item())
-                for (idx, rew) in enumerate(total_rewards)
+            shaper_rewards_log = {
+                f"eval/meta_reward/shaper{idx+1}": float(rew.mean().item())
+                for (idx, rew) in enumerate(shapers_rewards)
             }
+            target_rewards_log = {
+                f"eval/meta_reward/target{idx+1}": float(rew.mean().item())
+                for (idx, rew) in enumerate(targets_rewards)
+            }
+
             wandb.log(
                 {
                     "episodes": 1,
                 }
-                | total_rewards_log
+                | shaper_rewards_log
+                | target_rewards_log
             )
 
         return agents
