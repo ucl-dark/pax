@@ -238,7 +238,7 @@ class ThirdPartyRLRunner:
             first_agent_reward, *other_agent_rewards = all_agent_rewards
             if args.agent1 == "MFOS":
                 traj1 = MFOSSample(
-                    first_agent_next_obs,
+                    first_agent_obs,
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],
@@ -249,7 +249,7 @@ class ThirdPartyRLRunner:
                 )
             else:
                 traj1 = Sample(
-                    first_agent_next_obs,
+                    first_agent_obs,
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],

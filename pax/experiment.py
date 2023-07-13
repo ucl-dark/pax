@@ -39,6 +39,7 @@ from pax.agents.tensor_strategies import (
     TitForTatStrictStay,
     TitForTatStrictSwitch,
 )
+from pax.agents.third_party_strategies import CooperateNoPunish
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
@@ -536,6 +537,7 @@ def agent_setup(args, env, env_params, logger):
         return agent
 
     strategies = {
+        "CooperateNoPunish": partial(CooperateNoPunish, args.num_envs),
         "TitForTat": partial(TitForTat, args.num_envs),
         "TitForTatStrictStay": partial(TitForTatStrictStay, args.num_envs),
         "TitForTatStrictSwitch": partial(TitForTatStrictSwitch, args.num_envs),
@@ -642,16 +644,17 @@ def watcher_setup(args, logger):
             "iterated_matrix_game",
             "iterated_tensor_game",
             "iterated_nplayer_tensor_game",
+            "third_party_punishment"
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
             losses.update(value)
             losses.update(policy)
-        if args.wandb.log:
-            losses = jax.tree_util.tree_map(
-                lambda x: x.item() if isinstance(x, jax.Array) else x, losses
-            )
-            wandb.log(losses)
+        # if args.wandb.log:
+        #     losses = jax.tree_util.tree_map(
+        #         lambda x: x.item() if isinstance(x, jax.Array) else x, losses
+        #     )
+        #     wandb.log(losses)
         return
 
     def dumb_log(agent, *args):
@@ -720,6 +723,7 @@ def watcher_setup(args, logger):
         "TitForTatDefect": dumb_log,
         "TitForTatHarsh": dumb_log,
         "TitForTatSoft": dumb_log,
+        "CooperateNoPunish": dumb_log,
     }
 
     if args.runner == "sarl":

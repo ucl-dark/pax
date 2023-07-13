@@ -1,35 +1,33 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
-agent3: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
+agent3: 'PPO_memory'
 
 # Environment
-env_id: third_party_punishment
-env_type: sequential
-env_discount: 0.99
+env_id: iterated_nplayer_tensor_game
 num_players: 3
+env_type: meta
+env_discount: 0.96
 payoff_table: [
-    [ -1 , 1000 ],
-    [-3 , 0 ],
-    [1000 , -2],
+    [ 4 , 1000 ],
+    [ 2 , 5 ],
+    [ 0 , 3 ],
+    [ -1000 , 1 ],
 ]
-punishment: 0
 # Runner 
-runner: third_party_rl
-
-
-# Training
+runner: tensor_eval_nplayer
+run_path1: ucl-dark/tensor-ipd/3uchu6kf
+model_path1: exp/3pl-1shap-ipd/3pl-ipd-4/2023-07-12_05.16.50.829397/generation_499
 # Training
 num_envs: 2
-num_opps: 100
-num_inner_steps: 100 # one game length
-num_outer_steps: 1 # sequential 
-num_iters: 2000  #games
+num_opps: 10
+num_inner_steps: 100 
+num_outer_steps: 1000 #
+num_iters: 1 # shouldn't do anything, just for lr scheduler to not complain
 # total_timesteps: 2.5e7
 num_devices: 1
-# Evaluation 
 
 
 # PPO agent parameters
@@ -93,31 +91,11 @@ ppo3:
   with_cnn: False
   separate: False
   hidden_size: 16
-# ES parameters 
-es: 
-  algo: OpenES        # [OpenES, CMA_ES]
-  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
-  sigma_decay: 0.999  # Multiplicative decay factor
-  sigma_limit: 0.01   # Smallest possible scale
-  init_min: 0.0       # Range of parameter mean initialization - Min
-  init_max: 0.0       # Range of parameter mean initialization - Max
-  clip_min: -1e10     # Range of parameter proposals - Min
-  clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.1     # Initial learning rate
-  lrate_decay: 0.9999 # Multiplicative decay factor
-  lrate_limit: 0.001  # Smallest possible lrate
-  beta_1: 0.99        # Adam - beta_1
-  beta_2: 0.999       # Adam - beta_2
-  eps: 1e-8           # eps constant,
-  centered_rank: False # Fitness centered_rank
-  w_decay: 0           # Decay old elite fitness 
-  maximise: True       # Maximise fitness 
-  z_score: False       # Normalise fitness 
-  mean_reduce: True    # Remove mean
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: third-party-matrix
-  group: 'testing'
-  name: all_pponomem_but_no_punish
+  project: tensor-ipd
+  group: '3pl-1shap-ipd-eval'
+  name: 3pl-ipd-4-eval
   log: True
+seed: 4

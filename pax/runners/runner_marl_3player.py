@@ -506,9 +506,9 @@ class TensorRLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        num_iters = max(
-            int(num_iters / (self.args.num_envs * self.num_opps)), 1
-        )
+        # num_iters = max(
+        #     int(num_iters / (self.args.num_envs * self.num_opps)), 1
+        # )
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         save_interval = self.args.save_interval
         agent1, agent2, agent3 = agents
