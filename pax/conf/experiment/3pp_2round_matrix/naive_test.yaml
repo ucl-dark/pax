@@ -1,9 +1,9 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
-agent2: 'PPO'
-agent3: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'DefectPunish'
+agent3: 'CooperateNoPunish'
 
 # Environment
 env_id: third_party_punishment
@@ -119,5 +119,5 @@ wandb:
   entity: "ucl-dark"
   project: third-party-matrix
   group: 'testing'
-  name: all_pponomem_but_no_punish
+  name: all_pponomem_but_no_punish_symmetric
   log: True

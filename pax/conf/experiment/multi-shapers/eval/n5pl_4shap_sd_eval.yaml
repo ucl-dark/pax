@@ -5,6 +5,8 @@
 agent1: 'PPO_memory'
 agent2: 'PPO_memory'
 agent3: 'PPO_memory'
+agent4: 'PPO_memory'
+agent5: 'PPO_memory'
 
 
 # Environment
@@ -13,26 +15,35 @@ env_type: meta
 env_discount: 0.96
 
 # Runner 
-num_players: 3
-num_shapers: 2
+num_players: 5
+num_shapers: 4
 payoff_table: [
-[ 2.33 , 1000 ],
-[ 2.0 , 3 ],
-[ 1.0 , 3 ],
+[ 4.2 , 5 ],
+[ 4.0 , 5 ],
+[ 3.667 , 5 ],
+[ 3.0 , 5 ],
+[ 1.0 , 5 ],
 [ 1000 , 0 ],
 ]
 
 # Runner 
-runner: multishaper_evo
+runner: multishaper_eval
+run_path1: ucl-dark/tensor/ooer54uz
+model_path1: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_1
+run_path2: ucl-dark/tensor/ooer54uz
+model_path2: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_2
+run_path3: ucl-dark/tensor/ooer54uz
+model_path3: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_3
+run_path4: ucl-dark/tensor/ooer54uz
+model_path4: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_4
 
 # Training
-top_k: 5
-popsize: 100
 num_envs: 2
 num_opps: 10
 num_inner_steps: 100
-num_outer_steps: 1000
-num_iters: 500
+num_outer_steps: 1000 #
+num_iters: 1 # shouldn't do anything, just for lr scheduler to not complain
+# total_timesteps: 2.5e7
 num_devices: 1
 
 # PPO agent parameters
@@ -77,6 +88,66 @@ ppo2:
   with_cnn: False
   separate: False
   hidden_size: 16
+ppo3:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
+ppo4:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
+ppo5:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
 
 # ES parameters 
 es: 
@@ -102,8 +173,8 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor
-  group: 'multi_shapers_sd'
-  name: 3pl_2shap_sd_${seed}
+  project: tensor-sd
+  group: 'multi_shapers_sd-eval'
+  name: 5pl_4shap_sd_1-eval
   log: True
 

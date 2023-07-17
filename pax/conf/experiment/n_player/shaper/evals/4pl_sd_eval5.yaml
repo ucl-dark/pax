@@ -20,8 +20,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor-sd/18ek774u
-model_path1: exp/4pl-1shap-sd/4pl-sd-5/2023-07-07_11.40.23.014694/generation_19
+run_path1: ucl-dark/tensor-sd/obd3nq3w
+model_path1: exp/4pl-1shap-sd/4pl-sd-5/2023-07-14_22.33.46.297904/generation_99
 
 
 # Training
