@@ -161,7 +161,7 @@ class MultishaperEvalRunner:
 
         for agent_idx, shaper_agent in enumerate(shapers):
             agent_arg = f"agent{agent_idx+1}"
-            if OmegaConf.select(args, agent_arg) == "NaiveEx":
+            if OmegaConf.select(args, agent_arg) != "NaiveEx":
                 # NaiveEx requires env first step to init.
                 init_hidden = jnp.tile(shaper_agent._mem.hidden, (args.num_opps, 1, 1))
                 shaper_agent._state, shaper_agent._mem = shaper_agent.batch_init(
@@ -286,6 +286,7 @@ class MultishaperEvalRunner:
                 targets_state,
                 new_shapers_mem,
                 new_targets_mem,
+                env_state,
                 env_params,
             ), tuple(shapers_traj + targets_traj)
 
@@ -440,7 +441,7 @@ class MultishaperEvalRunner:
                 )
 
             for agent_idx, target_agent in enumerate(targets):
-                target_agent[agent_idx] = target_agent.batch_reset(
+                targets_mem[agent_idx] = target_agent.batch_reset(
                     targets_mem[agent_idx], False
                 )
             # Stats
@@ -494,7 +495,6 @@ class MultishaperEvalRunner:
         for agent_idx, shaper_agent in enumerate(shaper_agents):
             shapers_state.append(shaper_agent._state)
             shapers_mem.append(shaper_agent._mem)
-        
         targets_state = []
         targets_mem = []
         for agent_idx, target_agent in enumerate(target_agents):
@@ -502,9 +502,9 @@ class MultishaperEvalRunner:
             targets_mem.append(target_agent._mem)
 
         for agent_idx, shaper_agent in enumerate(shaper_agents):
-            model_path = f"model_path{agent_idx}"
-            run_path = f"run_path{agent_idx}"
-            if f"model_path{agent_idx}" in self.args:
+            model_path = f"model_path{agent_idx+1}"
+            run_path = f"run_path{agent_idx+1}"
+            if model_path in self.args:
                 wandb.restore(
                     name=self.args[model_path],
                     run_path=self.args[run_path],
@@ -512,7 +512,7 @@ class MultishaperEvalRunner:
                 )
 
                 pretrained_params = load(self.args[model_path])
-                first_agent_state = shaper_agent._replace(
+                shapers_state[agent_idx] = shapers_state[agent_idx]._replace(
                     params=pretrained_params
                 )
 
@@ -523,11 +523,11 @@ class MultishaperEvalRunner:
             env_stats,
             shapers_rewards,
             targets_rewards,
-            first_agent_state,
-            other_agent_state,
-            first_agent_mem,
-            other_agent_mem,
-            other_agent_metrics,
+            shapers_state,
+            targets_state,
+            shapers_mem,
+            targets_mem,
+            targets_metrics,
             trajectories,
         ) = self.rollout(
             rng_run,
@@ -536,15 +536,15 @@ class MultishaperEvalRunner:
             env_params,
         )
 
-        for stat in env_stats.keys():
-            print(stat + f": {env_stats[stat].item()}")
-            print(
-                f"Shapers Reward Per Timestep: {[float(reward.mean()) for reward in shapers_rewards]}"
-            )
-            print(
-                f"Targets Reward Per Timestep: {[float(reward.mean()) for reward in targets_rewards]}"
-            )
-        print()
+        # for stat in env_stats.keys():
+        #     print(stat + f": {env_stats[stat].item()}")
+        #     print(
+        #         f"Shapers Reward Per Timestep: {[float(reward.mean()) for reward in shapers_rewards]}"
+        #     )
+        #     print(
+        #         f"Targets Reward Per Timestep: {[float(reward.mean()) for reward in targets_rewards]}"
+        #     )
+        # print()
 
         if watchers:
 

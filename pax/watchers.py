@@ -600,10 +600,6 @@ def tensor_ipd_visitation(
     }
 
 
-# TODO this is not what we actually want - we care about punishment of previous action 
-# we also need to get the punishment logged as its not part of the observations
-# probs can get it from the actions too instead of the env returning the observations
-
 def third_party_punishment_visitation(
     log_obs: jnp.ndarray,
 ) -> dict:
@@ -612,6 +608,8 @@ def third_party_punishment_visitation(
     # punishments: [num_outer_steps, num_inner_steps, num_opps, num_envs, 3]
     # the 3 are nums 0,1,2,3 for pl1 pl2 pl3 punishment actions
     # (0 for no punish, 1,2 for punish first or second opponent, 3 for punish both)
+
+
     prev_actions, punishments = log_obs
     # flatten out
     prev_actions = prev_actions.reshape(-1, 6) 
@@ -674,6 +672,25 @@ def third_party_punishment_visitation(
     )
     ).sum() / len(punishments[:,0])
 
+    pl1_punished_defecting_pl2 = (jnp.where(
+        punishments[:,0] % 2 ==1, 1, 0) * jnp.where(
+        # pl2 defected against pl3 is states 2 or 3
+            pl2_vs_pl3 > 1, 1, 0)).sum()/len(punishments[:,0])
+    
+    pl1_punished_defecting_pl3 = (jnp.where(
+        punishments[:,0] > 1, 1, 0) * jnp.where(
+        # pl3 defected against pl2 is states 1 or 3
+            pl2_vs_pl3 %2 == 1, 1, 0)).sum()/len(punishments[:,0])
+    
+    num_pl2pl3_defects = (jnp.where(
+        pl2_vs_pl3 > 1, 1, 0
+    ) + jnp.where(
+        pl2_vs_pl3 % 2 == 1, 1, 0
+    )).sum() / len(pl2_vs_pl3)
+
+    pl1_punishes_defecting_players = pl1_punished_defecting_pl2 + pl1_punished_defecting_pl3
+    pl1_punished_defect_to_total_punishes = pl1_punishes_defecting_players / pl1_num_punishes
+    pl1_punished_defects_to_total_opn_defects = pl1_punishes_defecting_players / num_pl2pl3_defects
     pl2_num_punishes = (jnp.where(
         punishments[:,1] == 1, 1, 0
     ) + jnp.where(
@@ -725,6 +742,9 @@ def third_party_punishment_visitation(
     pl2_num_punishes_str = "pl2_num_punishes"
     pl3_num_punishes_str = "pl3_num_punishes"
 
+    pl1_punished_defect_to_total_punishes_str = "pl1_punished_defect_to_total_punishes"
+    pl1_punished_defects_to_total_opn_defects_str = "pl1_punished_defects_to_total_opn_defects"
+
     total_punishment_str = "total_punishment"
 
 
@@ -748,6 +768,8 @@ def third_party_punishment_visitation(
         | {pl2_num_punishes_str: pl2_num_punishes}
         | {pl3_num_punishes_str: pl3_num_punishes}
         | {total_punishment_str: total_punishment}
+        | {pl1_punished_defect_to_total_punishes_str: pl1_punished_defect_to_total_punishes}
+        | {pl1_punished_defects_to_total_opn_defects_str: pl1_punished_defects_to_total_opn_defects}
 
     )
 

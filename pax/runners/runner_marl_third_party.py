@@ -259,7 +259,7 @@ class ThirdPartyRLRunner:
                 )
             other_traj = [
                 Sample(
-                    other_agent_next_obs[agent_idx],
+                    other_agent_obs[agent_idx],
                     actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],

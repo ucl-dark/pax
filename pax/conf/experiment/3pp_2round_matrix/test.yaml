@@ -15,7 +15,9 @@ payoff_table: [
     [-3 , 0 ],
     [1000 , -2],
 ]
-punishment: -3
+punishment: -6
+intrinsic: 10
+punish_cost: -5
 # Runner 
 runner: third_party_evo
 
@@ -120,5 +122,5 @@ wandb:
   entity: "ucl-dark"
   project: third-party-matrix
   group: 'testing'
-  name: initial_run
+  name: shaper_old_lr
   log: True

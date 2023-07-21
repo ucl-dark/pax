@@ -39,7 +39,7 @@ from pax.agents.tensor_strategies import (
     TitForTatStrictStay,
     TitForTatStrictSwitch,
 )
-from pax.agents.third_party_strategies import CooperateNoPunish
+from pax.agents.third_party_strategies import CooperateNoPunish, DefectPunish
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
@@ -171,7 +171,7 @@ def env_setup(args, logger=None):
             num_outer_steps=args.num_outer_steps,
         )
         env_params = ThirdPartyPunishmentParams(
-            payoff_table=payoff, punishment=args.punishment
+            payoff_table=payoff, punishment=args.punishment, intrinsic = args.intrinsic, punish_cost = args.punish_cost
         )
 
         if logger:
@@ -238,6 +238,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "tensor_eval":
         logger.info("Training with tensor eval Runner")
         return TensorEvalRunner(agents, env, save_dir, args)
+    elif args.runner == "multishaper_eval":
+        logger.info("Training with multishaper eval Runner")
+        return MultishaperEvalRunner(agents, env, save_dir, args)
     elif args.runner == "tensor_eval_nplayer":
         logger.info("Training with n-player tensor eval Runner")
         return NPlayerEvalRunner(agents, env, save_dir, args)
@@ -426,11 +429,11 @@ def agent_setup(args, env, env_params, logger):
         )
     else:
         obs_shape = env.observation_space(env_params).shape
-
+    
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
-        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id))
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
@@ -537,6 +540,7 @@ def agent_setup(args, env, env_params, logger):
         return agent
 
     strategies = {
+        "DefectPunish": partial(DefectPunish, args.num_envs),
         "CooperateNoPunish": partial(CooperateNoPunish, args.num_envs),
         "TitForTat": partial(TitForTat, args.num_envs),
         "TitForTatStrictStay": partial(TitForTatStrictStay, args.num_envs),
@@ -724,6 +728,7 @@ def watcher_setup(args, logger):
         "TitForTatHarsh": dumb_log,
         "TitForTatSoft": dumb_log,
         "CooperateNoPunish": dumb_log,
+        "DefectPunish": dumb_log,
     }
 
     if args.runner == "sarl":
@@ -753,7 +758,6 @@ def main(args):
 
     with Section("Agent setup", logger=logger):
         agent_pair = agent_setup(args, env, env_params, logger)
-
     with Section("Watcher setup", logger=logger):
         watchers = watcher_setup(args, logger)
 
@@ -788,6 +792,7 @@ def main(args):
         args.runner == "ipditm_eval"
         or args.runner == "tensor_eval"
         or args.runner == "tensor_eval_nplayer"
+        or args.runner == "multishaper_eval"
     ):
         runner.run_loop(env_params, agent_pair, watchers)
 

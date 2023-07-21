@@ -256,7 +256,7 @@ class ThirdPartyEvoRunner:
             first_agent_reward, *other_agent_rewards = all_agent_rewards
 
             traj1 = Sample(
-                first_agent_next_obs,
+                first_agent_obs,
                 first_action,
                 first_agent_reward,
                 new_first_agent_mem.extras["log_probs"],
@@ -266,7 +266,7 @@ class ThirdPartyEvoRunner:
             )
             other_traj = [
                 Sample(
-                    other_agent_next_obs[agent_idx],
+                    other_agent_obs[agent_idx],
                     actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],

@@ -19,7 +19,6 @@ class EnvParams:
     payoff_table: chex.ArrayDevice
     punishment: chex.ArrayDevice
     intrinsic: chex.ArrayDevice
-    punish_cost: chex.ArrayDevice
 
 
 class Actions(IntEnum):
@@ -95,18 +94,23 @@ class ThirdPartyPunishment(environment.Environment):
             )
 
 
-            # match up punishment actions with CD action
+            # match up punishment actions with CD actions
+            # we have 3 games, order will be:
+            # pl1 (1st game) vs pl2 (1st game), pl3 punishes
+            # pl2 (2nd game) vs pl3 (1st games), pl1 punishes
+            # pl3 (2nd game) vs pl1 (2nd game), pl2 punishes
+
             prev_game1_actions = jnp.array(
-                [prev_first_cd_actions[0], prev_second_cd_actions[1], punish_actions[2]],
+                [prev_first_cd_actions[0], prev_first_cd_actions[1], punish_actions[2]],
                 dtype=jnp.int8,
             )
             prev_game2_actions = jnp.array(
-                [prev_first_cd_actions[1], prev_second_cd_actions[2], punish_actions[0]],
+                [prev_second_cd_actions[1], prev_first_cd_actions[2], punish_actions[0]],
                 dtype=jnp.int8,
             )
             prev_game3_actions = jnp.array(
                 [
-                    prev_first_cd_actions[2],
+                    prev_second_cd_actions[2],
                     prev_second_cd_actions[0],
                     punish_actions[1],
                 ],
@@ -114,15 +118,15 @@ class ThirdPartyPunishment(environment.Environment):
             )
 
             curr_game1_actions = jnp.array(
-                [curr_first_cd_actions[0], curr_second_cd_actions[1]],
+                [curr_first_cd_actions[0], curr_first_cd_actions[1]],
                 dtype=jnp.int8,
             )
             curr_game2_actions = jnp.array(
-                [curr_first_cd_actions[1], curr_second_cd_actions[2]],
+                [curr_second_cd_actions[1], curr_first_cd_actions[2]],
                 dtype=jnp.int8,
             )
             curr_game3_actions = jnp.array(
-                [curr_first_cd_actions[2], curr_second_cd_actions[0]],
+                [curr_second_cd_actions[2], curr_second_cd_actions[0]],
                 dtype=jnp.int8,
             )
 
@@ -145,11 +149,11 @@ class ThirdPartyPunishment(environment.Environment):
             game3_rewards_array = relevant_row3[prev_game3_actions[0:2]]
 
             # pl1 rewards are from game1 and game3
-            # pl2 rewards are from game2 and game1
-            # pl3 rewards are from game3 and game2
+            # pl2 rewards are from game1 and game2
+            # pl3 rewards are from game2 and game3
             pl1_rewards = game1_rewards_array[0] + game3_rewards_array[1]
-            pl2_rewards = game2_rewards_array[0] + game1_rewards_array[1]
-            pl3_rewards = game3_rewards_array[0] + game2_rewards_array[1]
+            pl2_rewards = game1_rewards_array[1] + game2_rewards_array[0]
+            pl3_rewards = game2_rewards_array[1] + game3_rewards_array[0]
 
             ######### calculate rewards from punishment ############
             # pl1 punished if pl3 gives 1 or 3
@@ -182,74 +186,33 @@ class ThirdPartyPunishment(environment.Environment):
             # # TODO - uncomment to add intrinsic reward for punishing defects
     
             intrinsic = params.intrinsic
-            punish_cost = params.punish_cost
 
             # pl1 punished pl2 and pl2 defected against pl3
-            # this is when pl1 gave 1 or 3
             pl1_rew_for_pl2_punish = jnp.where(
                 punish_actions[0] % 2 == 1, 1, 0
-            ) * jnp.where(prev_first_cd_actions[1] == 1, 1, 0)
+            ) * jnp.where(prev_second_cd_actions[1] == 1, 1, 0)
             # pl1 punished pl3 and pl3 defected against pl2
-            # this is when pl1 gave 2 or 3
             pl1_rew_for_pl3_punish = jnp.where(
                 punish_actions[0] > 1, 1, 0
-            ) * jnp.where(prev_second_cd_actions[2] == 1, 1, 0)
+            ) * jnp.where(prev_first_cd_actions[2] == 1, 1, 0)
 
-            pl1_num_punishes = jnp.where(
-                punish_actions[0] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[0] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[0] == 3, 2, 0
-            )
-            pl1_intrinsic =  intrinsic * (pl1_rew_for_pl2_punish + pl1_rew_for_pl3_punish) + pl1_num_punishes * punish_cost
+            pl1_intrinsic =  punish_actions[0] * (pl1_rew_for_pl2_punish + pl1_rew_for_pl3_punish) 
 
             # pl2 punished pl1 and pl1 defected against pl3
             # this is when pl2 gave 2 or 3
             pl2_rew_for_pl1_punish = jnp.where(
-                punish_actions[1] > 1 , 1, 0
+                punish_actions[1] > 1 == 1, 1, 0
             ) * jnp.where(prev_second_cd_actions[0] == 1, 1, 0)
             # pl2 punished pl3 and pl3 defected against pl1
             # this is when pl2 gave 1 or 3
             pl2_rew_for_pl3_punish = jnp.where(
                 punish_actions[1] % 2 == 1, 1, 0
-            ) * jnp.where(prev_first_cd_actions[2] == 1, 1, 0)
-
-            pl2_num_punishes = jnp.where(
-                punish_actions[1] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[1] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[1] == 3, 2, 0
-            )
-            
-            pl2_intrinsic =  intrinsic * (pl2_rew_for_pl1_punish + pl2_rew_for_pl3_punish) + pl2_num_punishes * punish_cost
-
-            # pl3 punished pl1 and pl1 defected against pl2
-            # this is when pl3 gave 1 or 3
-            pl3_rew_for_pl1_punish = jnp.where(
-                punish_actions[2] % 2 == 1, 1, 0
-            ) * jnp.where(prev_first_cd_actions[0] == 1, 1, 0)
-            # pl3 punished pl2 and pl2 defected against pl1
-            # this is when pl3 gave 2 or 3
-            pl3_rew_for_pl2_punish = jnp.where(
-                punish_actions[2] > 1, 1, 0
-            ) * jnp.where(prev_second_cd_actions[1] == 1, 1, 0)
-
-            pl3_num_punishes = jnp.where(
-                punish_actions[2] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[2] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[2] == 3, 2, 0
-            )
-            pl3_intrinsic =  intrinsic * (pl3_rew_for_pl1_punish + pl3_rew_for_pl2_punish) + pl3_num_punishes * punish_cost
+            ) * jnp.where(prev_second_cd_actions[2] == 1, 1, 0)
 
 
-
-            pl1_rewards += params.punishment * pl1_punished + pl1_intrinsic
-            pl2_rewards += params.punishment * pl2_punished + pl2_intrinsic
-            pl3_rewards += params.punishment * pl3_punished + pl3_intrinsic
+            pl1_rewards += params.punishment * pl1_punished 
+            pl2_rewards += params.punishment * pl2_punished
+            pl3_rewards += params.punishment * pl3_punished
 
             all_rewards = (pl1_rewards, pl2_rewards, pl3_rewards)
 
