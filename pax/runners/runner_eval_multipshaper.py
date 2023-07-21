@@ -119,8 +119,10 @@ class MultishaperEvalRunner:
         for agent_idx, shaper_agent in enumerate(shapers):
             agent_arg = f"agent{agent_idx+1}"
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
-            # special case where NaiveEx has a different call signature
-                shaper_agent.batch_init = jax.jit(jax.vmap(shaper_agent.make_initial_state))
+                # special case where NaiveEx has a different call signature
+                shaper_agent.batch_init = jax.jit(
+                    jax.vmap(shaper_agent.make_initial_state)
+                )
             else:
 
                 shaper_agent.batch_init = jax.vmap(
@@ -129,7 +131,8 @@ class MultishaperEvalRunner:
                     (None, 0),
                 )
             shaper_agent.batch_reset = jax.jit(
-                jax.vmap(shaper_agent.reset_memory, (0, None), 0), static_argnums=1
+                jax.vmap(shaper_agent.reset_memory, (0, None), 0),
+                static_argnums=1,
             )
 
             shaper_agent.batch_policy = jax.jit(
@@ -148,9 +151,7 @@ class MultishaperEvalRunner:
                 target_agent.batch_init = jax.vmap(
                     target_agent.make_initial_state, (0, None), 0
                 )
-            target_agent.batch_policy = jax.jit(
-                jax.vmap(target_agent._policy)
-            )
+            target_agent.batch_policy = jax.jit(jax.vmap(target_agent._policy))
             target_agent.batch_reset = jax.jit(
                 jax.vmap(target_agent.reset_memory, (0, None), 0),
                 static_argnums=1,
@@ -163,12 +164,17 @@ class MultishaperEvalRunner:
             agent_arg = f"agent{agent_idx+1}"
             if OmegaConf.select(args, agent_arg) != "NaiveEx":
                 # NaiveEx requires env first step to init.
-                init_hidden = jnp.tile(shaper_agent._mem.hidden, (args.num_opps, 1, 1))
-                shaper_agent._state, shaper_agent._mem = shaper_agent.batch_init(
+                init_hidden = jnp.tile(
+                    shaper_agent._mem.hidden, (args.num_opps, 1, 1)
+                )
+                (
+                    shaper_agent._state,
+                    shaper_agent._mem,
+                ) = shaper_agent.batch_init(
                     shaper_agent._state.random_key, init_hidden
                 )
 
-        for agent_idx,  target_agent in enumerate(targets):
+        for agent_idx, target_agent in enumerate(targets):
             agent_arg = f"agent{agent_idx+self.num_shapers+1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) != "NaiveEx":
@@ -393,7 +399,9 @@ class MultishaperEvalRunner:
                         targets_state[agent_idx],
                         targets_mem[agent_idx],
                     ) = target_agent.batch_init(
-                        jax.random.split(target_rngs[agent_idx], self.num_opps),
+                        jax.random.split(
+                            target_rngs[agent_idx], self.num_opps
+                        ),
                         target_agent._mem.hidden,
                     )
 
@@ -487,7 +495,6 @@ class MultishaperEvalRunner:
         shaper_agents = agents[: self.num_shapers]
         target_agents = agents[self.num_shapers :]
         rng, _ = jax.random.split(self.random_key)
-
 
         # get initial state and memory
         shapers_state = []
@@ -589,7 +596,7 @@ class MultishaperEvalRunner:
                     )
                     for (shaper_idx, traj) in enumerate(shaper_traj)
                 }
-                for i in range(len(list_of_env_stats)) 
+                for i in range(len(list_of_env_stats))
             ]
             target_rewards_log = [
                 {
@@ -600,7 +607,7 @@ class MultishaperEvalRunner:
                 }
                 for i in range(len(list_of_env_stats))
             ]
-            
+
             # log avg reward for players combined
             global_welfare_log = [
                 {
@@ -638,7 +645,6 @@ class MultishaperEvalRunner:
                 }
                 for i in range(len(list_of_env_stats))
             ]
-
 
             for i in range(len(list_of_env_stats)):
                 wandb.log(

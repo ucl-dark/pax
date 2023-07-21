@@ -87,21 +87,24 @@ class ThirdPartyPunishment(environment.Environment):
                 curr_actions % 4
             )  # 0 if no punishment, 1 if punish 1, 2 if punish 2, 3 if punish both
 
-            curr_first_cd_actions = jnp.where(
-                curr_actions > 7, 1, 0
-            )
-            curr_second_cd_actions = jnp.where(
-                curr_actions % 8 > 3, 1, 0
-            )
-
+            curr_first_cd_actions = jnp.where(curr_actions > 7, 1, 0)
+            curr_second_cd_actions = jnp.where(curr_actions % 8 > 3, 1, 0)
 
             # match up punishment actions with CD action
             prev_game1_actions = jnp.array(
-                [prev_first_cd_actions[0], prev_second_cd_actions[1], punish_actions[2]],
+                [
+                    prev_first_cd_actions[0],
+                    prev_second_cd_actions[1],
+                    punish_actions[2],
+                ],
                 dtype=jnp.int8,
             )
             prev_game2_actions = jnp.array(
-                [prev_first_cd_actions[1], prev_second_cd_actions[2], punish_actions[0]],
+                [
+                    prev_first_cd_actions[1],
+                    prev_second_cd_actions[2],
+                    punish_actions[0],
+                ],
                 dtype=jnp.int8,
             )
             prev_game3_actions = jnp.array(
@@ -180,7 +183,7 @@ class ThirdPartyPunishment(environment.Environment):
             # ) + jnp.where(prev_second_cd_actions[2] == 1, 1, 0)
             # ##################
             # # TODO - uncomment to add intrinsic reward for punishing defects
-    
+
             intrinsic = params.intrinsic
             punish_cost = params.punish_cost
 
@@ -195,19 +198,20 @@ class ThirdPartyPunishment(environment.Environment):
                 punish_actions[0] > 1, 1, 0
             ) * jnp.where(prev_second_cd_actions[2] == 1, 1, 0)
 
-            pl1_num_punishes = jnp.where(
-                punish_actions[0] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[0] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[0] == 3, 2, 0
+            pl1_num_punishes = (
+                jnp.where(punish_actions[0] == 1, 1, 0)
+                + jnp.where(punish_actions[0] == 2, 1, 0)
+                + jnp.where(punish_actions[0] == 3, 2, 0)
             )
-            pl1_intrinsic =  intrinsic * (pl1_rew_for_pl2_punish + pl1_rew_for_pl3_punish) + pl1_num_punishes * punish_cost
+            pl1_intrinsic = (
+                intrinsic * (pl1_rew_for_pl2_punish + pl1_rew_for_pl3_punish)
+                + pl1_num_punishes * punish_cost
+            )
 
             # pl2 punished pl1 and pl1 defected against pl3
             # this is when pl2 gave 2 or 3
             pl2_rew_for_pl1_punish = jnp.where(
-                punish_actions[1] > 1 , 1, 0
+                punish_actions[1] > 1, 1, 0
             ) * jnp.where(prev_second_cd_actions[0] == 1, 1, 0)
             # pl2 punished pl3 and pl3 defected against pl1
             # this is when pl2 gave 1 or 3
@@ -215,15 +219,16 @@ class ThirdPartyPunishment(environment.Environment):
                 punish_actions[1] % 2 == 1, 1, 0
             ) * jnp.where(prev_first_cd_actions[2] == 1, 1, 0)
 
-            pl2_num_punishes = jnp.where(
-                punish_actions[1] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[1] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[1] == 3, 2, 0
+            pl2_num_punishes = (
+                jnp.where(punish_actions[1] == 1, 1, 0)
+                + jnp.where(punish_actions[1] == 2, 1, 0)
+                + jnp.where(punish_actions[1] == 3, 2, 0)
             )
-            
-            pl2_intrinsic =  intrinsic * (pl2_rew_for_pl1_punish + pl2_rew_for_pl3_punish) + pl2_num_punishes * punish_cost
+
+            pl2_intrinsic = (
+                intrinsic * (pl2_rew_for_pl1_punish + pl2_rew_for_pl3_punish)
+                + pl2_num_punishes * punish_cost
+            )
 
             # pl3 punished pl1 and pl1 defected against pl2
             # this is when pl3 gave 1 or 3
@@ -236,16 +241,15 @@ class ThirdPartyPunishment(environment.Environment):
                 punish_actions[2] > 1, 1, 0
             ) * jnp.where(prev_second_cd_actions[1] == 1, 1, 0)
 
-            pl3_num_punishes = jnp.where(
-                punish_actions[2] == 1, 1, 0
-            ) + jnp.where(
-                punish_actions[2] == 2, 1, 0
-            ) + jnp.where(
-                punish_actions[2] == 3, 2, 0
+            pl3_num_punishes = (
+                jnp.where(punish_actions[2] == 1, 1, 0)
+                + jnp.where(punish_actions[2] == 2, 1, 0)
+                + jnp.where(punish_actions[2] == 3, 2, 0)
             )
-            pl3_intrinsic =  intrinsic * (pl3_rew_for_pl1_punish + pl3_rew_for_pl2_punish) + pl3_num_punishes * punish_cost
-
-
+            pl3_intrinsic = (
+                intrinsic * (pl3_rew_for_pl1_punish + pl3_rew_for_pl2_punish)
+                + pl3_num_punishes * punish_cost
+            )
 
             pl1_rewards += params.punishment * pl1_punished + pl1_intrinsic
             pl2_rewards += params.punishment * pl2_punished + pl2_intrinsic
@@ -276,21 +280,49 @@ class ThirdPartyPunishment(environment.Environment):
 
             # we need this for logging purposes only
             prev_pl1_binary = jnp.concatenate(
-                (prev_game1_actions[0:2], jnp.flip(prev_game3_actions[0:2]), prev_game2_actions[0:2]),)
+                (
+                    prev_game1_actions[0:2],
+                    jnp.flip(prev_game3_actions[0:2]),
+                    prev_game2_actions[0:2],
+                ),
+            )
             prev_pl2_binary = jnp.concatenate(
-                (prev_game2_actions[0:2], jnp.flip(prev_game1_actions[0:2]), prev_game3_actions[0:2]),)
+                (
+                    prev_game2_actions[0:2],
+                    jnp.flip(prev_game1_actions[0:2]),
+                    prev_game3_actions[0:2],
+                ),
+            )
             prev_pl3_binary = jnp.concatenate(
-                (prev_game3_actions[0:2], jnp.flip(prev_game2_actions[0:2]), prev_game1_actions[0:2]),)
-            
+                (
+                    prev_game3_actions[0:2],
+                    jnp.flip(prev_game2_actions[0:2]),
+                    prev_game1_actions[0:2],
+                ),
+            )
+
             # we need this for returning the state for observations
             curr_pl1_binary = jnp.concatenate(
-                (curr_game1_actions[0:2], jnp.flip(curr_game3_actions[0:2]), curr_game2_actions[0:2]),)
+                (
+                    curr_game1_actions[0:2],
+                    jnp.flip(curr_game3_actions[0:2]),
+                    curr_game2_actions[0:2],
+                ),
+            )
             curr_pl2_binary = jnp.concatenate(
-                (curr_game2_actions[0:2], jnp.flip(curr_game1_actions[0:2]), curr_game3_actions[0:2]),)
+                (
+                    curr_game2_actions[0:2],
+                    jnp.flip(curr_game1_actions[0:2]),
+                    curr_game3_actions[0:2],
+                ),
+            )
             curr_pl3_binary = jnp.concatenate(
-                (curr_game3_actions[0:2], jnp.flip(curr_game2_actions[0:2]), curr_game1_actions[0:2]),)
-
-
+                (
+                    curr_game3_actions[0:2],
+                    jnp.flip(curr_game2_actions[0:2]),
+                    curr_game1_actions[0:2],
+                ),
+            )
 
             # Start is the last state, the 2**6=128th state
             start_state_idx = 2**6
@@ -316,8 +348,7 @@ class ThirdPartyPunishment(environment.Environment):
                 all_obs.append(obs)
             player_obs = tuple(all_obs)
 
-
-            # we want to return the punishment actions corresponding to the previous 
+            # we want to return the punishment actions corresponding to the previous
             # IPD actions for logging purposes even if agents can't see it
             # this is only for logging, so we return the binary of the first player's perspective only
             # of the games:

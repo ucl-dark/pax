@@ -33,12 +33,14 @@ class CooperateNoPunish(AgentInterface):
         # state is [batch x time_step x num_players]
         # return [batch]
         return self._coop(obs), state, mem
-    
+
     def _coop(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         obs = obs.argmax(axis=-1)
         obs.shape
         action = jnp.zeros(obs.shape, dtype=jnp.int32)
         return action
+
+
 class DefectPunish(AgentInterface):
     def __init__(self, num_envs, *args):
         self.make_initial_state = initial_state_fun(num_envs)
@@ -62,7 +64,7 @@ class DefectPunish(AgentInterface):
         # state is [batch x time_step x num_players]
         # return [batch]
         return self._coop(obs), state, mem
-    
+
     def _coop(self, obs: jnp.ndarray, *args) -> jnp.ndarray:
         obs = obs.argmax(axis=-1)
         obs.shape

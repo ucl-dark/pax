@@ -72,7 +72,9 @@ class ThirdPartyEvoRunner:
         self.top_k = args.top_k
         self.train_steps = 0
         self.train_episodes = 0
-        self.third_party_punishment_stats = jax.jit(third_party_punishment_visitation)
+        self.third_party_punishment_stats = jax.jit(
+            third_party_punishment_visitation
+        )
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -214,7 +216,7 @@ class ThirdPartyEvoRunner:
             env_rng = rngs[:, :, :, 0, :]
             # a1_rng = rngs[:, :, :, 1, :]
             # a2_rng = rngs[:, :, :, 2, :]
-            
+
             rngs = rngs[:, :, :, 3, :]
 
             actions = []
@@ -289,7 +291,7 @@ class ThirdPartyEvoRunner:
                 new_other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs,traj1, *other_traj)
+            ), (log_obs, traj1, *other_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
@@ -300,7 +302,7 @@ class ThirdPartyEvoRunner:
                 None,
                 length=args.num_inner_steps,
             )
-            log_obs =stack[0]
+            log_obs = stack[0]
             trajectories = stack[1:]
             other_agent_metrics = [None] * len(other_agents)
             (
@@ -345,7 +347,7 @@ class ThirdPartyEvoRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs,trajectories, other_agent_metrics)
+            ), (log_obs, trajectories, other_agent_metrics)
 
         def _rollout(
             _params: jnp.ndarray,
@@ -367,9 +369,33 @@ class ThirdPartyEvoRunner:
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
             ] * args.num_players
             # first action is uniform random CC, CD, DC, DD with no punishment - so action 0,4,8 or 12
-            first_action1 = jax.random.randint(first_action_rng,( args.popsize, args.num_opps, args.num_envs), 0,4) *4
-            first_action2 = jax.random.randint(first_action_rng,( args.popsize, args.num_opps, args.num_envs), 0,4) *4
-            first_action3 = jax.random.randint(first_action_rng,( args.popsize, args.num_opps, args.num_envs), 0,4) *4
+            first_action1 = (
+                jax.random.randint(
+                    first_action_rng,
+                    (args.popsize, args.num_opps, args.num_envs),
+                    0,
+                    4,
+                )
+                * 4
+            )
+            first_action2 = (
+                jax.random.randint(
+                    first_action_rng,
+                    (args.popsize, args.num_opps, args.num_envs),
+                    0,
+                    4,
+                )
+                * 4
+            )
+            first_action3 = (
+                jax.random.randint(
+                    first_action_rng,
+                    (args.popsize, args.num_opps, args.num_envs),
+                    0,
+                    4,
+                )
+                * 4
+            )
             first_action = [first_action1, first_action2, first_action3]
 
             # Player 1
@@ -444,7 +470,7 @@ class ThirdPartyEvoRunner:
                 env_state,
                 _env_params,
             ) = vals
-            log_obs,trajectories, other_agent_metrics = stack
+            log_obs, trajectories, other_agent_metrics = stack
 
             # Fitness
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))

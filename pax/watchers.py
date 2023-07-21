@@ -609,15 +609,14 @@ def third_party_punishment_visitation(
     # the 3 are nums 0,1,2,3 for pl1 pl2 pl3 punishment actions
     # (0 for no punish, 1,2 for punish first or second opponent, 3 for punish both)
 
-
     prev_actions, punishments = log_obs
     # flatten out
-    prev_actions = prev_actions.reshape(-1, 6) 
+    prev_actions = prev_actions.reshape(-1, 6)
     punishments = punishments.reshape(-1, 3)
 
-    pl1_vs_pl2_bin = prev_actions[:, 0:2] # pl1 vs pl2
-    pl1_vs_pl3_bin = prev_actions[:, 2:4] # pl1 vs pl3
-    pl2_vs_pl3_bin = prev_actions[:, 4:6] # pl2 vs pl3
+    pl1_vs_pl2_bin = prev_actions[:, 0:2]  # pl1 vs pl2
+    pl1_vs_pl3_bin = prev_actions[:, 2:4]  # pl1 vs pl3
+    pl2_vs_pl3_bin = prev_actions[:, 4:6]  # pl2 vs pl3
     b2i = 2 ** jnp.arange(2 - 1, -1, -1)
     pl1_vs_pl2 = (pl1_vs_pl2_bin * b2i).sum(axis=-1)
     pl1_vs_pl3 = (pl1_vs_pl3_bin * b2i).sum(axis=-1)
@@ -643,92 +642,120 @@ def third_party_punishment_visitation(
     pl2_v_pl3_action_probs = pl2_v_pl3_hist / pl2_v_pl3_hist.sum()
 
     # player actions breakdown
-    pl1_total_defects_prob = (pl1_vs_pl2_bin[:,0] + pl1_vs_pl3_bin[:,0]).sum() / len(pl1_vs_pl2_bin[:,0])
-    pl2_total_defects_prob = (pl1_vs_pl2_bin[:,1] + pl2_vs_pl3_bin[:,0]).sum() / len(pl1_vs_pl2_bin[:,0])
-    pl3_total_defects_prob = (pl1_vs_pl3_bin[:,1] + pl2_vs_pl3_bin[:,1]).sum() / len(pl1_vs_pl2_bin[:,0])
+    pl1_total_defects_prob = (
+        pl1_vs_pl2_bin[:, 0] + pl1_vs_pl3_bin[:, 0]
+    ).sum() / len(pl1_vs_pl2_bin[:, 0])
+    pl2_total_defects_prob = (
+        pl1_vs_pl2_bin[:, 1] + pl2_vs_pl3_bin[:, 0]
+    ).sum() / len(pl1_vs_pl2_bin[:, 0])
+    pl3_total_defects_prob = (
+        pl1_vs_pl3_bin[:, 1] + pl2_vs_pl3_bin[:, 1]
+    ).sum() / len(pl1_vs_pl2_bin[:, 0])
 
     # pl1 punished if pl3 gives 1 or 3
     # pl1 punished if pl2 gives 2 or 3
-    pl1_punished_prob = (jnp.where(
-        punishments[:,2] % 2 == 1, 1, 0
-    ) + jnp.where(punishments[:,1] > 1, 1, 0)).sum()/ len(punishments[:,0])
+    pl1_punished_prob = (
+        jnp.where(punishments[:, 2] % 2 == 1, 1, 0)
+        + jnp.where(punishments[:, 1] > 1, 1, 0)
+    ).sum() / len(punishments[:, 0])
     # pl2 punished if pl3 gives 2 or 3
     # pl2 punished if pl1 gives 1 or 3
-    pl2_punished_prob = (jnp.where(punishments[:,2] > 1, 1, 0) + jnp.where(
-        punishments[:,0] % 2 == 1, 1, 0
-    )).sum() / len(punishments[:,0])
+    pl2_punished_prob = (
+        jnp.where(punishments[:, 2] > 1, 1, 0)
+        + jnp.where(punishments[:, 0] % 2 == 1, 1, 0)
+    ).sum() / len(punishments[:, 0])
     # pl3 punished if pl1 gives 2 or 3
     # pl3 punished if pl2 gives 1 or 3
-    pl3_punished_prob = (jnp.where(punishments[:,0] > 1, 1, 0) + jnp.where(
-        punishments[:,1] % 2 == 1, 1, 0
-            )).sum() / len(punishments[:,0])
+    pl3_punished_prob = (
+        jnp.where(punishments[:, 0] > 1, 1, 0)
+        + jnp.where(punishments[:, 1] % 2 == 1, 1, 0)
+    ).sum() / len(punishments[:, 0])
 
-    pl1_num_punishes = (jnp.where(
-        punishments[:,0] == 1, 1, 0
-    ) + jnp.where(
-        punishments[:,0] == 2, 1, 0
-    ) + jnp.where(
-        punishments[:,0] == 3, 2, 0
+    pl1_num_punishes = (
+        jnp.where(punishments[:, 0] == 1, 1, 0)
+        + jnp.where(punishments[:, 0] == 2, 1, 0)
+        + jnp.where(punishments[:, 0] == 3, 2, 0)
+    ).sum() / len(punishments[:, 0])
+
+    pl1_punished_defecting_pl2 = (
+        jnp.where(punishments[:, 0] % 2 == 1, 1, 0)
+        * jnp.where(
+            # pl2 defected against pl3 is states 2 or 3
+            pl2_vs_pl3 > 1,
+            1,
+            0,
+        )
+    ).sum() / len(punishments[:, 0])
+
+    pl1_punished_defecting_pl3 = (
+        jnp.where(punishments[:, 0] > 1, 1, 0)
+        * jnp.where(
+            # pl3 defected against pl2 is states 1 or 3
+            pl2_vs_pl3 % 2 == 1,
+            1,
+            0,
+        )
+    ).sum() / len(punishments[:, 0])
+
+    num_pl2pl3_defects = (
+        jnp.where(pl2_vs_pl3 > 1, 1, 0) + jnp.where(pl2_vs_pl3 % 2 == 1, 1, 0)
+    ).sum() / len(pl2_vs_pl3)
+
+    pl1_punishes_defecting_players = (
+        pl1_punished_defecting_pl2 + pl1_punished_defecting_pl3
     )
-    ).sum() / len(punishments[:,0])
-
-    pl1_punished_defecting_pl2 = (jnp.where(
-        punishments[:,0] % 2 ==1, 1, 0) * jnp.where(
-        # pl2 defected against pl3 is states 2 or 3
-            pl2_vs_pl3 > 1, 1, 0)).sum()/len(punishments[:,0])
-    
-    pl1_punished_defecting_pl3 = (jnp.where(
-        punishments[:,0] > 1, 1, 0) * jnp.where(
-        # pl3 defected against pl2 is states 1 or 3
-            pl2_vs_pl3 %2 == 1, 1, 0)).sum()/len(punishments[:,0])
-    
-    num_pl2pl3_defects = (jnp.where(
-        pl2_vs_pl3 > 1, 1, 0
-    ) + jnp.where(
-        pl2_vs_pl3 % 2 == 1, 1, 0
-    )).sum() / len(pl2_vs_pl3)
-
-    pl1_punishes_defecting_players = pl1_punished_defecting_pl2 + pl1_punished_defecting_pl3
-    pl1_punished_defect_to_total_punishes = pl1_punishes_defecting_players / pl1_num_punishes
-    pl1_punished_defects_to_total_opn_defects = pl1_punishes_defecting_players / num_pl2pl3_defects
-    pl2_num_punishes = (jnp.where(
-        punishments[:,1] == 1, 1, 0
-    ) + jnp.where(
-        punishments[:,1] == 2, 1, 0
-    ) + jnp.where(
-        punishments[:,1] == 3, 2, 0
+    pl1_punished_defect_to_total_punishes = (
+        pl1_punishes_defecting_players / pl1_num_punishes
     )
-    ).sum() / len(punishments[:,0])
-
-    pl3_num_punishes = (jnp.where(
-        punishments[:,2] == 1, 1, 0
-    ) + jnp.where(
-        punishments[:,2] == 2, 1, 0
-    ) + jnp.where(
-        punishments[:,2] == 3, 2, 0
+    pl1_punished_defects_to_total_opn_defects = (
+        pl1_punishes_defecting_players / num_pl2pl3_defects
     )
-    ).sum() / len(punishments[:,0])
+    pl2_num_punishes = (
+        jnp.where(punishments[:, 1] == 1, 1, 0)
+        + jnp.where(punishments[:, 1] == 2, 1, 0)
+        + jnp.where(punishments[:, 1] == 3, 2, 0)
+    ).sum() / len(punishments[:, 0])
+
+    pl3_num_punishes = (
+        jnp.where(punishments[:, 2] == 1, 1, 0)
+        + jnp.where(punishments[:, 2] == 2, 1, 0)
+        + jnp.where(punishments[:, 2] == 3, 2, 0)
+    ).sum() / len(punishments[:, 0])
 
     total_punishment = pl1_num_punishes + pl2_num_punishes + pl3_num_punishes
-    
-
 
     # generate the dict keys for logging
     letters = ["C", "D"]
     combinations = list(itertools.product(letters, repeat=2))
-    combinations = ["".join(c) for c in combinations] 
+    combinations = ["".join(c) for c in combinations]
 
-    all_game_visitation_strs = ["all_games_state_visitation/" + c for c in combinations]
-    all_game_prob_strs = ["all_game_state_probability/" + c for c in combinations]
+    all_game_visitation_strs = [
+        "all_games_state_visitation/" + c for c in combinations
+    ]
+    all_game_prob_strs = [
+        "all_game_state_probability/" + c for c in combinations
+    ]
 
-    pl1_v_pl2_visitation_strs = ["pl1_v_pl2_state_visitation/" + c for c in combinations]
-    pl1_v_pl2_prob_strs = ["pl1_v_pl2_state_probability/" + c for c in combinations]
+    pl1_v_pl2_visitation_strs = [
+        "pl1_v_pl2_state_visitation/" + c for c in combinations
+    ]
+    pl1_v_pl2_prob_strs = [
+        "pl1_v_pl2_state_probability/" + c for c in combinations
+    ]
 
-    pl1_v_pl3_visitation_strs = ["pl1_v_pl3_state_visitation/" + c for c in combinations]
-    pl1_v_pl3_prob_strs = ["pl1_v_pl3_state_probability/" + c for c in combinations]
+    pl1_v_pl3_visitation_strs = [
+        "pl1_v_pl3_state_visitation/" + c for c in combinations
+    ]
+    pl1_v_pl3_prob_strs = [
+        "pl1_v_pl3_state_probability/" + c for c in combinations
+    ]
 
-    pl2_v_pl3_visitation_strs = ["pl2_v_pl3_state_visitation/" + c for c in combinations]
-    pl2_v_pl3_prob_strs = ["pl2_v_pl3_state_probability/" + c for c in combinations]
+    pl2_v_pl3_visitation_strs = [
+        "pl2_v_pl3_state_visitation/" + c for c in combinations
+    ]
+    pl2_v_pl3_prob_strs = [
+        "pl2_v_pl3_state_probability/" + c for c in combinations
+    ]
 
     pl1_total_defects_prob_str = "pl1_total_defects_prob"
     pl2_total_defects_prob_str = "pl2_total_defects_prob"
@@ -742,12 +769,14 @@ def third_party_punishment_visitation(
     pl2_num_punishes_str = "pl2_num_punishes"
     pl3_num_punishes_str = "pl3_num_punishes"
 
-    pl1_punished_defect_to_total_punishes_str = "pl1_punished_defect_to_total_punishes"
-    pl1_punished_defects_to_total_opn_defects_str = "pl1_punished_defects_to_total_opn_defects"
+    pl1_punished_defect_to_total_punishes_str = (
+        "pl1_punished_defect_to_total_punishes"
+    )
+    pl1_punished_defects_to_total_opn_defects_str = (
+        "pl1_punished_defects_to_total_opn_defects"
+    )
 
     total_punishment_str = "total_punishment"
-
-
 
     visitation_dict = (
         dict(zip(all_game_visitation_strs, action_freq))
@@ -768,9 +797,12 @@ def third_party_punishment_visitation(
         | {pl2_num_punishes_str: pl2_num_punishes}
         | {pl3_num_punishes_str: pl3_num_punishes}
         | {total_punishment_str: total_punishment}
-        | {pl1_punished_defect_to_total_punishes_str: pl1_punished_defect_to_total_punishes}
-        | {pl1_punished_defects_to_total_opn_defects_str: pl1_punished_defects_to_total_opn_defects}
-
+        | {
+            pl1_punished_defect_to_total_punishes_str: pl1_punished_defect_to_total_punishes
+        }
+        | {
+            pl1_punished_defects_to_total_opn_defects_str: pl1_punished_defects_to_total_opn_defects
+        }
     )
 
     return visitation_dict

@@ -171,7 +171,10 @@ def env_setup(args, logger=None):
             num_outer_steps=args.num_outer_steps,
         )
         env_params = ThirdPartyPunishmentParams(
-            payoff_table=payoff, punishment=args.punishment, intrinsic = args.intrinsic, punish_cost = args.punish_cost
+            payoff_table=payoff,
+            punishment=args.punishment,
+            intrinsic=args.intrinsic,
+            punish_cost=args.punish_cost,
         )
 
         if logger:
@@ -429,7 +432,7 @@ def agent_setup(args, env, env_params, logger):
         )
     else:
         obs_shape = env.observation_space(env_params).shape
-    
+
     num_actions = env.num_actions
 
     def get_PPO_memory_agent(seed, player_id):
@@ -648,7 +651,7 @@ def watcher_setup(args, logger):
             "iterated_matrix_game",
             "iterated_tensor_game",
             "iterated_nplayer_tensor_game",
-            "third_party_punishment"
+            "third_party_punishment",
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
