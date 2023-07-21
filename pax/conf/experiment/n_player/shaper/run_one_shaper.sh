@@ -29,3 +29,5 @@ do
 python3 -m pax.experiment +experiment=n_player/shaper/3pl_sh ++seed=$SEED
 python3 -m pax.experiment +experiment=n_player/shaper/4pl_ipd ++seed=$SEED
 done
+
+# which ones are missing?
