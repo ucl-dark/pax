@@ -15,7 +15,7 @@ payoff_table: [
     [-3 , 0 ],
     [1000 , -2],
 ]
-punishment: -6
+punishment: 0
 intrinsic: 10
 punish_cost: -5
 # Runner 
@@ -121,5 +121,5 @@ wandb:
   entity: "ucl-dark"
   project: third-party-matrix
   group: 'testing'
-  name: intrinsic10_punishcost5_punishment4_symm
+  name: test_logging
   log: True

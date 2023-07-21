@@ -677,6 +677,18 @@ def third_party_punishment_visitation(
         + jnp.where(punishments[:, 0] == 3, 2, 0)
     ).sum() / len(punishments[:, 0])
 
+    pl2_num_punishes = (
+        jnp.where(punishments[:, 1] == 1, 1, 0)
+        + jnp.where(punishments[:, 1] == 2, 1, 0)
+        + jnp.where(punishments[:, 1] == 3, 2, 0)
+    ).sum() / len(punishments[:, 0])
+
+    pl3_num_punishes = (
+        jnp.where(punishments[:, 2] == 1, 1, 0)
+        + jnp.where(punishments[:, 2] == 2, 1, 0)
+        + jnp.where(punishments[:, 2] == 3, 2, 0)
+    ).sum() / len(punishments[:, 0])
+
     pl1_punished_defecting_pl2 = (
         jnp.where(punishments[:, 0] % 2 == 1, 1, 0)
         * jnp.where(
@@ -697,6 +709,55 @@ def third_party_punishment_visitation(
         )
     ).sum() / len(punishments[:, 0])
 
+    pl2_punished_defecting_pl3 = (
+        jnp.where(punishments[:, 1] % 2 == 1, 1, 0)
+        * jnp.where(
+            # pl3 defected against pl1 is states 1 or 3
+            pl1_vs_pl3 % 2 == 1,
+            1,
+            0,
+        ) 
+    ).sum() / len(punishments[:, 0])
+
+    pl2_punished_defecting_pl1 = (
+        # pl2 punished pl1 is states 2 or 3
+        jnp.where(punishments[:, 1] > 1, 1, 0)
+        * jnp.where(
+            # pl1 defected against pl3 is states 2 or 3
+            pl1_vs_pl3 > 1,
+            1,
+            0,
+        )
+    ).sum() / len(punishments[:, 0])
+
+    pl3_punished_defecting_pl1 = (
+        jnp.where(punishments[:, 2] % 2 == 1, 1, 0)
+        * jnp.where(
+            # pl1 defected against pl2 is states 2 or 3
+            pl1_vs_pl2 > 1,
+            1,
+            0,
+        )
+    ).sum() / len(punishments[:, 0])
+
+    pl3_punished_defecting_pl2 = (
+        jnp.where(punishments[:, 2] > 1, 1, 0)
+        * jnp.where(
+            # pl2 defected against pl1 is states 1 or 3
+            pl1_vs_pl2 % 2 == 1,
+            1,
+            0,
+        )
+    ).sum() / len(punishments[:, 0])
+
+    num_pl1pl2_defects = (
+        jnp.where(pl1_vs_pl2 > 1, 1, 0) + jnp.where(pl1_vs_pl2 % 2 == 1, 1, 0)
+    ).sum() / len(pl1_vs_pl2)
+
+    num_pl1pl3_defects = (
+        jnp.where(pl1_vs_pl3 > 1, 1, 0) + jnp.where(pl1_vs_pl3 % 2 == 1, 1, 0)
+    ).sum() / len(pl1_vs_pl3)
+
     num_pl2pl3_defects = (
         jnp.where(pl2_vs_pl3 > 1, 1, 0) + jnp.where(pl2_vs_pl3 % 2 == 1, 1, 0)
     ).sum() / len(pl2_vs_pl3)
@@ -710,17 +771,26 @@ def third_party_punishment_visitation(
     pl1_punished_defects_to_total_opn_defects = (
         pl1_punishes_defecting_players / num_pl2pl3_defects
     )
-    pl2_num_punishes = (
-        jnp.where(punishments[:, 1] == 1, 1, 0)
-        + jnp.where(punishments[:, 1] == 2, 1, 0)
-        + jnp.where(punishments[:, 1] == 3, 2, 0)
-    ).sum() / len(punishments[:, 0])
 
-    pl3_num_punishes = (
-        jnp.where(punishments[:, 2] == 1, 1, 0)
-        + jnp.where(punishments[:, 2] == 2, 1, 0)
-        + jnp.where(punishments[:, 2] == 3, 2, 0)
-    ).sum() / len(punishments[:, 0])
+    pl2_punishes_defecting_players = (
+        pl2_punished_defecting_pl1 + pl2_punished_defecting_pl3
+    )
+    pl2_punished_defect_to_total_punishes = (
+        pl2_punishes_defecting_players / pl2_num_punishes
+    )
+    pl2_punished_defects_to_total_opn_defects = (
+        pl2_punishes_defecting_players / num_pl1pl3_defects
+    )
+
+    pl3_punishes_defecting_players = (
+        pl3_punished_defecting_pl1 + pl3_punished_defecting_pl2
+    )
+    pl3_punished_defect_to_total_punishes = (
+        pl3_punishes_defecting_players / pl3_num_punishes
+    )
+    pl3_punished_defects_to_total_opn_defects = (
+        pl3_punishes_defecting_players / num_pl1pl2_defects
+    )
 
     total_punishment = pl1_num_punishes + pl2_num_punishes + pl3_num_punishes
 
@@ -775,6 +845,18 @@ def third_party_punishment_visitation(
     pl1_punished_defects_to_total_opn_defects_str = (
         "pl1_punished_defects_to_total_opn_defects"
     )
+    pl2_punished_defect_to_total_punishes_str = (
+        "pl2_punished_defect_to_total_punishes"
+    )
+    pl2_punished_defects_to_total_opn_defects_str = (
+        "pl2_punished_defects_to_total_opn_defects"
+    )
+    pl3_punished_defect_to_total_punishes_str = (
+        "pl3_punished_defect_to_total_punishes"
+    )
+    pl3_punished_defects_to_total_opn_defects_str = (
+        "pl3_punished_defects_to_total_opn_defects"
+    )
 
     total_punishment_str = "total_punishment"
 
@@ -802,6 +884,18 @@ def third_party_punishment_visitation(
         }
         | {
             pl1_punished_defects_to_total_opn_defects_str: pl1_punished_defects_to_total_opn_defects
+        }
+        | {
+            pl2_punished_defect_to_total_punishes_str: pl2_punished_defect_to_total_punishes
+        }
+        | {
+            pl2_punished_defects_to_total_opn_defects_str: pl2_punished_defects_to_total_opn_defects
+        }
+        | {
+            pl3_punished_defect_to_total_punishes_str: pl3_punished_defect_to_total_punishes
+        }
+        | {
+            pl3_punished_defects_to_total_opn_defects_str: pl3_punished_defects_to_total_opn_defects
         }
     )
 
