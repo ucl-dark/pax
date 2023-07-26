@@ -121,8 +121,8 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor
-  group: 'multi_shapers'
+  project: tensor-ipd
+  group: '3pl-2shap-ipd'
   name: 3pl_2shap_ipd_${seed}
   log: True
 

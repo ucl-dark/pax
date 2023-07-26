@@ -142,8 +142,8 @@ es:
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor
-  group: 'multi_shapers_sh'
+  project: tensor-sh
+  group: '4pl-2shap-sh'
   name: 4pl_2shap_sh_${seed}
   log: True
 
