@@ -129,7 +129,6 @@ class PPO(AgentInterface):
             hiddens: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
-            jax.debug.breakpoint()
             (distribution, values), _ = network.apply(
                 params, observations, hiddens
             )

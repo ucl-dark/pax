@@ -156,7 +156,7 @@ class ThirdPartyRandom(environment.Environment):
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
             reset_outer = outer_t == num_outer_steps
             state = EnvState(inner_t=inner_t, outer_t=outer_t)
-            # jax.debug.breakpoint()
+            jax.debug.breakpoint()
 
             return (
                 player_selection,
