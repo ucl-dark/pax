@@ -55,6 +55,7 @@ from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_hardstop import EvoHardstopRunner
 from pax.runners.runner_evo_mixed_lr import EvoMixedLRRunner
 from pax.runners.runner_evo_mixed_payoffs import EvoMixedPayoffRunner
+from pax.runners.runner_evo_mixed_IPD_payoffs import EvoMixedIPDPayoffRunner
 from pax.runners.runner_evo_mixed_payoffs_input import EvoMixedPayoffInputRunner
 from pax.runners.runner_evo_mixed_payoffs_gen import EvoMixedPayoffGenRunner
 from pax.runners.runner_evo_mixed_payoffs_pred import EvoMixedPayoffPredRunner
@@ -188,7 +189,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", 
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
     "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
         agent1, _ = agents
         algo = args.es.algo
@@ -288,6 +289,10 @@ def runner_setup(args, env, agents, save_dir, logger):
             )
         elif args.runner == "evo_mixed_payoff":
             return EvoMixedPayoffRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_mixed_ipd_payoff":
+            return EvoMixedIPDPayoffRunner(
                 agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
         elif args.runner == "evo_mixed_payoff_gen":
@@ -647,7 +652,7 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", 
+    if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
     "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
         print(f"Running {args.runner}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
