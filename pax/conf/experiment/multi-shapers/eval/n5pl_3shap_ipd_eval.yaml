@@ -16,7 +16,7 @@ env_discount: 0.96
 
 # Runner 
 num_players: 5
-num_shapers: 2
+num_shapers: 3
 payoff_table: [
     [ 8 , 1000 ],
     [ 6 , 9 ],
@@ -28,11 +28,12 @@ payoff_table: [
 
 # Runner 
 runner: multishaper_eval
-run_path1: ucl-dark/tensor-ipd/39mk7tha
-model_path1: exp/5pl-2shap-ipd/5pl_2shap_ipd_0/2023-07-15_16.23.49.389635/generation_400_agent_0
-run_path2: ucl-dark/tensor-ipd/39mk7tha
-model_path2: exp/5pl-2shap-ipd/5pl_2shap_ipd_0/2023-07-15_16.23.49.389635/generation_400_agent_1
-
+run_path1: ucl-dark/tensor-ipd/gqayh7tw
+model_path1: exp/5pl-3shap-ipd/5pl_3shap_ipd_0/2023-07-16_13.20.37.005939/generation_600_agent_0
+run_path2: ucl-dark/tensor-ipd/gqayh7tw
+model_path2: exp/5pl-3shap-ipd/5pl_3shap_ipd_0/2023-07-16_13.20.37.005939/generation_600_agent_1
+run_path3: ucl-dark/tensor-ipd/gqayh7tw
+model_path3: exp/5pl-3shap-ipd/5pl_3shap_ipd_0/2023-07-16_13.20.37.005939/generation_600_agent_2
 
 # Training
 num_envs: 2
@@ -146,12 +147,11 @@ ppo5:
   separate: False
   hidden_size: 16
 
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: tensor-ipd
-  group: '5pl_2shap_ipd-eval'
-  name: 5pl_2shap_ipd_0-eval
+  group: '5pl_3shap_ipd-eval'
+  name: 5pl_3shap_ipd_0-eval
   log: True
 

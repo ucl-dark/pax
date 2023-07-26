@@ -24,9 +24,9 @@ runner: third_party_rl
 
 # Training
 # Training
-num_envs: 1000
-num_opps: 1
-num_inner_steps: 100 # one game length
+num_envs: 2
+num_opps: 2
+num_inner_steps: 5 # one game length
 num_outer_steps: 1 # sequential 
 num_iters: 5000  #games
 # total_timesteps: 2.5e7
@@ -121,5 +121,5 @@ wandb:
   entity: "ucl-dark"
   project: third-party-matrix
   group: 'testing'
-  name: test_logging
-  log: True
+  name: version2
+  log: False

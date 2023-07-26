@@ -129,6 +129,7 @@ class PPO(AgentInterface):
             hiddens: jnp.ndarray,
         ):
             """Surrogate loss using clipped probability ratios."""
+            jax.debug.breakpoint()
             (distribution, values), _ = network.apply(
                 params, observations, hiddens
             )
@@ -471,7 +472,6 @@ class PPO(AgentInterface):
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-
         _, _, mem = self._policy(state, obs, mem)
         traj_batch = self._prepare_batch(
             traj_batch, traj_batch.dones[-1, ...], mem.extras
@@ -517,7 +517,8 @@ def make_gru_agent(
         "iterated_matrix_game",
         "iterated_tensor_game",
         "iterated_nplayer_tensor_game",
-        "third_party_punishment"
+        "third_party_punishment",
+        "third_party_random",
     ]:
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size

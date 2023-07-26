@@ -58,6 +58,8 @@ from pax.envs.third_party_punishment import ThirdPartyPunishment
 from pax.envs.third_party_punishment import (
     EnvParams as ThirdPartyPunishmentParams,
 )
+from pax.envs.third_party_random import ThirdPartyRandom
+from pax.envs.third_party_random import EnvParams as ThirdPartyRandomParams
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_3player import TensorEvalRunner
 from pax.runners.runner_eval_multipshaper import MultishaperEvalRunner
@@ -88,9 +90,9 @@ from pax.watchers import (
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
+from jax.config import config
 
-# config.update("jax_disable_jit", True)
+config.update("jax_disable_jit", True)
 
 
 def global_setup(args):
@@ -171,6 +173,25 @@ def env_setup(args, logger=None):
             num_outer_steps=args.num_outer_steps,
         )
         env_params = ThirdPartyPunishmentParams(
+            payoff_table=payoff,
+            punishment=args.punishment,
+            intrinsic=args.intrinsic,
+            punish_cost=args.punish_cost,
+        )
+
+        if logger:
+            logger.info(
+                f"Env Type: {args.env_type} s| Inner Episode Length: {args.num_inner_steps}"
+            )
+
+    elif args.env_id == "third_party_random":
+        payoff = jnp.array(args.payoff_table)
+
+        env = ThirdPartyRandom(
+            num_inner_steps=args.num_inner_steps,
+            num_outer_steps=args.num_outer_steps,
+        )
+        env_params = ThirdPartyRandomParams(
             payoff_table=payoff,
             punishment=args.punishment,
             intrinsic=args.intrinsic,
@@ -424,6 +445,7 @@ def agent_setup(args, env, env_params, logger):
         or args.env_id == "iterated_tensor_game"
         or args.env_id == "iterated_nplayer_tensor_game"
         or args.env_id == "third_party_punishment"
+        or args.env_id == "third_party_random"
     ):
         obs_shape = env.observation_space(env_params).n
     elif args.env_id == "InTheMatrix":
@@ -652,6 +674,7 @@ def watcher_setup(args, logger):
             "iterated_tensor_game",
             "iterated_nplayer_tensor_game",
             "third_party_punishment",
+            "third_party_random",
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)

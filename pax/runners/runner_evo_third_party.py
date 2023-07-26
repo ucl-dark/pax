@@ -12,7 +12,11 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, third_party_punishment_visitation
+from pax.watchers import (
+    ESLog,
+    third_party_punishment_visitation,
+    third_party_random_visitation,
+)
 
 MAX_WANDB_CALLS = 1000
 
@@ -73,7 +77,7 @@ class ThirdPartyEvoRunner:
         self.train_steps = 0
         self.train_episodes = 0
         self.third_party_punishment_stats = jax.jit(
-            third_party_punishment_visitation
+            third_party_random_visitation
         )
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
@@ -83,13 +87,13 @@ class ThirdPartyEvoRunner:
         # num envs
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0, 0, None), 0  # rng, state, actions, params
         )
 
         # num opps
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0, 0, None), 0  # rng, state, actions, params
         )
         # pop size
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -199,8 +203,8 @@ class ThirdPartyEvoRunner:
             (
                 rngs,
                 prev_actions,
-                first_agent_obs,
-                other_agent_obs,
+                prev_player_selection,
+                obs,
                 first_agent_reward,
                 other_agent_rewards,
                 first_agent_state,
@@ -226,7 +230,7 @@ class ThirdPartyEvoRunner:
                 new_first_agent_mem,
             ) = agent1.batch_policy(
                 first_agent_state,
-                first_agent_obs,
+                obs,
                 first_agent_mem,
             )
             actions.append(first_action)
@@ -237,12 +241,13 @@ class ThirdPartyEvoRunner:
                     new_other_agent_mem[agent_idx],
                 ) = non_first_agent.batch_policy(
                     other_agent_state[agent_idx],
-                    other_agent_obs[agent_idx],
+                    obs,
                     other_agent_mem[agent_idx],
                 )
                 actions.append(non_first_action)
             (
-                (all_agent_next_obs, log_obs),
+                player_selection,
+                next_obs,
                 env_state,
                 all_agent_rewards,
                 done,
@@ -250,15 +255,16 @@ class ThirdPartyEvoRunner:
             ) = env.step(
                 env_rng,
                 env_state,
-                (prev_actions, actions),
+                prev_actions,
+                prev_player_selection,
+                actions,
                 env_params,
             )
 
-            first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
             first_agent_reward, *other_agent_rewards = all_agent_rewards
 
             traj1 = Sample(
-                first_agent_obs,
+                obs,
                 first_action,
                 first_agent_reward,
                 new_first_agent_mem.extras["log_probs"],
@@ -268,7 +274,7 @@ class ThirdPartyEvoRunner:
             )
             other_traj = [
                 Sample(
-                    other_agent_obs[agent_idx],
+                    obs,
                     actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],
@@ -280,9 +286,9 @@ class ThirdPartyEvoRunner:
             ]
             return (
                 rngs,
-                actions,
-                first_agent_next_obs,
-                tuple(other_agent_next_obs),
+                actions,  # this are the next prev actions
+                player_selection,  # this is the player selection for above actions
+                next_obs,
                 first_agent_reward,
                 tuple(other_agent_rewards),
                 first_agent_state,
@@ -291,25 +297,23 @@ class ThirdPartyEvoRunner:
                 new_other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs, traj1, *other_traj)
+            ), (traj1, *other_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             # play episode of the game
-            vals, stack = jax.lax.scan(
+            vals, trajectories = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
                 length=args.num_inner_steps,
             )
-            log_obs = stack[0]
-            trajectories = stack[1:]
             other_agent_metrics = [None] * len(other_agents)
             (
                 rngs,
                 _,
-                first_agent_obs,
-                other_agent_obs,
+                player_selection,
+                obs,
                 first_agent_reward,
                 other_agent_rewards,
                 first_agent_state,
@@ -330,15 +334,14 @@ class ThirdPartyEvoRunner:
                     other_agent_metrics[agent_idx],
                 ) = non_first_agent.batch_update(
                     trajectories[agent_idx + 1],
-                    other_agent_obs[agent_idx],
+                    obs,
                     other_agent_state[agent_idx],
                     other_agent_mem[agent_idx],
                 )
             return (
                 rngs,
                 _,
-                first_agent_obs,
-                other_agent_obs,
+                obs,
                 first_agent_reward,
                 other_agent_rewards,
                 first_agent_state,
@@ -347,7 +350,7 @@ class ThirdPartyEvoRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs, trajectories, other_agent_metrics)
+            ), (trajectories, other_agent_metrics)
 
         def _rollout(
             _params: jnp.ndarray,
@@ -357,7 +360,12 @@ class ThirdPartyEvoRunner:
             _env_params: Any,
         ):
             # env reset
-            _rng_run, first_action_rng = jax.random.split(_rng_run)
+            (
+                _rng_run,
+                first_action_rng1,
+                first_action_rng2,
+                first_action_rng3,
+            ) = jax.random.split(_rng_run, 4)
             env_rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)]
                 * args.num_opps
@@ -368,35 +376,46 @@ class ThirdPartyEvoRunner:
             rewards = [
                 jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
             ] * args.num_players
-            # first action is uniform random CC, CD, DC, DD with no punishment - so action 0,4,8 or 12
+            # first action is uniform random C or D with no punishment - so action 0 or 4
             first_action1 = (
                 jax.random.randint(
-                    first_action_rng,
+                    first_action_rng1,
                     (args.popsize, args.num_opps, args.num_envs),
                     0,
-                    4,
+                    2,
                 )
                 * 4
             )
             first_action2 = (
                 jax.random.randint(
-                    first_action_rng,
+                    first_action_rng2,
                     (args.popsize, args.num_opps, args.num_envs),
                     0,
-                    4,
+                    2,
                 )
                 * 4
             )
             first_action3 = (
                 jax.random.randint(
-                    first_action_rng,
+                    first_action_rng3,
                     (args.popsize, args.num_opps, args.num_envs),
                     0,
-                    4,
+                    2,
                 )
                 * 4
             )
             first_action = [first_action1, first_action2, first_action3]
+            _rng_run, player_sel_rng = jax.random.split(
+                _rng_run,
+            )
+
+            # first_player_selections is indep permutation of arange(0,3) with shape (popsize, num_opps, num_envs,3
+            player_ids = jnp.tile(
+                jnp.arange(3), (args.popsize, args.num_opps, args.num_envs, 1)
+            )
+            first_player_selections = jax.random.permutation(
+                key=player_sel_rng, x=player_ids, axis=-1, independent=True
+            )
 
             # Player 1
             _a1_state = _a1_state._replace(params=_params)
@@ -417,7 +436,7 @@ class ThirdPartyEvoRunner:
                     (
                         other_agent_mem[agent_idx],
                         other_agent_state[agent_idx],
-                    ) = non_first_agent.batch_init(obs[agent_idx + 1])
+                    ) = non_first_agent.batch_init(obs)
                 else:
                     # meta-experiments - init 2nd agent per trial
                     non_first_agent_rng = jnp.concatenate(
@@ -442,8 +461,8 @@ class ThirdPartyEvoRunner:
                 (
                     env_rngs,
                     first_action,
-                    obs[0],
-                    tuple(obs[1:]),
+                    first_player_selections,
+                    obs,
                     rewards[0],
                     tuple(rewards[1:]),
                     _a1_state,
@@ -459,8 +478,7 @@ class ThirdPartyEvoRunner:
             (
                 env_rngs,
                 _,  # action
-                first_agent_obs,
-                other_agent_obs,
+                obs,
                 first_agent_reward,
                 other_agent_rewards,
                 first_agent_state,
@@ -470,7 +488,7 @@ class ThirdPartyEvoRunner:
                 env_state,
                 _env_params,
             ) = vals
-            log_obs, trajectories, other_agent_metrics = stack
+            trajectories, other_agent_metrics = stack
 
             # Fitness
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
@@ -479,21 +497,22 @@ class ThirdPartyEvoRunner:
                 for traj in trajectories[1:]
             ]
             # # Stats
-            if args.env_id in [
-                "third_party_punishment",
-            ]:
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    self.third_party_punishment_stats(
-                        log_obs,
-                    ),
-                )
-                first_agent_reward = trajectories[0].rewards.mean()
-                other_agent_rewards = [
-                    traj.rewards.mean() for traj in trajectories[1:]
-                ]
-            else:
-                raise NotImplementedError
+            env_stats = None
+            # if args.env_id in [
+            #     "third_party_punishment",
+            # ]:
+            #     env_stats = jax.tree_util.tree_map(
+            #         lambda x: x.mean(),
+            #         self.third_party_punishment_stats(
+            #             log_obs,
+            #         ),
+            #     )
+            #     first_agent_reward = trajectories[0].rewards.mean()
+            #     other_agent_rewards = [
+            #         traj.rewards.mean() for traj in trajectories[1:]
+            #     ]
+            # else:
+            #     raise NotImplementedError
 
             return (
                 fitness,

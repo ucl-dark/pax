@@ -511,6 +511,10 @@ class MultishaperEvalRunner:
         for agent_idx, shaper_agent in enumerate(shaper_agents):
             model_path = f"model_path{agent_idx+1}"
             run_path = f"run_path{agent_idx+1}"
+            if model_path not in self.args:
+                raise ValueError(
+                    f"Please provide a model path for shaper {agent_idx+1}"
+                )
             if model_path in self.args:
                 wandb.restore(
                     name=self.args[model_path],
