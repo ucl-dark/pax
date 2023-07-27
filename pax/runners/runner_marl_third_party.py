@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-from pax.watchers import third_party_punishment_visitation
+from pax.watchers import third_party_random_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -89,7 +89,7 @@ class ThirdPartyRLRunner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.third_party_punishment_stats = jax.jit(
-            third_party_punishment_visitation
+            third_party_random_visitation
         )
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
@@ -208,7 +208,7 @@ class ThirdPartyRLRunner:
                 new_first_agent_mem,
             ) = agent1.batch_policy(
                 first_agent_state,
-                obs[0],
+                obs,
                 first_agent_mem,
             )
             actions.append(first_action)
@@ -219,13 +219,13 @@ class ThirdPartyRLRunner:
                     new_other_agent_mem[agent_idx],
                 ) = non_first_agent.batch_policy(
                     other_agent_state[agent_idx],
-                    obs[0],
+                    obs,
                     other_agent_mem[agent_idx],
                 )
                 actions.append(non_first_action)
             (
                 player_selection,
-                next_obs,
+                (next_obs,log_obs),
                 env_state,
                 all_agent_rewards,
                 done,
@@ -241,7 +241,7 @@ class ThirdPartyRLRunner:
             first_agent_reward, *other_agent_rewards = all_agent_rewards
             if args.agent1 == "MFOS":
                 traj1 = MFOSSample(
-                    obs[0],
+                    obs,
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],
@@ -252,7 +252,7 @@ class ThirdPartyRLRunner:
                 )
             else:
                 traj1 = Sample(
-                    obs[0],
+                    obs,
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],
@@ -262,7 +262,7 @@ class ThirdPartyRLRunner:
                 )
             other_traj = [
                 Sample(
-                    obs[0],
+                    obs,
                     actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],
@@ -285,22 +285,24 @@ class ThirdPartyRLRunner:
                 new_other_agent_mem,
                 env_state,
                 env_params,
-            ), (traj1, *other_traj)
+            ), (log_obs, traj1, *other_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             # play episode of the game
-            vals, trajectories = jax.lax.scan(
+            vals, stack = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
                 length=self.args.num_inner_steps,
             )
+            log_obs = stack[0]
+            trajectories = stack[1:]
             other_agent_metrics = [None] * len(other_agents)
             (
                 rngs,
-                _,
-                player_selection,
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -323,13 +325,14 @@ class ThirdPartyRLRunner:
                     other_agent_metrics[agent_idx],
                 ) = non_first_agent.batch_update(
                     trajectories[agent_idx + 1],
-                    obs[0],
+                    obs,
                     other_agent_state[agent_idx],
                     other_agent_mem[agent_idx],
                 )
             return (
                 rngs,
-                _,
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -339,7 +342,7 @@ class ThirdPartyRLRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (trajectories, other_agent_metrics)
+            ), (log_obs,trajectories, other_agent_metrics)
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -370,7 +373,7 @@ class ThirdPartyRLRunner:
                     first_action_rng1,
                     (args.num_opps, args.num_envs),
                     0,
-                    2,
+                    2,                
                 )
                 * 4
             )
@@ -389,7 +392,7 @@ class ThirdPartyRLRunner:
                     (args.num_opps, args.num_envs),
                     0,
                     2,
-                )
+             )
                 * 4
             )
             first_action = [first_action1, first_action2, first_action3]
@@ -402,7 +405,7 @@ class ThirdPartyRLRunner:
                 jnp.arange(3), (args.num_opps, args.num_envs, 1)
             )
             first_player_selections = jax.random.permutation(
-                key=player_sel_rng, x=player_ids, axis=-1, independent=True
+                key=player_sel_rng, x=player_ids, axis=-1, independent=True,
             )
 
             # Player 1
@@ -461,7 +464,8 @@ class ThirdPartyRLRunner:
 
             (
                 rngs,
-                _,
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -472,8 +476,7 @@ class ThirdPartyRLRunner:
                 env_state,
                 env_params,
             ) = vals
-            trajectories, other_agent_metrics = stack
-
+            log_obs, trajectories, other_agent_metrics = stack
             # update outer agent
             first_agent_state, _, first_agent_metrics = agent1.update(
                 reduce_outer_traj(trajectories[0]),
@@ -492,14 +495,13 @@ class ThirdPartyRLRunner:
             if args.env_id in [
                 "third_party_random",
             ]:
-                total_env_stats = None
-                # total_env_stats = jax.tree_util.tree_map(
-                #     lambda x: x.mean(),
-                #     self.third_party_punishment_stats(
-                #         log_obs,
-                #     ),
-                # )
-                # total_rewards = [traj.rewards.mean() for traj in trajectories]
+                total_env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.third_party_punishment_stats(
+                        log_obs,
+                    ),
+                )
+                total_rewards = [traj.rewards.mean() for traj in trajectories]
             else:
                 total_env_stats = {}
                 total_rewards = [traj.rewards.mean() for traj in trajectories]

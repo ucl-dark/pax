@@ -315,6 +315,7 @@ class ThirdPartyRLRunner:
                 first_agent_mem = agent1.meta_policy(first_agent_mem)
 
             # update second agent
+            jax.debug.breakpoint()
 
             for agent_idx, non_first_agent in enumerate(other_agents):
                 (

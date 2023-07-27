@@ -61,7 +61,7 @@ class ThirdPartyRandom(environment.Environment):
             inner_t += 1
             reset_inner = inner_t == num_inner_steps
 
-            prev_actions_arr = jnp.array(prev_actions)
+            prev_actions_arr = jnp.array(prev_actions , dtype=jnp.int8)
 
             prev_cd_actions = (
                 jnp.where(  # all previous cd actions, 0 for c, 1 for d
@@ -70,7 +70,7 @@ class ThirdPartyRandom(environment.Environment):
             )
 
             # we care about the current punishment actions
-            actions_arr = jnp.array(curr_actions)
+            actions_arr = jnp.array(curr_actions, dtype=jnp.int8)
             punish_actions = (
                 actions_arr
             ) % 4  # 0 if no punishment, 1 if punish 1, 2 if punish 2, 3 if punish both
@@ -83,39 +83,34 @@ class ThirdPartyRandom(environment.Environment):
             )
 
             old_pl1, old_pl2, old_punisher = player_selection
-            old_chosen_game_actions = (
-                prev_cd_actions[old_pl1],
-                prev_cd_actions[old_pl2],
-            )
+
 
             ########## calculate rewards from IPD ##############
             # lazy thing as only 3 players
             # sum of 1s is number of defectors
-            num_defect = sum(old_chosen_game_actions).astype(jnp.int8)
+            num_defect = (prev_cd_actions[old_pl1].sum() + prev_cd_actions[old_pl2].sum()).astype(jnp.int8)
 
             # calculate rewards
             # row of payoff table is number of defectors
             # column of payoff table is whether player defected or not
             payoff_array = jnp.array(params.payoff_table, dtype=jnp.float32)
-            relevant_row1 = payoff_array[num_defect]
-            game_rewards_array = (
-                relevant_row1[old_chosen_game_actions[0]],
-                relevant_row1[old_chosen_game_actions[1]],
-            )
+            relevant_row = payoff_array[num_defect]
 
             # rewards for pl1, pl2, pl3 respectively for previous game
-            rewards = jnp.zeros((3,), dtype=jnp.int8)
-            rewards = rewards.at[old_pl1].set(game_rewards_array[0])
-            rewards = rewards.at[old_pl2].set(game_rewards_array[1])
+            rewards = jnp.zeros((3,), dtype=jnp.float32)
+            rewards = rewards.at[old_pl1].set(relevant_row[prev_cd_actions[old_pl1]])
+            rewards = rewards.at[old_pl2].set(relevant_row[prev_cd_actions[old_pl2]])
+
+            relevant_row[prev_cd_actions][jnp.argsort(player_selection)]
 
             ######### calculate rewards from punishment ############
             got_punished = jnp.zeros((3,), dtype=jnp.int8)
             # pl1 punished if punisher gave 1 or 3
-            got_punished.at[old_pl1].set(
+            got_punished= got_punished.at[old_pl1].set(
                 jnp.where(punish_actions[old_punisher] % 4 == 1, 1, 0)
             )
             # pl2 punished if punisher gave 2 or 3
-            got_punished.at[old_pl2].set(
+            got_punished=got_punished.at[old_pl2].set(
                 jnp.where(punish_actions[old_punisher] > 1, 1, 0)
             )
 
@@ -132,20 +127,20 @@ class ThirdPartyRandom(environment.Environment):
             # so we can just binary decode the actions to get state
             new_obs = (
                 curr_game_actions[0] * b2i[0] + curr_game_actions[1] * b2i[1]
-            )
+            ).astype(jnp.int8)
             # if first step then return START state.
             new_obs = jax.lax.select(
                 reset_inner,
-                start_state_idx * jnp.ones_like(new_obs),
+                start_state_idx * jnp.ones_like(new_obs, dtype=jnp.int8),
                 new_obs,
-            )
+        )
             # one hot encode
             new_obs = jax.nn.one_hot(new_obs, len_one_hot, dtype=jnp.int8)
 
             # if this was first step, then rewards is 0 bc it depends on previous actions
             rewards = jax.lax.select(
                 inner_t == 1,
-                jnp.zeros_like(rewards),
+                jnp.zeros_like(rewards, dtype=jnp.float32),
                 rewards,
             )
             # out step keeping
@@ -156,11 +151,12 @@ class ThirdPartyRandom(environment.Environment):
             outer_t = jax.lax.select(reset_inner, outer_t_new, outer_t)
             reset_outer = outer_t == num_outer_steps
             state = EnvState(inner_t=inner_t, outer_t=outer_t)
-            jax.debug.breakpoint()
+
+            log_obs = (prev_actions, player_selection, curr_actions)
 
             return (
                 player_selection,
-                (new_obs,),
+                (new_obs,log_obs),
                 state,
                 tuple(rewards),
                 reset_outer,
@@ -182,7 +178,7 @@ class ThirdPartyRandom(environment.Environment):
                 2**bits + 1,
                 dtype=jnp.int8,
             )
-            return (obs,), state
+            return obs, state
 
         # overwrite Gymnax as it makes single-agent assumptions
         self.step = jax.jit(_step)

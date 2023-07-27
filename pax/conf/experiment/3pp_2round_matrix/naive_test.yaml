@@ -15,18 +15,18 @@ payoff_table: [
     [-3 , 0 ],
     [1000 , -2],
 ]
-punishment: 0
-intrinsic: 10
-punish_cost: -5
+punishment: -3
+intrinsic: 0
+punish_cost: 0
 # Runner 
 runner: third_party_rl
 
 
 # Training
 # Training
-num_envs: 2
-num_opps: 2
-num_inner_steps: 5 # one game length
+num_envs: 50
+num_opps: 1
+num_inner_steps: 100 # one game length
 num_outer_steps: 1 # sequential 
 num_iters: 5000  #games
 # total_timesteps: 2.5e7
@@ -122,4 +122,4 @@ wandb:
   project: third-party-matrix
   group: 'testing'
   name: version2
-  log: False
+  log: True

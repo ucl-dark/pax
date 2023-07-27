@@ -99,7 +99,7 @@ class ThirdPartyEvoRunner:
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
             jax.vmap(
-                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+                env.step, (0, 0, 0, 0,0,None), 0  # rng, state, actions, params
             )
         )
         self.split = jax.vmap(
@@ -247,7 +247,7 @@ class ThirdPartyEvoRunner:
                 actions.append(non_first_action)
             (
                 player_selection,
-                next_obs,
+                (next_obs,log_obs),
                 env_state,
                 all_agent_rewards,
                 done,
@@ -297,22 +297,24 @@ class ThirdPartyEvoRunner:
                 new_other_agent_mem,
                 env_state,
                 env_params,
-            ), (traj1, *other_traj)
+            ), (log_obs, traj1, *other_traj)
 
         def _outer_rollout(carry, unused):
             """Runner for trial"""
             # play episode of the game
-            vals, trajectories = jax.lax.scan(
+            vals, stack = jax.lax.scan(
                 _inner_rollout,
                 carry,
                 None,
                 length=args.num_inner_steps,
             )
+            log_obs = stack[0]
+            trajectories = stack[1:]
             other_agent_metrics = [None] * len(other_agents)
             (
                 rngs,
-                _,
-                player_selection,
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -340,7 +342,8 @@ class ThirdPartyEvoRunner:
                 )
             return (
                 rngs,
-                _,
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -350,7 +353,7 @@ class ThirdPartyEvoRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (trajectories, other_agent_metrics)
+            ), (log_obs, trajectories, other_agent_metrics)
 
         def _rollout(
             _params: jnp.ndarray,
@@ -477,7 +480,8 @@ class ThirdPartyEvoRunner:
             )
             (
                 env_rngs,
-                _,  # action
+                _1,
+                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -488,7 +492,7 @@ class ThirdPartyEvoRunner:
                 env_state,
                 _env_params,
             ) = vals
-            trajectories, other_agent_metrics = stack
+            log_obs, trajectories, other_agent_metrics = stack
 
             # Fitness
             fitness = trajectories[0].rewards.mean(axis=(0, 1, 3, 4))
@@ -497,22 +501,21 @@ class ThirdPartyEvoRunner:
                 for traj in trajectories[1:]
             ]
             # # Stats
-            env_stats = None
-            # if args.env_id in [
-            #     "third_party_punishment",
-            # ]:
-            #     env_stats = jax.tree_util.tree_map(
-            #         lambda x: x.mean(),
-            #         self.third_party_punishment_stats(
-            #             log_obs,
-            #         ),
-            #     )
-            #     first_agent_reward = trajectories[0].rewards.mean()
-            #     other_agent_rewards = [
-            #         traj.rewards.mean() for traj in trajectories[1:]
-            #     ]
-            # else:
-            #     raise NotImplementedError
+            if args.env_id in [
+                "third_party_random",
+            ]:
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.third_party_punishment_stats(
+                        log_obs,
+                    ),
+                )
+                first_agent_reward = trajectories[0].rewards.mean()
+                other_agent_rewards = [
+                    traj.rewards.mean() for traj in trajectories[1:]
+                ]
+            else:
+                raise NotImplementedError
 
             return (
                 fitness,

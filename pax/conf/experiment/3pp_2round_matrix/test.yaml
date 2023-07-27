@@ -6,7 +6,7 @@ agent2: 'PPO_memory'
 agent3: 'PPO_memory'
 
 # Environment
-env_id: third_party_punishment
+env_id: third_party_random
 env_type: meta
 env_discount: 0.96
 num_players: 3
@@ -15,9 +15,9 @@ payoff_table: [
     [-3 , 0 ],
     [1000 , -2],
 ]
-punishment: -6
-intrinsic: 10
-punish_cost: -5
+punishment: -3
+intrinsic: 0
+punish_cost: 0
 # Runner 
 runner: third_party_evo
 
@@ -121,6 +121,6 @@ es:
 wandb:
   entity: "ucl-dark"
   project: third-party-matrix
-  group: 'testing'
-  name: shaper_old_lr
+  group: 'shaper_run'
+  name: 3pp
   log: True
