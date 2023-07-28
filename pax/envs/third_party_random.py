@@ -61,7 +61,7 @@ class ThirdPartyRandom(environment.Environment):
             inner_t += 1
             reset_inner = inner_t == num_inner_steps
 
-            prev_actions_arr = jnp.array(prev_actions , dtype=jnp.int8)
+            prev_actions_arr = jnp.array(prev_actions, dtype=jnp.int8)
 
             prev_cd_actions = (
                 jnp.where(  # all previous cd actions, 0 for c, 1 for d
@@ -84,11 +84,12 @@ class ThirdPartyRandom(environment.Environment):
 
             old_pl1, old_pl2, old_punisher = player_selection
 
-
             ########## calculate rewards from IPD ##############
             # lazy thing as only 3 players
             # sum of 1s is number of defectors
-            num_defect = (prev_cd_actions[old_pl1].sum() + prev_cd_actions[old_pl2].sum()).astype(jnp.int8)
+            num_defect = (
+                prev_cd_actions[old_pl1].sum() + prev_cd_actions[old_pl2].sum()
+            ).astype(jnp.int8)
 
             # calculate rewards
             # row of payoff table is number of defectors
@@ -98,19 +99,23 @@ class ThirdPartyRandom(environment.Environment):
 
             # rewards for pl1, pl2, pl3 respectively for previous game
             rewards = jnp.zeros((3,), dtype=jnp.float32)
-            rewards = rewards.at[old_pl1].set(relevant_row[prev_cd_actions[old_pl1]])
-            rewards = rewards.at[old_pl2].set(relevant_row[prev_cd_actions[old_pl2]])
+            rewards = rewards.at[old_pl1].set(
+                relevant_row[prev_cd_actions[old_pl1]]
+            )
+            rewards = rewards.at[old_pl2].set(
+                relevant_row[prev_cd_actions[old_pl2]]
+            )
 
             relevant_row[prev_cd_actions][jnp.argsort(player_selection)]
 
             ######### calculate rewards from punishment ############
             got_punished = jnp.zeros((3,), dtype=jnp.int8)
             # pl1 punished if punisher gave 1 or 3
-            got_punished= got_punished.at[old_pl1].set(
+            got_punished = got_punished.at[old_pl1].set(
                 jnp.where(punish_actions[old_punisher] % 4 == 1, 1, 0)
             )
             # pl2 punished if punisher gave 2 or 3
-            got_punished=got_punished.at[old_pl2].set(
+            got_punished = got_punished.at[old_pl2].set(
                 jnp.where(punish_actions[old_punisher] > 1, 1, 0)
             )
 
@@ -133,7 +138,7 @@ class ThirdPartyRandom(environment.Environment):
                 reset_inner,
                 start_state_idx * jnp.ones_like(new_obs, dtype=jnp.int8),
                 new_obs,
-        )
+            )
             # one hot encode
             new_obs = jax.nn.one_hot(new_obs, len_one_hot, dtype=jnp.int8)
 
@@ -156,7 +161,7 @@ class ThirdPartyRandom(environment.Environment):
 
             return (
                 player_selection,
-                (new_obs,log_obs),
+                (new_obs, log_obs),
                 state,
                 tuple(rewards),
                 reset_outer,

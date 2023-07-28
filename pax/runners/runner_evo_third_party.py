@@ -99,7 +99,9 @@ class ThirdPartyEvoRunner:
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
         env.step = jax.jit(
             jax.vmap(
-                env.step, (0, 0, 0, 0,0,None), 0  # rng, state, actions, params
+                env.step,
+                (0, 0, 0, 0, 0, None),
+                0,  # rng, state, actions, params
             )
         )
         self.split = jax.vmap(
@@ -247,7 +249,7 @@ class ThirdPartyEvoRunner:
                 actions.append(non_first_action)
             (
                 player_selection,
-                (next_obs,log_obs),
+                (next_obs, log_obs),
                 env_state,
                 all_agent_rewards,
                 done,

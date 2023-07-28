@@ -24,12 +24,12 @@ runner: tensor_evo_nplayer
 
 # Training
 top_k: 5
-popsize: 50
+popsize: 100
 num_envs: 2
 num_opps: 10
 num_inner_steps: 100 
 num_outer_steps: 1000
-num_iters: 1000
+num_iters: 1500
 # total_timesteps: 2.5e7
 num_devices: 1
 # Evaluation 

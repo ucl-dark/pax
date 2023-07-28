@@ -225,7 +225,7 @@ class ThirdPartyRLRunner:
                 actions.append(non_first_action)
             (
                 player_selection,
-                (next_obs,log_obs),
+                (next_obs, log_obs),
                 env_state,
                 all_agent_rewards,
                 done,
@@ -342,7 +342,7 @@ class ThirdPartyRLRunner:
                 other_agent_mem,
                 env_state,
                 env_params,
-            ), (log_obs,trajectories, other_agent_metrics)
+            ), (log_obs, trajectories, other_agent_metrics)
 
         def _rollout(
             _rng_run: jnp.ndarray,
@@ -373,7 +373,7 @@ class ThirdPartyRLRunner:
                     first_action_rng1,
                     (args.num_opps, args.num_envs),
                     0,
-                    2,                
+                    2,
                 )
                 * 4
             )
@@ -392,7 +392,7 @@ class ThirdPartyRLRunner:
                     (args.num_opps, args.num_envs),
                     0,
                     2,
-             )
+                )
                 * 4
             )
             first_action = [first_action1, first_action2, first_action3]
@@ -405,7 +405,10 @@ class ThirdPartyRLRunner:
                 jnp.arange(3), (args.num_opps, args.num_envs, 1)
             )
             first_player_selections = jax.random.permutation(
-                key=player_sel_rng, x=player_ids, axis=-1, independent=True,
+                key=player_sel_rng,
+                x=player_ids,
+                axis=-1,
+                independent=True,
             )
 
             # Player 1
