@@ -558,13 +558,15 @@ class MultishaperEvoRunner:
             w_decay=self.args.es.w_decay,
             z_score=self.args.es.z_score,
         )
-        es_logging = ESLog(
-            param_reshaper.total_params,
-            num_gens,
-            top_k=self.top_k,
-            maximize=True,
-        )
-        logs = [es_logging.initialize()] * self.num_shapers
+        es_logging = [
+            ESLog(
+                param_reshaper.total_params,
+                num_gens,
+                top_k=self.top_k,
+                maximize=True,
+            )
+        ] * self.num_shapers
+        logs = [es_log.initialize() for es_log in es_logging]
 
         # Reshape a single agent's params before vmapping
         shaper_agents = agents[: self.num_shapers]
@@ -644,10 +646,11 @@ class MultishaperEvoRunner:
 
             # Logging
             logs = [
-                es_logging.update(log, x, fitness)
-                for log, x, fitness in zip(logs, xs, shapers_fitness)
+                es_log.update(log, x, fitness)
+                for es_log, log, x, fitness in zip(
+                    es_logging, logs, xs, shapers_fitness
+                )
             ]
-
             # Saving
             if gen % self.args.save_interval == 0 or gen == num_gens - 1:
                 for shaper_idx in range(self.num_shapers):

@@ -47,7 +47,7 @@ class ThirdPartyRandom(environment.Environment):
             key: chex.PRNGKey,
             state: EnvState,
             prev_actions: Tuple[int, ...],  # previous actions
-            player_selection: Tuple[
+            player_selection: Tuple[  # previous player selection
                 int, ...
             ],  # player 1, player 2, punisher idx
             curr_actions: Tuple[int, ...],  # this is the new actions
@@ -85,10 +85,9 @@ class ThirdPartyRandom(environment.Environment):
             old_pl1, old_pl2, old_punisher = player_selection
 
             ########## calculate rewards from IPD ##############
-            # lazy thing as only 3 players
             # sum of 1s is number of defectors
             num_defect = (
-                prev_cd_actions[old_pl1].sum() + prev_cd_actions[old_pl2].sum()
+                prev_cd_actions[old_pl1] + prev_cd_actions[old_pl2]
             ).astype(jnp.int8)
 
             # calculate rewards
@@ -98,26 +97,23 @@ class ThirdPartyRandom(environment.Environment):
             relevant_row = payoff_array[num_defect]
 
             # rewards for pl1, pl2, pl3 respectively for previous game
-            rewards = jnp.zeros((3,), dtype=jnp.float32)
-            rewards = rewards.at[old_pl1].set(
-                relevant_row[prev_cd_actions[old_pl1]]
-            )
-            rewards = rewards.at[old_pl2].set(
-                relevant_row[prev_cd_actions[old_pl2]]
-            )
+            rew_oldpl1 = relevant_row[prev_cd_actions[old_pl1]]
+            rew_oldpl2 = relevant_row[prev_cd_actions[old_pl2]]
+            rew_oldpunisher = jnp.zeros_like(rew_oldpl1)
 
-            relevant_row[prev_cd_actions][jnp.argsort(player_selection)]
+            player_selection_lookup = jnp.array(
+                player_selection
+            ).argsort()  # what are the roles of the players
+            rewards = jnp.array([rew_oldpl1, rew_oldpl2, rew_oldpunisher])[
+                player_selection_lookup
+            ]
 
             ######### calculate rewards from punishment ############
-            got_punished = jnp.zeros((3,), dtype=jnp.int8)
-            # pl1 punished if punisher gave 1 or 3
-            got_punished = got_punished.at[old_pl1].set(
-                jnp.where(punish_actions[old_punisher] % 4 == 1, 1, 0)
-            )
-            # pl2 punished if punisher gave 2 or 3
-            got_punished = got_punished.at[old_pl2].set(
-                jnp.where(punish_actions[old_punisher] > 1, 1, 0)
-            )
+            pun_oldpl1 = jnp.where(punish_actions[old_punisher] % 4 == 1, 1, 0)
+            pun_oldpl2 = jnp.where(punish_actions[old_punisher] > 1, 1, 0)
+            got_punished = jnp.array(
+                [pun_oldpl1, pun_oldpl2, jnp.zeros_like(pun_oldpl1)]
+            )[player_selection_lookup]
 
             rewards = rewards + params.punishment * got_punished
 
@@ -130,9 +126,10 @@ class ThirdPartyRandom(environment.Environment):
             # second state is cd
             # 2**bits state is dd
             # so we can just binary decode the actions to get state
-            new_obs = (
-                curr_game_actions[0] * b2i[0] + curr_game_actions[1] * b2i[1]
-            ).astype(jnp.int8)
+            new_obs = (jnp.dot(jnp.array(curr_game_actions), b2i)).astype(
+                jnp.int8
+            )
+
             # if first step then return START state.
             new_obs = jax.lax.select(
                 reset_inner,
@@ -158,9 +155,9 @@ class ThirdPartyRandom(environment.Environment):
             state = EnvState(inner_t=inner_t, outer_t=outer_t)
 
             log_obs = (prev_actions, player_selection, curr_actions)
-
+            # jax.debug.breakpoint()
             return (
-                player_selection,
+                new_player_selection,
                 (new_obs, log_obs),
                 state,
                 tuple(rewards),

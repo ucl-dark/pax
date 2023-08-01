@@ -515,17 +515,16 @@ class MultishaperEvalRunner:
                 raise ValueError(
                     f"Please provide a model path for shaper {agent_idx+1}"
                 )
-            if model_path in self.args:
-                wandb.restore(
-                    name=self.args[model_path],
-                    run_path=self.args[run_path],
-                    root=os.getcwd(),
-                )
 
-                pretrained_params = load(self.args[model_path])
-                shapers_state[agent_idx] = shapers_state[agent_idx]._replace(
-                    params=pretrained_params
-                )
+            wandb.restore(
+                name=self.args[model_path],
+                run_path=self.args[run_path],
+                root=os.getcwd(),
+            )
+            pretrained_params = load(self.args[model_path])
+            shapers_state[agent_idx] = shapers_state[agent_idx]._replace(
+                params=pretrained_params
+            )
 
         # run actual loop
         rng, rng_run = jax.random.split(rng, 2)

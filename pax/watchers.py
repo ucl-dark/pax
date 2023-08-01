@@ -907,10 +907,16 @@ def third_party_random_visitation(
 ) -> dict:
 
     (prev_actions, player_selection, curr_actions) = log_obs
-    # flatten out
-    prev_actions = jnp.array(prev_actions).reshape(-1, 3)
-    player_selection = jnp.array(player_selection).reshape(-1, 3)
-    curr_actions = jnp.array(curr_actions).reshape(-1, 3)
+    # flatten out - player selection is the other way around for some reason
+    prev_actions = jnp.moveaxis(
+        jnp.array(prev_actions).reshape(3, -1), 0, -1
+    )  # shape (-1,3)
+    player_selection = jnp.array(player_selection).reshape(
+        -1, 3
+    )  # shape (-1,3)
+    curr_actions = jnp.moveaxis(
+        jnp.array(curr_actions).reshape(3, -1), 0, -1
+    )  # shape (-1,3)
     len_idx = prev_actions.shape[0]
 
     prev_cd_actions = jnp.where(prev_actions > 3, 1, 0)
@@ -1086,7 +1092,8 @@ def third_party_random_visitation(
             pl3_punished_defects_to_total_opn_defects_str: pl3_punish_defect_vs_total_defect
         }
     )
-
+    # jax.debug.print("in watcher")
+    # jax.debug.breakpoint()
     return visitation_dict
 
 
