@@ -92,5 +92,6 @@ es:
 wandb:
   group: cournot
   name: 'cournot-MFOS-${agent1}-vs-${agent2}'
+  log: True
 
 

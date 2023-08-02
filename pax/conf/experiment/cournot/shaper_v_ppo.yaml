@@ -94,5 +94,6 @@ es:
 wandb:
   group: cournot
   name: 'cournot-SHAPER-${agent1}-vs-${agent2}'
+  log: True
 
 

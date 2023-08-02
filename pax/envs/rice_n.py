@@ -11,7 +11,21 @@ from gymnax.environments import environment, spaces
 class EnvState:
     inner_t: int
     outer_t: int
-    s: float
+
+    activity_step: int
+
+    # Ecological
+    global_temp: chex.ArrayDevice
+    global_carbon_mass: chex.ArrayDevice
+    global_exogenous_emissions: float
+    global_land_emissions: float
+
+    # Economic
+    labor_all_regions: chex.ArrayDevice
+    production_factor_all_regions: chex.ArrayDevice
+    intensity_all_regions: chex.ArrayDevice
+
+
 
 
 @chex.dataclass
@@ -29,23 +43,12 @@ def to_obs_array(params: EnvParams) -> jnp.ndarray:
 
 
 """
-Based off the open access fishery environment from Perman et al. (3rd edition)
-
-Biological sub-model:
-
-The stock of fish is given by G and grows at a natural rate of g. 
-The stock is harvested at a rate of E (sum over agent actions) and the harvest is sold at a price of p. 
-
-g      growth rate
-e      efficiency parameter
-P      price of fish
-w      cost per unit of effort
-s_0    initial stock TODO randomize?
-s_max  maximum stock size
+Based off the MARL environment from https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4189735
+which in turn is adapted from the RICE IAM
 """
 
 
-class Fishery(environment.Environment):
+class RiceN(environment.Environment):
     def __init__(self, num_inner_steps: int):
         super().__init__()
 
@@ -57,29 +60,11 @@ class Fishery(environment.Environment):
         ):
             t = state.inner_t
             key, _ = jax.random.split(key, 2)
-            # TODO implement action clipping as part of the runners
-            e1 = jnp.clip(actions[0].squeeze(), 0)
-            e2 = jnp.clip(actions[1].squeeze(), 0)
-            E = e1 + e2
-            s_growth = state.s + params.g * state.s * (1 - state.s / params.s_max)
-
-            # Prevent s from dropping below 0
-            H = jnp.clip(E * state.s * params.e, a_max=s_growth)
-            s_next = s_growth - H
-
-            # reward = benefit - cost
-            # = P * H - w * E
-            r1 = params.P * jnp.where(E != 0, e1 / E, 0) * H - params.w * e1
-            r2 = params.P * jnp.where(E != 0, e2 / E, 0) * H - params.w * e2
-
-            obs1 = jnp.concatenate([jnp.array([state.s, e1, e2]), to_obs_array(params)])
-            obs2 = jnp.concatenate([jnp.array([state.s, e2, e1]), to_obs_array(params)])
 
             done = t >= num_inner_steps
 
             next_state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t,
-                s=s_next
             )
             reset_obs, reset_state = _reset(key, params)
             reset_state = reset_state.replace(outer_t=state.outer_t + 1)

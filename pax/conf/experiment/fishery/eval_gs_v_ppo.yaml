@@ -16,16 +16,22 @@ s_max: 1.0
 
 
 # Runner
-runner: evo
+runner: eval
+
+# TODO
+run_path: chrismatix/thesis/dhzxkw57
+model_path: exp/fishery/fishery-GS-PPO-vs-PPO_memory/2023-08-01_20.27.07.402547/generation_900
+
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
+num_envs: 1
 num_opps: 1
-num_outer_steps: 40
+num_outer_steps: 1
+num_steps: 600 # Run num_steps // num_inner_steps trials
 num_inner_steps: 300
-num_iters: 1000
+num_iters: 2
 num_devices: 1
 
 # PPO agent parameters
@@ -96,7 +102,7 @@ es:
 # Logging setup
 wandb:
   group: fishery
-  name: 'fishery-GS-${agent1}-vs-${agent2}'
+  name: 'EVAL_fishery-GS-${agent1}-vs-${agent2}'
   log: True
 
 

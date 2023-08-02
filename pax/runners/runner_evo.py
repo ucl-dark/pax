@@ -12,7 +12,8 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats, cournot_stats, fishery_stats
+from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats, fishery_stats
+from pax.watchers.cournot import cournot_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -424,7 +425,6 @@ class EvoRunner:
                     self.fishery_stats(
                         traj_1,
                         traj_2,
-                        _env_params,
                     ),
                 )
             else:

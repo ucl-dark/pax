@@ -1,9 +1,11 @@
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Any
 
 import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+from distrax import MultivariateNormalDiag
+from jax import Array
 
 from pax import utils
 
@@ -614,6 +616,32 @@ def make_GRU_ipditm_network(
             cvh = CategoricalValueHead(num_values=num_actions)
         embedding = torso(inputs)
         embedding, state = gru(embedding, state)
+        logits, values = cvh(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
+def make_GRU_fishery_network(
+        num_actions: int,
+        hidden_size: int,
+):
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+            inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> tuple[tuple[MultivariateNormalDiag, Array], Any]:
+        """forward function"""
+        gru = hk.GRU(
+            hidden_size,
+            w_i_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_h_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            b_init=hk.initializers.Constant(0),
+        )
+
+        cvh = ContinuousValueHead(num_values=num_actions)
+        embedding, state = gru(inputs, state)
         logits, values = cvh(embedding)
         return (logits, values), state
 

@@ -15,8 +15,10 @@ from pax.agents.naive_exact import NaiveExact
 from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 from pax.envs.iterated_matrix_game import EnvState
-from pax.envs.cournot import EnvParams as CournotEnvParams, CournotGame
-from pax.envs.fishery import EnvParams as FisheryEnvParams
+
+
+from .fishery import fishery_stats
+from .cournot import cournot_stats
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -402,7 +404,7 @@ def ipd_visitation(
     state_actions = jnp.reshape(
         state_actions,
         (num_timesteps,) + state_actions.shape[2:],
-    )
+        )
     # assume final step taken is cooperate
     final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
     state_actions = jnp.append(state_actions, final_obs, axis=0)
@@ -1174,33 +1176,3 @@ def ipditm_stats(
     }
 
 
-def cournot_stats(traj1: NamedTuple, traj2: NamedTuple, params: CournotEnvParams) -> dict:
-    opt_quantity = CournotGame.nash_policy(params)
-    average_quantity = (traj1.actions + traj2.actions) / 2
-
-    return {
-        "quantity/1": jnp.mean(traj1.actions),
-        "quantity/2": jnp.mean(traj2.actions),
-        "quantity/average": jnp.mean(average_quantity),
-        "quantity/optimal": opt_quantity,
-        # How strongly do the joint actions deviate from the optimal quantity?
-        # Since the reward is a linear function of the quantity there is no need to consider it separately.
-        "quantity/loss": jnp.mean((opt_quantity / 2 - average_quantity) ** 2),
-        "opt_quantity": opt_quantity,
-    }
-
-
-def fishery_stats(traj1: NamedTuple, traj2: NamedTuple, params: FisheryEnvParams) -> dict:
-    # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
-    num_inner_steps = traj1.observations.shape[1]
-    # Group observations by episode
-    stock_obs = traj1.observations[..., 0]
-    flattened_stock_obs = jnp.ravel(stock_obs)
-    split_stock_obs = jnp.array(jnp.split(flattened_stock_obs, flattened_stock_obs.shape[0] // num_inner_steps))
-    return {
-        "stock/ep_mean": split_stock_obs.mean(axis=1),
-        "stock/ep_std": split_stock_obs.std(axis=1),
-        "stock/ep_min": split_stock_obs.min(axis=1),
-        "stock/ep_max": split_stock_obs.max(axis=1),
-        "stock/avg": jnp.mean(stock_obs),
-    }

@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import wandb
 from pax.utils import load
 from pax.watchers import cg_visitation, ipd_visitation
+from pax.watchers.fishery import fishery_eval_stats
 
 MAX_WANDB_CALLS = 10000
 
@@ -326,6 +327,11 @@ class EvalRunner:
                         lambda x: x.item(),
                         self.cg_stats(env_state),
                     )
+                    rewards_1 = traj_1.rewards.sum(axis=1).mean()
+                    rewards_2 = traj_2.rewards.sum(axis=1).mean()
+
+                elif self.args.env_id == "Fishery":
+                    env_stats = fishery_eval_stats(traj_1, traj_2)
                     rewards_1 = traj_1.rewards.sum(axis=1).mean()
                     rewards_2 = traj_2.rewards.sum(axis=1).mean()
 

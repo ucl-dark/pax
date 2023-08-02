@@ -22,8 +22,8 @@ popsize: 1000
 num_envs: 2
 num_opps: 1
 num_outer_steps: 1
-num_inner_steps: 100
-num_iters: 5000
+num_inner_steps: 300
+num_iters: 1000
 num_devices: 1
 num_steps: '${num_inner_steps}'
 
@@ -94,7 +94,8 @@ es:
 
 # Logging setup
 wandb:
-  group: cournot
-  name: 'cournot-SHAPER-${agent1}-vs-${agent2}'
+  group: fishery
+  name: 'fishery-SHAPER-${agent1}-vs-${agent2}'
+  log: True
 
 

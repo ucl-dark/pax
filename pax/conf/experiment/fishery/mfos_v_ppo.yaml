@@ -2,7 +2,7 @@
 
 # Agents
 agent1: 'MFOS'
-agent2: 'PPO'
+agent2: 'PPO_memory'
 
 # Environment
 env_id: Fishery
@@ -23,8 +23,8 @@ popsize: 1000
 num_envs: 4
 num_opps: 1
 num_outer_steps: 100
-num_inner_steps: 50
-num_iters: 3000
+num_inner_steps: 300
+num_iters: 1000
 num_devices: 1
 num_steps: '${num_inner_steps}'
 
@@ -93,7 +93,8 @@ es:
 
 # Logging setup
 wandb:
-  group: cournot
-  name: 'cournot-MFOS-${agent1}-vs-${agent2}'
+  group: fishery
+  name: 'fishery-MFOS-${agent1}-vs-${agent2}'
+  log: True
 
 

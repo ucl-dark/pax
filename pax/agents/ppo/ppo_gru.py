@@ -13,7 +13,7 @@ from pax.agents.ppo.networks import (
     make_GRU_cartpole_network,
     make_GRU_coingame_network,
     make_GRU_ipd_network,
-    make_GRU_ipditm_network,
+    make_GRU_ipditm_network, make_GRU_fishery_network,
 )
 from pax.utils import MemoryState, TrainingState, get_advantages
 
@@ -524,7 +524,10 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )
-
+    elif args.env_id == "Fishery":
+        network, initial_hidden_state = make_GRU_fishery_network(
+            action_spec, agent_args.hidden_size
+        )
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(
             action_spec,
@@ -533,6 +536,8 @@ def make_gru_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
+    else:
+        raise NotImplementedError(f"No gru network implemented for env {args.env_id}")
 
     gru_dim = initial_hidden_state.shape[1]
 

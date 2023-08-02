@@ -104,6 +104,7 @@ def global_setup(args):
             group=str(args.wandb.group),
             name=str(args.wandb.name),
             mode=str(args.wandb.mode),
+            tags=args.wandb.tags,
             config=omegaconf.OmegaConf.to_container(
                 args, resolve=True, throw_on_missing=True
             ),  # type: ignore

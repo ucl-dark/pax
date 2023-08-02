@@ -49,3 +49,4 @@ def test_fishery_convergence():
             assert env_state.outer_t == i // ep_length
             assert env_state.s == env_params.s_0
             assert step_reward == 0
+

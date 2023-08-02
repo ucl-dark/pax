@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
+agent1: 'PPO_memoruy'
 agent2: 'PPO'
 
 # Environment
@@ -14,8 +14,12 @@ w: 0.9
 s_0: 0.5
 s_max: 1.0
 
-# This means the optimum quantity is 2(a-marginal_cost)/3b = 60
-runner: rl
+# Runner
+runner: eval
+
+# TODO
+run_path: chrismatix/thesis/dhzxkw57
+model_path: exp/fishery/fishery-GS-PPO-vs-PPO_memory/2023-08-01_20.27.07.402547/generation_900
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 100

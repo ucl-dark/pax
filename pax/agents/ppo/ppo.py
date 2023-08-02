@@ -119,7 +119,7 @@ class PPO(AgentInterface):
         ):
             """Surrogate loss using clipped probability ratios."""
             distribution, values = network.apply(params, observations)
-            log_prob = distribution.log_prob(actions + 1e-6)
+            log_prob = distribution.log_prob(actions)
             entropy = distribution.entropy()
 
             # Compute importance sampling weights: current policy / behavior policy.
