@@ -17,3 +17,4 @@ pytest
 wandb
 pytest-cov
 bsuite
+yaml

@@ -7,11 +7,11 @@ import gymnax
 import hydra
 import jax
 import jax.numpy as jnp
-from jax.lib import xla_bridge
 import omegaconf
-from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
-
 import wandb
+from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
+from jax.lib import xla_bridge
+
 from pax.agents.hyper.ppo import make_hyper
 from pax.agents.lola.lola import make_lola
 from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
@@ -43,19 +43,16 @@ from pax.agents.tensor_strategies import (
 )
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
-from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
-from pax.envs.in_the_matrix import InTheMatrix
-from pax.envs.cournot import EnvParams as CournotParams
 from pax.envs.cournot import CournotGame
+from pax.envs.cournot import EnvParams as CournotParams
 from pax.envs.fishery import EnvParams as FisheryParams
 from pax.envs.fishery import Fishery
+from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
+from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
-from pax.envs.iterated_tensor_game import EnvParams as IteratedTensorGameParams
-from pax.envs.iterated_tensor_game import IteratedTensorGame
-from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
@@ -66,14 +63,6 @@ from pax.runners.runner_evo import EvoRunner
 from pax.runners.runner_evo_multishaper import MultishaperEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
-from pax.runners.runner_eval_3player import TensorEvalRunner
-from pax.runners.runner_eval_nplayer import NPlayerEvalRunner
-from pax.runners.runner_evo import EvoRunner
-from pax.runners.runner_evo_3player import TensorEvoRunner
-from pax.runners.runner_evo_nplayer import NPlayerEvoRunner
-from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
-from pax.runners.runner_marl import RLRunner
-from pax.runners.runner_marl_3player import TensorRLRunner
 from pax.runners.runner_marl_nplayer import NplayerRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
@@ -87,6 +76,7 @@ from pax.watchers import (
     policy_logger_ppo_with_memory,
     value_logger_ppo,
 )
+
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
@@ -204,7 +194,7 @@ def env_setup(args, logger=None):
             a=args.a, b=args.b, marginal_cost=args.marginal_cost
         )
         env = CournotGame(
-            num_inner_steps=args.num_inner_steps,
+            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
@@ -410,7 +400,8 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_agent(seed, player_id):
-        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id))
+        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
+        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
 
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
@@ -549,11 +540,11 @@ def agent_setup(args, env, env_params, logger):
             return agent_1
 
     else:
-        for i in range(1, args.num_players + 1):
-            assert (
-                omegaconf.OmegaConf.select(args, "agent" + str(i))
-                in strategies
-            )
+        default_agent = omegaconf.OmegaConf.select(args, "agent_default", default=None)
+        agent_strategies = [omegaconf.OmegaConf.select(args, "agent" + str(i), default=default_agent) for i in
+                            range(1, args.num_players + 1)]
+        for strategy in agent_strategies:
+            assert strategy in strategies
 
         seeds = [
             seed for seed in range(args.seed, args.seed + args.num_players)
@@ -564,14 +555,12 @@ def agent_setup(args, env, env_params, logger):
             for seed, i in zip(seeds, range(1, args.num_players + 1))
         ]
         agents = []
-        for i in range(args.num_players):
+        for idx, strategy in enumerate(agent_strategies):
             agents.append(
-                strategies[
-                    omegaconf.OmegaConf.select(args, "agent" + str(i + 1))
-                ](seeds[i], pids[i])
+                strategies[strategy](seeds[idx], pids[idx])
             )
         logger.info(
-            f"Agent Pair: {[omegaconf.OmegaConf.select(args, 'agent' + str(i)) for i in range(1, args.num_players + 1)]}"
+            f"Agent Pair: {strategies}"
         )
         logger.info(f"Agent seeds: {seeds}")
 
@@ -582,7 +571,7 @@ def watcher_setup(args, logger):
     """Set up watcher variables."""
 
     def ppo_memory_log(
-        agent,
+            agent,
     ):
         losses = losses_ppo(agent)
         if args.env_id not in [
@@ -599,6 +588,8 @@ def watcher_setup(args, logger):
         losses = losses_ppo(agent)
         if args.env_id not in [
             "coin_game",
+            "Cournot",
+            "Fishery",
             "InTheMatrix",
             "iterated_matrix_game",
             "iterated_nplayer_tensor_game",
@@ -680,13 +671,15 @@ def watcher_setup(args, logger):
         assert args.agent1 in strategies
 
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
-
         return agent_1_log
     else:
         agent_log = []
-        for i in range(1, args.num_players + 1):
-            assert getattr(args, f"agent{i}") in strategies
-            agent_log.append(strategies[getattr(args, f"agent{i}")])
+        default_agent = omegaconf.OmegaConf.select(args, "agent_default", default=None)
+        agent_strategies = [omegaconf.OmegaConf.select(args, "agent" + str(i), default=default_agent) for i in
+                            range(1, args.num_players + 1)]
+        for strategy in agent_strategies:
+            assert strategy in strategies
+            agent_log.append(strategies[strategy])
         return agent_log
 
 

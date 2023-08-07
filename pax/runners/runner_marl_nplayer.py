@@ -210,7 +210,6 @@ class NplayerRLRunner:
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
             new_other_agent_mem = [None] * len(other_agents)
-            actions = []
 
             (
                 first_action,
@@ -221,7 +220,7 @@ class NplayerRLRunner:
                 first_agent_obs,
                 first_agent_mem,
             )
-            actions.append(first_action)
+            actions = [first_action]
             for agent_idx, non_first_agent in enumerate(other_agents):
                 (
                     non_first_action,
@@ -321,6 +320,7 @@ class NplayerRLRunner:
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
                 first_agent_mem = agent1.meta_policy(first_agent_mem)
+            # TODO update first agent regularly?
 
             # update second agent
             for agent_idx, non_first_agent in enumerate(other_agents):
@@ -597,6 +597,13 @@ class NplayerRLRunner:
                     agent1._logger.metrics = (
                         agent1._logger.metrics | flattened_metrics_1
                     )
+                    for agent, metric in zip(other_agents, other_agent_metrics):
+                        flattened_metrics = jax.tree_util.tree_map(
+                            lambda x: jnp.mean(x), first_agent_metrics
+                        )
+                        agent._logger.metrics = (
+                            agent._logger.metrics | flattened_metrics
+                        )
 
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)

@@ -12,7 +12,7 @@ from pax.utils import MemoryState, TrainingState, save
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
-from pax.watchers import ESLog, cg_visitation, tensor_ipd_visitation
+from pax.watchers import ESLog, cg_visitation, n_player_ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
@@ -72,7 +72,7 @@ class TensorEvoRunner:
         self.top_k = args.top_k
         self.train_steps = 0
         self.train_episodes = 0
-        self.ipd_stats = jax.jit(tensor_ipd_visitation)
+        self.ipd_stats = jax.jit(n_player_ipd_visitation)
         self.cg_stats = jax.jit(jax.vmap(cg_visitation))
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)

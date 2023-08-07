@@ -18,39 +18,43 @@ class EnvParams:
     b: float
     marginal_cost: float
 
-
-def to_obs_array(params: EnvParams) -> jnp.ndarray:
-    return jnp.array([params.a, params.b, params.marginal_cost])
-
-
 class CournotGame(environment.Environment):
-    def __init__(self, num_inner_steps: int):
+    def __init__(self, num_players: int, num_inner_steps: int):
         super().__init__()
+        self.num_players = num_players
 
         def _step(
                 key: chex.PRNGKey,
                 state: EnvState,
-                actions: Tuple[float, float],
+                actions: Tuple[float, ...],
                 params: EnvParams,
         ):
+            assert len(actions) == num_players
             t = state.outer_t
-            key, _ = jax.random.split(key, 2)
-            q1 = actions[0]
-            q2 = actions[1]
-            p = params.a - params.b * (q1 + q2)
-            r1 = jnp.squeeze(p * q1 - params.marginal_cost * q1)
-            r2 = jnp.squeeze(p * q2 - params.marginal_cost * q2)
-            obs1 = jnp.concatenate([to_obs_array(params), jnp.array(q2), jnp.array(p)])
-            obs2 = jnp.concatenate([to_obs_array(params), jnp.array(q1), jnp.array(p)])
-
             done = t >= num_inner_steps
+            key, _ = jax.random.split(key, 2)
+
+            actions = jnp.asarray(actions).squeeze()
+            actions = jnp.clip(actions, a_min=0)
+            p = params.a - params.b * actions.sum()
+
+            all_obs = []
+            all_rewards = []
+            for i in range(num_players):
+                q = actions[i]
+                r = p * q - params.marginal_cost * q
+                obs = jnp.concatenate([actions, jnp.array([p])])
+                all_obs.append(obs)
+                all_rewards.append(r)
+
             state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t + 1
             )
+
             return (
-                (obs1, obs2),
+                tuple(all_obs),
                 state,
-                (r1, r2),
+                tuple(all_rewards),
                 done,
                 {},
             )
@@ -62,9 +66,9 @@ class CournotGame(environment.Environment):
                 inner_t=jnp.zeros((), dtype=jnp.int8),
                 outer_t=jnp.zeros((), dtype=jnp.int8),
             )
-            obs = jax.random.uniform(key, (2,))
-            obs = jnp.concatenate([to_obs_array(params), obs])
-            return (obs, obs), state
+            obs = jax.random.uniform(key, (num_players + 1,))
+            obs = jnp.concatenate([obs])
+            return tuple([obs for _ in range(num_players)]), state
 
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
@@ -87,7 +91,7 @@ class CournotGame(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        return spaces.Box(low=0, high=float('inf'), shape=5, dtype=jnp.float32)
+        return spaces.Box(low=0, high=float('inf'), shape=self.num_players + 1, dtype=jnp.float32)
 
     @staticmethod
     def nash_policy(params: EnvParams) -> float:
