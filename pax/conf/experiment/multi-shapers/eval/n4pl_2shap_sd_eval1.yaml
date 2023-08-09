@@ -26,10 +26,10 @@ payoff_table: [
 
 # Runner 
 runner: multishaper_eval
-run_path1: ucl-dark/tensor-sd/g3ijelax
-model_path1: exp/4pl-2shap-sd/4pl_2shap_sd_0/2023-07-18_09.59.50.430339/generation_300_agent_0
-run_path2: ucl-dark/tensor-sd/g3ijelax
-model_path2: exp/4pl-2shap-sd/4pl_2shap_sd_0/2023-07-18_09.59.50.430339/generation_300_agent_1
+run_path1: ucl-dark/tensor-sd/oc8jbz8p
+model_path1: exp/4pl-2shap-sd/4pl_2shap_sd_1/2023-08-01_20.16.51.486062/generation_149_agent_0
+run_path2: ucl-dark/tensor-sd/oc8jbz8p
+model_path2: exp/4pl-2shap-sd/4pl_2shap_sd_1/2023-08-01_20.16.51.486062/generation_149_agent_1
 
 
 # Training
@@ -130,6 +130,6 @@ wandb:
   entity: "ucl-dark"
   project: tensor-sd
   group: '4pl_2shap_sd-eval'
-  name: 4pl_2shap_sd_0-eval
+  name: 4pl_2shap_sd_1-eval
   log: True
 

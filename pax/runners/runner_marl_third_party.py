@@ -94,7 +94,7 @@ class ThirdPartyRLRunner:
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0, None), 0  # rng, state, actions, params
         )
 
         # VMAP for num opps: we vmap over the rng but not params
@@ -102,7 +102,7 @@ class ThirdPartyRLRunner:
         env.step = jax.jit(
             jax.vmap(
                 env.step,
-                (0, 0, 0, 0, 0, None),
+                (0, 0, 0, 0, None),
                 0,  # rng, state, actions, params
             )
         )
@@ -181,7 +181,6 @@ class ThirdPartyRLRunner:
             (
                 rngs,
                 prev_actions,
-                prev_player_selection,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -208,7 +207,7 @@ class ThirdPartyRLRunner:
                 new_first_agent_mem,
             ) = agent1.batch_policy(
                 first_agent_state,
-                obs,
+                obs[0],
                 first_agent_mem,
             )
             actions.append(first_action)
@@ -219,12 +218,11 @@ class ThirdPartyRLRunner:
                     new_other_agent_mem[agent_idx],
                 ) = non_first_agent.batch_policy(
                     other_agent_state[agent_idx],
-                    obs,
+                    obs[agent_idx + 1],
                     other_agent_mem[agent_idx],
                 )
                 actions.append(non_first_action)
             (
-                player_selection,
                 (next_obs, log_obs),
                 env_state,
                 all_agent_rewards,
@@ -234,14 +232,13 @@ class ThirdPartyRLRunner:
                 env_rng,
                 env_state,
                 prev_actions,
-                prev_player_selection,
                 actions,
                 env_params,
             )
             first_agent_reward, *other_agent_rewards = all_agent_rewards
             if args.agent1 == "MFOS":
                 traj1 = MFOSSample(
-                    obs,
+                    obs[0],
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],
@@ -252,7 +249,7 @@ class ThirdPartyRLRunner:
                 )
             else:
                 traj1 = Sample(
-                    obs,
+                    obs[0],
                     first_action,
                     first_agent_reward,
                     new_first_agent_mem.extras["log_probs"],
@@ -262,7 +259,7 @@ class ThirdPartyRLRunner:
                 )
             other_traj = [
                 Sample(
-                    obs,
+                    obs[agent_idx + 1],
                     actions[agent_idx + 1],
                     other_agent_rewards[agent_idx],
                     new_other_agent_mem[agent_idx].extras["log_probs"],
@@ -275,7 +272,6 @@ class ThirdPartyRLRunner:
             return (
                 rngs,
                 actions,  # this are the next prev actions
-                player_selection,  # this is the player selection for above actions
                 next_obs,
                 first_agent_reward,
                 tuple(other_agent_rewards),
@@ -302,7 +298,6 @@ class ThirdPartyRLRunner:
             (
                 rngs,
                 _1,
-                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -325,14 +320,13 @@ class ThirdPartyRLRunner:
                     other_agent_metrics[agent_idx],
                 ) = non_first_agent.batch_update(
                     trajectories[agent_idx + 1],
-                    obs,
+                    obs[agent_idx + 1],
                     other_agent_state[agent_idx],
                     other_agent_mem[agent_idx],
                 )
             return (
                 rngs,
                 _1,
-                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -396,20 +390,6 @@ class ThirdPartyRLRunner:
                 * 4
             )
             first_action = [first_action1, first_action2, first_action3]
-            _rng_run, player_sel_rng = jax.random.split(
-                _rng_run,
-            )
-
-            # first_player_selections is indep permutation of arange(0,3) with shape ( num_opps, num_envs,3
-            player_ids = jnp.tile(
-                jnp.arange(3), (args.num_opps, args.num_envs, 1)
-            )
-            first_player_selections = jax.random.permutation(
-                key=player_sel_rng,
-                x=player_ids,
-                axis=-1,
-                independent=True,
-            )
 
             # Player 1
             first_agent_mem = agent1.batch_reset(first_agent_mem, False)
@@ -419,7 +399,7 @@ class ThirdPartyRLRunner:
             # Resetting Agents if necessary
             if args.agent1 == "NaiveEx":
                 first_agent_state, first_agent_mem = agent1.batch_init(
-                    obs,
+                    obs[0],
                 )
 
             for agent_idx, non_first_agent in enumerate(other_agents):
@@ -431,7 +411,7 @@ class ThirdPartyRLRunner:
                         other_agent_mem[agent_idx],
                         other_agent_state[agent_idx],
                     ) = non_first_agent.batch_init(
-                        obs,
+                        obs[agent_idx + 1],
                     )
 
                 elif self.args.env_type in ["meta"]:
@@ -450,7 +430,6 @@ class ThirdPartyRLRunner:
                 (
                     rngs,
                     first_action,
-                    first_player_selections,
                     obs,
                     rewards[0],
                     tuple(rewards[1:]),
@@ -468,7 +447,6 @@ class ThirdPartyRLRunner:
             (
                 rngs,
                 _1,
-                _2,
                 obs,
                 first_agent_reward,
                 other_agent_rewards,
@@ -483,7 +461,7 @@ class ThirdPartyRLRunner:
             # update outer agent
             first_agent_state, _, first_agent_metrics = agent1.update(
                 reduce_outer_traj(trajectories[0]),
-                self.reduce_opp_dim(obs),
+                self.reduce_opp_dim(obs[0]),
                 first_agent_state,
                 self.reduce_opp_dim(first_agent_mem),
             )

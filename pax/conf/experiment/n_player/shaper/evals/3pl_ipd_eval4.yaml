@@ -18,8 +18,8 @@ payoff_table: [
 ]
 # Runner 
 runner: tensor_eval_nplayer
-run_path1: ucl-dark/tensor-ipd/3uchu6kf
-model_path1: exp/3pl-1shap-ipd/3pl-ipd-4/2023-07-12_05.16.50.829397/generation_499
+run_path1: ucl-dark/tensor-ipd/9tg6dywy
+model_path1: exp/3pl-1shap-ipd/3pl-ipd-4/2023-08-06_15.03.56.608740/generation_799
 # Training
 num_envs: 2
 num_opps: 10

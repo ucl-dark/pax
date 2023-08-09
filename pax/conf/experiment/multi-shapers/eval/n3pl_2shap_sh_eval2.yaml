@@ -23,11 +23,11 @@ payoff_table: [
 ]
 
 # Runner 
-# runner: multishaper_eval
-# run_path1: ucl-dark/tensor-sh/mcyj4qy6
-# model_path1: exp/3pl-2shap-sh/3pl_2shap_sh_3/2023-07-31_11.32.51.284928/generation_200_agent_0
-# run_path2: ucl-dark/tensor-sh/mcyj4qy6
-# model_path2: exp/3pl-2shap-sh/3pl_2shap_sh_3/2023-07-31_11.32.51.284928/generation_200_agent_1
+runner: multishaper_eval
+run_path1: ucl-dark/tensor-sh/2n4b02wj
+model_path1: exp/3pl-2shap-sh/3pl_2shap_sh_2/2023-08-02_06.33.42.467370/generation_399_agent_0
+run_path2: ucl-dark/tensor-sh/2n4b02wj
+model_path2: exp/3pl-2shap-sh/3pl_2shap_sh_2/2023-08-02_06.33.42.467370/generation_399_agent_1
 
 # Training
 num_envs: 2

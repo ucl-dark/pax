@@ -47,9 +47,6 @@ class ThirdPartyRandom(environment.Environment):
             key: chex.PRNGKey,
             state: EnvState,
             prev_actions: Tuple[int, ...],  # previous actions
-            player_selection: Tuple[  # previous player selection
-                int, ...
-            ],  # player 1, player 2, punisher idx
             curr_actions: Tuple[int, ...],  # this is the new actions
             params: EnvParams,
         ):
@@ -75,69 +72,111 @@ class ThirdPartyRandom(environment.Environment):
                 actions_arr
             ) % 4  # 0 if no punishment, 1 if punish 1, 2 if punish 2, 3 if punish both
             curr_cd_actions = jnp.where(actions_arr > 3, 1, 0)
-            # select order of players to be random
-            new_player_selection = jax.random.permutation(key, jnp.arange(3))
-            curr_game_actions = (
-                curr_cd_actions[new_player_selection[0]],
-                curr_cd_actions[new_player_selection[1]],
-            )
-
-            old_pl1, old_pl2, old_punisher = player_selection
 
             ########## calculate rewards from IPD ##############
             # sum of 1s is number of defectors
-            num_defect = (
-                prev_cd_actions[old_pl1] + prev_cd_actions[old_pl2]
-            ).astype(jnp.int8)
+            num_defect = jnp.stack(
+                (
+                    prev_cd_actions[0] + prev_cd_actions[1],
+                    prev_cd_actions[1] + prev_cd_actions[2],
+                    prev_cd_actions[2] + prev_cd_actions[0],
+                )
+            )
 
             # calculate rewards
             # row of payoff table is number of defectors
             # column of payoff table is whether player defected or not
             payoff_array = jnp.array(params.payoff_table, dtype=jnp.float32)
-            relevant_row = payoff_array[num_defect]
+            relevant_row = payoff_array[num_defect, :]
 
             # rewards for pl1, pl2, pl3 respectively for previous game
-            rew_oldpl1 = relevant_row[prev_cd_actions[old_pl1]]
-            rew_oldpl2 = relevant_row[prev_cd_actions[old_pl2]]
-            rew_oldpunisher = jnp.zeros_like(rew_oldpl1)
-
-            player_selection_lookup = jnp.array(
-                player_selection
-            ).argsort()  # what are the roles of the players
-            rewards = jnp.array([rew_oldpl1, rew_oldpl2, rew_oldpunisher])[
-                player_selection_lookup
-            ]
+            rew_pl1 = (
+                relevant_row[0, prev_cd_actions[0]]
+                + relevant_row[2, prev_cd_actions[0]]
+            )
+            rew_pl2 = (
+                relevant_row[1, prev_cd_actions[1]]
+                + relevant_row[0, prev_cd_actions[1]]
+            )
+            rew_pl3 = (
+                relevant_row[2, prev_cd_actions[2]]
+                + relevant_row[1, prev_cd_actions[2]]
+            )
 
             ######### calculate rewards from punishment ############
-            pun_oldpl1 = jnp.where(punish_actions[old_punisher] % 4 == 1, 1, 0)
-            pun_oldpl2 = jnp.where(punish_actions[old_punisher] > 1, 1, 0)
-            got_punished = jnp.array(
-                [pun_oldpl1, pun_oldpl2, jnp.zeros_like(pun_oldpl1)]
-            )[player_selection_lookup]
+            # pl1 got punished if pl2 punishes second player or pl3 punishes first player
+            pun_pl1 = jnp.where(punish_actions[1] > 1, 1, 0) + jnp.where(
+                punish_actions[2] % 2 == 1, 1, 0
+            )
+            # pl2 got punished if pl3 punishes second player or pl1 punishes first player
+            pun_pl2 = jnp.where(punish_actions[2] > 1, 1, 0) + jnp.where(
+                punish_actions[0] % 2 == 1, 1, 0
+            )
+            # pl3 got punished if pl1 punishes second player or pl2 punishes first player
+            pun_pl3 = jnp.where(punish_actions[0] > 1, 1, 0) + jnp.where(
+                punish_actions[1] % 2 == 1, 1, 0
+            )
 
-            rewards = rewards + params.punishment * got_punished
+            # ######### calculate rewards from intrinsic ############
+            # # if defecting player got punished, then punisher gets intrinsic reward
+
+            intr_pl1 = jnp.where(punish_actions[0] % 2 == 1, 1, 0) * jnp.where(
+                prev_cd_actions[1] == 1, 1, 0
+            ) + jnp.where(punish_actions[0] > 1, 1, 0) * jnp.where(
+                prev_cd_actions[2] == 1, 1, 0
+            )
+            intr_pl2 = jnp.where(punish_actions[1] % 2 == 1, 1, 0) * jnp.where(
+                prev_cd_actions[2] == 1, 1, 0
+            ) + jnp.where(punish_actions[1] > 1, 1, 0) * jnp.where(
+                prev_cd_actions[0] == 1, 1, 0
+            )
+            intr_pl3 = jnp.where(punish_actions[2] % 2 == 1, 1, 0) * jnp.where(
+                prev_cd_actions[0] == 1, 1, 0
+            ) + jnp.where(punish_actions[2] > 1, 1, 0) * jnp.where(
+                prev_cd_actions[1] == 1, 1, 0
+            )
+
+            # punisher gets cost for punishing
+            cost = params.punish_cost * (
+                jnp.where(punish_actions % 2 == 1, 1, 0)
+                + jnp.where(punish_actions > 1, 1, 0)
+            )
+
+            # calculate rewards per player
+            rewards = (
+                jnp.array([rew_pl1, rew_pl2, rew_pl3])
+                + params.intrinsic * jnp.array([intr_pl1, intr_pl2, intr_pl3])
+                + cost
+                + params.punishment * jnp.array([pun_pl1, pun_pl2, pun_pl3])
+            )
 
             ####### calculate observations ##########
-            bits = 2
+            # all 3 actions in fpp order
+            bits = 3
             len_one_hot = 2**bits + 1
             start_state_idx = 2**bits
             b2i = 2 ** jnp.arange(bits - 1, -1, -1)
-            # first state is cc
-            # second state is cd
-            # 2**bits state is dd
-            # so we can just binary decode the actions to get state
-            new_obs = (jnp.dot(jnp.array(curr_game_actions), b2i)).astype(
-                jnp.int8
-            )
 
-            # if first step then return START state.
-            new_obs = jax.lax.select(
-                reset_inner,
-                start_state_idx * jnp.ones_like(new_obs, dtype=jnp.int8),
-                new_obs,
-            )
-            # one hot encode
-            new_obs = jax.nn.one_hot(new_obs, len_one_hot, dtype=jnp.int8)
+            all_obs = []
+            pl1_bin_obs = curr_cd_actions
+            pl2_bin_obs = jnp.roll(curr_cd_actions, -1)
+            pl3_bin_obs = jnp.roll(curr_cd_actions, -2)
+            for pl_bin in [pl1_bin_obs, pl2_bin_obs, pl3_bin_obs]:
+                # first state is all c...cc
+                # second state is all c...cd
+                # 2**bits state is d...dd
+                # so we can just binary decode the actions to get state
+                obs = (pl_bin * b2i).sum()
+                # if first step then return START state.
+                obs = jax.lax.select(
+                    reset_inner,
+                    start_state_idx * jnp.ones_like(obs),
+                    obs,
+                )
+                # one hot encode
+                obs = jax.nn.one_hot(obs, len_one_hot, dtype=jnp.int8)
+                all_obs.append(obs)
+            new_obs = tuple(all_obs)
 
             # if this was first step, then rewards is 0 bc it depends on previous actions
             rewards = jax.lax.select(
@@ -154,10 +193,8 @@ class ThirdPartyRandom(environment.Environment):
             reset_outer = outer_t == num_outer_steps
             state = EnvState(inner_t=inner_t, outer_t=outer_t)
 
-            log_obs = (prev_actions, player_selection, curr_actions)
-            # jax.debug.breakpoint()
+            log_obs = (prev_actions, curr_actions)
             return (
-                new_player_selection,
                 (new_obs, log_obs),
                 state,
                 tuple(rewards),
@@ -174,13 +211,15 @@ class ThirdPartyRandom(environment.Environment):
             )
             # start state is the last one eg 2**2_th
             # and one hot vectors should be 2**2+1 long
-            bits = 2
+            bits = 3
             obs = jax.nn.one_hot(
                 (2**bits) * jnp.ones(()),
                 2**bits + 1,
                 dtype=jnp.int8,
             )
-            return obs, state
+            num_players = 3
+            all_obs = tuple([obs for _ in range(num_players)])
+            return all_obs, state
 
         # overwrite Gymnax as it makes single-agent assumptions
         self.step = jax.jit(_step)
@@ -198,5 +237,5 @@ class ThirdPartyRandom(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Discrete:
         """Observation space of the environment."""
-        obs_space = jnp.power(2, 2) + 1
+        obs_space = jnp.power(2, 3) + 1
         return spaces.Discrete(obs_space)
