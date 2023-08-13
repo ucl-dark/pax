@@ -2,6 +2,7 @@ absl-py
 black
 chex
 distrax
+dm-env
 dm-haiku
 dm-tree
 evosax
