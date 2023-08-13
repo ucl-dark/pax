@@ -5,9 +5,9 @@ from functools import partial
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
-# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
-# config.update('jax_disable_jit', True)
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+from jax.config import config
+config.update('jax_disable_jit', True)
 
 import hydra
 import jax.numpy as jnp
@@ -49,6 +49,7 @@ from pax.envs.in_the_matrix import (
 )
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_evo import EvoRunner
+from pax.runners.runner_evodiff import DiffEvoRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
@@ -169,7 +170,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo":
+    if args.runner in ["evo", "evodiff"]:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -254,10 +255,16 @@ def runner_setup(args, env, agents, save_dir, logger):
             strategy, es_params, param_reshaper = get_ga_strategy(agent1)
 
         logger.info(f"Evolution Strategy: {algo}")
-
-        return EvoRunner(
-            agents, env, strategy, es_params, param_reshaper, save_dir, args
-        )
+        if args.runner == "evo":
+            return EvoRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evodiff":
+            return DiffEvoRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        else:
+            raise ValueError(f"Unknown runner type {args.runner}")
 
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
@@ -575,7 +582,7 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner == "evo":
+    if args.runner in ["evo", "evodiff"]:
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "rl":

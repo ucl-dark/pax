@@ -47,7 +47,7 @@ naive:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "arunim1"
   project: ipd
   group: '${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
