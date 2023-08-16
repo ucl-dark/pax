@@ -458,9 +458,9 @@ class RLRunner:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
                     self.cournot_stats(
-                        traj_1,
-                        traj_2,
+                        traj_1.observations,
                         _env_params,
+                        2
                     ),
                 )
             elif args.env_id == "Fishery":

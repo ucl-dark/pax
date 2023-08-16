@@ -42,9 +42,10 @@ class CournotGame(environment.Environment):
             all_rewards = []
             for i in range(num_players):
                 q = actions[i]
-                r = p * q - params.marginal_cost * q
                 obs = jnp.concatenate([actions, jnp.array([p])])
                 all_obs.append(obs)
+
+                r = p * q - params.marginal_cost * q
                 all_rewards.append(r)
 
             state = EnvState(

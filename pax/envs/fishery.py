@@ -46,37 +46,28 @@ s_max  maximum stock size
 
 
 class Fishery(environment.Environment):
-    def __init__(self, num_inner_steps: int):
+    def __init__(self, num_players: int, num_inner_steps: int):
         super().__init__()
+        self.num_players = num_players
 
         def _step(
                 key: chex.PRNGKey,
                 state: EnvState,
-                actions: Tuple[float, float],
+                actions: Tuple[float, ...],
                 params: EnvParams,
         ):
             t = state.inner_t
             key, _ = jax.random.split(key, 2)
-            # TODO implement action clipping as part of the runners
-            e1 = jnp.clip(actions[0].squeeze(), 0)
-            e2 = jnp.clip(actions[1].squeeze(), 0)
-            E = e1 + e2
+            done = t >= num_inner_steps
+
+            actions = jnp.asarray(actions).squeeze()
+            actions = jnp.clip(actions, a_min=0)
+            E = actions.sum()
             s_growth = state.s + params.g * state.s * (1 - state.s / params.s_max)
 
             # Prevent s from dropping below 0
             H = jnp.clip(E * state.s * params.e, a_max=s_growth)
             s_next = s_growth - H
-
-            # reward = benefit - cost
-            # = P * H - w * E
-            r1 = params.P * jnp.where(E != 0, e1 / E, 0) * H - params.w * e1
-            r2 = params.P * jnp.where(E != 0, e2 / E, 0) * H - params.w * e2
-
-            obs1 = jnp.concatenate([jnp.array([state.s, e1, e2]), to_obs_array(params)])
-            obs2 = jnp.concatenate([jnp.array([state.s, e2, e1]), to_obs_array(params)])
-
-            done = t >= num_inner_steps
-
             next_state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t,
                 s=s_next
@@ -84,21 +75,29 @@ class Fishery(environment.Environment):
             reset_obs, reset_state = _reset(key, params)
             reset_state = reset_state.replace(outer_t=state.outer_t + 1)
 
-            obs1 = jnp.where(done, reset_obs[0], obs1)
-            obs2 = jnp.where(done, reset_obs[1], obs2)
+            all_obs = []
+            all_rewards = []
+            for i in range(num_players):
+                obs = jnp.concatenate([actions, jnp.array([s_next])])
+                obs = jax.lax.select(done, reset_obs[i], obs)
+                all_obs.append(obs)
+
+                e = actions[i]
+                # reward = benefit - cost
+                # = P * H - w * E
+                r = jnp.where(E != 0, params.P * e / E * H - params.w * e, 0)
+                all_rewards.append(r)
 
             state = jax.tree_map(
                 lambda x, y: jax.lax.select(done, x, y),
                 reset_state,
                 next_state,
             )
-            r1 = jax.lax.select(done, 0.0, r1)
-            r2 = jax.lax.select(done, 0.0, r2)
 
             return (
-                (obs1, obs2),
+                tuple(all_obs),
                 state,
-                (r1, r2),
+                tuple(all_rewards),
                 done,
                 {
                     "H": H,
@@ -114,12 +113,17 @@ class Fishery(environment.Environment):
                 outer_t=jnp.zeros((), dtype=jnp.int16),
                 s=params.s_0
             )
-            obs = jax.random.uniform(key, (2,))
-            obs = jnp.concatenate([jnp.array([state.s]), obs, to_obs_array(params)])
-            return (obs, obs), state
+            obs = jax.random.uniform(key, (num_players,))
+            obs = jnp.concatenate([obs, jnp.array([state.s])])
+            return tuple([obs for _ in range(num_players)]), state
 
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
+
+    @staticmethod
+    def name() -> str:
+        """Environment name."""
+        return "Fishery"
 
     @property
     def name(self) -> str:
@@ -139,7 +143,7 @@ class Fishery(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        return spaces.Box(low=0, high=float('inf'), shape=7, dtype=jnp.float32)
+        return spaces.Box(low=0, high=float('inf'), shape=self.num_players + 1, dtype=jnp.float32)
 
     @staticmethod
     def equilibrium(params: EnvParams) -> float:

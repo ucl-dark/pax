@@ -57,6 +57,8 @@ from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
+from pax.envs.rice import Rice, EnvParams as RiceParams
+from pax.envs.sarl_rice import SarlRice
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_multishaper import MultishaperEvalRunner
 from pax.runners.runner_evo import EvoRunner
@@ -210,11 +212,31 @@ def env_setup(args, logger=None):
             s_max=args.s_max,
         )
         env = Fishery(
-            num_inner_steps=args.num_inner_steps,
+            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
                 f"Env Type: Fishery | Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == Rice.env_id:
+        env_params = RiceParams()
+        env = Rice(
+            num_inner_steps=args.num_inner_steps,
+            config_folder=args.config_folder,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: Rice | Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == SarlRice.env_id:
+        env_params = RiceParams()
+        env = SarlRice(
+            num_inner_steps=args.num_inner_steps,
+            config_folder=args.config_folder,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: SarlRice | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.runner == "sarl":
         env, env_params = gymnax.make(args.env_id)
@@ -351,6 +373,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
+    elif args.runner == "ctde":
+        logger.info("Training with CTDE Runner")
+        return CTDERunner(agents, env, save_dir, args)
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -522,23 +547,18 @@ def agent_setup(args, env, env_params, logger):
         "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
-    if args.runner == "sarl":
+    if args.runner in ["sarl", "ctde"]:
         assert args.agent1 in strategies
-        num_agents = 1
         seeds = [args.seed]
         # Create Player IDs by normalizing seeds to 1, 2 respectively
         pids = [0]
         agent_1 = strategies[args.agent1](seeds[0], pids[0])  # player 1
-
-        if args.agent1 in ["PPO", "PPO_memory"] and args.ppo.with_cnn:
-            logger.info(f"PPO with CNN: {args.ppo.with_cnn}")
         logger.info(f"Agent Pair: {args.agent1}")
         logger.info(f"Agent seeds: {seeds[0]}")
 
         if args.runner in ["eval", "sarl"]:
             logger.info("Using Independent Learners")
-            return agent_1
-
+        return agent_1
     else:
         default_agent = omegaconf.OmegaConf.select(args, "agent_default", default=None)
         agent_strategies = [omegaconf.OmegaConf.select(args, "agent" + str(i), default=default_agent) for i in
@@ -667,7 +687,7 @@ def watcher_setup(args, logger):
         "TitForTatDefect": dumb_log,
     }
 
-    if args.runner == "sarl":
+    if args.runner in ["sarl", "ctde"]:
         assert args.agent1 in strategies
 
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
@@ -718,6 +738,9 @@ def main(args):
     elif args.runner == "ipditm_eval" or args.runner == "multishaper_eval":
         runner.run_loop(env_params, agent_pair, watchers)
     elif args.runner == "sarl":
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
+    elif args.runner == "ctde":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
     elif args.runner == "eval":

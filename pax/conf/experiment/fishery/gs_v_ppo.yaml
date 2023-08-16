@@ -2,7 +2,7 @@
 
 # Agents
 agent1: 'PPO'
-agent2: 'PPO_memory'
+agent_default: 'PPO_memory'
 
 # Environment
 env_id: Fishery
@@ -16,14 +16,14 @@ s_max: 1.0
 
 
 # Runner
-runner: evo
+runner: tensor_evo
 
 # Training
 top_k: 5
 popsize: 1000
 num_envs: 2
 num_opps: 1
-num_outer_steps: 40
+num_outer_steps: 1
 num_inner_steps: 300
 num_iters: 1000
 num_devices: 1

@@ -6,21 +6,22 @@ import wandb
 from jax import numpy as jnp
 
 
-def fishery_stats(traj1: NamedTuple, traj2: NamedTuple) -> dict:
+def fishery_stats(observations: jnp.ndarray, num_players: int) -> dict:
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
-    stock_obs = traj1.observations[..., 0]
+    stock_obs = observations[..., -1]
+    actions = observations[..., :num_players]
     # TODO this blows up the memory usage
     # flattened_stock_obs = jnp.ravel(stock_obs)
     # split_stock_obs = jnp.array(jnp.split(flattened_stock_obs, flattened_stock_obs.shape[0] // num_inner_steps))
-    return {
-        # "stock/ep_mean": split_stock_obs.mean(axis=1),
-        # "stock/ep_std": split_stock_obs.std(axis=1),
-        # "stock/ep_min": split_stock_obs.min(axis=1),
-        # "stock/ep_max": split_stock_obs.max(axis=1),
-        "fishery/stock_avg": jnp.mean(stock_obs),
-        "fishery/effort_1": jnp.mean(jax.nn.sigmoid(traj1.actions)),
-        "fishery/effort_2": jnp.mean(jax.nn.sigmoid(traj2.actions)),
+    stats = {
+        "fishery/stock": jnp.mean(stock_obs),
+        "fishery/mean_effort": actions.mean()
     }
+
+    for i in range(num_players):
+        stats["fishery/effort_" + str(i)] = jnp.mean(observations[..., i])
+
+    return stats
 
 
 def fishery_eval_stats(traj1: NamedTuple, traj2: NamedTuple) -> dict:

@@ -19,6 +19,8 @@ from pax.agents.ppo.networks import (
     make_cournot_network,
     make_fishery_network,
 )
+from pax.envs.rice import Rice
+from pax.envs.sarl_rice import SarlRice
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
@@ -501,6 +503,8 @@ def make_agent(
     elif args.env_id == "Cournot":
         network = make_cournot_network(action_spec, agent_args.hidden_size)
     elif args.env_id == "Fishery":
+        network = make_fishery_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == Rice.env_id:
         network = make_fishery_network(action_spec, agent_args.hidden_size)
     else:
         network = make_ipd_network(

@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
-agent2: 'PPO'
+# Agent default applies to all agents
+agent_default: 'PPO'
 
 # Environment
 env_id: Cournot
@@ -10,23 +10,23 @@ env_type: meta
 a: 100
 b: 1
 marginal_cost: 10
-# This means the optimum quantity is 2(a-marginal_cost)/3b = 60
+# This means the nash quantity is 2(a-marginal_cost)/3b = 60
 
 # Runner
-runner: evo
+runner: tensor_evo
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
+num_envs: 4
 num_opps: 1
-num_outer_steps: 100
-num_inner_steps: 50
+num_outer_steps: 300
+num_inner_steps: 1 # One-shot game
 num_iters: 3000
 num_devices: 1
 
 # PPO agent parameters
-ppo1:
+ppo_default:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96
@@ -45,28 +45,6 @@ ppo1:
   with_memory: False
   with_cnn: False
   hidden_size: 16
-
-# PPO agent parameters
-ppo2:
-  num_minibatches: 4
-  num_epochs: 2
-  gamma: 0.96
-  gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
-  max_gradient_norm: 0.5
-  anneal_entropy: False
-  entropy_coeff_start: 0.02
-  entropy_coeff_horizon: 2000000
-  entropy_coeff_end: 0.001
-  lr_scheduling: False
-  learning_rate: 1
-  adam_epsilon: 1e-5
-  with_memory: False
-  with_cnn: False
-  hidden_size: 16
-
 
 # ES parameters
 es:

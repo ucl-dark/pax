@@ -13,8 +13,9 @@ from pax.agents.ppo.networks import (
     make_GRU_cartpole_network,
     make_GRU_coingame_network,
     make_GRU_ipd_network,
-    make_GRU_ipditm_network, make_GRU_fishery_network,
+    make_GRU_ipditm_network, make_GRU_fishery_network, make_GRU_rice_network,
 )
+from pax.envs.rice import Rice
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 # from dm_env import TimeStep
@@ -532,9 +533,16 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )
-
     elif args.env_id == "iterated_nplayer_tensor_game":
         network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == "Fishery":
+        network, initial_hidden_state = make_GRU_fishery_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == Rice.env_id:
+        network, initial_hidden_state = make_GRU_rice_network(
             action_spec, agent_args.hidden_size
         )
     elif args.env_id == "InTheMatrix":

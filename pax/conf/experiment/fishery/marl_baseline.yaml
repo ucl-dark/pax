@@ -15,7 +15,7 @@ s_0: 0.5
 s_max: 1.0
 
 # This means the optimum quantity is 2(a-marginal_cost)/3b = 60
-runner: rl
+runner: tensor_rl_nplayer
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 100

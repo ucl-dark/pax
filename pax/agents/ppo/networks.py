@@ -649,6 +649,32 @@ def make_GRU_fishery_network(
     return network, hidden_state
 
 
+def make_GRU_rice_network(
+        num_actions: int,
+        hidden_size: int,
+):
+    hidden_state = jnp.zeros((1, hidden_size))
+
+    def forward_fn(
+            inputs: jnp.ndarray, state: jnp.ndarray
+    ) -> tuple[tuple[MultivariateNormalDiag, Array], Any]:
+        """forward function"""
+        gru = hk.GRU(
+            hidden_size,
+            w_i_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            w_h_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
+            b_init=hk.initializers.Constant(0),
+        )
+
+        cvh = ContinuousValueHead(num_values=num_actions)
+        embedding, state = gru(inputs, state)
+        logits, values = cvh(embedding)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
 def test_GRU():
     key = jax.random.PRNGKey(seed=0)
     num_actions = 2
