@@ -21,9 +21,9 @@ _DICE_CONSTANT:
   xE_L0: 2.6 # 2.6 # in Eq 4 param to the emissions due to land use changes
   xdelta_EL: 0.001 # 0.115 # 0.115 # in Eq 4 param to the emissions due to land use changes
 
-  xM_AT_0: 851 # in CAP the atmospheric mass of carbon in the year t
-  xM_UP_0: 460 # in CAP the atmospheric upper bound of mass of carbon in the year t
-  xM_LO_0: 1740 # in CAP the atmospheric lower bound of mass of carbon in the year t
+  xM_AT_0: 851.0 # in CAP the atmospheric mass of carbon in the year t
+  xM_UP_0: 460.0 # in CAP the atmospheric upper bound of mass of carbon in the year t
+  xM_LO_0: 1740.0 # in CAP the atmospheric lower bound of mass of carbon in the year t
   xe_0: 35.85 # in EI define the initial simga_0: e0/(q0(1-mu0))
   xq_0: 105.5 # in EI define the initial simga_0: e0/(q0(1-mu0))
   xmu_0: 0.03 # in EI define the initial simga_0: e0/(q0(1-mu0))

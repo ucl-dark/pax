@@ -4,6 +4,10 @@ import time
 import jax
 from pytest import mark
 
+from jax.config import config
+
+config.update('jax_debug_nans', True)
+
 from pax.envs.rice import Rice, EnvParams
 
 file_dir = os.path.join(os.path.dirname(__file__))

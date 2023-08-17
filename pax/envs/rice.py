@@ -7,6 +7,7 @@ import jax.debug
 import jax.numpy as jnp
 import yaml
 from gymnax.environments import environment, spaces
+from jax import Array
 
 
 @chex.dataclass
@@ -108,9 +109,9 @@ class Rice(environment.Environment):
                 actions: Tuple[float, ...],
                 params: EnvParams,
         ):
-            t = state.inner_t
+            t = state.inner_t + 1  # Rice equations expect to start at t=1
             key, _ = jax.random.split(key, 2)
-            done = t >= num_inner_steps
+            done = state.inner_t >= num_inner_steps
 
             t_at = state.global_temperature[0]
             global_exogenous_emissions = get_exogenous_emissions(
@@ -186,18 +187,20 @@ class Rice(environment.Environment):
                 desired_imports = actions[i,
                                   self.desired_imports_action_index: self.desired_imports_action_index + self.import_actions_n]
                 # Countries cannot import from themselves
-                desired_imports.at[i].set(0)
+                desired_imports = desired_imports.at[i].set(0)
                 total_desired_imports = desired_imports.sum()
                 clipped_desired_imports = jnp.clip(total_desired_imports, 0, gross_output)
-                desired_imports = desired_imports * clipped_desired_imports / total_desired_imports
+                desired_imports = jnp.where(total_desired_imports != 0,
+                                            desired_imports * clipped_desired_imports / total_desired_imports,
+                                            jnp.zeros_like(desired_imports))
 
                 # Scale imports based on gov balance
                 init_capital_multiplier = 10.0  # TODO: Why this number?
-                # TODO missing paranthesis
+                # TODO missing paranthesis?
                 debt_ratio = gov_balance / init_capital_multiplier * region_const["xK_0"]
                 debt_ratio = jnp.clip(debt_ratio, -1.0, 0.0)
                 desired_imports *= 1 + debt_ratio
-                scaled_imports.at[i].set(desired_imports)
+                scaled_imports = scaled_imports.at[i].set(desired_imports)
 
             # TODO this loop can be vectorized
             # - get max potential exports as a vector
@@ -214,7 +217,10 @@ class Rice(environment.Environment):
                 )
                 total_desired_exports = jnp.sum(scaled_imports[:, i])
                 clipped_desired_exports = jnp.clip(total_desired_exports, 0, max_potential_exports)
-                scaled_imports.at[:, i].set(scaled_imports[:, i] * clipped_desired_exports / total_desired_exports)
+                export_scaled_imports = jnp.where(total_desired_exports != 0, scaled_imports[:,
+                                                                              i] * clipped_desired_exports / total_desired_exports,
+                                                  jnp.zeros(self.num_players))
+                scaled_imports = scaled_imports.at[:, i].set(export_scaled_imports)
 
             tariffed_imports = jnp.zeros((self.num_players, self.num_players))
             prev_tariffs = state.future_tariff
@@ -225,7 +231,7 @@ class Rice(environment.Environment):
                 labor = state.labor_all[i]
 
                 # calculate tariffed imports, tariff revenue and budget balance
-                tariffed_imports.at[i].set(scaled_imports[i] * (1 - state.future_tariff[i]))
+                tariffed_imports = tariffed_imports.at[i].set(scaled_imports[i] * (1 - state.future_tariff[i]))
 
                 tariff_revenue = jnp.sum(
                     scaled_imports[i, :] * prev_tariffs[i, :]
@@ -252,10 +258,10 @@ class Rice(environment.Environment):
                 # Update government balance
                 # TODO add tariff revenue??
                 next_balance_all[i] = (next_balance_all[i]
-                                               + self.dice_constant["xDelta"] * (
-                                                       jnp.sum(scaled_imports[:, i])
-                                                       - jnp.sum(scaled_imports[i, :])
-                                               ))
+                                       + self.dice_constant["xDelta"] * (
+                                               jnp.sum(scaled_imports[:, i])
+                                               - jnp.sum(scaled_imports[i, :])
+                                       ))
 
             # Update ecology
             m_at = state.global_carbon_mass[0]
@@ -276,12 +282,13 @@ class Rice(environment.Environment):
             )
             for i in range(self.num_players):
                 mitigation_rate = actions[i, self.mitigation_rate_action_index]
-                aux_m_all.at[i].set(get_aux_m(
+                aux_m = get_aux_m(
                     state.intensity_all[i],
                     mitigation_rate,
                     production_all[i],
                     global_land_emissions
-                ))
+                )
+                aux_m_all = aux_m_all.at[i].set(aux_m)
 
             global_carbon_mass = get_global_carbon_mass(
                 self.dice_constant["xPhi_M"],
@@ -313,7 +320,7 @@ class Rice(environment.Environment):
                 ))
                 next_intensity_all.append(get_carbon_intensity(
                     state.intensity_all[i],
-                    region_const["xsigma_0"],
+                    self.rice_constant["xg_sigma"],
                     self.rice_constant["xdelta_sigma"],
                     self.dice_constant["xDelta"],
                     t
@@ -411,7 +418,7 @@ class Rice(environment.Environment):
             abatement_cost_all=jnp.zeros(self.num_players, dtype=jnp.float32),
         )
 
-    def _generate_observation(self, index: int, actions: chex.ArrayDevice, state: EnvState):
+    def _generate_observation(self, index: int, actions: chex.ArrayDevice, state: EnvState) -> Array:
         return jnp.concatenate([
             # Public features
             jnp.asarray([index]),
@@ -420,8 +427,8 @@ class Rice(environment.Environment):
             state.global_carbon_mass,
             jnp.asarray([state.global_exogenous_emissions]),
             jnp.asarray([state.global_land_emissions]),
-            state.capital_all,
             state.labor_all,
+            state.capital_all,
             state.gross_output_all,
             state.consumption_all,
             state.investment_all,
@@ -454,7 +461,7 @@ class Rice(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         init_state = self._get_initial_state()
-        obs = self._generate_observation(0, init_state)
+        obs = self._generate_observation(0, jnp.zeros(self.num_actions), init_state)
         return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=jnp.float32)
 
 
@@ -548,7 +555,6 @@ def get_aux_m(intensity, mitigation_rate, production, land_emissions):
 
 
 def get_global_carbon_mass(phi_m, carbon_mass, b_m, aux_m):
-    """Get the carbon mass level."""
     return jnp.dot(phi_m, carbon_mass) + jnp.dot(b_m, aux_m)
 
 
