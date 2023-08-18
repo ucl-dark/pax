@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, copy_state_and_network, save
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
@@ -35,6 +35,16 @@ class MFOSSample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
     meta_actions: jnp.ndarray
+
+
+class LOLASample(NamedTuple):
+    obs_self: jnp.ndarray
+    obs_other: jnp.ndarray
+    actions_self: jnp.ndarray
+    actions_other: jnp.ndarray
+    dones: jnp.ndarray
+    rewards_self: jnp.ndarray
+    rewards_other: jnp.ndarray
 
 
 @jax.jit
@@ -160,6 +170,7 @@ class RLRunner:
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
+
             (
                 rngs,
                 obs1,
@@ -208,6 +219,10 @@ class RLRunner:
                     done,
                     a1_mem.hidden,
                     a1_mem.th,
+                )
+            elif args.agent1 == "LOLA":
+                traj1 = LOLASample(
+                    obs1, obs2, a1, a2, done, rewards[0], rewards[1]
                 )
             else:
                 traj1 = Sample(
@@ -320,10 +335,25 @@ class RLRunner:
             if args.agent2 == "NaiveEx":
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
+            if args.agent1 == "LOLA":
+                (
+                    agent1.other_state,
+                    agent1.other_network,
+                ) = copy_state_and_network(agent2)
+                # inner rollout
+                for _ in range(args.lola.num_lookaheads):
+                    agent1.in_lookahead(env, _inner_rollout)
+                # outer rollout
+                agent1.out_lookahead(env, _inner_rollout)
+
+            if args.agent2 == "LOLA":
+                raise NotImplementedError("LOLA not implemented for agent2")
+
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_rng = jax.random.split(_rng_run, self.num_opps)
                 _a2_state, _a2_mem = agent2.batch_init(a2_rng, _a2_mem.hidden)
+
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,

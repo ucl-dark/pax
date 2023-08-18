@@ -60,6 +60,7 @@ from pax.envs.third_party_punishment import (
 )
 from pax.envs.third_party_random import ThirdPartyRandom
 from pax.envs.third_party_random import EnvParams as ThirdPartyRandomParams
+from pax.lola.lola import make_lola
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_3player import TensorEvalRunner
 from pax.runners.runner_eval_multipshaper import MultishaperEvalRunner
@@ -90,9 +91,9 @@ from pax.watchers import (
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-# from jax.config import config
+from jax.config import config
 
-# config.update("jax_disable_jit", True)
+config.update("jax_disable_jit", True)
 
 
 def global_setup(args):
@@ -457,6 +458,16 @@ def agent_setup(args, env, env_params, logger):
 
     num_actions = env.num_actions
 
+    def get_LOLA_agent(seed, player_id):
+        return make_lola(
+            args,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+            env_params=env_params,
+        )
+
     def get_PPO_memory_agent(seed, player_id):
         player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id))
         num_iterations = args.num_iters
@@ -582,6 +593,7 @@ def agent_setup(args, env, env_params, logger):
         "GoodGreedy": partial(GoodGreedy, args.num_envs),
         "EvilGreedy": partial(EvilGreedy, args.num_envs),
         "RandomGreedy": partial(RandomGreedy, args.num_envs),
+        "LOLA": get_LOLA_agent,
         "PPO": get_PPO_agent,
         "PPO_memory": get_PPO_memory_agent,
         "Naive": get_naive_pg,
@@ -737,6 +749,7 @@ def watcher_setup(args, logger):
         "RandomGreedy": dumb_log,
         "MFOS": dumb_log,
         "PPO": ppo_log,
+        "LOLA": dumb_log,
         "PPO_memory": ppo_memory_log,
         "Naive": naive_pg_log,
         "Hyper": hyper_log,

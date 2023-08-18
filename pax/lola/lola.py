@@ -1,9 +1,10 @@
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
-from pax.lola.buffer import TrajectoryBuffer
+
+# from pax.lola.buffer import TrajectoryBuffer
 from pax.lola.network import make_network
-from pax.utils import TrainingState
+from pax.utils import MemoryState, TrainingState
 
 from dm_env import TimeStep
 import haiku as hk
@@ -13,9 +14,7 @@ import numpy as np
 import optax
 
 
-class Sample(NamedTuple):
-    """Object containing a batch of data"""
-
+class LOLASample(NamedTuple):
     obs_self: jnp.ndarray
     obs_other: jnp.ndarray
     actions_self: jnp.ndarray
@@ -59,30 +58,27 @@ class LOLA:
         random_key: jnp.ndarray,
         player_id: int,
         obs_spec: Tuple,
+        env_params: Any,
         num_envs: int = 4,
         num_steps: int = 150,
         use_baseline: bool = True,
         gamma: float = 0.96,
     ):
+        self._num_envs = num_envs  # number of environments
+
         @jax.jit
         def policy(
-            params: hk.Params, observation: TimeStep, state: TrainingState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
+
             key, subkey = jax.random.split(state.random_key)
-            dist, values = network.apply(params, observation)
+            dist, values = network.apply(state.params, observation)
             actions = dist.sample(seed=subkey)
-            state.extras["values"] = values
-            state.extras["log_probs"] = dist.log_prob(actions)
-            state = TrainingState(
-                params=params,
-                opt_state=state.opt_state,
-                random_key=key,
-                timesteps=state.timesteps,
-                extras=state.extras,
-                hidden=None,
-            )
-            return actions, state
+            mem.extras["values"] = values
+            mem.extras["log_probs"] = dist.log_prob(actions)
+            state = state._replace(random_key=key)
+            return actions, state, mem
 
         def outer_loss(params, other_params, samples):
             """Used for the outer rollout"""
@@ -214,7 +210,7 @@ class LOLA:
             }
             return state, results
 
-        def make_initial_state(key: Any, obs_spec: Tuple) -> TrainingState:
+        def make_initial_state(key: Any, hidden) -> TrainingState:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -226,23 +222,29 @@ class LOLA:
                 opt_state=initial_opt_state,
                 random_key=key,
                 timesteps=0,
+            ), MemoryState(
                 extras={
                     "values": jnp.zeros(num_envs),
                     "log_probs": jnp.zeros(num_envs),
                 },
-                hidden=None,
+                hidden=jnp.zeros((self._num_envs, 1)),
             )
 
+        inner_rollout_rng, random_key = jax.random.split(random_key)
+        self.inner_rollout_rng = inner_rollout_rng
         # Initialise training state (parameters, optimiser state, extras).
-        self._state = make_initial_state(random_key, obs_spec)
+        self._state, self._mem = make_initial_state(random_key, obs_spec)
+        self.make_initial_state = make_initial_state
 
         # Setup player id
         self.player_id = player_id
 
-        # Initialize buffer and sgd
-        self._trajectory_buffer = TrajectoryBuffer(
-            num_envs, num_steps, obs_spec
-        )
+        self.env_params = env_params
+
+        # # Initialize buffer and sgd
+        # self._trajectory_buffer = TrajectoryBuffer(
+        #     num_envs, num_steps, obs_spec
+        # )
 
         self.grad_fn_inner = jax.jit(jax.grad(inner_loss, has_aux=True))
         self.grad_fn_outer = jax.jit(jax.grad(outer_loss, has_aux=True))
@@ -271,7 +273,6 @@ class LOLA:
         self.gamma = gamma
 
         # Other useful hyperparameters
-        self._num_envs = num_envs  # number of environments
         self._num_steps = num_steps  # number of steps per environment
         self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._obs_spec = obs_spec
@@ -298,11 +299,14 @@ class LOLA:
             opt_state=self._state.opt_state,
             random_key=self._state.random_key,
             timesteps=self._state.timesteps,
+        )
+        my_state = jax.tree_map(lambda x: jnp.expand_dims(x, 0), my_state)
+        my_mem = MemoryState(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
+                "values": jnp.zeros((self._num_envs)),
+                "log_probs": jnp.zeros((self._num_envs)),
             },
-            hidden=None,
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
 
         other_state = TrainingState(
@@ -310,25 +314,58 @@ class LOLA:
             opt_state=self.other_state.opt_state,
             random_key=self.other_state.random_key,
             timesteps=self.other_state.timesteps,
-            extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            },
-            hidden=None,
         )
-
+        other_state = jax.tree_map(
+            lambda x: jnp.expand_dims(x, 0), other_state
+        )
+        other_mem = MemoryState(
+            extras={
+                "values": jnp.zeros((self._num_envs)),
+                "log_probs": jnp.zeros((self._num_envs)),
+            },
+            hidden=jnp.zeros((self._num_envs, 1)),
+        )
+        reset_rng, self.inner_rollout_rng = jax.random.split(
+            self.inner_rollout_rng
+        )
+        reset_rngs = jnp.concatenate(
+            [jax.random.split(reset_rng, self._num_envs)]
+        ).reshape((self._num_envs, -1))
         # do a full rollout
-        t_init = env.reset()
+        obs, env_state = env.reset(reset_rngs, self.env_params)
+        rewards = [
+            jnp.zeros((self._num_envs)),
+            jnp.zeros((self._num_envs)),  # TOD is numopps 1?
+        ]
+        inner_rollout_rng, self.inner_rollout_rng = jax.random.split(
+            self.inner_rollout_rng
+        )
+        inner_rollout_rngs = jnp.concatenate(
+            [jax.random.split(inner_rollout_rng, self._num_envs)]
+        ).reshape((1, self._num_envs, -1))
+        # jax.debug.breakpoint()
         _, trajectories = jax.lax.scan(
             env_rollout,
-            (t_init[0], t_init[1], my_state, other_state),
+            (
+                inner_rollout_rngs,
+                obs[0],
+                obs[1],
+                rewards[0],
+                rewards[1],
+                my_state,
+                my_mem,
+                other_state,
+                other_mem,
+                env_state,
+                self.env_params,
+            ),
             None,
-            length=env.episode_length,
+            length=self._num_steps,  # num_inner_steps
         )
 
         # flip the order of the trajectories
         # assuming we're the other player
-        sample = Sample(
+        sample = LOLASample(
             obs_self=trajectories[1].observations,
             obs_other=trajectories[0].observations,
             actions_self=trajectories[1].actions,
@@ -358,8 +395,10 @@ class LOLA:
             opt_state=opt_state,
             random_key=self.other_state.random_key,
             timesteps=self.other_state.timesteps,
+        )
+        self.other_mem = MemoryState(
             extras=self.other_state.extras,
-            hidden=None,
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
 
     def out_lookahead(self, env, env_rollout):
@@ -381,7 +420,7 @@ class LOLA:
                 "values": jnp.zeros(self._num_envs),
                 "log_probs": jnp.zeros(self._num_envs),
             },
-            hidden=None,
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
         # copy the other person's state
         other_state = TrainingState(
@@ -393,7 +432,7 @@ class LOLA:
                 "values": jnp.zeros(self._num_envs),
                 "log_probs": jnp.zeros(self._num_envs),
             },
-            hidden=None,
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
 
         # do a full rollout
@@ -406,7 +445,7 @@ class LOLA:
         )
 
         # Now keep the same order.
-        sample = Sample(
+        sample = LOLASample(
             obs_self=trajectories[0].observations,
             obs_other=trajectories[1].observations,
             actions_self=trajectories[0].actions,
@@ -455,8 +494,10 @@ class LOLA:
             opt_state=opt_state,
             random_key=self._state.random_key,
             timesteps=self._state.timesteps,
+        )
+        self._mem = MemoryState(
             extras={"log_probs": None, "values": None},
-            hidden=None,
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
         # print("After updating")
         # print("---------------------")
@@ -464,26 +505,25 @@ class LOLA:
         # print("opt_state", self._state.opt_state)
         # print()
 
-    def reset_memory(self) -> TrainingState:
-        self._state = self._state._replace(
+    def reset_memory(self, memory, eval=False) -> TrainingState:
+        num_envs = 1 if eval else self._num_envs
+        memory = memory._replace(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            }
+                "values": jnp.zeros(num_envs),
+                "log_probs": jnp.zeros(num_envs),
+            },
+            hidden=jnp.zeros((self._num_envs, 1)),
         )
-        return self._state
+        return memory
 
-    def update(
-        self,
-        traj_batch,
-        t_prime: TimeStep,
-        state,
-    ):
+    def update(self, traj_batch, t_prime: TimeStep, state, mem):
         """Update the agent -> only called at the end of a trajectory"""
-        return state
+        return state, mem  # TODO
 
 
-def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
+def make_lola(
+    args, obs_spec, action_spec, seed: int, player_id: int, env_params: Any
+):
     """Make Naive Learner Policy Gradient agent"""
     # Create Haiku network
     network = make_network(action_spec)
@@ -500,9 +540,10 @@ def make_lola(args, obs_spec, action_spec, seed: int, player_id: int):
         outer_optimizer=outer_optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
+        env_params=env_params,
         player_id=player_id,
         num_envs=args.num_envs,
-        num_steps=args.num_steps,
+        num_steps=args.num_inner_steps,
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
     )

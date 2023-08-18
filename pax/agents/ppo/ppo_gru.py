@@ -441,6 +441,7 @@ class PPO(AgentInterface):
         }
 
         # Initialize functions
+        self.network = network
         self._policy = policy
         self.forward = network.apply
         self.player_id = player_id
