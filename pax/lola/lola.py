@@ -1,6 +1,7 @@
 from typing import Any, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
+from pax.agents.ppo.ppo_gru import PPO
 
 # from pax.lola.buffer import TrajectoryBuffer
 from pax.lola.network import make_network
@@ -53,6 +54,7 @@ class LOLA:
 
     def __init__(
         self,
+        args,
         network: NamedTuple,
         inner_optimizer: optax.GradientTransformation,
         outer_optimizer: optax.GradientTransformation,
@@ -71,6 +73,7 @@ class LOLA:
         self.env_step = env_step
         self.env_reset = env_reset
         self.agent2 = None
+        self.args = args
 
         @jax.jit
         def policy(
@@ -154,7 +157,13 @@ class LOLA:
             actions_2 = samples.actions_other
 
             # Get distribution and value using other player's network
-            distribution, values = self.other_network.apply(params, obs_1)
+            # TODO - add state
+            # TODO - why is obs2 instead of obs1
+            if self.args.agent2 == "PPOMemory":
+                distribution, values = self.agent2.network.apply(params, obs_1)
+
+            else:
+                distribution, values = self.agent2.network.apply(params, obs_1)
             self_log_prob = distribution.log_prob(actions_1)
 
             # Get distribution and value using my network
@@ -300,57 +309,32 @@ class LOLA:
         env: SequentialMatrixGame, an environment object of the game being played
         """
 
-        # my state
-        my_state = TrainingState(
-            params=my_state.params,
-            opt_state=my_state.opt_state,
-            random_key=my_state.random_key,
-            timesteps=my_state.timesteps,
-        )
-        # my_state = jax.tree_map(lambda x: jnp.expand_dims(x, 0), my_state)
-        my_mem = MemoryState(
-            extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
-            },
-            hidden=jnp.zeros((self._num_envs, 1)),
-        )
-
-        # other_state = TrainingState(
-        #     params=self.other_state.params,
-        #     opt_state=self.other_state.opt_state,
-        #     random_key=self.other_state.random_key,
-        #     timesteps=self.other_state.timesteps,
-        # )
-        # other_state = jax.tree_map(
-        #     lambda x: jnp.expand_dims(x, 0), other_state
-        # )
-        # jax.debug.breakpoint()
-        # other_mem = MemoryState(
-        #     extras={
-        #         "values": jnp.zeros(1),
-        #         "log_probs": jnp.zeros(1),
-        #     },
-        #     hidden=jnp.zeros(1),
-        # )
-        # reset_rng, self.inner_rollout_rng = jax.random.split(
-        #     self.inner_rollout_rng
-        # )
         # do a full rollout
+        # we want to play num_envs games at once wiht one opponent
         rng, reset_rng = jax.random.split(rng)
-        obs, env_state = self.env_reset(reset_rng, self.env_params)
+        reset_rngs = jax.random.split(
+            reset_rng, self._num_envs
+        ).reshape((self._num_envs, -1))
+    
+        batch_reset = jax.vmap(self.env_reset, (0, None), 0)
+        obs, env_state = batch_reset(reset_rngs, self.env_params)
+
         rewards = [jnp.zeros(self._num_envs), jnp.zeros(self._num_envs)]
-        (
-            inner_rollout_rng,
-            rng,
-        ) = jax.random.split(rng)
-        # jax.debug.breakpoint()
+
+        inner_rollout_rng,rn  = jax.random.split(rng)
+        inner_rollout_rngs = jax.random.split(
+            inner_rollout_rng, self._num_envs
+        ).reshape((self._num_envs, -1))
+        batch_step = jax.vmap(
+            self.env_step,
+            (0, 0, 0, None),0)
+
         _, trajectories = jax.lax.scan(
             lola_inner_rollout,
             (
                 self,
-                self.env_step,
-                inner_rollout_rng,
+                batch_step,
+                inner_rollout_rngs,
                 obs[0],
                 obs[1],
                 rewards[0],
@@ -365,17 +349,18 @@ class LOLA:
             None,
             length=self._num_steps,  # num_inner_steps
         )
+        # jax.debug.breakpoint()
 
         # flip the order of the trajectories
         # assuming we're the other player
         sample = LOLASample(
             obs_self=trajectories[1].observations,
-            obs_other=trajectories[0].observations,
+            obs_other=trajectories[0].obs_self,
             actions_self=trajectories[1].actions,
-            actions_other=trajectories[0].actions,
+            actions_other=trajectories[0].actions_self,
             dones=trajectories[0].dones,
             rewards_self=trajectories[1].rewards,
-            rewards_other=trajectories[0].rewards,
+            rewards_other=trajectories[0].rewards_self,
         )
 
         # get gradients of opponent
@@ -399,6 +384,8 @@ class LOLA:
             random_key=other_state.random_key,
             timesteps=other_state.timesteps,
         )
+        jax.debug.breakpoint()
+
         return new_other_state
 
     def out_lookahead(self, agent2, my_state, other_state):
@@ -528,7 +515,7 @@ class LOLA:
         # print("opt_state", self._state.opt_state)
         # print()
 
-    def reset_memory(self, memory, eval=False) -> TrainingState:
+    def reset_memory(self, memory, eval=False) -> MemoryState:
         num_envs = 1 if eval else self._num_envs
         memory = memory._replace(
             extras={
@@ -565,6 +552,7 @@ def make_lola(
     random_key = jax.random.PRNGKey(seed=seed)
 
     return LOLA(
+        args = args,
         network=network,
         inner_optimizer=inner_optimizer,
         outer_optimizer=outer_optimizer,
@@ -602,30 +590,34 @@ def lola_inner_rollout(carry, unused):
 
     # unpack rngs
 
-    rngs = jax.random.split(rngs, 4)
-    env_rng = rngs[0, :]
+    # this fn is not batched over num_envs!
+    vmap_split = jax.vmap(jax.random.split,(0,None),0)
+    rngs = vmap_split(rngs, 4)
+
+
+    env_rng = rngs[:,0, :]
     # a1_rng = rngs[:, :, 1, :]
     # a2_rng = rngs[:, :, 2, :]
-    rngs = rngs[3, :]
+    rngs = rngs[:,3, :]
 
-    a1, a1_state, new_a1_mem = agent1._policy(
+    batch_policy1 = jax.vmap(agent1._policy,  (None, 0, 0), (0, None, 0))
+    batch_policy2 = jax.vmap(agent1.agent2._policy,  (None, 0, 0), (0, None, 0))
+    a1, a1_state, new_a1_mem = batch_policy1(
         a1_state,
         obs1,
         a1_mem,
     )
-    a2, a2_state, new_a2_mem = agent1.agent2._policy(
+    a2, a2_state, new_a2_mem = batch_policy2(
         a2_state,
         obs2,
         a2_mem,
     )
-    # jax.debug.breakpoint()
     (next_obs1, next_obs2), env_state, rewards, done, info = env_step(
         env_rng,
         env_state,
         (a1, a2),
         env_params,
     )
-
     traj1 = LOLASample(obs1, obs2, a1, a2, done, rewards[0], rewards[1])
 
     traj2 = Sample(

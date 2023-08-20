@@ -168,6 +168,26 @@ def copy_state_and_network(agent):
     network = agent.network
     return state, mem, network
 
+def copy_state_and_mem(state, mem):
+    import copy
+
+    """Copies an agent state and returns the state"""
+    state = TrainingState(
+        params=copy.deepcopy(state.params),
+        opt_state=state.opt_state,
+        random_key=state.random_key,
+        timesteps=state.timesteps,
+    )
+    mem = MemoryState(
+        hidden=copy.deepcopy(mem.hidden),
+        extras={
+            "values": copy.deepcopy(mem.extras["values"]),
+            "log_probs": copy.deepcopy(mem.extras["log_probs"]),
+        },
+    )
+    return state, mem
+
+
 
 def copy_extended_state_and_network(agent):
     import copy

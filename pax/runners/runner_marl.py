@@ -6,7 +6,7 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, copy_state_and_network, save
+from pax.utils import MemoryState, TrainingState, copy_state_and_mem, copy_state_and_network, save
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
@@ -134,10 +134,10 @@ class RLRunner:
                 (None, 0),
             )
 
-        # agent1.batch_in_lookahead = jax.vmap(agent1.in_lookahead,(0,None,None,None, None),0)
-        agent1.batch_in_lookahead = jax.vmap(
-            agent1.in_lookahead, (0, None, 0, 0, 0), 0
-        )
+        agent1.batch_in_lookahead = jax.vmap(agent1.in_lookahead,(0,None,0,0, 0),0)
+        # agent1.batch_in_lookahead = jax.vmap(
+        #     agent1.batch_in_lookahead, (0, None, 0, 0, 0), 0
+        # )
         agent1.batch_out_lookahead = jax.vmap(
             agent1.out_lookahead, (None, None, 0), 0
         )
@@ -155,7 +155,7 @@ class RLRunner:
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
             agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0
+                agent2.make_initial_state, (0, None), 0 # HERE 
             )
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
@@ -354,26 +354,28 @@ class RLRunner:
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
             if args.agent1 == "LOLA":
-                other_state, other_mem, other_network = copy_state_and_network(
-                    agent2
-                )  # TODO copy a2 state instead
-                # inner rollout
+                # copy so we don't modify the original during simulation
+                other_state, other_mem = copy_state_and_mem(
+                    _a2_state, _a2_mem)
+                self_state, self_mem = copy_state_and_mem(
+                    _a1_state, _a1_mem)
+                # get new state of opponent after their lookahead optimisation
                 for _ in range(args.lola.num_lookaheads):
-                    # TODO what do we do with other agent mem in inner rollout?
                     _rng_run, _ = jax.random.split(_rng_run)
-                    lookahead_rng = jnp.concatenate(
-                        [jax.random.split(_rng_run, args.num_envs)]
-                        * args.num_opps
-                    ).reshape((args.num_opps, args.num_envs, -1))
-                    other_state = agent1.batch_in_lookahead(
+                    lookahead_rng = jax.random.split(_rng_run, args.num_opps)
+                    # jax.debug.breakpoint()
+                    # TODO: other_mem is not being updated, so multiple lookaheads will be shit
+
+                    # we want to batch this num_opps times
+                    other_state  = agent1.batch_in_lookahead(
                         lookahead_rng,
-                        _a1_state,
-                        _a1_mem,
+                        self_state,
+                        self_mem,
                         other_state,
                         other_mem,
                     )
-                # outer rollout
-                _a1_state, _a1_mem = agent1.batch_out_lookahead(
+                # get our new state after our optimisation based on ops new state
+                _a1_state = agent1.batch_out_lookahead(
                     env, agent2, _a1_state, other_state, other_mem
                 )
 
