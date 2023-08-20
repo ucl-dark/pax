@@ -158,8 +158,15 @@ def copy_state_and_network(agent):
         random_key=agent._state.random_key,
         timesteps=agent._state.timesteps,
     )
+    mem = MemoryState(
+        hidden=copy.deepcopy(agent._mem.hidden),
+        extras={
+            "values": copy.deepcopy(agent._mem.extras["values"]),
+            "log_probs": copy.deepcopy(agent._mem.extras["log_probs"]),
+        },
+    )
     network = agent.network
-    return state, network
+    return state, mem, network
 
 
 def copy_extended_state_and_network(agent):

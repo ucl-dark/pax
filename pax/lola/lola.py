@@ -4,6 +4,7 @@ from pax import utils
 
 # from pax.lola.buffer import TrajectoryBuffer
 from pax.lola.network import make_network
+from pax.runners.runner_marl import Sample
 from pax.utils import MemoryState, TrainingState
 
 from dm_env import TimeStep
@@ -59,12 +60,17 @@ class LOLA:
         player_id: int,
         obs_spec: Tuple,
         env_params: Any,
+        env_step,
+        env_reset,
         num_envs: int = 4,
         num_steps: int = 150,
         use_baseline: bool = True,
         gamma: float = 0.96,
     ):
         self._num_envs = num_envs  # number of environments
+        self.env_step = env_step
+        self.env_reset = env_reset
+        self.agent2 = None
 
         @jax.jit
         def policy(
@@ -234,6 +240,7 @@ class LOLA:
         self.inner_rollout_rng = inner_rollout_rng
         # Initialise training state (parameters, optimiser state, extras).
         self._state, self._mem = make_initial_state(random_key, obs_spec)
+
         self.make_initial_state = make_initial_state
 
         # Setup player id
@@ -277,14 +284,14 @@ class LOLA:
         self._batch_size = int(num_envs * num_steps)  # number in one batch
         self._obs_spec = obs_spec
 
-    def select_action(self, t: TimeStep):
-        """Selects action and updates info with PPO specific information"""
-        actions, self._state = self._policy(
-            self._state.params, t.observation, self._state
-        )
-        return utils.to_numpy(actions)
+    # def select_action(self, state, t: TimeStep):
+    #     """Selects action and updates info with PPO specific information"""
+    #     actions, state = self._policy(
+    #         state.params, t.observation, state
+    #     )
+    #     return utils.to_numpy(actions), state
 
-    def in_lookahead(self, env, env_rollout):
+    def in_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
         """
         Performs a rollout using the current parameters of both agents
         and simulates a naive learning update step for the other agent
@@ -295,59 +302,55 @@ class LOLA:
 
         # my state
         my_state = TrainingState(
-            params=self._state.params,
-            opt_state=self._state.opt_state,
-            random_key=self._state.random_key,
-            timesteps=self._state.timesteps,
+            params=my_state.params,
+            opt_state=my_state.opt_state,
+            random_key=my_state.random_key,
+            timesteps=my_state.timesteps,
         )
-        my_state = jax.tree_map(lambda x: jnp.expand_dims(x, 0), my_state)
+        # my_state = jax.tree_map(lambda x: jnp.expand_dims(x, 0), my_state)
         my_mem = MemoryState(
             extras={
-                "values": jnp.zeros((self._num_envs)),
-                "log_probs": jnp.zeros((self._num_envs)),
+                "values": jnp.zeros(self._num_envs),
+                "log_probs": jnp.zeros(self._num_envs),
             },
             hidden=jnp.zeros((self._num_envs, 1)),
         )
 
-        other_state = TrainingState(
-            params=self.other_state.params,
-            opt_state=self.other_state.opt_state,
-            random_key=self.other_state.random_key,
-            timesteps=self.other_state.timesteps,
-        )
-        other_state = jax.tree_map(
-            lambda x: jnp.expand_dims(x, 0), other_state
-        )
-        other_mem = MemoryState(
-            extras={
-                "values": jnp.zeros((self._num_envs)),
-                "log_probs": jnp.zeros((self._num_envs)),
-            },
-            hidden=jnp.zeros((self._num_envs, 1)),
-        )
-        reset_rng, self.inner_rollout_rng = jax.random.split(
-            self.inner_rollout_rng
-        )
-        reset_rngs = jnp.concatenate(
-            [jax.random.split(reset_rng, self._num_envs)]
-        ).reshape((self._num_envs, -1))
+        # other_state = TrainingState(
+        #     params=self.other_state.params,
+        #     opt_state=self.other_state.opt_state,
+        #     random_key=self.other_state.random_key,
+        #     timesteps=self.other_state.timesteps,
+        # )
+        # other_state = jax.tree_map(
+        #     lambda x: jnp.expand_dims(x, 0), other_state
+        # )
+        # jax.debug.breakpoint()
+        # other_mem = MemoryState(
+        #     extras={
+        #         "values": jnp.zeros(1),
+        #         "log_probs": jnp.zeros(1),
+        #     },
+        #     hidden=jnp.zeros(1),
+        # )
+        # reset_rng, self.inner_rollout_rng = jax.random.split(
+        #     self.inner_rollout_rng
+        # )
         # do a full rollout
-        obs, env_state = env.reset(reset_rngs, self.env_params)
-        rewards = [
-            jnp.zeros((self._num_envs)),
-            jnp.zeros((self._num_envs)),  # TOD is numopps 1?
-        ]
-        inner_rollout_rng, self.inner_rollout_rng = jax.random.split(
-            self.inner_rollout_rng
-        )
-        inner_rollout_rngs = jnp.concatenate(
-            [jax.random.split(inner_rollout_rng, self._num_envs)]
-        ).reshape((1, self._num_envs, -1))
+        rng, reset_rng = jax.random.split(rng)
+        obs, env_state = self.env_reset(reset_rng, self.env_params)
+        rewards = [jnp.zeros(self._num_envs), jnp.zeros(self._num_envs)]
+        (
+            inner_rollout_rng,
+            rng,
+        ) = jax.random.split(rng)
         # jax.debug.breakpoint()
         _, trajectories = jax.lax.scan(
-            env_rollout,
+            lola_inner_rollout,
             (
-                inner_rollout_rngs,
+                self,
+                self.env_step,
+                inner_rollout_rng,
                 obs[0],
                 obs[1],
                 rewards[0],
@@ -377,31 +380,28 @@ class LOLA:
 
         # get gradients of opponent
         gradients, _ = self.grad_fn_inner(
-            self.other_state.params, my_state.params, sample
+            other_state.params, my_state.params, sample
         )
 
         # Update the optimizer
 
         updates, opt_state = self._inner_optimizer.update(
-            gradients, self.other_state.opt_state
+            gradients, other_state.opt_state
         )
 
         # apply the optimizer updates
-        params = optax.apply_updates(self.other_state.params, updates)
+        params = optax.apply_updates(other_state.params, updates)
 
         # replace the other player's current parameters with a simulated update
-        self.other_state = TrainingState(
+        new_other_state = TrainingState(
             params=params,
             opt_state=opt_state,
-            random_key=self.other_state.random_key,
-            timesteps=self.other_state.timesteps,
+            random_key=other_state.random_key,
+            timesteps=other_state.timesteps,
         )
-        self.other_mem = MemoryState(
-            extras=self.other_state.extras,
-            hidden=jnp.zeros((self._num_envs, 1)),
-        )
+        return new_other_state
 
-    def out_lookahead(self, env, env_rollout):
+    def out_lookahead(self, agent2, my_state, other_state):
         """
         Performs a real rollout using the current parameters of both agents
         and a naive learning update step for the other agent
@@ -412,34 +412,56 @@ class LOLA:
         """
         # make my own state
         my_state = TrainingState(
-            params=self._state.params,
-            opt_state=self._state.opt_state,
-            random_key=self._state.random_key,
-            timesteps=self._state.timesteps,
+            params=my_state.params,
+            opt_state=my_state.opt_state,
+            random_key=my_state.random_key,
+            timesteps=my_state.timesteps,
             extras={
                 "values": jnp.zeros(self._num_envs),
                 "log_probs": jnp.zeros(self._num_envs),
             },
             hidden=jnp.zeros((self._num_envs, 1)),
         )
-        # copy the other person's state
-        other_state = TrainingState(
-            params=self.other_state.params,
-            opt_state=self.other_state.opt_state,
-            random_key=self.other_state.random_key,
-            timesteps=self.other_state.timesteps,
+        other_mem = MemoryState(
             extras={
-                "values": jnp.zeros(self._num_envs),
-                "log_probs": jnp.zeros(self._num_envs),
+                "values": jnp.zeros(1),
+                "log_probs": jnp.zeros(1),
             },
-            hidden=jnp.zeros((self._num_envs, 1)),
+            hidden=jnp.zeros(1),
         )
-
+        # # copy the other person's state
+        # other_state = TrainingState(
+        #     params=self.other_state.params,
+        #     opt_state=self.other_state.opt_state,
+        #     random_key=self.other_state.random_key,
+        #     timesteps=self.other_state.timesteps,
+        #     extras={
+        #         "values": jnp.zeros(self._num_envs),
+        #         "log_probs": jnp.zeros(self._num_envs),
+        #     },
+        #     hidden=jnp.zeros((self._num_envs, 1)),
+        # )
+        # TODO
         # do a full rollout
-        t_init = env.reset()
+        obs = self.env_reset()
         _, trajectories = jax.lax.scan(
-            env_rollout,
-            (t_init[0], t_init[1], my_state, other_state),
+            lola_inner_rollout,
+            (
+                self,
+                agent2,
+                env,
+                inner_rollout_rngs,
+                obs[0],
+                obs[1],
+                rewards[0],
+                rewards[1],
+                my_state,
+                my_mem,
+                other_state,
+                other_mem,
+                env_state,
+                self.env_params,
+            ),
             None,
             length=env.episode_length,
         )
@@ -489,16 +511,17 @@ class LOLA:
         self._logger.metrics["loss_value"] = results["loss_value"]
 
         # replace the player's current parameters with a real update
-        self._state = TrainingState(
+        new_state = TrainingState(
             params=params,
             opt_state=opt_state,
             random_key=self._state.random_key,
             timesteps=self._state.timesteps,
         )
-        self._mem = MemoryState(
+        new_mem = MemoryState(
             extras={"log_probs": None, "values": None},
             hidden=jnp.zeros((self._num_envs, 1)),
         )
+        return new_state, new_mem
         # print("After updating")
         # print("---------------------")
         # print("params", self._state.params)
@@ -522,7 +545,14 @@ class LOLA:
 
 
 def make_lola(
-    args, obs_spec, action_spec, seed: int, player_id: int, env_params: Any
+    args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    player_id: int,
+    env_params: Any,
+    env_step,
+    env_reset,
 ):
     """Make Naive Learner Policy Gradient agent"""
     # Create Haiku network
@@ -541,11 +571,89 @@ def make_lola(
         random_key=random_key,
         obs_spec=obs_spec,
         env_params=env_params,
+        env_step=env_step,
+        env_reset=env_reset,
         player_id=player_id,
         num_envs=args.num_envs,
         num_steps=args.num_inner_steps,
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
+    )
+
+
+def lola_inner_rollout(carry, unused):
+    """Runner for inner episode"""
+
+    (
+        agent1,
+        env_step,
+        rngs,
+        obs1,
+        obs2,
+        r1,
+        r2,
+        a1_state,
+        a1_mem,
+        a2_state,
+        a2_mem,
+        env_state,
+        env_params,
+    ) = carry
+
+    # unpack rngs
+
+    rngs = jax.random.split(rngs, 4)
+    env_rng = rngs[0, :]
+    # a1_rng = rngs[:, :, 1, :]
+    # a2_rng = rngs[:, :, 2, :]
+    rngs = rngs[3, :]
+
+    a1, a1_state, new_a1_mem = agent1._policy(
+        a1_state,
+        obs1,
+        a1_mem,
+    )
+    a2, a2_state, new_a2_mem = agent1.agent2._policy(
+        a2_state,
+        obs2,
+        a2_mem,
+    )
+    # jax.debug.breakpoint()
+    (next_obs1, next_obs2), env_state, rewards, done, info = env_step(
+        env_rng,
+        env_state,
+        (a1, a2),
+        env_params,
+    )
+
+    traj1 = LOLASample(obs1, obs2, a1, a2, done, rewards[0], rewards[1])
+
+    traj2 = Sample(
+        obs2,
+        a2,
+        rewards[1],
+        new_a2_mem.extras["log_probs"],
+        new_a2_mem.extras["values"],
+        done,
+        a2_mem.hidden,
+    )
+    return (
+        agent1,
+        env_step,
+        rngs,
+        next_obs1,
+        next_obs2,
+        rewards[0],
+        rewards[1],
+        a1_state,
+        new_a1_mem,
+        a2_state,
+        new_a2_mem,
+        env_state,
+        env_params,
+    ), (
+        traj1,
+        traj2,
     )
 
 

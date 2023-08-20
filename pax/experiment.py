@@ -466,6 +466,8 @@ def agent_setup(args, env, env_params, logger):
             seed=seed,
             player_id=player_id,
             env_params=env_params,
+            env_step=env.step,
+            env_reset=env.reset,
         )
 
     def get_PPO_memory_agent(seed, player_id):

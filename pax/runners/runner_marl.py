@@ -102,22 +102,25 @@ class RLRunner:
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
-        env.reset = jax.vmap(env.reset, (0, None), 0)
-        env.step = jax.vmap(
+        env.batch_reset = jax.vmap(env.reset, (0, None), 0)
+        env.batch_step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
 
         # VMAP for num opps: we vmap over the rng but not params
-        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
-        env.step = jax.jit(
+        env.batch_reset = jax.jit(jax.vmap(env.batch_reset, (0, None), 0))
+        env.batch_step = jax.jit(
             jax.vmap(
-                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+                env.batch_step,
+                (0, 0, 0, None),
+                0,  # rng, state, actions, params
             )
         )
 
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         num_outer_steps = self.args.num_outer_steps
         agent1, agent2 = agents
+        agent1.agent2 = agent2
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -130,6 +133,14 @@ class RLRunner:
                 (None, 0),
                 (None, 0),
             )
+
+        # agent1.batch_in_lookahead = jax.vmap(agent1.in_lookahead,(0,None,None,None, None),0)
+        agent1.batch_in_lookahead = jax.vmap(
+            agent1.in_lookahead, (0, None, 0, 0, 0), 0
+        )
+        agent1.batch_out_lookahead = jax.vmap(
+            agent1.out_lookahead, (None, None, 0), 0
+        )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
         )
@@ -202,7 +213,13 @@ class RLRunner:
                 obs2,
                 a2_mem,
             )
-            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
+            (
+                (next_obs1, next_obs2),
+                env_state,
+                rewards,
+                done,
+                info,
+            ) = env.batch_step(
                 env_rng,
                 env_state,
                 (a1, a2),
@@ -319,8 +336,9 @@ class RLRunner:
             rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
+            _rng_run, _ = jax.random.split(_rng_run)
 
-            obs, env_state = env.reset(rngs, _env_params)
+            obs, env_state = env.batch_reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),
@@ -336,15 +354,28 @@ class RLRunner:
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
             if args.agent1 == "LOLA":
-                (
-                    agent1.other_state,
-                    agent1.other_network,
-                ) = copy_state_and_network(agent2)
+                other_state, other_mem, other_network = copy_state_and_network(
+                    agent2
+                )  # TODO copy a2 state instead
                 # inner rollout
                 for _ in range(args.lola.num_lookaheads):
-                    agent1.in_lookahead(env, _inner_rollout)
+                    # TODO what do we do with other agent mem in inner rollout?
+                    _rng_run, _ = jax.random.split(_rng_run)
+                    lookahead_rng = jnp.concatenate(
+                        [jax.random.split(_rng_run, args.num_envs)]
+                        * args.num_opps
+                    ).reshape((args.num_opps, args.num_envs, -1))
+                    other_state = agent1.batch_in_lookahead(
+                        lookahead_rng,
+                        _a1_state,
+                        _a1_mem,
+                        other_state,
+                        other_mem,
+                    )
                 # outer rollout
-                agent1.out_lookahead(env, _inner_rollout)
+                _a1_state, _a1_mem = agent1.batch_out_lookahead(
+                    env, agent2, _a1_state, other_state, other_mem
+                )
 
             if args.agent2 == "LOLA":
                 raise NotImplementedError("LOLA not implemented for agent2")
@@ -353,7 +384,6 @@ class RLRunner:
                 # meta-experiments - init 2nd agent per trial
                 a2_rng = jax.random.split(_rng_run, self.num_opps)
                 _a2_state, _a2_mem = agent2.batch_init(a2_rng, _a2_mem.hidden)
-
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
