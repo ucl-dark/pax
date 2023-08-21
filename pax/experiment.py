@@ -5,9 +5,9 @@ from functools import partial
 
 # NOTE: THIS MUST BE DONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-from jax.config import config
-config.update('jax_disable_jit', True)
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+# from jax.config import config
+# config.update('jax_disable_jit', True)
 
 import hydra
 import jax.numpy as jnp
@@ -112,7 +112,7 @@ def env_setup(args, logger=None):
 
     elif args.env_id == "infinite_matrix_game":
         payoff = jnp.array(args.payoff)
-        env = InfiniteMatrixGame(num_steps=args.num_steps)
+        env = InfiniteMatrixGame(num_steps=args.num_inner_steps)
         env_params = InfiniteMatrixGameParams(
             payoff_matrix=payoff, gamma=args.ppo.gamma
         )
@@ -355,12 +355,16 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_hyper_agent(seed, player_id):
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
         hyper_agent = make_hyper(
             args,
             obs_spec=obs_shape,
             action_spec=num_actions,
             seed=seed,
             player_id=player_id,
+            num_iterations=num_iterations,
         )
         return hyper_agent
 

@@ -22,6 +22,9 @@ num_outer_steps: 100
 num_inner_steps: 100 
 num_iters: 5000
 
+# ARUNIM
+num_devices: 1
+
 # Evaluation 
 run_path: ucl-dark/ipd/1ui7wfop
 model_path: exp/EARL-PPO_memory-vs-PPO/run-seed-25-OpenES-pop-size-1000-num-opps-1/2022-09-15_02.32.16.559924/generation_2900
@@ -93,9 +96,9 @@ es:
   
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "arunim1"
   project: ipd
-  group: 'EARL-${agent1}-vs-${agent2}'
+  group: 'SHAPER-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
   log: False
 

@@ -19,8 +19,8 @@ popsize: 1000
 num_envs: 2
 num_opps: 10
 num_outer_steps: 100 
-num_inner_steps: 100 
-num_iters: 5000
+num_inner_steps: 100 # 1 for one-shot
+num_iters: 5000 # generations / shaper updates (outer outer loop)
 
 # PPO agent parameters
 ppo1:
@@ -91,6 +91,6 @@ wandb:
   project: ipd
   group: 'EARL-${agent1}-vs-${agent2}'
   name: run-seed-${seed}-${es.algo}-pop-size-${popsize}-num-opps-${num_opps}
-  log: False
+  log: False # -> True
 
 

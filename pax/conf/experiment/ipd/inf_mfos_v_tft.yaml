@@ -16,6 +16,7 @@ num_envs: 50
 num_opps: 1
 num_outer_steps: 1 
 num_inner_steps: 5
+num_steps: 5
 num_iters: 2e3
 
 # Useful information
@@ -42,7 +43,7 @@ ppo:
 
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "arunim1"
   project: ipd
   group: '${agent1}-vs-${agent2}-parity'
   name: run-seed-${seed}
