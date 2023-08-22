@@ -377,6 +377,7 @@ class PPO(AgentInterface):
                 subkey, dummy_obs, initial_hidden_state
             )
             initial_opt_state = optimizer.init(initial_params)
+            self.optimizer = optimizer
             return TrainingState(
                 random_key=key,
                 params=initial_params,

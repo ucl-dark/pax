@@ -6,7 +6,13 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import MemoryState, TrainingState, copy_state_and_mem, copy_state_and_network, save
+from pax.utils import (
+    MemoryState,
+    TrainingState,
+    copy_state_and_mem,
+    copy_state_and_network,
+    save,
+)
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
@@ -133,14 +139,11 @@ class RLRunner:
                 (None, 0),
                 (None, 0),
             )
-
-        agent1.batch_in_lookahead = jax.vmap(agent1.in_lookahead,(0,None,0,0, 0),0)
-        # agent1.batch_in_lookahead = jax.vmap(
-        #     agent1.batch_in_lookahead, (0, None, 0, 0, 0), 0
-        # )
-        agent1.batch_out_lookahead = jax.vmap(
-            agent1.out_lookahead, (None, None, 0), 0
-        )
+        if args.agent1 == "LOLA":
+            # batch for num_opps
+            agent1.batch_in_lookahead = jax.vmap(
+                agent1.in_lookahead, (0, None, 0, 0, 0), 0
+            )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
         )
@@ -155,7 +158,7 @@ class RLRunner:
             agent2.batch_init = jax.jit(jax.vmap(agent2.make_initial_state))
         else:
             agent2.batch_init = jax.vmap(
-                agent2.make_initial_state, (0, None), 0 # HERE 
+                agent2.make_initial_state, (0, None), 0  # HERE
             )
         agent2.batch_policy = jax.jit(jax.vmap(agent2._policy))
         agent2.batch_reset = jax.jit(
@@ -237,20 +240,15 @@ class RLRunner:
                     a1_mem.hidden,
                     a1_mem.th,
                 )
-            elif args.agent1 == "LOLA":
-                traj1 = LOLASample(
-                    obs1, obs2, a1, a2, done, rewards[0], rewards[1]
-                )
-            else:
-                traj1 = Sample(
-                    obs1,
-                    a1,
-                    rewards[0],
-                    new_a1_mem.extras["log_probs"],
-                    new_a1_mem.extras["values"],
-                    done,
-                    a1_mem.hidden,
-                )
+            traj1 = Sample(
+                obs1,
+                a1,
+                rewards[0],
+                new_a1_mem.extras["log_probs"],
+                new_a1_mem.extras["values"],
+                done,
+                a1_mem.hidden,
+            )
             traj2 = Sample(
                 obs2,
                 a2,
@@ -353,35 +351,6 @@ class RLRunner:
             if args.agent2 == "NaiveEx":
                 _a2_state, _a2_mem = agent2.batch_init(obs[1])
 
-            if args.agent1 == "LOLA":
-                # copy so we don't modify the original during simulation
-                other_state, other_mem = copy_state_and_mem(
-                    _a2_state, _a2_mem)
-                self_state, self_mem = copy_state_and_mem(
-                    _a1_state, _a1_mem)
-                # get new state of opponent after their lookahead optimisation
-                for _ in range(args.lola.num_lookaheads):
-                    _rng_run, _ = jax.random.split(_rng_run)
-                    lookahead_rng = jax.random.split(_rng_run, args.num_opps)
-                    # jax.debug.breakpoint()
-                    # TODO: other_mem is not being updated, so multiple lookaheads will be shit
-
-                    # we want to batch this num_opps times
-                    other_state  = agent1.batch_in_lookahead(
-                        lookahead_rng,
-                        self_state,
-                        self_mem,
-                        other_state,
-                        other_mem,
-                    )
-                # get our new state after our optimisation based on ops new state
-                _a1_state = agent1.batch_out_lookahead(
-                    env, agent2, _a1_state, other_state, other_mem
-                )
-
-            if args.agent2 == "LOLA":
-                raise NotImplementedError("LOLA not implemented for agent2")
-
             elif self.args.env_type in ["meta"]:
                 # meta-experiments - init 2nd agent per trial
                 a2_rng = jax.random.split(_rng_run, self.num_opps)
@@ -420,12 +389,41 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(obs1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
+            if args.agent1 != "LOLA":
+                a1_state, _, a1_metrics = agent1.update(
+                    reduce_outer_traj(traj_1),
+                    self.reduce_opp_dim(obs1),
+                    a1_state,
+                    self.reduce_opp_dim(a1_mem),
+                )
+            if args.agent1 == "LOLA":
+                a1_metrics = None
+                # copy so we don't modify the original during simulation
+                other_state, other_mem = copy_state_and_mem(_a2_state, _a2_mem)
+                self_state, self_mem = copy_state_and_mem(_a1_state, _a1_mem)
+                # get new state of opponent after their lookahead optimisation
+                for _ in range(args.lola.num_lookaheads):
+                    _rng_run, _ = jax.random.split(_rng_run)
+                    lookahead_rng = jax.random.split(_rng_run, args.num_opps)
+                    # jax.debug.breakpoint()
+                    # TODO: other_mem is not being updated, so multiple lookaheads will be shit
+
+                    # we want to batch this num_opps times
+                    other_state = agent1.batch_in_lookahead(
+                        lookahead_rng,
+                        self_state,
+                        self_mem,
+                        other_state,
+                        other_mem,
+                    )
+                # get our new state after our optimisation based on ops new state
+                _rng_run, out_look_rng = jax.random.split(_rng_run)
+                _a1_state = agent1.out_lookahead(
+                    out_look_rng, _a1_state, _a1_mem, other_state, other_mem
+                )
+
+            if args.agent2 == "LOLA":
+                raise NotImplementedError("LOLA not implemented for agent2")
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
@@ -553,9 +551,10 @@ class RLRunner:
                     flattened_metrics_1 = jax.tree_util.tree_map(
                         lambda x: jnp.mean(x), a1_metrics
                     )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
+                    if self.args.agent1 != "LOLA":
+                        agent1._logger.metrics = (
+                            agent1._logger.metrics | flattened_metrics_1
+                        )
                     # metrics [outer_timesteps, num_opps]
                     flattened_metrics_2 = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics

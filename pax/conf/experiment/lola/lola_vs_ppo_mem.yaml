@@ -14,11 +14,11 @@ runner: rl
 num_players: 2
 
 
-num_envs: 128
-num_opps: 3 # TODO idk?
-num_outer_steps: 1 # how many games they are playing
+num_envs: 100
+num_opps: 1 # TODO idk?
+num_outer_steps: 1
 num_inner_steps: 100 # how long a game takes
-num_iters: 1000 # shouldn't matter in sequential 
+num_iters: 1000
 
 # LOLA agent parameters
 lola: 
@@ -77,4 +77,4 @@ wandb:
   project: lola
   group: 'LOLA-vs-${agent2}'
   name: lola_test
-  log: False 
+  log: True 
