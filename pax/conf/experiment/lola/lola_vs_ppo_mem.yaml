@@ -2,8 +2,7 @@
 
 # Agents  
 agent1: 'LOLA'
-agent2: 'PPO_memory'
-centralized: False  #TODO idk - haven't put in the code to use it
+agent2: 'Tabular'
 
 # Environment
 env_id: iterated_matrix_game

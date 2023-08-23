@@ -359,6 +359,7 @@ class PPO(AgentInterface):
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            self.optimizer = optimizer
             return TrainingState(
                 random_key=key,
                 params=initial_params,
@@ -415,6 +416,7 @@ class PPO(AgentInterface):
         # Initialize functions
         self._policy = policy
         self.player_id = player_id
+        self.network = network
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments

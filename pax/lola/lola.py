@@ -16,9 +16,6 @@ import numpy as np
 import optax
 
 
-# TODO vmap over num_envs
-
-
 class LOLASample(NamedTuple):
     obs_self: jnp.ndarray
     obs_other: jnp.ndarray
@@ -122,13 +119,12 @@ class LOLA:
                     other_params, obs_2
                 )
             other_log_prob = distribution.log_prob(actions_2)
-            # jax.debug.breakpoint()
 
             # flatten opponent and num_envs into one dimension
 
             # apply discount:
             cum_discount = (
-                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=-1)
+                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
                 / self.gamma
             )
 
@@ -136,14 +132,14 @@ class LOLA:
             discounted_values = values * cum_discount
 
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=-1)
+            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
 
             # logprob of each stochastic nodes:
             stochastic_nodes = self_log_prob + other_log_prob
 
             # dice objective:
             dice_objective = jnp.mean(
-                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=-1)
+                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=0)
             )
 
             if use_baseline:
@@ -151,7 +147,7 @@ class LOLA:
                 baseline_term = jnp.mean(
                     jnp.sum(
                         (1 - magic_box(stochastic_nodes)) * discounted_values,
-                        axis=-1,
+                        axis=-0,
                     )
                 )
                 dice_objective = dice_objective + baseline_term
@@ -406,7 +402,7 @@ class LOLA:
         )
         # jax.debug.breakpoint()
 
-        return new_other_state
+        return new_other_state, other_mem
 
     def out_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
         """
@@ -532,10 +528,6 @@ class LOLA:
             hidden=jnp.zeros((self._num_envs, 1)),
         )
         return memory
-
-    def update(self, traj_batch, t_prime: TimeStep, state, mem):
-        """Update the agent -> only called at the end of a trajectory"""
-        return state, mem  # TODO
 
 
 def make_lola(

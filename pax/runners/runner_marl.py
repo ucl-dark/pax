@@ -142,7 +142,7 @@ class RLRunner:
         if args.agent1 == "LOLA":
             # batch for num_opps
             agent1.batch_in_lookahead = jax.vmap(
-                agent1.in_lookahead, (0, None, 0, 0, 0), 0
+                agent1.in_lookahead, (0, None, 0, 0, 0), (0,0)
             )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
@@ -399,17 +399,15 @@ class RLRunner:
             if args.agent1 == "LOLA":
                 a1_metrics = None
                 # copy so we don't modify the original during simulation
-                other_state, other_mem = copy_state_and_mem(_a2_state, _a2_mem)
-                self_state, self_mem = copy_state_and_mem(_a1_state, _a1_mem)
+                self_state, self_mem = copy_state_and_mem(a1_state, a1_mem)
+                other_state, other_mem = copy_state_and_mem(a2_state, a2_mem)
                 # get new state of opponent after their lookahead optimisation
                 for _ in range(args.lola.num_lookaheads):
                     _rng_run, _ = jax.random.split(_rng_run)
                     lookahead_rng = jax.random.split(_rng_run, args.num_opps)
-                    # jax.debug.breakpoint()
-                    # TODO: other_mem is not being updated, so multiple lookaheads will be shit
 
                     # we want to batch this num_opps times
-                    other_state = agent1.batch_in_lookahead(
+                    other_state, other_mem = agent1.batch_in_lookahead(
                         lookahead_rng,
                         self_state,
                         self_mem,
@@ -418,8 +416,8 @@ class RLRunner:
                     )
                 # get our new state after our optimisation based on ops new state
                 _rng_run, out_look_rng = jax.random.split(_rng_run)
-                _a1_state = agent1.out_lookahead(
-                    out_look_rng, _a1_state, _a1_mem, other_state, other_mem
+                a1_state = agent1.out_lookahead(
+                    out_look_rng, a1_state, a1_mem, other_state, other_mem
                 )
 
             if args.agent2 == "LOLA":
