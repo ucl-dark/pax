@@ -75,5 +75,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'LOLA-vs-${agent2}'
-  name: 'LOLA-vs-${agent2}-baseline${use_baseline}'
+  name: 'LOLA-vs-${agent2}-baseline${lola.use_baseline}'
   log: True 
