@@ -13,7 +13,7 @@ runner: rl
 num_players: 2
 
 
-num_envs: 100
+num_envs: 300
 num_opps: 1 # TODO idk?
 num_outer_steps: 1
 num_inner_steps: 100 # how long a game takes
@@ -75,5 +75,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'LOLA-vs-${agent2}'
-  name: lola_test
+  name: 'LOLA-vs-${agent2}-baseline${use_baseline}'
   log: True 
