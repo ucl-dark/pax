@@ -1,3 +1,4 @@
+from functools import partial
 from typing import NamedTuple
 
 import jax
@@ -6,20 +7,25 @@ import wandb
 from jax import numpy as jnp
 
 
-def fishery_stats(observations: jnp.ndarray, num_players: int) -> dict:
+@partial(jax.jit, static_argnums=(1,))
+def fishery_stats(traj: NamedTuple, num_players: int) -> dict:
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
-    stock_obs = observations[..., -1]
-    actions = observations[..., :num_players]
+    stock_obs = traj.observations[..., -1]
+    actions = traj.observations[..., :num_players]
     # TODO this blows up the memory usage
     # flattened_stock_obs = jnp.ravel(stock_obs)
     # split_stock_obs = jnp.array(jnp.split(flattened_stock_obs, flattened_stock_obs.shape[0] // num_inner_steps))
+    completed_episodes = jnp.sum(traj.dones)
     stats = {
         "fishery/stock": jnp.mean(stock_obs),
-        "fishery/mean_effort": actions.mean()
+        "fishery/effort_mean": actions.mean(),
+        "fishery/effort_std": actions.std(),
+        "fishery/final_stock": jnp.where(completed_episodes != 0, jnp.sum(traj.dones * stock_obs) / jnp.sum(traj.dones), 0),
     }
 
     for i in range(num_players):
-        stats["fishery/effort_" + str(i)] = jnp.mean(observations[..., i])
+        stats["fishery/effort_" + str(i)] = jnp.mean(traj.observations[..., i])
+        stats["fishery/effort_" + str(i) + "_std"] = jnp.mean(traj.observations[..., i])
 
     return stats
 

@@ -8,10 +8,11 @@ from jax.config import config
 
 config.update('jax_debug_nans', True)
 
-from pax.envs.rice import Rice, EnvParams
+from pax.envs.rice.rice import Rice, EnvParams
 
 file_dir = os.path.join(os.path.dirname(__file__))
 env_dir = os.path.join(file_dir, "../../pax/envs")
+
 
 def test_rice():
     rng = jax.random.PRNGKey(0)
@@ -30,16 +31,17 @@ def test_rice():
         obs, env_state, rewards, done, info = env.step(
             rng, env_state, actions, env_params
         )
-        for i in range(num_players):
+        for j in range(num_players):
+            # assert all obs positive
             assert env_state.consumption_all[i].item() >= 0, "consumption cannot be negative!"
 
-        # assert all obs positive
-        # assert done firing correctly
+        if done is True:
+            assert env_state.inner_t == 0
+            assert (i + 1) / ep_length == 0
+        assert (i + 1) % ep_length == env_state.inner_t, "inner_t not updating correctly"
 
 
-# TODO assert gross_output - investment - total_exports > -1e-5, "consumption cannot be negative!"
-
-@mark.skip(reason="Benchmark")
+# @mark.skip(reason="Benchmark")
 def test_benchmark_rice_n():
     rng = jax.random.PRNGKey(0)
     ep_length = 100

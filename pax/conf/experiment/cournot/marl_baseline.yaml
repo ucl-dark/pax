@@ -15,7 +15,7 @@ runner: tensor_rl_nplayer
 # env_batch_size = num_envs * num_opponents
 num_envs: 20
 num_opps: 1
-num_outer_steps: 300
+num_outer_steps: 1 # This makes it a symmetric game
 num_inner_steps: 1 # One-shot game
 num_iters: 1e7
 

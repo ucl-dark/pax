@@ -57,8 +57,9 @@ from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
-from pax.envs.rice import Rice, EnvParams as RiceParams
-from pax.envs.sarl_rice import SarlRice
+from pax.envs.rice.rice import Rice, EnvParams as RiceParams
+from pax.envs.rice.sarl_rice import SarlRice
+from pax.runners.runner_ctde import CTDERunner
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_multishaper import MultishaperEvalRunner
 from pax.runners.runner_evo import EvoRunner
@@ -212,7 +213,7 @@ def env_setup(args, logger=None):
             s_max=args.s_max,
         )
         env = Fishery(
-            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
+            num_players=args.num_players, num_inner_steps=args.episode_length,
         )
         if logger:
             logger.info(
@@ -410,7 +411,9 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_memory_agent(seed, player_id):
-        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id))
+        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
+        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
@@ -428,11 +431,10 @@ def agent_setup(args, env, env_params, logger):
         default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
         player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
 
+        num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
-        else:
-            num_iterations = args.num_iters
-        ppo_agent = make_agent(
+        return make_agent(
             args,
             player_args,
             obs_spec=obs_shape,
@@ -441,7 +443,6 @@ def agent_setup(args, env, env_params, logger):
             seed=seed,
             player_id=player_id,
         )
-        return ppo_agent
 
     def get_PPO_tabular_agent(seed, player_id):
         player_args = args.ppo1 if player_id == 1 else args.ppo2

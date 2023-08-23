@@ -15,6 +15,7 @@ from pax.utils import MemoryState, TrainingState, save
 from pax.watchers import ESLog, n_player_ipd_visitation
 from pax.watchers.cournot import cournot_stats
 from pax.watchers.fishery import fishery_stats
+from pax.watchers.rice import rice_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -77,7 +78,8 @@ class NPlayerEvoRunner:
         # TODO JIT this
         self.ipd_stats = n_player_ipd_visitation
         self.cournot_stats = jax.jit(cournot_stats)
-        self.fishery_stats = jax.jit(fishery_stats)
+        self.fishery_stats = fishery_stats
+        self.rice_stats = rice_stats
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -300,7 +302,7 @@ class NPlayerEvoRunner:
                 _inner_rollout,
                 carry,
                 None,
-                length=args.num_inner_steps,
+                length=args.num_steps,
             )
             other_agent_metrics = [None] * len(other_agents)
             (
@@ -455,18 +457,18 @@ class NPlayerEvoRunner:
                         trajectories[0].observations, args.num_players
                     ),
                 )
-            elif args.env_id == "Cournot":
+            elif args.env_id == "Rice-v1":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
-                    self.cournot_stats(
-                        trajectories[0].observations, _env_params, args.num_players
+                    self.rice_stats(
+                        trajectories[0], args.num_players
                     ),
                 )
             elif args.env_id == "Fishery":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
                     self.fishery_stats(
-                        trajectories[0].observations, args.num_players
+                        trajectories[0], args.num_players
                     ),
                 )
             elif args.env_id == "Cournot":
@@ -612,7 +614,7 @@ class NPlayerEvoRunner:
                     print(f"Saving iteration {gen} locally")
 
             if gen % log_interval == 0:
-                print(f"Generation: {gen}")
+                print(f"Generation: {gen}/{num_gens}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -621,6 +623,9 @@ class NPlayerEvoRunner:
                 )
                 print(
                     f"Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_reward]}"
+                )
+                print(
+                    f"Total Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_reward]}"
                 )
                 print(
                     f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"

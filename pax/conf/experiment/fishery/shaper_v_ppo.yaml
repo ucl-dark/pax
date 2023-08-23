@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents
-agent1: 'MFOS'
+agent1: 'PPO_memory'
 agent2: 'PPO'
 
 # Environment
@@ -14,14 +14,15 @@ w: 0.9
 s_0: 0.5
 s_max: 1.0
 # Runner
-runner: evo
+runner: tensor_evo
 
 # Training
 top_k: 5
 popsize: 1000
 num_envs: 2
 num_opps: 1
-num_outer_steps: 1
+num_outer_steps: 20
+episode_length: 300
 num_inner_steps: 300
 num_iters: 1000
 num_devices: 1
@@ -94,7 +95,7 @@ es:
 
 # Logging setup
 wandb:
-  group: fishery
+  project: fishery
   name: 'fishery-SHAPER-${agent1}-vs-${agent2}'
   log: True
 

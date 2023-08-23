@@ -70,6 +70,6 @@ ppo2:
 
 # Logging setup
 wandb:
-  group: fishery
+  project: fishery
   name: 'fishery-MARL^2-${agent1}-vs-${agent2}-parity'
   log: True

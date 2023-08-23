@@ -13,14 +13,11 @@ from pax.agents.ppo.networks import (
     make_coingame_network,
     make_ipd_network,
     make_ipditm_network,
-    make_sarl_network,
-    make_coingame_network,
-    make_ipd_network,
-    make_cournot_network,
-    make_fishery_network,
+    make_sarl_network, make_cournot_network,
+    make_fishery_network, make_rice_sarl_network,
 )
-from pax.envs.rice import Rice
-from pax.envs.sarl_rice import SarlRice
+from pax.envs.rice.rice import Rice
+from pax.envs.rice.sarl_rice import SarlRice
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 
@@ -345,7 +342,7 @@ class PPO(AgentInterface):
             return new_state, new_memory, metrics
 
         def make_initial_state(
-            key: Any, hidden: jnp.ndarray
+                key: Any, hidden: jnp.ndarray
         ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -479,9 +476,7 @@ def make_agent(
 ):
     """Make PPO agent"""
     print(f"Making network for {args.env_id}")
-    if args.runner == "sarl":
-        network = make_sarl_network(action_spec)
-    elif args.env_id == "coin_game":
+    if args.env_id == "coin_game":
         network = make_coingame_network(
             action_spec,
             tabular,
@@ -504,8 +499,12 @@ def make_agent(
         network = make_cournot_network(action_spec, agent_args.hidden_size)
     elif args.env_id == "Fishery":
         network = make_fishery_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == SarlRice.env_id:
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
     elif args.env_id == Rice.env_id:
-        network = make_fishery_network(action_spec, agent_args.hidden_size)
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
+    elif args.runner == "sarl":
+        network = make_sarl_network(action_spec)
     else:
         network = make_ipd_network(
             action_spec, tabular, agent_args.hidden_size

@@ -109,7 +109,7 @@ class RLRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
         self.cournot_stats = jax.jit(cournot_stats)
-        self.fishery_stats = jax.jit(fishery_stats)
+        self.fishery_stats = fishery_stats
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
@@ -468,7 +468,7 @@ class RLRunner:
                     lambda x: x.mean(),
                     self.fishery_stats(
                         traj_1,
-                        traj_2,
+                        2,
                     ),
                 )
             else:

@@ -15,7 +15,7 @@ from pax.agents.ppo.networks import (
     make_GRU_ipd_network,
     make_GRU_ipditm_network, make_GRU_fishery_network, make_GRU_rice_network,
 )
-from pax.envs.rice import Rice
+from pax.envs.rice.rice import Rice
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 # from dm_env import TimeStep

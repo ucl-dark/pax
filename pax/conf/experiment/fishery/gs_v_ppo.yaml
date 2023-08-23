@@ -95,7 +95,7 @@ es:
 
 # Logging setup
 wandb:
-  group: fishery
+  project: fishery
   name: 'fishery-GS-${agent1}-vs-${agent2}'
   log: True
 

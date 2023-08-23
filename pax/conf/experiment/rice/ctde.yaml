@@ -6,17 +6,17 @@ agent1: 'PPO'
 # Environment
 env_id: Rice-v1
 env_type: sequential
-num_players: 27
-config_folder: pax/envs/region_yamls
+num_players: 5
+config_folder: pax/envs/rice/5_regions
 runner: ctde
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 50
-num_inner_steps: 100
-num_iters: 1e7
+num_envs: 20
+num_inner_steps: 20
+num_iters: 5e6
 save_interval: 100
-num_steps: '${num_inner_steps}'
+num_steps: 2000
 
 # Evaluation
 #run_path: ucl-dark/cg/3sp0y2cy
@@ -47,5 +47,6 @@ ppo0:
 
 # Logging setup
 wandb:
-  group: rice
-  name: 'rice-SARL-${agent1}'
+  project: rice
+  group: 'ctde'
+  name: 'rice-CTDE-${agent1}'

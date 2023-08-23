@@ -111,7 +111,7 @@ class Rice(environment.Environment):
         ):
             t = state.inner_t + 1  # Rice equations expect to start at t=1
             key, _ = jax.random.split(key, 2)
-            done = state.inner_t >= num_inner_steps
+            done = t >= num_inner_steps
 
             t_at = state.global_temperature[0]
             global_exogenous_emissions = get_exogenous_emissions(
@@ -461,7 +461,7 @@ class Rice(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         init_state = self._get_initial_state()
-        obs = self._generate_observation(0, jnp.zeros(self.num_actions), init_state)
+        obs = self._generate_observation(0, jnp.zeros(self.num_actions * self.num_players), init_state)
         return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=jnp.float32)
 
 
@@ -517,8 +517,6 @@ def get_production(production_factor, capital, labor, gamma):
 
 
 def get_gross_output(damages, abatement_cost, production):
-    """Compute the gross production output, taking into account
-    damages and abatement cost."""
     return damages * (1 - abatement_cost) * production
 
 
@@ -536,7 +534,6 @@ def get_max_potential_exports(x_max, gross_output, investment):
 
 
 def get_capital_depreciation(x_delta_k, x_delta):
-    """Compute the global capital depreciation."""
     return pow(1 - x_delta_k, x_delta)
 
 
@@ -576,7 +573,6 @@ def get_production_factor(production_factor, g_a, delta_a, delta, timestep):
 
 
 def get_carbon_intensity(intensity, g_sigma, delta_sigma, delta, timestep):
-    """Determine the carbon emission intensity."""
     return intensity * jnp.exp(
         -g_sigma * pow(1 - delta_sigma, delta * (timestep - 1)) * delta
     )

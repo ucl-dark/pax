@@ -56,7 +56,7 @@ class Fishery(environment.Environment):
                 actions: Tuple[float, ...],
                 params: EnvParams,
         ):
-            t = state.inner_t
+            t = state.inner_t + 1
             key, _ = jax.random.split(key, 2)
             done = t >= num_inner_steps
 
@@ -69,7 +69,7 @@ class Fishery(environment.Environment):
             H = jnp.clip(E * state.s * params.e, a_max=s_growth)
             s_next = s_growth - H
             next_state = EnvState(
-                inner_t=state.inner_t + 1, outer_t=state.outer_t,
+                inner_t=t, outer_t=state.outer_t,
                 s=s_next
             )
             reset_obs, reset_state = _reset(key, params)

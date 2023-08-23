@@ -158,9 +158,11 @@ class ContinuousValueHead(hk.Module):
             self,
             num_values: int,
             name: Optional[str] = None,
+            mean_activation: Optional[str] = None,
     ):
         super().__init__(name=name)
-        self._logit_layer = hk.Linear(
+        self.mean_action = mean_activation
+        self._mean_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),
             with_bias=False,
@@ -177,11 +179,14 @@ class ContinuousValueHead(hk.Module):
         )
 
     def __call__(self, inputs: jnp.ndarray):
-        logits = self._logit_layer(inputs)
-        variances = self._scale_layer(inputs)
+        if self.mean_action == "sigmoid":
+            means = jax.nn.sigmoid(self._mean_layer(inputs))
+        else:
+            means = self._mean_layer(inputs)
+        scales = self._scale_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
-        variances = jnp.maximum(variances, 1e-6)
-        return distrax.MultivariateNormalDiag(loc=logits, scale_diag=variances), value
+        scales = jnp.maximum(scales, 0.01)
+        return distrax.MultivariateNormalDiag(loc=means, scale_diag=scales), value
 
 
 class Tabular(hk.Module):
@@ -384,6 +389,30 @@ def make_fishery_network(num_actions: int, hidden_size: int):
                     activation=jnp.tanh,
                 ),
                 ContinuousValueHead(num_values=num_actions, name="fishery_value_head"),
+            ]
+        )
+        policy_value_network = hk.Sequential(layers)
+        return policy_value_network(inputs)
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network
+
+
+def make_rice_sarl_network(num_actions: int, hidden_size: int):
+    """Continuous action space network with values clipped between 0 and 1"""
+
+    def forward_fn(inputs):
+        layers = []
+        layers.extend(
+            [
+                hk.nets.MLP(
+                    [hidden_size, hidden_size],
+                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                    b_init=hk.initializers.Constant(0),
+                    activate_final=True,
+                    activation=jax.nn.relu,
+                ),
+                ContinuousValueHead(num_values=num_actions, name="rice_value_head", mean_activation="sigmoid"),
             ]
         )
         policy_value_network = hk.Sequential(layers)

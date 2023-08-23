@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import wandb
 
 from pax.utils import MemoryState, TrainingState, save
+from pax.watchers.rice import rice_stats
 
 # from jax.config import config
 # config.update('jax_disable_jit', True)
@@ -37,6 +38,7 @@ class CTDERunner:
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
 
+        self.rice_stats = rice_stats
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.jit(
@@ -83,13 +85,13 @@ class CTDERunner:
 
             actions = []
             new_memories = []
-            for i in range(args.num_players):
-                a1, a1_state, new_a1_mem = agent.batch_policy(
+            for i in range(len(obs)):
+                action, a1_state, new_a1_mem = agent.batch_policy(
                     a1_state,
                     obs[i],
                     memories[i],
                 )
-                actions.append(a1)
+                actions.append(action)
                 new_memories.append(new_a1_mem)
 
             next_obs, env_state, rewards, done, info = env.step(
@@ -103,11 +105,11 @@ class CTDERunner:
                 Sample(observation,
                        action,
                        reward * jnp.logical_not(done),
-                       memory.extras["log_probs"],
-                       memory.extras["values"],
+                       new_memory.extras["log_probs"],
+                       new_memory.extras["values"],
                        done,
-                       memory.hidden) for observation, action, reward, memory in
-                zip(obs, actions, rewards, memories)]
+                       memory.hidden) for observation, action, reward, memory, new_memory in
+                zip(obs, actions, rewards, memories, new_memories)]
 
             return (
                 rngs,
@@ -156,20 +158,25 @@ class CTDERunner:
                 env_params,
             ) = vals
 
-            for sample in trajectories:
+            for i in range(len(trajectories)):
                 _a1_state, _, _a1_metrics = agent.update(
-                    sample,
-                    sample.observations,
+                    trajectories[i],
+                    obs[i],
                     _a1_state,
-                    sample,
+                    _memories[i],
                 )
 
             # reset memory
-            _memories = agent.batch_reset(_memories, False)
+            _memories = [agent.batch_reset(_mem, False) for _mem in _memories]
 
             # Stats
-            rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
+            rewards = 0
+            for traj in trajectories:
+                episodes = jnp.sum(traj.dones)
+                rewards += jnp.where(episodes != 0, jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8), 0)
             env_stats = {}
+            if args.env_id == "Rice-v1":
+                env_stats = self.rice_stats(trajectories[0], args.num_players)
 
             return (
                 env_stats,
@@ -179,8 +186,7 @@ class CTDERunner:
                 _a1_metrics,
             )
 
-        self.rollout = _rollout
-        # self.rollout = jax.jit(_rollout)
+        self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env, env_params, agent, num_iters, watcher):
         """Run training of agent in environment"""
@@ -190,7 +196,7 @@ class CTDERunner:
         rng, _ = jax.random.split(self.random_key)
 
         a1_state, a1_mem = agent._state, agent._mem
-
+        memories = tuple([a1_mem for _ in range(self.args.num_players)])
         num_iters = max(int(num_iters / (self.args.num_envs)), 1)
         log_interval = max(num_iters / MAX_WANDB_CALLS, 5)
 
@@ -199,13 +205,12 @@ class CTDERunner:
         # run actual loop
         for i in range(num_iters):
             rng, rng_run = jax.random.split(rng, 2)
-            memories = tuple([a1_mem for _ in range(self.args.num_players)])
             # RL Rollout
             (
                 env_stats,
                 rewards_1,
                 a1_state,
-                a1_mem,
+                memories,
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, memories, env_params)
 

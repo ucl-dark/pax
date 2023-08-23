@@ -90,7 +90,7 @@ es:
 
 # Logging setup
 wandb:
-  group: cournot
+  project: cournot
   name: 'cournot-MFOS-${agent1}-vs-${agent2}'
   log: True
 
