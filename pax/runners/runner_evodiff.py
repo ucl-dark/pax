@@ -198,14 +198,70 @@ class DiffEvoRunner:
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, :, 0, :]
 
+            diff_rng = rngs[:, :, :, 1, :]
             # a1_rng = rngs[:, :, :, 1, :]
             # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
 
-            # ARUNIM TODO
-            # diff1, diff2 = env.diff(agent1, agent2, env_params)
-            # obs1 = obs1, diff1
-            # obs2 = obs2, diff2
+            # randomly sample 10 different probabilities uniformly: 
+            key, subkey = jax.random.split(diff_rng[0][0][0], 2)
+
+            #split the key again: 
+            key1, key2 = jax.random.split(key, 2)
+
+            n_samples = 10
+            probs = jax.random.uniform(subkey, shape=(n_samples, 1, 1, 1, 1))
+            inp = jnp.ones((n_samples, obs1.shape[0], obs1.shape[1], obs1.shape[2], 1)) * probs
+
+
+            def diff(a1: Callable, a2: Callable, obs1, obs2, a1_state, a1_mem, a2_state, a2_mem, inp):
+                # a1, a2 are functions that take in probs and output actions
+                # inp has shape (obs1.shape[0], obs1.shape[1], obs1.shape[2], 1)
+                obs1_in = jnp.concatenate([obs1, inp], axis=-1)
+                obs2_in = jnp.concatenate([obs2, inp], axis=-1)
+
+                # then input these probs into a1, a2:  will be differnt because of batching probably maybe vmap? 
+                _, _, mem_1 = a1(
+                                    a1_state,
+                                    obs1_in,
+                                    a1_mem,
+                                )
+                _, _, mem_2 = a2(
+                                    a2_state,
+                                    obs2_in,
+                                    a2_mem,
+                                )
+                
+                log_probs_1 = mem_1.extras["log_probs"]
+                log_probs_2 = mem_2.extras["log_probs"] 
+
+                # back to regular probs: 
+                probs_1 = jnp.exp(log_probs_1) # TODO Verify (alt is sigmoid)
+                probs_2 = jnp.exp(log_probs_2)
+
+                # then take the difference between the two:
+                diff = jnp.abs(probs_1 - probs_2)
+
+                # alternative difference calculating: 
+                    # squared
+                    # diff = jnp.abs(probs_1 - probs_2) ** 2
+                    # sigmoid (1 / (1 + torch.exp(-(t_1 - t_2))) + 1 / (1 + torch.exp(-(t_2 - t_1))) - 1)
+                    # diff = (1 / (1 + jnp.exp(-(probs_1 - probs_2)))) + (1 / (1 + jnp.exp(-(probs_2 - probs_1)))) - 1
+                    # tanh (1 + torch.tanh(t_1 - t_2)) / 2 + (1 + torch.tanh(t_2 - t_1)) / 2 - 1
+                    # diff = (1 + jnp.tanh(probs_1 - probs_2)) / 2 + (1 + jnp.tanh(probs_2 - probs_1)) / 2 - 1
+                return diff
+
+            double_batch_diff = jax.vmap(diff, in_axes=(None, None, None, None, None, None, None, None, 0), out_axes=0)
+
+            diff_full = double_batch_diff(agent1.batch_policy, agent2.batch_policy, obs1, obs2, a1_state, a1_mem, a2_state, a2_mem, inp)
+
+            # average across the first dimension of diff_full
+            diff_val = jnp.mean(diff_full, axis=0)[..., None] 
+            diff1 = diff_val + 0.1 * jax.random.uniform(key1, (obs1.shape[0], obs1.shape[1], obs1.shape[2], 1))
+            diff2 = diff_val + 0.1 * jax.random.uniform(key2, (obs1.shape[0], obs1.shape[1], obs1.shape[2], 1))
+
+            obs1 = jnp.concatenate([obs1, diff1], axis=-1)
+            obs2 = jnp.concatenate([obs2, diff2], axis=-1)
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
@@ -217,6 +273,11 @@ class DiffEvoRunner:
                 obs2,
                 a2_mem,
             )
+            # print(a1_mem) 
+            # MemoryState(hidden=Traced<ShapedArray(float32[50,10,3,16])>with<DynamicJaxprTrace(level=2/1)>, 
+            # extras={'log_probs': Traced<ShapedArray(float32[50,10,3])>with<DynamicJaxprTrace(level=2/1)>, 
+            # 'values': Traced<ShapedArray(float32[50,10,3])>with<DynamicJaxprTrace(level=2/1)>})
+            # print(a1) # int32 shape (50, 10, 3)
 
             # ARUNIM TODO For thresholds, something like the below should work. 
             # diff = env.diff(a1_mem[log_probs], a2_mem[log_probs], env_params])
@@ -294,10 +355,17 @@ class DiffEvoRunner:
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
+            obs2_diffed = obs2
+
+            # if diff: 
+            ones = jnp.ones((obs1.shape[0], obs1.shape[1], obs1.shape[2], 1))
+            obs1_diffed = jnp.concatenate([obs1, ones], axis=-1)
+            obs2_diffed = jnp.concatenate([obs2, ones], axis=-1)
+
             # update second agent
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
-                obs2,
+                obs2_diffed, # if diff: (if not diff, obs2)
                 a2_state,
                 a2_mem,
             )

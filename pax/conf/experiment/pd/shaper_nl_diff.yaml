@@ -2,25 +2,25 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent2: 'Naive'
 
 # Environment
 env_id: iterated_matrix_game
 env_type: meta
 env_discount: 0.96
-payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+payoff: [[3, 3], [0, 4], [4, 0], [1, 1]] # slightly reducing incentive to defect (G=3)
 
 # Runner 
-runner: evo 
+runner: evodiff
 
 # Training
 top_k: 5
 popsize: 50
 num_envs: 2
-num_opps: 1
-num_outer_steps: 100 
-num_inner_steps: 100 
-num_iters: 100
+num_opps: 10
+num_outer_steps: 200 
+num_inner_steps: 1 # one-shot. 
+num_iters: 500
 num_devices: 1
 
 # Evaluation 
@@ -69,6 +69,7 @@ ppo2:
   with_cnn: False
   separate: False
   hidden_size: 16
+
 # Naive Learner parameters 
 naive:
   num_minibatches: 1
@@ -77,6 +78,8 @@ naive:
   gae_lambda: 0.95
   max_gradient_norm: 1.0
   lr: 1.0
+  learning_rate: 1.0 # added this bc it was needed? 
+  entropy_coeff: 0.1 # added this bc it was needed?
   adam_epsilon: 1e-5
 
 # ES parameters 
@@ -105,7 +108,7 @@ es:
 # Logging setup
 wandb:
   entity: "arunim1"
-  project: ipd
+  project: pd
   group: 'SHAPER-${agent1}-vs-${agent2}'
-  name: run-seed-${seed}
-  log: True
+  name: diff-run-seed-${seed}
+  log: False

@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'PPO_memory'
-agent2: 'TitForTat'
+agent2: 'Naive'
 
 # Environment
 env_id: iterated_matrix_game
@@ -19,7 +19,7 @@ popsize: 50
 num_envs: 2
 num_opps: 1
 num_outer_steps: 100 
-num_inner_steps: 100 
+num_inner_steps: 100
 num_iters: 100
 num_devices: 1
 
@@ -77,6 +77,8 @@ naive:
   gae_lambda: 0.95
   max_gradient_norm: 1.0
   lr: 1.0
+  learning_rate: 1.0 # added this bc it was needed? 
+  entropy_coeff: 0.1 # added this bc it was needed?
   adam_epsilon: 1e-5
 
 # ES parameters 

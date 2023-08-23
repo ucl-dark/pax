@@ -131,6 +131,7 @@ class NaiveExact(AgentInterface):
         return mem
 
     def update(
+        # self, traj_batch, obs, state, mem  # might actually be correct, since tha alternative threw an error...
         self, traj_batch, obs, rewards, done, state, mem
     ) -> TrainingState:
         return state, mem, {}

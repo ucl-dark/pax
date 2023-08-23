@@ -1,8 +1,8 @@
 # @package _global_
 
 # Agents  
-agent1: 'Hyper'
-agent2: 'NaiveEx'
+agent1: 'PPO'
+agent2: 'Naive'
 
 # Environment
 env_id: infinite_matrix_game

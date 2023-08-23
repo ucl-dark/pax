@@ -293,6 +293,8 @@ class NaiveLearner(AgentInterface):
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
             dummy_obs = utils.add_batch_dim(dummy_obs)
+            dummy_obs = jnp.concatenate([dummy_obs, jnp.ones((dummy_obs.shape[0], 1))], axis=-1) 
+            
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
             return TrainingState(

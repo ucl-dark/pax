@@ -202,6 +202,12 @@ class EvoRunner:
             # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
 
+            # adding value-less information to observations to keep shapes consistent 
+            # due to modifications in runner_evodiff.py
+            ones = jnp.ones((obs1.shape[0], obs1.shape[1], obs1.shape[2], 1))
+            obs1 = jnp.concatenate([obs1, ones], axis=-1)
+            obs2 = jnp.concatenate([obs2, ones], axis=-1)
+
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
                 obs1,
@@ -280,10 +286,14 @@ class EvoRunner:
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
 
+            ones = jnp.ones((obs1.shape[0], obs1.shape[1], obs1.shape[2], 1))
+            obs1_diffed = jnp.concatenate([obs1, ones], axis=-1)
+            obs2_diffed = jnp.concatenate([obs2, ones], axis=-1)
+
             # update second agent
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
-                obs2,
+                obs2_diffed,
                 a2_state,
                 a2_mem,
             )
