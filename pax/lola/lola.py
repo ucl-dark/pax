@@ -171,63 +171,118 @@ class LOLA:
                 "loss_value": value_objective,
             }
 
-        def inner_loss(params, mem, other_params, other_mem, samples):
+        def inner_loss(
+            chosen_op_params,
+            chosen_op_idx,
+            lola_params,
+            mem,
+            other_params,
+            other_mems,
+            samples,
+        ):
             """Used for the inner rollout"""
             obs_1 = samples.obs_self
-            obs_2 = samples.obs_other[0]
+            other_obs = samples.obs_other
 
-            # we care about the other player's rewards
-            rewards = samples.rewards_other[0]
+            # we care about the chosen opponent player's rewards
+            self_rewards = samples.rewards_self
+            other_rewards = samples.rewards_other
             actions_1 = samples.actions_self
-            actions_2 = samples.actions_other[0]
+            other_actions = samples.actions_other
 
             # Get distribution and valwue using my network
-            distribution, _ = self.network.apply(params, obs_1)
+            distribution, _ = self.network.apply(lola_params, obs_1)
             self_log_prob = distribution.log_prob(actions_1)
-            if self.args.agent2 == "PPO_memory":
-                (
-                    distribution,
-                    values,
-                ), hidden_state = self.other_agents[0].network.apply(
-                    other_params, obs_2, other_mem.hidden
-                )
 
-            else:
-                distribution, values = self.other_agents[0].network.apply(
-                    other_params, obs_2
+            other_log_probs = []
+            other_values = []
+            for idx, agent in enumerate(self.other_agents):
+                # treating this case separately cause we want the grads on the chosen other players params
+                if idx == chosen_op_idx:
+                    if self.args.agent2 == "PPO_memory":
+                        (
+                            distribution,
+                            values,
+                        ), hidden_state = agent.network.apply(
+                            chosen_op_params,
+                            other_obs[idx],
+                            other_mems[idx].hidden,
+                        )
+
+                    else:
+                        distribution, values = agent.network.apply(
+                            chosen_op_params, other_obs[idx]
+                        )
+                else:
+                    if self.args.agent2 == "PPO_memory":
+                        (
+                            distribution,
+                            values,
+                        ), hidden_state = agent.network.apply(
+                            other_params[idx],
+                            other_obs[idx],
+                            other_mems[idx].hidden,
+                        )
+
+                    else:
+                        distribution, values = agent.network.apply(
+                            other_params[idx], other_obs[idx]
+                        )
+                other_values.append(values)
+                other_log_probs.append(
+                    distribution.log_prob(other_actions[idx])
                 )
-            other_log_prob = distribution.log_prob(actions_2)
             # apply discount:
             cum_discount = (
-                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
+                jnp.cumprod(self.gamma * jnp.ones(self_rewards.shape), axis=0)
                 / self.gamma
             )
-            discounted_rewards = rewards * cum_discount
-            discounted_values = values * cum_discount
+            discounted_rewards = [
+                reward * cum_discount for reward in other_rewards
+            ]
+            discounted_values = [
+                values * cum_discount for values in other_values
+            ]
 
+            # TODO do actual maths here - no idea what this is doing
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
-
+            # dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
+            # # logprob of each stochastic nodes:
+            # stochastic_nodes = self_log_prob + other_log_prob
+            sum_other_log_probs = jnp.sum(
+                jnp.stack(other_log_probs, axis=0), axis=0
+            )
+            dependencies = jnp.cumsum(
+                self_log_prob + sum_other_log_probs, axis=0
+            )
             # logprob of each stochastic nodes:
-            stochastic_nodes = self_log_prob + other_log_prob
+            stochastic_nodes = self_log_prob + sum_other_log_probs
 
             # dice objective:
             dice_objective = jnp.mean(
-                jnp.sum(magic_box(dependencies) * discounted_rewards, axis=0)
+                jnp.sum(
+                    magic_box(dependencies)
+                    * discounted_rewards[chosen_op_idx],
+                    axis=0,
+                )
             )
 
             if use_baseline:
                 # variance_reduction:
                 baseline_term = jnp.mean(
                     jnp.sum(
-                        (1 - magic_box(stochastic_nodes)) * discounted_values,
+                        (1 - magic_box(stochastic_nodes))
+                        * discounted_values[chosen_op_idx],
                         axis=0,
                     )
                 )
                 dice_objective = dice_objective + baseline_term
 
             # want to minimize this value
-            value_objective = jnp.mean((rewards - values) ** 2)
+            value_objective = jnp.mean(
+                (other_rewards[chosen_op_idx] - other_values[chosen_op_idx])
+                ** 2
+            )
 
             # want to maximize this objective
             loss_total = -dice_objective + value_objective
@@ -270,11 +325,12 @@ class LOLA:
 
         self.env_params = env_params
 
-        grad_inner = jax.grad(inner_loss, has_aux=True, argnums=2)
+        grad_inner = jax.grad(inner_loss, has_aux=True, argnums=0)
         grad_outer = jax.grad(outer_loss, has_aux=True, argnums=0)
         # vmap over num_envs
         self.grad_fn_inner = jax.jit(
-            jax.vmap(grad_inner, (None, 0, None, 0, 0), (0, 0))
+            jax.vmap(grad_inner, (None, None, None, 0, None, 0, 0), (0, 0)),
+            static_argnums=1,
         )
         self.grad_fn_outer = jax.jit(
             jax.vmap(
@@ -469,13 +525,20 @@ class LOLA:
             rewards_other=[vmap_trajectories[1].rewards],
         )
         # get gradients of opponent
+        #TODO
+        other_mems = [other_mem]
+        other_states = [other_state]
+        chosen_op_params = other_state.params
+        chosen_op_idx = 0
         gradients, _ = self.grad_fn_inner(
-            my_state.params,
-            my_mem,
-            other_state.params,
-            other_mem,
-            sample,
-        )
+                chosen_op_params,
+                chosen_op_idx,
+                my_state.params,
+                my_mem,
+                [state.params for state in other_states],
+                other_mems,
+                sample,
+            )
         # avg over numenvs
         gradients = jax.tree_map(lambda x: x.mean(axis=0), gradients)
 

@@ -83,5 +83,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'increments'
-  name: outer_loss
+  name: inner_loss
   log: True 
