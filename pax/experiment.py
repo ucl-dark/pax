@@ -91,9 +91,9 @@ from pax.watchers import (
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
 # os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-from jax.config import config
+# from jax.config import config
 
-config.update("jax_disable_jit", True)
+# config.update("jax_disable_jit", True)
 
 
 def global_setup(args):

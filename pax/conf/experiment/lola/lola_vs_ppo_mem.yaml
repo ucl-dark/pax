@@ -23,9 +23,9 @@ num_iters: 1000
 lola: 
   use_baseline: False   
   adam_epsilon: 1e-5
-  lr_in: 0.3
-  lr_out: 0.2
-  lr_value: 0.1
+  lr_in: 0.03
+  lr_out: 0.05
+  lr_value: 0.001
   gamma: 0.96
   num_lookaheads: 1
 
