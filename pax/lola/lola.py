@@ -90,52 +90,60 @@ class LOLA:
             state = state._replace(random_key=key)
             return actions, state, mem
 
-        def outer_loss(params, mem, other_params, other_mem, samples):
+        def outer_loss(params, mem, other_params, other_mems, samples):
             """Used for the outer rollout"""
             # Unpack the samples
             obs_1 = samples.obs_self
-            obs_2 = samples.obs_other[0]
+            other_obs = samples.obs_other
 
             # we care about our own rewards
-            rewards = samples.rewards_self
+            self_rewards = samples.rewards_self
             actions_1 = samples.actions_self
-            actions_2 = samples.actions_other[0]
+            other_actions = samples.actions_other
             # jax.debug.breakpoint()
 
             # Get distribution and value using my network
-            # vmap_network1 = jax.vmap(jax.vmap(self.network.apply, (None, 0), (0, 0)),  (None, 0), (0, 0))
-            # vmap_network2 = jax.vmap(self.agent2.network.apply, (None, 0,0), (0, 0))
-
             distribution, values = self.network.apply(params, obs_1)
             self_log_prob = distribution.log_prob(actions_1)
 
             # Get distribution and value using other player's network
-            if self.args.agent2 == "PPO_memory":
-                (distribution, _), _ = self.other_agents[0].network.apply(
-                    other_params, obs_2, other_mem.hidden
+            other_log_probs = []
+            for idx, agent in enumerate(self.other_agents):
+                if self.args.agent2 == "PPO_memory":
+                    (distribution, _,), _ = agent.network.apply(
+                        other_params[idx],
+                        other_obs[idx],
+                        other_mems[idx].hidden,
+                    )
+                else:
+                    distribution, _ = agent.network.apply(
+                        other_params[idx], other_obs[idx]
+                    )
+                other_log_probs.append(
+                    distribution.log_prob(other_actions[idx])
                 )
-            else:
-                distribution, _ = self.other_agents[0].network.apply(
-                    other_params, obs_2
-                )
-            other_log_prob = distribution.log_prob(actions_2)
 
             # flatten opponent and num_envs into one dimension
 
             # apply discount:
             cum_discount = (
-                jnp.cumprod(self.gamma * jnp.ones(rewards.shape), axis=0)
+                jnp.cumprod(self.gamma * jnp.ones(self_rewards.shape), axis=0)
                 / self.gamma
             )
 
-            discounted_rewards = rewards * cum_discount
+            discounted_rewards = self_rewards * cum_discount
             discounted_values = values * cum_discount
 
+            # TODO no clue if this makes any sense
             # stochastics nodes involved in rewards dependencies:
-            dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
-
+            sum_other_log_probs = jnp.sum(
+                jnp.stack(other_log_probs, axis=0), axis=0
+            )
+            dependencies = jnp.cumsum(
+                self_log_prob + sum_other_log_probs, axis=0
+            )
             # logprob of each stochastic nodes:
-            stochastic_nodes = self_log_prob + other_log_prob
+            stochastic_nodes = self_log_prob + sum_other_log_probs
 
             # dice objective:
             dice_objective = jnp.mean(
@@ -147,17 +155,16 @@ class LOLA:
                 baseline_term = jnp.mean(
                     jnp.sum(
                         (1 - magic_box(stochastic_nodes)) * discounted_values,
-                        axis=-0,
+                        axis=0,
                     )
                 )
                 dice_objective = dice_objective + baseline_term
 
             # want to minimize this value
-            value_objective = jnp.mean((rewards - values) ** 2)
+            value_objective = jnp.mean((self_rewards - values) ** 2)
 
             # want to maximize this objective
             loss_total = -dice_objective + value_objective
-
             return loss_total, {
                 "loss_total": -dice_objective + value_objective,
                 "loss_policy": -dice_objective,
@@ -653,11 +660,15 @@ class LOLA:
         # print("opt_state", self._state.opt_state)
         # print()
         # calculate the gradients
+        #TODO
+        other_mems = [other_mem]
+        other_states = [other_state]
+
         gradients, results = self.grad_fn_outer(
             my_state.params,
             my_mem,
-            other_state.params,
-            other_mem,
+            [state.params for state in other_states],
+            other_mems,
             sample,
         )
         gradients = jax.tree_map(lambda x: x.mean(axis=(0, 1)), gradients)

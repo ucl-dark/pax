@@ -83,5 +83,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'increments'
-  name: tensor_runner
+  name: outer_loss
   log: True 
