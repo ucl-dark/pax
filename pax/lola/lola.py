@@ -402,26 +402,30 @@ class LOLA:
             inner_rollout_rng, self._num_envs
         ).reshape((self._num_envs, -1))
         batch_step = jax.vmap(self.env_step, (0, 0, 0, None), 0)
+        batch_policy1 = jax.vmap(self._policy, (None, 0, 0), (0, None, 0))
+        batch_policies = [
+            jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
+            for agent in self.other_agents
+        ]
+        # 
 
         def lola_inlookahead_rollout(carry, unused):
             """Runner for inner episode"""
 
             (
                 rngs,
-                obs1,
-                obs2,
-                r1,
-                r2,
-                a1_state,
-                a1_mem,
-                a2_state,
-                a2_mem,
+                first_agent_obs,
+                other_agent_obs,
+                first_agent_reward,
+                other_agent_rewards,
+                first_agent_state,
+                other_agent_states,
+                first_agent_mem,
+                other_agent_mems,
                 env_state,
                 env_params,
             ) = carry
-
             # unpack rngs
-
 
             # this fn is not batched over num_envs!
             vmap_split = jax.vmap(jax.random.split, (0, None), 0)
@@ -432,83 +436,105 @@ class LOLA:
             # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, 3, :]
 
-            batch_policy1 = jax.vmap(self._policy, (None, 0, 0), (0, None, 0))
-            batch_policy2 = jax.vmap(
-                self.other_agents[0]._policy, (None, 0, 0), (0, None, 0)
-            )
-            a1, a1_state, new_a1_mem = batch_policy1(
-                a1_state,
-                obs1,
-                a1_mem,
-            )
-            # jax.debug.breakpoint()
-            a2, a2_state, new_a2_mem = batch_policy2(
-                a2_state,
-                obs2,
-                a2_mem,
-            )
+            actions = []
             (
-                (next_obs1, next_obs2),
+                first_action,
+                first_agent_state,
+                new_first_agent_mem,
+            ) = batch_policy1(
+                first_agent_state,
+                first_agent_obs,
+                first_agent_mem,
+            )
+            actions.append(first_action)
+            new_other_agent_mems = [None] * len(self.other_agents)
+            for agent_idx, other_policy in enumerate(batch_policies):
+                (
+                    non_first_action,
+                    other_agent_states[agent_idx],
+                    new_other_agent_mems[agent_idx],
+                ) = other_policy(
+                    other_agent_states[agent_idx],
+                    other_agent_obs[agent_idx],
+                    other_agent_mems[agent_idx],
+                )
+                actions.append(non_first_action)
+
+            (
+                all_agent_next_obs,
                 env_state,
-                rewards,
+                all_agent_rewards,
                 done,
                 info,
             ) = batch_step(
                 env_rng,
                 env_state,
-                (a1, a2),
+                actions,
                 env_params,
             )
+            first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
+            first_agent_reward, *other_agent_rewards = all_agent_rewards
             traj1 = LOLASample(
-                obs1, obs2, a1, a2, done, rewards[0], rewards[1]
+                first_agent_next_obs,
+                other_agent_next_obs,
+                actions[0],
+                actions[1:],
+                done,
+                first_agent_reward,
+                other_agent_rewards,
             )
 
-            traj2 = Sample(
-                obs2,
-                a2,
-                rewards[1],
-                new_a2_mem.extras["log_probs"],
-                new_a2_mem.extras["values"],
-                done,
-                a2_mem.hidden,
-            )
+            other_traj = [
+                Sample(
+                    other_agent_obs[agent_idx],
+                    actions[agent_idx + 1],
+                    other_agent_rewards[agent_idx],
+                    new_other_agent_mems[agent_idx].extras["log_probs"],
+                    new_other_agent_mems[agent_idx].extras["values"],
+                    done,
+                    other_agent_mems[agent_idx].hidden,
+                )
+                for agent_idx in range(len(self.other_agents))
+            ]
             return (
                 rngs,
-                next_obs1,
-                next_obs2,
-                rewards[0],
-                rewards[1],
-                a1_state,
-                new_a1_mem,
-                a2_state,
-                new_a2_mem,
+                first_agent_next_obs,
+                tuple(other_agent_next_obs),
+                first_agent_reward,
+                tuple(other_agent_rewards),
+                first_agent_state,
+                other_agent_states,
+                new_first_agent_mem,
+                new_other_agent_mems,
                 env_state,
                 env_params,
-            ), (
-                traj1,
-                traj2,
-            )
+            ), (traj1, *other_traj)
+
+        #TODO
+        other_mems = [other_mem]
+        other_states = [other_state]
+
 
         carry, trajectories = jax.lax.scan(
             lola_inlookahead_rollout,
             (
                 inner_rollout_rngs,
                 obs[0],
-                obs[1],
+                tuple(obs[1:]),
                 rewards[0],
-                rewards[1],
+                tuple(rewards[1:]),
                 my_state,
+                other_states,
                 my_mem,
-                other_state,
-                other_mem,
+                other_mems,
                 env_state,
                 self.env_params,
             ),
             None,
             length=self._num_steps,  # num_inner_steps
         )
-        my_mem = carry[6]
-        other_mem = carry[8]
+        my_mem = carry[7]
+        other_mems = carry[8]
         # jax.debug.breakpoint()
         # flip axes to get (num_envs, num_inner, obs_dim) to vmap over numenvs
         vmap_trajectories = jax.tree_map(
