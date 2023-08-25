@@ -99,7 +99,6 @@ class LOLA:
 
             # we care about our own rewards
             self_rewards = samples.rewards_self
-            other_rewards = samples.rewards_other
             actions_1 = samples.actions_self
             other_actions = samples.actions_other
             # jax.debug.breakpoint()
@@ -144,7 +143,6 @@ class LOLA:
             dependencies = jnp.cumsum(
                 self_log_prob + sum_other_log_probs, axis=0
             )
-
             # logprob of each stochastic nodes:
             stochastic_nodes = self_log_prob + sum_other_log_probs
 
