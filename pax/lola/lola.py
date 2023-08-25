@@ -1,4 +1,4 @@
-from typing import Any, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, List, Mapping, NamedTuple, Tuple, Dict
 
 from pax import utils
 from pax.agents.ppo.ppo_gru import PPO
@@ -18,12 +18,12 @@ import optax
 
 class LOLASample(NamedTuple):
     obs_self: jnp.ndarray
-    obs_other: jnp.ndarray
+    obs_other: List[jnp.ndarray]
     actions_self: jnp.ndarray
-    actions_other: jnp.ndarray
+    actions_other: List[jnp.ndarray]
     dones: jnp.ndarray
     rewards_self: jnp.ndarray
-    rewards_other: jnp.ndarray
+    rewards_other: List[jnp.ndarray]
 
 
 class Batch(NamedTuple):
@@ -73,7 +73,7 @@ class LOLA:
         self._num_opps = args.num_opps
         self.env_step = env_step
         self.env_reset = env_reset
-        self.agent2 = None
+        self.other_agents = None
         self.args = args
 
         @jax.jit
@@ -94,12 +94,12 @@ class LOLA:
             """Used for the outer rollout"""
             # Unpack the samples
             obs_1 = samples.obs_self
-            obs_2 = samples.obs_other
+            obs_2 = samples.obs_other[0]
 
             # we care about our own rewards
             rewards = samples.rewards_self
             actions_1 = samples.actions_self
-            actions_2 = samples.actions_other
+            actions_2 = samples.actions_other[0]
             # jax.debug.breakpoint()
 
             # Get distribution and value using my network
@@ -111,11 +111,11 @@ class LOLA:
 
             # Get distribution and value using other player's network
             if self.args.agent2 == "PPO_memory":
-                (distribution, _), _ = self.agent2.network.apply(
+                (distribution, _), _ = self.other_agents[0].network.apply(
                     other_params, obs_2, other_mem.hidden
                 )
             else:
-                distribution, _ = self.agent2.network.apply(
+                distribution, _ = self.other_agents[0].network.apply(
                     other_params, obs_2
                 )
             other_log_prob = distribution.log_prob(actions_2)
@@ -167,12 +167,12 @@ class LOLA:
         def inner_loss(params, mem, other_params, other_mem, samples):
             """Used for the inner rollout"""
             obs_1 = samples.obs_self
-            obs_2 = samples.obs_other
+            obs_2 = samples.obs_other[0]
 
             # we care about the other player's rewards
-            rewards = samples.rewards_other
+            rewards = samples.rewards_other[0]
             actions_1 = samples.actions_self
-            actions_2 = samples.actions_other
+            actions_2 = samples.actions_other[0]
 
             # Get distribution and valwue using my network
             distribution, _ = self.network.apply(params, obs_1)
@@ -181,12 +181,12 @@ class LOLA:
                 (
                     distribution,
                     values,
-                ), hidden_state = self.agent2.network.apply(
+                ), hidden_state = self.other_agents[0].network.apply(
                     other_params, obs_2, other_mem.hidden
                 )
 
             else:
-                distribution, values = self.agent2.network.apply(
+                distribution, values = self.other_agents[0].network.apply(
                     other_params, obs_2
                 )
             other_log_prob = distribution.log_prob(actions_2)
@@ -318,6 +318,9 @@ class LOLA:
         INPUT:
         env: SequentialMatrixGame, an environment object of the game being played
         """
+        #TODO
+        other_state = other_state[0]
+        other_mem = other_mem[0]
 
         # do a full rollout
         # we want to play num_envs games at once wiht one opponent
@@ -356,6 +359,7 @@ class LOLA:
 
             # unpack rngs
 
+
             # this fn is not batched over num_envs!
             vmap_split = jax.vmap(jax.random.split, (0, None), 0)
             rngs = vmap_split(rngs, 4)
@@ -367,7 +371,7 @@ class LOLA:
 
             batch_policy1 = jax.vmap(self._policy, (None, 0, 0), (0, None, 0))
             batch_policy2 = jax.vmap(
-                self.agent2._policy, (None, 0, 0), (0, None, 0)
+                self.other_agents[0]._policy, (None, 0, 0), (0, None, 0)
             )
             a1, a1_state, new_a1_mem = batch_policy1(
                 a1_state,
@@ -450,12 +454,12 @@ class LOLA:
 
         sample = LOLASample(
             obs_self=vmap_trajectories[0].obs_self,
-            obs_other=vmap_trajectories[1].observations,
+            obs_other=[vmap_trajectories[1].observations],
             actions_self=vmap_trajectories[0].actions_self,
-            actions_other=vmap_trajectories[1].actions,
+            actions_other=[vmap_trajectories[1].actions],
             dones=vmap_trajectories[0].dones,
             rewards_self=vmap_trajectories[0].rewards_self,
-            rewards_other=vmap_trajectories[1].rewards,
+            rewards_other=[vmap_trajectories[1].rewards],
         )
         # get gradients of opponent
         gradients, _ = self.grad_fn_inner(
@@ -469,7 +473,7 @@ class LOLA:
         gradients = jax.tree_map(lambda x: x.mean(axis=0), gradients)
 
         # Update the optimizer
-        updates, opt_state = self.agent2.optimizer.update(
+        updates, opt_state = self.other_agents[0].optimizer.update(
             gradients, other_state.opt_state
         )
 
@@ -485,7 +489,7 @@ class LOLA:
         )
         # jax.debug.breakpoint()
 
-        return new_other_state, other_mem
+        return [new_other_state], [other_mem]
 
     def out_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
         """
@@ -496,6 +500,9 @@ class LOLA:
         env: SequentialMatrixGame, an environment object of the game being played
         other_agents: list, a list of objects of the other agents
         """
+        #TODO
+        other_state = other_state[0]
+        other_mem = other_mem[0]
 
         rng, reset_rng = jax.random.split(rng)
         reset_rngs = jax.random.split(
@@ -551,7 +558,7 @@ class LOLA:
 
             batch_policy1 = jax.vmap(self._policy, (None, 0, 0), (0, None, 0))
             batch_policy2 = jax.vmap(
-                jax.vmap(self.agent2._policy, (None, 0, 0), (0, None, 0)),
+                jax.vmap(self.other_agents[0]._policy, (None, 0, 0), (0, None, 0)),
                 (0, 0, 0),
                 (0, 0, 0),
             )
@@ -633,12 +640,12 @@ class LOLA:
         # Now keep the same order.
         sample = LOLASample(
             obs_self=vmap_trajectories[0].obs_self,
-            obs_other=vmap_trajectories[1].observations,
+            obs_other=[vmap_trajectories[1].observations],
             actions_self=vmap_trajectories[0].actions_self,
-            actions_other=vmap_trajectories[1].actions,
+            actions_other=[vmap_trajectories[1].actions],
             dones=vmap_trajectories[0].dones,
             rewards_self=vmap_trajectories[0].rewards_self,
-            rewards_other=vmap_trajectories[1].rewards,
+            rewards_other=[vmap_trajectories[1].rewards],
         )
         # print("Before updating")
         # print("---------------------")
