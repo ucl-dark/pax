@@ -12,6 +12,7 @@ from pax.watchers import n_player_ipd_visitation
 
 MAX_WANDB_CALLS = 1000
 
+
 class LOLASample(NamedTuple):
     obs_self: jnp.ndarray
     obs_other: jnp.ndarray
@@ -20,6 +21,7 @@ class LOLASample(NamedTuple):
     dones: jnp.ndarray
     rewards_self: jnp.ndarray
     rewards_other: jnp.ndarray
+
 
 class Sample(NamedTuple):
     """Object containing a batch of data"""
@@ -143,7 +145,7 @@ class NplayerRLRunner:
         if args.agent1 == "LOLA":
             # batch for num_opps
             agent1.batch_in_lookahead = jax.vmap(
-                agent1.in_lookahead, (0, None, 0, 0, 0), (0,0)
+                agent1.in_lookahead, (0, None, 0, 0, 0), (0, 0)
             )
 
         # go through opponents, we start with agent2
@@ -428,24 +430,29 @@ class NplayerRLRunner:
             ) = vals
             trajectories, other_agent_metrics = stack
 
-
             # update outer agent
             if args.agent1 != "LOLA":
                 first_agent_state, _, first_agent_metrics = agent1.update(
-                reduce_outer_traj(trajectories[0]),
-                self.reduce_opp_dim(first_agent_obs),
-                first_agent_state,
-                self.reduce_opp_dim(first_agent_mem),
-            )
+                    reduce_outer_traj(trajectories[0]),
+                    self.reduce_opp_dim(first_agent_obs),
+                    first_agent_state,
+                    self.reduce_opp_dim(first_agent_mem),
+                )
 
-            if args.agent1 == "LOLA":
+            elif args.agent1 == "LOLA":
+                # jax.debug.breakpoint()
                 # copy so we don't modify the original during simulation
                 first_agent_metrics = None
 
-                self_state, self_mem = copy_state_and_mem(first_agent_state, first_agent_mem)
+                self_state, self_mem = copy_state_and_mem(
+                    first_agent_state, first_agent_mem
+                )
                 other_states, other_mems = [], []
                 for agent_idx, non_first_agent in enumerate(other_agents):
-                    other_state, other_mem = copy_state_and_mem(other_agent_state[agent_idx], other_agent_mem[agent_idx])
+                    other_state, other_mem = copy_state_and_mem(
+                        other_agent_state[agent_idx],
+                        other_agent_mem[agent_idx],
+                    )
                     other_states.append(other_state)
                     other_mems.append(other_mem)
                 # get new state of opponent after their lookahead optimisation
@@ -464,8 +471,13 @@ class NplayerRLRunner:
                 # get our new state after our optimisation based on ops new state
                 _rng_run, out_look_rng = jax.random.split(_rng_run)
                 first_agent_state = agent1.out_lookahead(
-                    out_look_rng, first_agent_state, first_agent_mem, other_states, other_mems
+                    out_look_rng,
+                    first_agent_state,
+                    first_agent_mem,
+                    other_states,
+                    other_mems,
                 )
+            # jax.debug.breakpoint()
 
             if args.agent2 == "LOLA":
                 raise NotImplementedError("LOLA not implemented for agent2")
@@ -578,9 +590,10 @@ class NplayerRLRunner:
                 flattened_metrics_1 = jax.tree_util.tree_map(
                     lambda x: jnp.mean(x), first_agent_metrics
                 )
-                agent1._logger.metrics = (
-                    agent1._logger.metrics | flattened_metrics_1
-                )
+                if self.args.agent1 != "LOLA":
+                    agent1._logger.metrics = (
+                        agent1._logger.metrics | flattened_metrics_1
+                    )
 
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)

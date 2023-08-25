@@ -2,7 +2,7 @@
 
 # Agents  
 agent1: 'LOLA'
-agent2: 'PPO_memory'
+agent2: 'Tabular'
 
 # Environment
 # env_id: iterated_matrix_game
@@ -14,15 +14,15 @@ env_id: iterated_nplayer_tensor_game
 env_type: sequential
 env_discount: 0.96
 payoff_table: [
-[ 0 , 1000 ],
-[ -3 , -1 ],
+[ -1 , 1000 ],
+[ -3 , 0 ],
 [ 1000 , -2 ],
 ]
 runner: tensor_rl_nplayer
 num_players: 2
 
 
-num_envs: 12
+num_envs: 100
 num_opps: 1
 num_outer_steps: 1
 num_inner_steps: 100 # how long a game takes
@@ -30,7 +30,7 @@ num_iters: 10000
 
 # LOLA agent parameters
 lola: 
-  use_baseline: True   
+  use_baseline: False   
   adam_epsilon: 1e-5
   lr_in:  0.03
   lr_out:  0.005
