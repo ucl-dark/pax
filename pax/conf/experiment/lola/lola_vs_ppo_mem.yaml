@@ -83,5 +83,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'increments'
-  name: inner_loss
+  name: outer_lookahead_rollout
   log: True 

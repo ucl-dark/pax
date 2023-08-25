@@ -66,4 +66,4 @@ wandb:
   project: lola
   group: 'LOLA-vs-${agent2}'
   name: ppo_mem_baseline
-  log: False 
+  log: True 

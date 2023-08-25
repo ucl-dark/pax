@@ -73,6 +73,7 @@ class LOLA:
         self._num_opps = args.num_opps
         self.env_step = env_step
         self.env_reset = env_reset
+        # self.agent2 = None
         self.other_agents = None
         self.args = args
 
@@ -373,7 +374,7 @@ class LOLA:
     #     )
     #      utils.to_numpy(actions), state
 
-    def in_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
+    def in_lookahead(self, rng, my_state, my_mem, other_states, other_mems):
         """
         Performs a rollout using the current parameters of both agents
         and simulates a naive learning update step for the other agent
@@ -381,9 +382,6 @@ class LOLA:
         INPUT:
         env: SequentialMatrixGame, an environment object of the game being played
         """
-        #TODO
-        other_state = other_state[0]
-        other_mem = other_mem[0]
 
         # do a full rollout
         # we want to play num_envs games at once wiht one opponent
@@ -395,9 +393,9 @@ class LOLA:
         batch_reset = jax.vmap(self.env_reset, (0, None), 0)
         obs, env_state = batch_reset(reset_rngs, self.env_params)
 
-        rewards = [jnp.zeros(self._num_envs), jnp.zeros(self._num_envs)]
+        rewards = [jnp.zeros(self._num_envs)] * self.args.num_players
 
-        inner_rollout_rng, rn = jax.random.split(rng)
+        inner_rollout_rng, rng = jax.random.split(rng)
         inner_rollout_rngs = jax.random.split(
             inner_rollout_rng, self._num_envs
         ).reshape((self._num_envs, -1))
@@ -407,7 +405,7 @@ class LOLA:
             jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
             for agent in self.other_agents
         ]
-        # 
+        # batch_policy2 = jax.vmap(self.agent2._policy, (None, 0, 0), (0, None, 0))
 
         def lola_inlookahead_rollout(carry, unused):
             """Runner for inner episode"""
@@ -510,10 +508,7 @@ class LOLA:
                 env_params,
             ), (traj1, *other_traj)
 
-        #TODO
-        other_mems = [other_mem]
-        other_states = [other_state]
-
+        # jax.debug.breakpoint()
 
         carry, trajectories = jax.lax.scan(
             lola_inlookahead_rollout,
@@ -543,20 +538,21 @@ class LOLA:
 
         sample = LOLASample(
             obs_self=vmap_trajectories[0].obs_self,
-            obs_other=[vmap_trajectories[1].observations],
+            obs_other=[traj.observations for traj in vmap_trajectories[1:]],
             actions_self=vmap_trajectories[0].actions_self,
-            actions_other=[vmap_trajectories[1].actions],
+            actions_other=[traj.actions for traj in vmap_trajectories[1:]],
             dones=vmap_trajectories[0].dones,
             rewards_self=vmap_trajectories[0].rewards_self,
-            rewards_other=[vmap_trajectories[1].rewards],
+            rewards_other=[traj.rewards for traj in vmap_trajectories[1:]],
         )
-        # get gradients of opponent
-        #TODO
-        other_mems = [other_mem]
-        other_states = [other_state]
-        chosen_op_params = other_state.params
-        chosen_op_idx = 0
-        gradients, _ = self.grad_fn_inner(
+        # jax.debug.breakpoint()
+        # get gradients of opponents
+        other_gradients = []
+        for idx in range(len((self.other_agents))):
+            chosen_op_idx = idx
+            chosen_op_params = other_states[idx].params
+
+            gradient, _ = self.grad_fn_inner(
                 chosen_op_params,
                 chosen_op_idx,
                 my_state.params,
@@ -565,27 +561,32 @@ class LOLA:
                 other_mems,
                 sample,
             )
+            other_gradients.append(gradient)
         # avg over numenvs
-        gradients = jax.tree_map(lambda x: x.mean(axis=0), gradients)
+        other_gradients = [
+            jax.tree_map(lambda x: x.mean(axis=0), other_gradient)
+            for other_gradient in other_gradients
+        ]
 
         # Update the optimizer
-        updates, opt_state = self.other_agents[0].optimizer.update(
-            gradients, other_state.opt_state
-        )
+        new_other_states = []
+        for idx, agent in enumerate(self.other_agents):
+            updates, opt_state = agent.optimizer.update(
+                other_gradients[idx], other_states[idx].opt_state
+            )
+            # apply the optimizer updates
+            params = optax.apply_updates(other_states[idx].params, updates)
 
-        # apply the optimizer updates
-        params = optax.apply_updates(other_state.params, updates)
+            # replace the other player's current parameters with a simulated update
+            new_other_state = TrainingState(
+                params=params,
+                opt_state=opt_state,
+                random_key=other_states[idx].random_key,
+                timesteps=other_states[idx].timesteps,
+            )
+            new_other_states.append(new_other_state)
 
-        # replace the other player's current parameters with a simulated update
-        new_other_state = TrainingState(
-            params=params,
-            opt_state=opt_state,
-            random_key=other_state.random_key,
-            timesteps=other_state.timesteps,
-        )
-        # jax.debug.breakpoint()
-
-        return [new_other_state], [other_mem]
+        return new_other_states, other_mems
 
     def out_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
         """
