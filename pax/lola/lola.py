@@ -588,7 +588,7 @@ class LOLA:
 
         return new_other_states, other_mems
 
-    def out_lookahead(self, rng, my_state, my_mem, other_state, other_mem):
+    def out_lookahead(self, rng, my_state, my_mem, other_states, other_mems):
         """
         Performs a real rollout using the current parameters of both agents
         and a naive learning update step for the other agent
@@ -597,9 +597,6 @@ class LOLA:
         env: SequentialMatrixGame, an environment object of the game being played
         other_agents: list, a list of objects of the other agents
         """
-        #TODO
-        other_state = other_state[0]
-        other_mem = other_mem[0]
 
         rng, reset_rng = jax.random.split(rng)
         reset_rngs = jax.random.split(
@@ -613,8 +610,7 @@ class LOLA:
 
         rewards = [
             jnp.zeros((self._num_opps, self._num_envs)),
-            jnp.zeros((self._num_opps, self._num_envs)),
-        ]
+        ] * self.args.num_players
 
         inner_rollout_rng, _ = jax.random.split(rng)
         inner_rollout_rngs = jax.random.split(
@@ -634,13 +630,18 @@ class LOLA:
                 r1,
                 r2,
                 a1_state,
-                a1_mem,
                 a2_state,
+                a1_mem,
                 a2_mem,
                 env_state,
                 env_params,
             ) = carry
 
+                    #TODO
+            a2_state = a2_state[0]
+            a2_mem = a2_mem[0]
+            obs2 = obs2[0]
+            r2 = r2[0]
             # unpack rngs
 
             vmap_split = jax.vmap(
@@ -697,13 +698,13 @@ class LOLA:
             return (
                 rngs,
                 next_obs1,
-                next_obs2,
+                (next_obs2,),
                 rewards[0],
-                rewards[1],
+                (rewards[1],),
                 a1_state,
+                [a2_state],
                 new_a1_mem,
-                a2_state,
-                new_a2_mem,
+                [new_a2_mem],
                 env_state,
                 env_params,
             ), (
@@ -711,19 +712,20 @@ class LOLA:
                 traj2,
             )
 
+
         # do a full rollout
         _, trajectories = jax.lax.scan(
             lola_outlookahead_rollout,
             (
                 inner_rollout_rngs,
                 obs[0],
-                obs[1],
+                tuple(obs[1:]),
                 rewards[0],
-                rewards[1],
+                tuple(rewards[1:]),
                 my_state,
+                other_states,
                 my_mem,
-                other_state,
-                other_mem,
+                other_mems,
                 env_state,
                 self.env_params,
             ),
@@ -734,15 +736,14 @@ class LOLA:
         vmap_trajectories = jax.tree_map(
             lambda x: jnp.moveaxis(x, 0, 2), trajectories
         )
-        # Now keep the same order.
         sample = LOLASample(
             obs_self=vmap_trajectories[0].obs_self,
-            obs_other=[vmap_trajectories[1].observations],
+            obs_other=[traj.observations for traj in vmap_trajectories[1:]],
             actions_self=vmap_trajectories[0].actions_self,
-            actions_other=[vmap_trajectories[1].actions],
+            actions_other=[traj.actions for traj in vmap_trajectories[1:]],
             dones=vmap_trajectories[0].dones,
             rewards_self=vmap_trajectories[0].rewards_self,
-            rewards_other=[vmap_trajectories[1].rewards],
+            rewards_other=[traj.rewards for traj in vmap_trajectories[1:]],
         )
         # print("Before updating")
         # print("---------------------")
@@ -750,10 +751,6 @@ class LOLA:
         # print("opt_state", self._state.opt_state)
         # print()
         # calculate the gradients
-        #TODO
-        other_mems = [other_mem]
-        other_states = [other_state]
-
         gradients, results = self.grad_fn_outer(
             my_state.params,
             my_mem,
