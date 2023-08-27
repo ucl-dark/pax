@@ -12,14 +12,14 @@ runner: tensor_evo
 
 # Training
 top_k: 5
-popsize: 10
+popsize: 1000
 num_envs: 2
 num_opps: 1
 num_outer_steps: 20
 num_inner_steps: 20
-num_iters: 1000
+num_iters: 5000
 num_devices: 1
-num_steps: 20
+num_steps: 200
 
 
 # PPO agent parameters
@@ -70,8 +70,9 @@ es:
 
 # Logging setup
 wandb:
-  project: fishery
-  name: 'rice-SHAPER-${agent_default}'
+  project: rice
+  group: 'shaper'
+  name: 'rice-SHAPER-${agent_default}-seed-${seed}'
   log: True
 
 

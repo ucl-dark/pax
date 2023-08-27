@@ -118,7 +118,6 @@ class Rice(environment.Environment):
                 self.dice_constant["xf_0"], self.dice_constant["xf_1"], self.dice_constant["xt_f"], t
             )
 
-            # TODO clip all rates between 0 and 1
             actions = jnp.asarray(actions).squeeze()
             actions = jnp.clip(actions, a_min=0, a_max=1)
 
@@ -195,9 +194,8 @@ class Rice(environment.Environment):
                                             jnp.zeros_like(desired_imports))
 
                 # Scale imports based on gov balance
-                init_capital_multiplier = 10.0  # TODO: Why this number?
-                # TODO missing paranthesis?
-                debt_ratio = gov_balance / init_capital_multiplier * region_const["xK_0"]
+                init_capital_multiplier = 10.0
+                debt_ratio = init_capital_multiplier * gov_balance / region_const["xK_0"]
                 debt_ratio = jnp.clip(debt_ratio, -1.0, 0.0)
                 desired_imports *= 1 + debt_ratio
                 scaled_imports = scaled_imports.at[i].set(desired_imports)
@@ -233,6 +231,7 @@ class Rice(environment.Environment):
                 # calculate tariffed imports, tariff revenue and budget balance
                 tariffed_imports = tariffed_imports.at[i].set(scaled_imports[i] * (1 - state.future_tariff[i]))
 
+                # In the paper this goes to a "special reserve fund", i.e. it's not used
                 tariff_revenue = jnp.sum(
                     scaled_imports[i, :] * prev_tariffs[i, :]
                 )
@@ -382,7 +381,7 @@ class Rice(environment.Environment):
             actions = jnp.asarray([jax.random.uniform(key, (self.num_actions,)) for _ in range(self.num_players)])
             return tuple([self._generate_observation(i, actions, state) for i in range(self.num_players)]), state
 
-        self.step = jax.jit(_step)
+        self.step = jax.jit(_step, static_argnums=(3))
         self.reset = jax.jit(_reset)
 
     def _get_initial_state(self) -> EnvState:
@@ -556,17 +555,14 @@ def get_global_carbon_mass(phi_m, carbon_mass, b_m, aux_m):
 
 
 def get_capital(capital_depreciation, capital, delta, investment):
-    """Evaluate capital."""
     return capital_depreciation * capital + delta * investment
 
 
 def get_labor(labor, l_a, l_g):
-    """Compute total labor."""
     return labor * pow((1 + l_a) / (1 + labor), l_g)
 
 
 def get_production_factor(production_factor, g_a, delta_a, delta, timestep):
-    """Compute the production factor."""
     return production_factor * (
             jnp.exp(0.0033) + g_a * jnp.exp(-delta_a * delta * (timestep - 1))
     )

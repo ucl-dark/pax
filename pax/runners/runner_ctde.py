@@ -38,7 +38,6 @@ class CTDERunner:
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
 
-        self.rice_stats = rice_stats
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.jit(
@@ -176,7 +175,7 @@ class CTDERunner:
                 rewards += jnp.where(episodes != 0, jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8), 0)
             env_stats = {}
             if args.env_id == "Rice-v1":
-                env_stats = self.rice_stats(trajectories[0], args.num_players)
+                env_stats = rice_stats(trajectories, args.num_players)
 
             return (
                 env_stats,

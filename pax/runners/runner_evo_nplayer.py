@@ -79,7 +79,6 @@ class NPlayerEvoRunner:
         self.ipd_stats = n_player_ipd_visitation
         self.cournot_stats = jax.jit(cournot_stats)
         self.fishery_stats = fishery_stats
-        self.rice_stats = rice_stats
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -460,8 +459,8 @@ class NPlayerEvoRunner:
             elif args.env_id == "Rice-v1":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
-                    self.rice_stats(
-                        trajectories[0], args.num_players
+                    rice_stats(
+                        trajectories, args.num_players
                     ),
                 )
             elif args.env_id == "Fishery":
@@ -623,9 +622,6 @@ class NPlayerEvoRunner:
                 )
                 print(
                     f"Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_reward]}"
-                )
-                print(
-                    f"Total Reward Per Timestep: {float(first_agent_reward.mean()), *[float(reward.mean()) for reward in other_agent_reward]}"
                 )
                 print(
                     f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"

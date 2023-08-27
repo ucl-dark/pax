@@ -25,25 +25,26 @@ num_steps: 2000
 ppo0:
   num_minibatches: 4
   num_epochs: 4
-  gamma: 0.99
+  gamma: 1.0
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
   clip_value: True
   max_gradient_norm: 0.5
-  anneal_entropy: True
-  entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 1000000
-  entropy_coeff_end: 0.001
+  anneal_entropy: False
+  entropy_coeff_start: 0.0
+  entropy_coeff_horizon: 10000000
+  entropy_coeff_end: 0.0
   lr_scheduling: True
-  learning_rate: 2.5e-4 #5e-4
+  learning_rate: 1e-4
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
   output_channels: 16
-  kernel_shape: [3, 3]
+  kernel_shape: [ 3, 3 ]
   separate: True
-  hidden_size: 16
+  hidden_size: 64
+
 
 # Logging setup
 wandb:

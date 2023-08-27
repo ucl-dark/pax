@@ -12,7 +12,7 @@ runner: sarl
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 20
+num_envs: 40
 num_inner_steps: 20
 num_iters: 5e6
 save_interval: 100
@@ -48,5 +48,5 @@ ppo0:
 # Logging setup
 wandb:
   project: rice
-  group: 'sarl'
-  name: 'rice-SARL-${agent1}'
+  group: 'ctde'
+  name: 'rice-CTDE-${agent1}'

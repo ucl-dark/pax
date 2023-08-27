@@ -1,12 +1,13 @@
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, List
 
 import jax
 from jax import numpy as jnp
 
 
 @partial(jax.jit, static_argnums=(1,))
-def rice_stats(traj: NamedTuple, num_players: int) -> dict:
+def rice_stats(trajectories: List[NamedTuple], num_players: int) -> dict:
+    traj = trajectories[0]
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
     result = {
         "temperature": jnp.mean(traj.observations[..., 2]),
@@ -32,7 +33,10 @@ def rice_stats(traj: NamedTuple, num_players: int) -> dict:
         end = offset + (i + 1) * num_players
         result[label] = jnp.mean(traj.observations[..., start:end])
 
-    result["final_temperature"] = jnp.sum(traj.dones * traj.observations[..., 2]) / jnp.sum(traj.dones)
+    num_episodes = jnp.sum(traj.dones)
+    result["final_temperature"] = jnp.where(num_episodes != 0, jnp.sum(traj.dones * traj.observations[..., 2]) / num_episodes, 0)
+    total_rewards = jnp.array([jnp.sum(traj.rewards) for traj in trajectories]).sum()
+    result["total_reward_per_episode"] = jnp.where(num_episodes != 0, total_rewards / num_episodes, 0)
 
     return result
 
