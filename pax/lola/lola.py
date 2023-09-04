@@ -56,7 +56,6 @@ class LOLA:
         self,
         args,
         network: NamedTuple,
-        inner_optimizer: optax.GradientTransformation,
         outer_optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         player_id: int,
@@ -134,7 +133,7 @@ class LOLA:
 
             discounted_rewards = self_rewards * cum_discount
             discounted_values = values * cum_discount
-
+            # jax.debug.breakpoint()
             # TODO no clue if this makes any sense
             # stochastics nodes involved in rewards dependencies:
             sum_other_log_probs = jnp.sum(
@@ -161,8 +160,11 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-            # want to minimize this value
-            value_objective = jnp.mean((self_rewards - values) ** 2)
+            G_ts = reverse_cumsum(discounted_rewards, axis=0)
+            R_ts = G_ts / cum_discount
+            # # want to minimize this value
+            value_objective = jnp.mean((R_ts - values) ** 2)
+
 
             # want to maximize this objective
             loss_total = -dice_objective + value_objective
@@ -244,7 +246,6 @@ class LOLA:
             discounted_values = [
                 values * cum_discount for values in other_values
             ]
-
             # TODO do actual maths here - no idea what this is doing
             # stochastics nodes involved in rewards dependencies:
             # dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
@@ -279,9 +280,12 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-            # want to minimize this value
+
+            G_ts = reverse_cumsum(discounted_rewards[chosen_op_idx], axis=0)
+            R_ts = G_ts / cum_discount
+            # # want to minimize this value
             value_objective = jnp.mean(
-                (other_rewards[chosen_op_idx] - other_values[chosen_op_idx])
+                (R_ts - other_values[chosen_op_idx])
                 ** 2
             )
 
@@ -358,7 +362,6 @@ class LOLA:
         self.network = network
 
         # initialize some variables
-        self._inner_optimizer = inner_optimizer
         self._outer_optimizer = outer_optimizer
         self.gamma = gamma
 
@@ -837,8 +840,6 @@ def make_lola(
     """Make Naive Learner Policy Gradient agent"""
     # Create Haiku network
     network = make_network(action_spec)
-    # Inner optimizer uses SGD
-    inner_optimizer = optax.sgd(args.lola.lr_in)
     # Outer optimizer uses Adam
     outer_optimizer = optax.adam(args.lola.lr_out)
     # Random key
@@ -847,7 +848,6 @@ def make_lola(
     return LOLA(
         args=args,
         network=network,
-        inner_optimizer=inner_optimizer,
         outer_optimizer=outer_optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
@@ -860,7 +860,8 @@ def make_lola(
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
     )
-
+def reverse_cumsum(x, axis):
+    return x + jnp.sum(x, axis=axis, keepdims=True) - jnp.cumsum(x, axis=axis)
 
 if __name__ == "__main__":
     pass

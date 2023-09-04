@@ -24,11 +24,9 @@ num_iters: 1000
 
 # LOLA agent parameters
 lola: 
-  use_baseline: False   
+  use_baseline: True   
   adam_epsilon: 1e-5
-  lr_in: 0.03
-  lr_out: 0.05
-  lr_value: 0.001
+  lr_out: 0.1
   gamma: 0.96
   num_lookaheads: 1
 
@@ -78,5 +76,5 @@ wandb:
   entity: "ucl-dark"
   project: lola
   group: 'LOLA-vs-${agent2}'
-  name: 'LOLA-vs-${agent2}-baseline${lola.use_baseline}'
+  name: 'LOLA-vs-${agent2}vs-baseline${lola.use_baseline}-lr_out${lola.lr_out}'
   log: True 
