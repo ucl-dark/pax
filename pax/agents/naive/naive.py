@@ -10,7 +10,7 @@ from dm_env import TimeStep
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.naive.network import make_coingame_network, make_network
+from pax.agents.naive.network import make_coingame_network, make_network, make_rice_network
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 
@@ -397,6 +397,8 @@ def make_naive_pg(args, obs_spec, action_spec, seed: int, player_id: int):
     if args.env_id == "coin_game":
         print(f"Making network for {args.env_id} with CNN")
         network = make_coingame_network(action_spec, args)
+    elif args.env_id == "Rice-v1":
+        network = make_rice_network(action_spec)
     else:
         network = make_network(action_spec)
 

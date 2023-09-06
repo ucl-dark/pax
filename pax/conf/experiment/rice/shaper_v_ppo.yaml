@@ -7,17 +7,18 @@ agent_default: 'PPO_memory'
 env_id: Rice-v1
 env_type: meta
 num_players: 5
+mediator: False
 config_folder: pax/envs/rice/5_regions
 runner: tensor_evo
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 2
+num_envs: 1
 num_opps: 1
-num_outer_steps: 20
+num_outer_steps: 200
 num_inner_steps: 20
-num_iters: 5000
+num_iters: 3500
 num_devices: 1
 num_steps: 200
 

@@ -79,7 +79,7 @@ class EvoRunner:
         self.ipditm_stats = jax.jit(
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
-        self.cournot_stats = jax.jit(cournot_stats)
+        self.cournot_stats = cournot_stats
         self.fishery_stats = fishery_stats
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)

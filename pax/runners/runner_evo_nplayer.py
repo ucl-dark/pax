@@ -77,7 +77,6 @@ class NPlayerEvoRunner:
         self.train_episodes = 0
         # TODO JIT this
         self.ipd_stats = n_player_ipd_visitation
-        self.cournot_stats = jax.jit(cournot_stats)
         self.fishery_stats = fishery_stats
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
@@ -460,7 +459,7 @@ class NPlayerEvoRunner:
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
                     rice_stats(
-                        trajectories, args.num_players
+                        trajectories, args.num_players, args.mediator
                     ),
                 )
             elif args.env_id == "Fishery":
@@ -473,7 +472,7 @@ class NPlayerEvoRunner:
             elif args.env_id == "Cournot":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x,
-                    self.cournot_stats(
+                    cournot_stats(
                         trajectories[0].observations, _env_params, args.num_players
                     ),
                 )

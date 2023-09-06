@@ -4,7 +4,7 @@ from typing import Any, List, NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, omegaconf
 
 import wandb
 from pax.utils import MemoryState, TrainingState, load
@@ -447,14 +447,24 @@ class NPlayerEvalRunner:
         other_agent_state = [None] * len(other_agents)
 
         for agent_idx, non_first_agent in enumerate(other_agents):
-            other_agent_state[agent_idx], other_agent_mem[agent_idx] = (
-                non_first_agent._state,
-                non_first_agent._mem,
-            )
+            model_path = omegaconf.OmegaConf.select(self.args, f"model_path{agent_idx}", default=None)
+            if model_path is not None:
+                wandb.restore(
+                    name=model_path,
+                    run_path=self.args.run_path,
+                    root=os.getcwd(),
+                )
+                pretrained_params = load(model_path)
+                other_agent_state[agent_idx] = non_first_agent._state._replace(
+                    params=pretrained_params
+                )
+            else:
+                other_agent_state[agent_idx] = non_first_agent._state
+            other_agent_mem[agent_idx] = non_first_agent._mem
 
         wandb.restore(
             name=self.args.model_path1,
-            run_path=self.args.run_path1,
+            run_path=self.args.run_path,
             root=os.getcwd(),
         )
 

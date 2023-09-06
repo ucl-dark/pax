@@ -175,7 +175,7 @@ class CTDERunner:
                 rewards += jnp.where(episodes != 0, jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8), 0)
             env_stats = {}
             if args.env_id == "Rice-v1":
-                env_stats = rice_stats(trajectories, args.num_players)
+                env_stats = rice_stats(trajectories, args.num_players, args.mediator)
 
             return (
                 env_stats,
@@ -225,7 +225,7 @@ class CTDERunner:
             # logging
             self.train_episodes += 1
             if num_iters % log_interval == 0:
-                print(f"Episode {i}")
+                print(f"Episode {i}/{num_iters}")
 
                 print(f"Env Stats: {env_stats}")
                 print(f"Total Episode Reward: {float(rewards_1.mean())}")

@@ -108,7 +108,7 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
-        self.cournot_stats = jax.jit(cournot_stats)
+        self.cournot_stats = cournot_stats
         self.fishery_stats = fishery_stats
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)

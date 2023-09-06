@@ -1,29 +1,29 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
+agent_default: 'PPO'
 
 # Environment
-env_id: SarlRice-v1
-env_type: sequential
-num_players: 5
-mediator: False
+env_id: Rice-v1
+env_type: meta
+num_players: 6
+mediator: True
 config_folder: pax/envs/rice/5_regions
-runner: sarl
-# Training hyperparameters
+runner: tensor_evo
 
-# env_batch_size = num_envs * num_opponents
-num_envs: 40
+# Training
+top_k: 5
+popsize: 1000
+num_envs: 2
+num_opps: 1
+num_outer_steps: 2000
 num_inner_steps: 20
-num_iters: 5e6
-save_interval: 100
-num_steps: 2000
+num_iters: 2000
+num_devices: 1
+num_steps: 200
 
-# Evaluation
-#run_path: ucl-dark/cg/3sp0y2cy
-#model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
-
-ppo0:
+# PPO agent parameters
+ppo_default:
   num_minibatches: 4
   num_epochs: 4
   gamma: 1.0
@@ -49,5 +49,6 @@ ppo0:
 # Logging setup
 wandb:
   project: rice
-  group: 'ctde'
-  name: 'rice-CTDE-${agent1}'
+  group: 'mediator'
+  name: 'rice-MARL-${agent_default}-seed-${seed}'
+  log: True

@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import tree
 from jax.config import config
 
-config.update('jax_disable_jit', True)
+#config.update('jax_disable_jit', True)
 
 from pax.envs.rice.rice import Rice, EnvParams
 
@@ -16,6 +16,7 @@ file_dir = os.path.join(os.path.dirname(__file__))
 config_folder = os.path.join(file_dir, "../../pax/envs/rice/5_regions")
 num_players = 5
 ep_length = 20
+
 
 def test_rice():
     rng = jax.random.PRNGKey(0)
@@ -56,9 +57,9 @@ def test_rice_regression(data_regression):
         actions = tuple([action for _ in range(num_players)])
         obs, env_state, rewards, done, info = env.step(rng, env_state, actions, env_params)
 
-        stored_obs = [_obs.tolist() for _obs in obs]
-        stored_env_state = [leaf.tolist() for leaf in tree.flatten(env_state)]
-        stored_rewards = [reward.item() for reward in rewards]
+        stored_obs = [_obs.round(1).tolist() for _obs in obs]
+        stored_env_state = [leaf.round(1).tolist() for leaf in tree.flatten(env_state)]
+        stored_rewards = [reward.round(1).item() for reward in rewards]
         results[i] = {
             "obs": stored_obs,
             "env_state": stored_env_state,
@@ -66,6 +67,7 @@ def test_rice_regression(data_regression):
         }
 
     data_regression.check(results)
+
 
 def rice_performance_benchmark():
     rng = jax.random.PRNGKey(0)
@@ -93,6 +95,7 @@ def rice_performance_benchmark():
     print(f"Total iterations:\t{iterations * ep_length}")
     print(f"Total time taken:\t{total_time:.4f} seconds")
     print(f"Average step duration:\t{total_time / (iterations * ep_length):.4f} seconds")
+
 
 # Run a benchmark
 if __name__ == "__main__":

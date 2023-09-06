@@ -59,7 +59,7 @@ which in turn is an adaptation of the RICE IAM
 class Rice(environment.Environment):
     env_id: str = "Rice-v1"
 
-    def __init__(self, num_inner_steps: int, config_folder: str):
+    def __init__(self, num_inner_steps: int, config_folder: str, mediator=False):
         super().__init__()
 
         # TODO refactor all the constants to use env_params
@@ -67,7 +67,9 @@ class Rice(environment.Environment):
         # 2. type env params as a chex dataclass
         # 3. change the references in the code to env params
         params, num_regions = load_rice_params(config_folder)
+        self.mediator = mediator
         self.num_players = num_regions
+        self.num_actors = self.num_players + 1 if self.mediator else self.num_players
         self.rice_constant = params["_RICE_GLOBAL_CONSTANT"]
         self.dice_constant = params["_DICE_CONSTANT"]
         self.region_constants = params["_REGIONS"]
@@ -136,14 +138,17 @@ class Rice(environment.Environment):
 
             # Next state variables
             next_labor_all = []
-            next_capital_all = []
             next_production_factor_all = []
-            next_intensity_all = []
             next_balance_all = []
 
+            if self.mediator:
+                region_actions = actions[1:]
+            else:
+                region_actions = actions
+
             for i in range(self.num_players):
-                savings = actions[i, self.savings_action_index]
-                mitigation_rate = actions[i, self.mitigation_rate_action_index]
+                savings = region_actions[i, self.savings_action_index]
+                mitigation_rate = region_actions[i, self.mitigation_rate_action_index]
 
                 intensity = state.intensity_all[i]
                 production_factor = state.production_factor_all[i]
@@ -183,7 +188,7 @@ class Rice(environment.Environment):
                 investment_all.append(investment)
 
                 # Trade
-                desired_imports = actions[i,
+                desired_imports = region_actions[i,
                                   self.desired_imports_action_index: self.desired_imports_action_index + self.import_actions_n]
                 # Countries cannot import from themselves
                 desired_imports = desired_imports.at[i].set(0)
@@ -200,25 +205,16 @@ class Rice(environment.Environment):
                 desired_imports *= 1 + debt_ratio
                 scaled_imports = scaled_imports.at[i].set(desired_imports)
 
-            # TODO this loop can be vectorized
-            # - get max potential exports as a vector
-            # - rescale along each axis
-            # Second loop to calculate actual exports knowing the imports
-            for i in range(self.num_players):
-                gross_output = gross_output_all[i]
-                export_limit = actions[i, self.export_action_index]
-                investment = investment_all[i]
+            gross_output_all = jnp.asarray(gross_output_all)
+            investment_all = jnp.asarray(investment_all)
+            max_potential_exports = get_max_potential_exports(
+                region_actions[:, self.export_action_index], gross_output_all, investment_all)
+            # Summing along columns yields the total number of exports requested by other regions
+            total_desired_exports = jnp.sum(scaled_imports, axis=0)
+            clipped_desired_exports = jnp.clip(total_desired_exports, 0, max_potential_exports)
+            scaled_imports = jnp.where(total_desired_exports != 0, scaled_imports * clipped_desired_exports / total_desired_exports,
+                                    jnp.zeros((self.num_players, self.num_players)))
 
-                # scale desired imports according to max exports
-                max_potential_exports = get_max_potential_exports(
-                    export_limit, gross_output, investment
-                )
-                total_desired_exports = jnp.sum(scaled_imports[:, i])
-                clipped_desired_exports = jnp.clip(total_desired_exports, 0, max_potential_exports)
-                export_scaled_imports = jnp.where(total_desired_exports != 0, scaled_imports[:,
-                                                                              i] * clipped_desired_exports / total_desired_exports,
-                                                  jnp.zeros(self.num_players))
-                scaled_imports = scaled_imports.at[:, i].set(export_scaled_imports)
 
             tariffed_imports = jnp.zeros((self.num_players, self.num_players))
             prev_tariffs = state.future_tariff
@@ -255,7 +251,6 @@ class Rice(environment.Environment):
                 ))
 
                 # Update government balance
-                # TODO add tariff revenue??
                 next_balance_all[i] = (next_balance_all[i]
                                        + self.dice_constant["xDelta"] * (
                                                jnp.sum(scaled_imports[:, i])
@@ -274,20 +269,16 @@ class Rice(environment.Environment):
                 global_exogenous_emissions,
             )
 
-            # TODO it should be possible to vectorize this
-            aux_m_all = jnp.zeros(self.num_players)
             global_land_emissions = get_land_emissions(
                 self.dice_constant["xE_L0"], self.dice_constant["xdelta_EL"], t, self.num_players
             )
-            for i in range(self.num_players):
-                mitigation_rate = actions[i, self.mitigation_rate_action_index]
-                aux_m = get_aux_m(
-                    state.intensity_all[i],
-                    mitigation_rate,
-                    production_all[i],
-                    global_land_emissions
-                )
-                aux_m_all = aux_m_all.at[i].set(aux_m)
+            production_all = jnp.asarray(production_all)
+            aux_m_all = get_aux_m(
+                state.intensity_all,
+                region_actions[:, self.mitigation_rate_action_index],
+                jnp.asarray(production_all),
+                global_land_emissions
+            )
 
             global_carbon_mass = get_global_carbon_mass(
                 self.dice_constant["xPhi_M"],
@@ -296,18 +287,24 @@ class Rice(environment.Environment):
                 jnp.sum(aux_m_all),
             )
 
+            capital_depreciation = get_capital_depreciation(
+                self.rice_constant["xdelta_K"], self.dice_constant["xDelta"]
+            )
+            next_capital_all = get_capital(
+                capital_depreciation, state.capital_all,
+                self.dice_constant["xDelta"],
+                investment_all
+            )
+            next_intensity_all = get_carbon_intensity(
+                state.intensity_all,
+                self.rice_constant["xg_sigma"],
+                self.rice_constant["xdelta_sigma"],
+                self.dice_constant["xDelta"],
+                t
+            )
             for i in range(self.num_players):
                 region_const = self.region_constants[i]
-                capital_depreciation = get_capital_depreciation(
-                    self.rice_constant["xdelta_K"], self.dice_constant["xDelta"]
-                )
                 capital_depreciation_all.append(capital_depreciation)
-
-                next_capital_all.append(get_capital(
-                    capital_depreciation, state.capital_all[i],
-                    self.dice_constant["xDelta"],
-                    investment_all[i]
-                ))
                 next_labor_all.append(
                     get_labor(state.labor_all[i], region_const["xL_a"], region_const["xl_g"]))
                 next_production_factor_all.append(get_production_factor(
@@ -316,13 +313,6 @@ class Rice(environment.Environment):
                     region_const["xdelta_A"],
                     self.dice_constant["xDelta"],
                     t,
-                ))
-                next_intensity_all.append(get_carbon_intensity(
-                    state.intensity_all[i],
-                    self.rice_constant["xg_sigma"],
-                    self.rice_constant["xdelta_sigma"],
-                    self.dice_constant["xDelta"],
-                    t
                 ))
 
             next_state = EnvState(
@@ -333,19 +323,19 @@ class Rice(environment.Environment):
                 global_land_emissions=global_land_emissions,
 
                 labor_all=jnp.asarray(next_labor_all),
-                capital_all=jnp.asarray(next_capital_all),
+                capital_all=next_capital_all,
                 production_factor_all=jnp.asarray(next_production_factor_all),
-                intensity_all=jnp.asarray(next_intensity_all),
+                intensity_all=next_intensity_all,
                 balance_all=jnp.asarray(next_balance_all),
 
-                future_tariff=actions[:, self.tariffs_action_index: self.tariffs_action_index + self.num_players],
+                future_tariff=region_actions[:, self.tariffs_action_index: self.tariffs_action_index + self.num_players],
 
-                gross_output_all=jnp.asarray(gross_output_all),
-                investment_all=jnp.asarray(investment_all),
-                production_all=jnp.asarray(production_all),
+                gross_output_all=gross_output_all,
+                investment_all=investment_all,
+                production_all=production_all,
                 utility_all=jnp.asarray(utility_all),
                 social_welfare_all=jnp.asarray(social_welfare_all),
-                capital_depreciation_all=jnp.asarray(capital_depreciation_all),
+                capital_depreciation_all=jnp.asarray([capital_depreciation]),
                 mitigation_cost_all=jnp.asarray(mitigation_cost_all),
                 consumption_all=jnp.asarray(consumption_all),
                 damages_all=jnp.asarray(damages_all),
@@ -356,8 +346,13 @@ class Rice(environment.Environment):
             reset_state = reset_state.replace(outer_t=state.outer_t + 1)
 
             obs = []
+            if self.mediator:
+                obs.append(self._generate_mediator_observation(actions, next_state))
+
             for i in range(self.num_players):
                 obs.append(self._generate_observation(i, actions, next_state))
+
+
             obs = jax.tree_map(lambda x, y: jnp.where(done, x, y), reset_obs, tuple(obs))
 
             state = jax.tree_map(
@@ -366,10 +361,15 @@ class Rice(environment.Environment):
                 next_state,
             )
 
+            if self.mediator:
+                rewards = jnp.insert(state.utility_all, 0, state.utility_all.sum())
+            else:
+                rewards = state.utility_all
+
             return (
                 tuple(obs),
                 state,
-                tuple(state.utility_all),
+                tuple(rewards),
                 done,
                 {},
             )
@@ -378,10 +378,15 @@ class Rice(environment.Environment):
                 key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[Tuple, EnvState]:
             state = self._get_initial_state()
-            actions = jnp.asarray([jax.random.uniform(key, (self.num_actions,)) for _ in range(self.num_players)])
-            return tuple([self._generate_observation(i, actions, state) for i in range(self.num_players)]), state
+            actions = jnp.asarray([jax.random.uniform(key, (self.num_actions,)) for _ in range(self.num_actors)])
+            obs = []
+            if self.mediator:
+                obs.append(self._generate_mediator_observation(actions, state))
+            for i in range(self.num_players):
+                obs.append(self._generate_observation(i, actions, state))
+            return tuple(obs), state
 
-        self.step = jax.jit(_step, static_argnums=(3))
+        self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
 
     def _get_initial_state(self) -> EnvState:
@@ -410,7 +415,7 @@ class Rice(environment.Environment):
             production_all=jnp.zeros(self.num_players, dtype=jnp.float32),
             utility_all=jnp.zeros(self.num_players, dtype=jnp.float32),
             social_welfare_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            capital_depreciation_all=jnp.zeros(self.num_players, dtype=jnp.float32),
+            capital_depreciation_all=jnp.zeros(0, dtype=jnp.float32),
             mitigation_cost_all=jnp.zeros(self.num_players, dtype=jnp.float32),
             consumption_all=jnp.zeros(self.num_players, dtype=jnp.float32),
             damages_all=jnp.zeros(self.num_players, dtype=jnp.float32),
@@ -445,6 +450,26 @@ class Rice(environment.Environment):
             actions.ravel()
         ])
 
+    def _generate_mediator_observation(self, actions: chex.ArrayDevice, state: EnvState) -> Array:
+        return jnp.concatenate([
+            jnp.zeros(1),
+            jnp.asarray([state.inner_t]),
+            state.global_temperature,
+            state.global_carbon_mass,
+            jnp.asarray([state.global_exogenous_emissions]),
+            jnp.asarray([state.global_land_emissions]),
+            state.labor_all,
+            state.capital_all,
+            state.gross_output_all,
+            state.consumption_all,
+            state.investment_all,
+            state.balance_all,
+            # Maintain same dimensionality as for other players
+            jnp.zeros(8),
+            # All agent actions
+            actions.ravel()
+        ])
+
     @property
     def name(self) -> str:
         return self.env_id
@@ -460,7 +485,7 @@ class Rice(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         init_state = self._get_initial_state()
-        obs = self._generate_observation(0, jnp.zeros(self.num_actions * self.num_players), init_state)
+        obs = self._generate_observation(0, jnp.zeros(self.num_actions * self.num_actors), init_state)
         return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=jnp.float32)
 
 
@@ -529,7 +554,7 @@ def get_consumption(gross_output, investment, exports):
 
 
 def get_max_potential_exports(x_max, gross_output, investment):
-    return jnp.min(jnp.array([x_max * gross_output, gross_output - investment]))
+    return jnp.min(jnp.array([x_max * gross_output, gross_output - investment]), axis=0)
 
 
 def get_capital_depreciation(x_delta_k, x_delta):

@@ -100,7 +100,7 @@ class NplayerRLRunner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = n_player_ipd_visitation
-        self.cournot_stats = jax.jit(cournot_stats)
+        self.cournot_stats = cournot_stats
         self.fishery_stats = fishery_stats
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)

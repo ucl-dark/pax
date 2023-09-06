@@ -224,6 +224,7 @@ def env_setup(args, logger=None):
         env = Rice(
             num_inner_steps=args.num_inner_steps,
             config_folder=args.config_folder,
+            mediator=args.mediator,
         )
         if logger:
             logger.info(
@@ -445,7 +446,9 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_tabular_agent(seed, player_id):
-        player_args = args.ppo1 if player_id == 1 else args.ppo2
+        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
+        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps
@@ -462,7 +465,9 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
-        agent_args = args.ppo1
+        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
+        agent_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
             num_iterations = args.num_outer_steps

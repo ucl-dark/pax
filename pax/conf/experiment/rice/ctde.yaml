@@ -7,6 +7,7 @@ agent1: 'PPO'
 env_id: Rice-v1
 env_type: sequential
 num_players: 5
+mediator: False
 config_folder: pax/envs/rice/5_regions
 runner: ctde
 # Training hyperparameters
@@ -14,13 +15,10 @@ runner: ctde
 # env_batch_size = num_envs * num_opponents
 num_envs: 20
 num_inner_steps: 20
-num_iters: 5e6
+num_iters: 6e6
 save_interval: 100
 num_steps: 2000
 
-# Evaluation
-#run_path: ucl-dark/cg/3sp0y2cy
-#model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
 
 ppo0:
   num_minibatches: 4
@@ -50,4 +48,4 @@ ppo0:
 wandb:
   project: rice
   group: 'ctde'
-  name: 'rice-CTDE-${agent1}'
+  name: 'rice-CTDE-${agent1}-seed-${seed}'

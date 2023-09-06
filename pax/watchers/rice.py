@@ -5,8 +5,8 @@ import jax
 from jax import numpy as jnp
 
 
-@partial(jax.jit, static_argnums=(1,))
-def rice_stats(trajectories: List[NamedTuple], num_players: int) -> dict:
+@partial(jax.jit, static_argnums=(1, 2))
+def rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool) -> dict:
     traj = trajectories[0]
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
     result = {
@@ -34,9 +34,18 @@ def rice_stats(trajectories: List[NamedTuple], num_players: int) -> dict:
         result[label] = jnp.mean(traj.observations[..., start:end])
 
     num_episodes = jnp.sum(traj.dones)
-    result["final_temperature"] = jnp.where(num_episodes != 0, jnp.sum(traj.dones * traj.observations[..., 2]) / num_episodes, 0)
-    total_rewards = jnp.array([jnp.sum(traj.rewards) for traj in trajectories]).sum()
-    result["total_reward_per_episode"] = jnp.where(num_episodes != 0, total_rewards / num_episodes, 0)
+    result["final_temperature"] = jnp.where(num_episodes != 0,
+                                            jnp.sum(traj.dones * traj.observations[..., 2]) / num_episodes, 0)
+
+    region_trajectories = trajectories if mediator is False else trajectories[1:]
+    total_rewards = jnp.array([jnp.sum(_traj.rewards) for _traj in region_trajectories]).sum()
+    result["train/total_reward_per_episode"] = jnp.where(num_episodes != 0, total_rewards / num_episodes, 0)
+
+    # Reward per region (necessary to compare ctde against distributed methods)
+    for i, _traj in enumerate(region_trajectories):
+        result[f"train/total_reward_per_episode_region_{i}"] = jnp.where(num_episodes != 0,
+                                                                         _traj.rewards.sum() / num_episodes,
+                                                                         0)
 
     return result
 
@@ -81,6 +90,9 @@ def rice_sarl_stats(traj: NamedTuple, num_players: int) -> dict:
         end = offset + (i + 1) * num_players
         result[label] = jnp.mean(traj.observations[..., start:end])
 
-    result["final_temperature"] = jnp.sum(traj.dones * traj.observations[..., 1]) / jnp.sum(traj.dones)
+    num_episodes = jnp.sum(traj.dones)
+    result["final_temperature"] = jnp.where(num_episodes != 0,
+                                            jnp.sum(traj.dones * traj.observations[..., 1]) / num_episodes, 0)
+    result["train/total_reward_per_episode"] = jnp.where(num_episodes != 0, traj.rewards.sum() / num_episodes, 0)
 
     return result
