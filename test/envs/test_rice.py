@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import tree
 from jax.config import config
 
-#config.update('jax_disable_jit', True)
+# config.update('jax_disable_jit', True)
 
 from pax.envs.rice.rice import Rice, EnvParams
 
@@ -94,7 +94,7 @@ def rice_performance_benchmark():
     # Print or log the total time taken for all iterations
     print(f"Total iterations:\t{iterations * ep_length}")
     print(f"Total time taken:\t{total_time:.4f} seconds")
-    print(f"Average step duration:\t{total_time / (iterations * ep_length):.4f} seconds")
+    print(f"Average step duration:\t{total_time / (iterations * ep_length):.6f} seconds")
 
 
 # Run a benchmark

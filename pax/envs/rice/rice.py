@@ -73,6 +73,7 @@ class Rice(environment.Environment):
         self.rice_constant = params["_RICE_GLOBAL_CONSTANT"]
         self.dice_constant = params["_DICE_CONSTANT"]
         self.region_constants = params["_REGIONS"]
+        self.region_params = params["_REGION_PARAMS"]
 
         self.savings_action_n = 1
         self.mitigation_rate_action_n = 1
@@ -123,139 +124,75 @@ class Rice(environment.Environment):
             actions = jnp.asarray(actions).squeeze()
             actions = jnp.clip(actions, a_min=0, a_max=1)
 
-            # Intermediary variables
-            scaled_imports = jnp.zeros((self.num_players, self.num_players))
-            gross_output_all = []
-            investment_all = []
-            production_all = []
-            utility_all = []
-            social_welfare_all = []
-            capital_depreciation_all = []
-            mitigation_cost_all = []
-            consumption_all = []
-            damages_all = []
-            abatement_cost_all = []
-
-            # Next state variables
-            next_labor_all = []
-            next_production_factor_all = []
-            next_balance_all = []
-
             if self.mediator:
                 region_actions = actions[1:]
             else:
                 region_actions = actions
 
-            for i in range(self.num_players):
-                savings = region_actions[i, self.savings_action_index]
-                mitigation_rate = region_actions[i, self.mitigation_rate_action_index]
+            mitigation_cost_all = get_mitigation_cost(
+                self.rice_constant["xp_b"],
+                self.rice_constant["xtheta_2"],
+                self.rice_constant["xdelta_pb"],
+                state.intensity_all,
+                t
+            )
+            abatement_cost_all = get_abatement_cost(
+                region_actions[:, self.mitigation_rate_action_index], mitigation_cost_all,
+                self.rice_constant["xtheta_2"]
+            )
+            damages_all = get_damages(t_at, self.region_params["xa_1"], self.region_params["xa_2"],
+                                          self.region_params["xa_3"])
+            production_all = get_production(
+                state.production_factor_all,
+                state.capital_all,
+                state.labor_all,
+                self.region_params["xgamma"],
+            )
+            gross_output_all = get_gross_output(damages_all, abatement_cost_all, production_all)
+            balance_all = state.balance_all * (1 + self.rice_constant["r"])
+            investment_all = get_investment(region_actions[:, self.savings_action_index], gross_output_all)
 
-                intensity = state.intensity_all[i]
-                production_factor = state.production_factor_all[i]
-                capital = state.capital_all[i]
-                labor = state.labor_all[i]
-                gov_balance = state.balance_all[i]
-
-                region_const = self.region_constants[i]
-
-                mitigation_cost = get_mitigation_cost(
-                    self.rice_constant["xp_b"],
-                    self.rice_constant["xtheta_2"],
-                    self.rice_constant["xdelta_pb"],
-                    intensity,
-                    t
-                )
-                mitigation_cost_all.append(mitigation_cost)
-                damages = get_damages(t_at, region_const["xa_1"], region_const["xa_2"], region_const["xa_3"])
-                damages_all.append(damages)
-                abatement_cost = get_abatement_cost(
-                    mitigation_rate, mitigation_cost, self.rice_constant["xtheta_2"]
-                )
-                abatement_cost_all.append(abatement_cost)
-                production = get_production(
-                    production_factor,
-                    capital,
-                    labor,
-                    region_const["xgamma"],
-                )
-                production_all.append(production)
-
-                gross_output = get_gross_output(damages, abatement_cost, production)
-                gross_output_all.append(gross_output)
-                gov_balance = gov_balance * (1 + self.rice_constant["r"])
-                next_balance_all.append(gov_balance)
-                investment = get_investment(savings, gross_output)
-                investment_all.append(investment)
-
-                # Trade
-                desired_imports = region_actions[i,
+            # Trade
+            desired_imports = region_actions[:,
                                   self.desired_imports_action_index: self.desired_imports_action_index + self.import_actions_n]
-                # Countries cannot import from themselves
-                desired_imports = desired_imports.at[i].set(0)
-                total_desired_imports = desired_imports.sum()
-                clipped_desired_imports = jnp.clip(total_desired_imports, 0, gross_output)
-                desired_imports = jnp.where(total_desired_imports != 0,
-                                            desired_imports * clipped_desired_imports / total_desired_imports,
-                                            jnp.zeros_like(desired_imports))
+            # Countries cannot import from themselves
+            desired_imports = zero_diag(desired_imports)
+            total_desired_imports = desired_imports.sum(axis=1)
+            clipped_desired_imports = jnp.clip(total_desired_imports, 0, gross_output_all)
+            desired_imports = jnp.where(total_desired_imports != 0,
+                                        desired_imports * (
+                                                    # Transpose to apply the scaling row and not column-wise
+                                                    clipped_desired_imports / total_desired_imports)[:, jnp.newaxis],
+                                        jnp.zeros_like(desired_imports))
+            init_capital_multiplier = 10.0
+            debt_ratio = init_capital_multiplier * balance_all / self.region_params["xK_0"]
+            debt_ratio = jnp.clip(debt_ratio, -1.0, 0.0)
+            scaled_imports = desired_imports * (1 + debt_ratio)
 
-                # Scale imports based on gov balance
-                init_capital_multiplier = 10.0
-                debt_ratio = init_capital_multiplier * gov_balance / region_const["xK_0"]
-                debt_ratio = jnp.clip(debt_ratio, -1.0, 0.0)
-                desired_imports *= 1 + debt_ratio
-                scaled_imports = scaled_imports.at[i].set(desired_imports)
-
-            gross_output_all = jnp.asarray(gross_output_all)
-            investment_all = jnp.asarray(investment_all)
             max_potential_exports = get_max_potential_exports(
                 region_actions[:, self.export_action_index], gross_output_all, investment_all)
             # Summing along columns yields the total number of exports requested by other regions
             total_desired_exports = jnp.sum(scaled_imports, axis=0)
             clipped_desired_exports = jnp.clip(total_desired_exports, 0, max_potential_exports)
-            scaled_imports = jnp.where(total_desired_exports != 0, scaled_imports * clipped_desired_exports / total_desired_exports,
-                                    jnp.zeros((self.num_players, self.num_players)))
+            scaled_imports = jnp.where(total_desired_exports != 0,
+                                       scaled_imports * clipped_desired_exports / total_desired_exports,
+                                       jnp.zeros((self.num_players, self.num_players)))
 
-
-            tariffed_imports = jnp.zeros((self.num_players, self.num_players))
             prev_tariffs = state.future_tariff
-            # Third loop to calculate tariffs and welfare
-            for i in range(self.num_players):
-                gross_output = gross_output_all[i]
-                investment = investment_all[i]
-                labor = state.labor_all[i]
+            tariffed_imports = scaled_imports * (1 - prev_tariffs)
+            # calculate tariffed imports, tariff revenue and budget balance
+            # In the paper this goes to a "special reserve fund", i.e. it's not used
+            tariff_revenue = jnp.sum(scaled_imports * prev_tariffs, axis=0)
 
-                # calculate tariffed imports, tariff revenue and budget balance
-                tariffed_imports = tariffed_imports.at[i].set(scaled_imports[i] * (1 - state.future_tariff[i]))
+            total_exports = scaled_imports.sum(axis=0)
+            balance_all = jnp.asarray(balance_all) + self.dice_constant["xDelta"] * (
+                    total_exports - scaled_imports.sum(axis=1))
 
-                # In the paper this goes to a "special reserve fund", i.e. it's not used
-                tariff_revenue = jnp.sum(
-                    scaled_imports[i, :] * prev_tariffs[i, :]
-                )
-                # Aggregate consumption from domestic and foreign goods
-                # domestic consumption
-                c_dom = get_consumption(gross_output, investment, exports=scaled_imports[:, i])
-
-                consumption = get_armington_agg(
-                    c_dom=c_dom,
-                    c_for=tariffed_imports[i, :],
-                    sub_rate=self.sub_rate,
-                    dom_pref=self.dom_pref,
-                    for_pref=self.for_pref,
-                )
-                consumption_all.append(consumption)
-
-                utility = get_utility(labor, consumption, self.rice_constant["xalpha"])
-                utility_all.append(utility)
-                social_welfare_all.append(get_social_welfare(
-                    utility, self.rice_constant["xrho"], self.dice_constant["xDelta"], t
-                ))
-
-                # Update government balance
-                next_balance_all[i] = (next_balance_all[i]
-                                       + self.dice_constant["xDelta"] * (
-                                               jnp.sum(scaled_imports[:, i])
-                                               - jnp.sum(scaled_imports[i, :])
-                                       ))
+            c_dom = get_consumption(gross_output_all, investment_all, total_exports)
+            consumption_all = get_armington_agg(c_dom, tariffed_imports, self.sub_rate, self.dom_pref, self.for_pref)
+            utility_all = get_utility(state.labor_all, consumption_all, self.rice_constant["xalpha"])
+            social_welfare_all = get_social_welfare(utility_all, self.rice_constant["xrho"],
+                                                    self.dice_constant["xDelta"], t)
 
             # Update ecology
             m_at = state.global_carbon_mass[0]
@@ -290,30 +227,26 @@ class Rice(environment.Environment):
             capital_depreciation = get_capital_depreciation(
                 self.rice_constant["xdelta_K"], self.dice_constant["xDelta"]
             )
-            next_capital_all = get_capital(
+            capital_all = get_capital(
                 capital_depreciation, state.capital_all,
                 self.dice_constant["xDelta"],
                 investment_all
             )
-            next_intensity_all = get_carbon_intensity(
+            intensity_all = get_carbon_intensity(
                 state.intensity_all,
                 self.rice_constant["xg_sigma"],
                 self.rice_constant["xdelta_sigma"],
                 self.dice_constant["xDelta"],
                 t
             )
-            for i in range(self.num_players):
-                region_const = self.region_constants[i]
-                capital_depreciation_all.append(capital_depreciation)
-                next_labor_all.append(
-                    get_labor(state.labor_all[i], region_const["xL_a"], region_const["xl_g"]))
-                next_production_factor_all.append(get_production_factor(
-                    state.production_factor_all[i],
-                    region_const["xg_A"],
-                    region_const["xdelta_A"],
-                    self.dice_constant["xDelta"],
-                    t,
-                ))
+            labor_all = get_labor(state.labor_all, self.region_params["xL_a"], self.region_params["xl_g"])
+            production_factor_all = get_production_factor(
+                state.production_factor_all,
+                self.region_params["xg_A"],
+                self.region_params["xdelta_A"],
+                self.dice_constant["xDelta"],
+                t,
+            )
 
             next_state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t,
@@ -322,24 +255,25 @@ class Rice(environment.Environment):
                 global_exogenous_emissions=global_exogenous_emissions,
                 global_land_emissions=global_land_emissions,
 
-                labor_all=jnp.asarray(next_labor_all),
-                capital_all=next_capital_all,
-                production_factor_all=jnp.asarray(next_production_factor_all),
-                intensity_all=next_intensity_all,
-                balance_all=jnp.asarray(next_balance_all),
+                labor_all=labor_all,
+                capital_all=capital_all,
+                production_factor_all=production_factor_all,
+                intensity_all=intensity_all,
+                balance_all=balance_all,
 
-                future_tariff=region_actions[:, self.tariffs_action_index: self.tariffs_action_index + self.num_players],
+                future_tariff=region_actions[:,
+                              self.tariffs_action_index: self.tariffs_action_index + self.num_players],
 
                 gross_output_all=gross_output_all,
                 investment_all=investment_all,
                 production_all=production_all,
-                utility_all=jnp.asarray(utility_all),
-                social_welfare_all=jnp.asarray(social_welfare_all),
+                utility_all=utility_all,
+                social_welfare_all=social_welfare_all,
                 capital_depreciation_all=jnp.asarray([capital_depreciation]),
-                mitigation_cost_all=jnp.asarray(mitigation_cost_all),
-                consumption_all=jnp.asarray(consumption_all),
-                damages_all=jnp.asarray(damages_all),
-                abatement_cost_all=jnp.asarray(abatement_cost_all),
+                mitigation_cost_all=mitigation_cost_all,
+                consumption_all=consumption_all,
+                damages_all=damages_all,
+                abatement_cost_all=abatement_cost_all,
             )
 
             reset_obs, reset_state = _reset(key, params)
@@ -351,7 +285,6 @@ class Rice(environment.Environment):
 
             for i in range(self.num_players):
                 obs.append(self._generate_observation(i, actions, next_state))
-
 
             obs = jax.tree_map(lambda x, y: jnp.where(done, x, y), reset_obs, tuple(obs))
 
@@ -503,7 +436,7 @@ def load_rice_params(config_dir=None):
     for file in yaml_files:
         region_params.append(load_yaml_data(os.path.join(config_dir, file)))
 
-    # Overwrite rice params)
+    # _REGIONS is a list of dictionaries
     base_params["_REGIONS"] = []
     for idx, param in enumerate(region_params):
         region_to_append = param["_RICE_CONSTANT"]
@@ -512,7 +445,20 @@ def load_rice_params(config_dir=None):
                 region_to_append[k] = base_params["_RICE_CONSTANT_DEFAULT"][k]
         base_params["_REGIONS"].append(region_to_append)
 
+    # _REGION_PARAMS is a dictionary of lists
+    base_params["_REGION_PARAMS"] = {}
+    for k in base_params["_RICE_CONSTANT_DEFAULT"].keys():
+        base_params["_REGION_PARAMS"][k] = []
+        for idx, param in enumerate(region_params):
+            parameter_value = param["_RICE_CONSTANT"].get(k, base_params["_RICE_CONSTANT_DEFAULT"][k])
+            base_params["_REGION_PARAMS"][k].append(parameter_value)
+        base_params["_REGION_PARAMS"][k] = jnp.asarray(base_params["_REGION_PARAMS"][k])
+
     return base_params, len(region_params)
+
+
+def zero_diag(matrix: jax.Array) -> jax.Array:
+    return matrix - matrix * jnp.eye(matrix.shape[0], matrix.shape[1])
 
 
 def get_exogenous_emissions(f_0, f_1, t_f, timestep):
@@ -548,9 +494,8 @@ def get_investment(savings, gross_output):
     return savings * gross_output
 
 
-def get_consumption(gross_output, investment, exports):
-    total_exports = jnp.sum(exports)
-    return jnp.max(jnp.asarray([0.0, gross_output - investment - total_exports]))
+def get_consumption(gross_output, investment, total_exports):
+    return jnp.clip(gross_output - investment - total_exports, 0)
 
 
 def get_max_potential_exports(x_max, gross_output, investment):
@@ -616,7 +561,7 @@ def get_social_welfare(utility, rho, delta, timestep):
 
 def get_armington_agg(
         c_dom,
-        c_for,  # np.array
+        imports,  # np.array
         sub_rate=0.5,  # in (0,1)
         dom_pref=0.5,  # in [0,1]
         for_pref=None,  # np.array
@@ -631,8 +576,7 @@ def get_armington_agg(
         `C_dom`     : A scalar representing domestic consumption. The value of
                     C_dom is what is left over from initial production after
                     investment and exports are deducted.
-        `C_for`     : An array reprensenting foreign consumption. Each element
-                    is the consumption imported from a given country.
+        `C_for`     : A matrix representing the trade flows between regions.
         `sub_rate`  : A substitution parameter in (0,1). The elasticity of
                     substitution is 1 / (1 - sub_rate).
         `dom_pref`  : A scalar in [0,1] representing the relative preference for
@@ -642,7 +586,8 @@ def get_armington_agg(
     """
 
     c_dom_pref = dom_pref * (c_dom ** sub_rate)
-    c_for_pref = jnp.sum(for_pref * pow(c_for, sub_rate))
+    # Axis 1 because we consider imports not exports
+    c_for_pref = jnp.sum(for_pref * pow(imports, sub_rate), axis=1)
 
     c_agg = (c_dom_pref + c_for_pref) ** (1 / sub_rate)  # CES function
     return c_agg
