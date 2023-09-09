@@ -4,10 +4,12 @@ import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+import jmp
 from distrax import MultivariateNormalDiag
 from jax import Array
 
 from pax import utils
+from pax.utils import float_precision
 
 
 class CategoricalValueHead(hk.Module):
@@ -400,6 +402,9 @@ def make_fishery_network(num_actions: int, hidden_size: int):
 
 def make_rice_sarl_network(num_actions: int, hidden_size: int):
     """Continuous action space network with values clipped between 0 and 1"""
+    if float_precision == jnp.float16:
+        policy = jmp.get_policy('params=float16,compute=float16,output=float32')
+        hk.mixed_precision.set_policy(hk.nets.MLP, policy)
 
     def forward_fn(inputs):
         layers = []
@@ -682,6 +687,9 @@ def make_GRU_rice_network(
         num_actions: int,
         hidden_size: int,
 ):
+    policy = jmp.get_policy('params=float16,compute=float16,output=float16')
+    hk.mixed_precision.set_policy(hk.GRU, policy)
+    hk.mixed_precision.set_policy(hk.Linear, policy)
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(

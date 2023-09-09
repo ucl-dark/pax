@@ -2,7 +2,7 @@
 
 # Agents
 agent1: 'PPO'
-agent_default: 'Naive'
+agent_default: 'PPO'
 
 # Environment
 env_id: Rice-v1
@@ -17,9 +17,9 @@ top_k: 5
 popsize: 1000
 num_envs: 1
 num_opps: 1
-num_outer_steps: 1
+num_outer_steps: 2
 num_inner_steps: 20
-num_iters: 3500
+num_iters: 1
 num_devices: 1
 num_steps: 4
 
@@ -46,17 +46,7 @@ ppo_default:
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True
-  hidden_size: 64
-
-naive:
-  num_minibatches: 1
-  num_epochs: 1
-  gamma: 1
-  gae_lambda: 0.95
-  max_gradient_norm: 1.0
-  learning_rate: 1.0
-  adam_epsilon: 1e-5
-  entropy_coeff: 0.0
+  hidden_size: 32
 
 # ES parameters
 es:
@@ -84,7 +74,8 @@ es:
 wandb:
   project: rice
   group: 'mediator'
+  mode: 'offline'
   name: 'rice-mediator-GS-${agent_default}-seed-${seed}'
-  log: True
+  log: False
 
 

@@ -215,7 +215,7 @@ Pax is written in pure Python, but depends on C++ code via JAX.
 
 Because JAX installation is different depending on your CUDA version, Haiku does not list JAX as a dependency in requirements.txt.
 
-First, follow these instructions to install JAX with the relevant accelerator support.
+First, follow these instructions to [install](https://github.com/google/jax#installation) JAX with the relevant accelerator support.
 
 ## General Information
 The project entrypoint is `pax/experiment.py`. The simplest command to run a game would be: 

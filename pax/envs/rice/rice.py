@@ -9,6 +9,8 @@ import yaml
 from gymnax.environments import environment, spaces
 from jax import Array
 
+from pax.utils import float_precision
+
 
 @chex.dataclass
 class EnvState:
@@ -30,6 +32,7 @@ class EnvState:
 
     # Tariffs are applied to the next time step
     future_tariff: chex.ArrayDevice
+    #tariff_revenue: chex.ArrayDevice
 
     # The following values are intermediary values
     # that we only track in the state for easier evaluation and logging
@@ -121,7 +124,7 @@ class Rice(environment.Environment):
                 self.dice_constant["xf_0"], self.dice_constant["xf_1"], self.dice_constant["xt_f"], t
             )
 
-            actions = jnp.asarray(actions).squeeze()
+            actions = jnp.asarray(actions).astype(float_precision).squeeze()
             actions = jnp.clip(actions, a_min=0, a_max=1)
 
             if self.mediator:
@@ -329,30 +332,26 @@ class Rice(environment.Environment):
             global_temperature=jnp.array([self.rice_constant["xT_AT_0"], self.rice_constant["xT_LO_0"]]),
             global_carbon_mass=jnp.array(
                 [self.dice_constant["xM_AT_0"], self.dice_constant["xM_UP_0"], self.dice_constant["xM_LO_0"]]),
-            global_exogenous_emissions=jnp.zeros((), dtype=jnp.float32),
-            global_land_emissions=jnp.zeros((), dtype=jnp.float32),
-            labor_all=jnp.array(
-                [self.region_constants[region_id]["xL_0"] for region_id in range(self.num_players)]),
-            capital_all=jnp.array(
-                [self.region_constants[region_id]["xK_0"] for region_id in range(self.num_players)]),
-            production_factor_all=jnp.array(
-                [self.region_constants[region_id]["xA_0"] for region_id in range(self.num_players)]),
-            intensity_all=jnp.array(
-                [self.region_constants[region_id]["xsigma_0"] for region_id in range(self.num_players)]),
+            global_exogenous_emissions=jnp.zeros((), dtype=float_precision),
+            global_land_emissions=jnp.zeros((), dtype=float_precision),
+            labor_all=self.region_params["xL_0"],
+            capital_all=self.region_params["xK_0"],
+            production_factor_all=self.region_params["xA_0"],
+            intensity_all=self.region_params["xsigma_0"],
 
-            balance_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            future_tariff=jnp.zeros((self.num_players, self.num_players), dtype=jnp.float32),
+            balance_all=jnp.zeros(self.num_players, dtype=float_precision),
+            future_tariff=jnp.zeros((self.num_players, self.num_players), dtype=float_precision),
 
-            gross_output_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            investment_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            production_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            utility_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            social_welfare_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            capital_depreciation_all=jnp.zeros(0, dtype=jnp.float32),
-            mitigation_cost_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            consumption_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            damages_all=jnp.zeros(self.num_players, dtype=jnp.float32),
-            abatement_cost_all=jnp.zeros(self.num_players, dtype=jnp.float32),
+            gross_output_all=jnp.zeros(self.num_players, dtype=float_precision),
+            investment_all=jnp.zeros(self.num_players, dtype=float_precision),
+            production_all=jnp.zeros(self.num_players, dtype=float_precision),
+            utility_all=jnp.zeros(self.num_players, dtype=float_precision),
+            social_welfare_all=jnp.zeros(self.num_players, dtype=float_precision),
+            capital_depreciation_all=jnp.zeros(0, dtype=float_precision),
+            mitigation_cost_all=jnp.zeros(self.num_players, dtype=float_precision),
+            consumption_all=jnp.zeros(self.num_players, dtype=float_precision),
+            damages_all=jnp.zeros(self.num_players, dtype=float_precision),
+            abatement_cost_all=jnp.zeros(self.num_players, dtype=float_precision),
         )
 
     def _generate_observation(self, index: int, actions: chex.ArrayDevice, state: EnvState) -> Array:
@@ -381,7 +380,7 @@ class Rice(environment.Environment):
             jnp.asarray([state.social_welfare_all[index]]),
             # All agent actions
             actions.ravel()
-        ])
+        ], dtype=float_precision)
 
     def _generate_mediator_observation(self, actions: chex.ArrayDevice, state: EnvState) -> Array:
         return jnp.concatenate([
@@ -401,7 +400,7 @@ class Rice(environment.Environment):
             jnp.zeros(8),
             # All agent actions
             actions.ravel()
-        ])
+        ], dtype=float_precision)
 
     @property
     def name(self) -> str:
@@ -419,7 +418,7 @@ class Rice(environment.Environment):
     def observation_space(self, params: EnvParams) -> spaces.Box:
         init_state = self._get_initial_state()
         obs = self._generate_observation(0, jnp.zeros(self.num_actions * self.num_actors), init_state)
-        return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=jnp.float32)
+        return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=float_precision)
 
 
 def load_rice_params(config_dir=None):
@@ -452,7 +451,7 @@ def load_rice_params(config_dir=None):
         for idx, param in enumerate(region_params):
             parameter_value = param["_RICE_CONSTANT"].get(k, base_params["_RICE_CONSTANT_DEFAULT"][k])
             base_params["_REGION_PARAMS"][k].append(parameter_value)
-        base_params["_REGION_PARAMS"][k] = jnp.asarray(base_params["_REGION_PARAMS"][k])
+        base_params["_REGION_PARAMS"][k] = jnp.asarray(base_params["_REGION_PARAMS"][k], dtype=float_precision)
 
     return base_params, len(region_params)
 
@@ -609,5 +608,5 @@ def rec_array_conversion(data):
             elif isinstance(value, dict):
                 data[key] = rec_array_conversion(value)
     elif isinstance(data, list):
-        data = jnp.asarray(data)
+        data = jnp.asarray(data, dtype=float_precision)
     return data

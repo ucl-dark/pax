@@ -18,7 +18,7 @@ from pax.agents.ppo.networks import (
 )
 from pax.envs.rice.rice import Rice
 from pax.envs.rice.sarl_rice import SarlRice
-from pax.utils import Logger, MemoryState, TrainingState, get_advantages
+from pax.utils import Logger, MemoryState, TrainingState, get_advantages, float_precision
 
 
 class Batch(NamedTuple):
@@ -353,7 +353,7 @@ class PPO(AgentInterface):
                     dummy_obs[k] = jnp.zeros(shape=v)
 
             elif not tabular:
-                dummy_obs = jnp.zeros(shape=obs_spec)
+                dummy_obs = jnp.zeros(shape=obs_spec, dtype=float_precision)
                 dummy_obs = dummy_obs.at[0].set(1)
                 dummy_obs = dummy_obs.at[9].set(1)
                 dummy_obs = dummy_obs.at[18].set(1)
