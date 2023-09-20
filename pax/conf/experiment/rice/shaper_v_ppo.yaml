@@ -1,24 +1,29 @@
 # @package _global_
 
 # Agents
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
 agent_default: 'PPO_memory'
+
+agent2_roles: 4
 
 # Environment
 env_id: Rice-v1
 env_type: meta
 num_players: 5
-mediator: False
+has_mediator: False
+shuffle_players: False
 config_folder: pax/envs/rice/5_regions
-runner: tensor_evo
+runner: evo
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 1
+num_envs: 4
 num_opps: 1
-num_outer_steps: 200
+num_outer_steps: 500
 num_inner_steps: 20
-num_iters: 3500
+num_iters: 1500
 num_devices: 1
 num_steps: 200
 
@@ -45,7 +50,7 @@ ppo_default:
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True
-  hidden_size: 64
+  hidden_size: 32
 
 # ES parameters
 es:

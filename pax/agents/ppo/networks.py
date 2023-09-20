@@ -407,19 +407,17 @@ def make_rice_sarl_network(num_actions: int, hidden_size: int):
         hk.mixed_precision.set_policy(hk.nets.MLP, policy)
 
     def forward_fn(inputs):
-        layers = []
-        layers.extend(
-            [
-                hk.nets.MLP(
-                    [hidden_size, hidden_size],
-                    w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
-                    b_init=hk.initializers.Constant(0),
-                    activate_final=True,
-                    activation=jax.nn.relu,
-                ),
-                ContinuousValueHead(num_values=num_actions, name="rice_value_head", mean_activation="sigmoid"),
-            ]
-        )
+        layers = [
+            hk.nets.MLP(
+                [hidden_size, hidden_size],
+                w_init=hk.initializers.Orthogonal(jnp.sqrt(2)),
+                b_init=hk.initializers.Constant(0),
+                activate_final=True,
+                activation=jax.nn.relu,
+            ),
+            ContinuousValueHead(num_values=num_actions, name="rice_value_head", mean_activation="sigmoid"),
+        ]
+
         policy_value_network = hk.Sequential(layers)
         return policy_value_network(inputs)
 
@@ -687,9 +685,9 @@ def make_GRU_rice_network(
         num_actions: int,
         hidden_size: int,
 ):
-    policy = jmp.get_policy('params=float16,compute=float16,output=float16')
-    hk.mixed_precision.set_policy(hk.GRU, policy)
-    hk.mixed_precision.set_policy(hk.Linear, policy)
+    # if float_precision == jnp.float16:
+    #     policy = jmp.get_policy('params=float16,compute=float16,output=float32')
+    #     hk.mixed_precision.set_policy(hk.GRU, policy)
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(

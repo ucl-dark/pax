@@ -59,7 +59,7 @@ from pax.envs.iterated_tensor_game_n_player import (
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.rice.rice import Rice, EnvParams as RiceParams
 from pax.envs.rice.sarl_rice import SarlRice
-from pax.runners.runner_ctde import CTDERunner
+from pax.runners.runner_weight_sharing import WeightSharingRunner
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_multishaper import MultishaperEvalRunner
 from pax.runners.runner_evo import EvoRunner
@@ -97,10 +97,10 @@ def global_setup(args):
             exist_ok=True,
         )
     if args.wandb.log:
-        print("name", str(args.wandb.name))
+        print("run name", str(args.wandb.name))
         if args.debug:
             args.wandb.group = "debug-" + args.wandb.group
-        wandb.init(
+        run = wandb.init(
             reinit=True,
             entity=str(args.wandb.entity),
             project=str(args.wandb.project),
@@ -113,6 +113,7 @@ def global_setup(args):
             ),  # type: ignore
             settings=wandb.Settings(code_dir="."),
         )
+        print("run id", run.id)
         wandb.run.log_code(".")
     return save_dir
 
@@ -224,7 +225,7 @@ def env_setup(args, logger=None):
         env = Rice(
             num_inner_steps=args.num_inner_steps,
             config_folder=args.config_folder,
-            mediator=args.mediator,
+            has_mediator=args.has_mediator,
         )
         if logger:
             logger.info(
@@ -375,9 +376,9 @@ def runner_setup(args, env, agents, save_dir, logger):
     elif args.runner == "sarl":
         logger.info("Training with SARL Runner")
         return SARLRunner(agents, env, save_dir, args)
-    elif args.runner == "ctde":
-        logger.info("Training with CTDE Runner")
-        return CTDERunner(agents, env, save_dir, args)
+    elif args.runner == WeightSharingRunner.id:
+        logger.info("Training with Weight Sharing Runner")
+        return WeightSharingRunner(agents, env, save_dir, args)
     else:
         raise ValueError(f"Unknown runner type {args.runner}")
 
@@ -586,7 +587,7 @@ def agent_setup(args, env, env_params, logger):
                 strategies[strategy](seeds[idx], pids[idx])
             )
         logger.info(
-            f"Agent Pair: {strategies}"
+            f"Agent Pair: {agents}"
         )
         logger.info(f"Agent seeds: {seeds}")
 

@@ -74,14 +74,9 @@ def rice_sarl_stats(traj: NamedTuple, num_players: int) -> dict:
         "consumption",
         "investment",
         "balance",
-        "production_factor",
-        "intensity",
-        "mitigation_cost",
-        "damages",
-        "abatement_cost",
-        "production",
-        "utility",
-        "social_welfare",
+        "tariff_revenue",
+        "carbon_price",
+        "club_membership",
     ]
 
     offset = 8

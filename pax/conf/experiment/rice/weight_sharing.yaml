@@ -1,15 +1,17 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
+agent_default: 'PPO_memory'
 
 # Environment
 env_id: Rice-v1
 env_type: sequential
 num_players: 5
-mediator: False
+has_mediator: False
 config_folder: pax/envs/rice/5_regions
-runner: ctde
+runner: weight_sharing
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
@@ -47,5 +49,5 @@ ppo0:
 # Logging setup
 wandb:
   project: rice
-  group: 'ctde'
-  name: 'rice-CTDE-${agent1}-seed-${seed}'
+  group: 'weight_sharing'
+  name: 'rice-weight_sharing-${agent1}-seed-${seed}'

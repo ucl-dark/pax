@@ -23,6 +23,8 @@ num_shapers: 1
 # Agents
 agent1: 'PPO'
 agent2: 'PPO'
+shuffle_players: False
+agent2_roles: 1
 
 # Logging setup
 wandb:

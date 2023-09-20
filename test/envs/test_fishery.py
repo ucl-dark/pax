@@ -33,7 +33,7 @@ def test_fishery_convergence():
         step_reward = rewards[0] + rewards[1]
 
         # Check convergence at the end of an episode
-        if i % ep_length == ep_length - 1:
+        if i % ep_length == ep_length - 2:
             S_star = env_params.w / (env_params.P * env_params.e * env_params.s_max)  # 0.5
             assert jnp.isclose(S_star, env_state.s, atol=0.01)
 

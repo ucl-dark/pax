@@ -9,9 +9,6 @@ import wandb
 from pax.utils import MemoryState, TrainingState, save
 from pax.watchers.rice import rice_stats
 
-# from jax.config import config
-# config.update('jax_disable_jit', True)
-
 MAX_WANDB_CALLS = 1000000
 
 
@@ -27,8 +24,14 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class CTDERunner:
+"""
+This runner implements weight sharing by letting the agent assume each role in the environment per turn.
+"""
+
+
+class WeightSharingRunner:
     """Holds the runner's state."""
+    id = "weight_sharing"
 
     def __init__(self, agent, env, save_dir, args):
         self.train_steps = 0
@@ -169,13 +172,13 @@ class CTDERunner:
             _memories = [agent.batch_reset(_mem, False) for _mem in _memories]
 
             # Stats
-            rewards = 0
+            rewards = []
+            num_episodes = jnp.sum(trajectories[0].dones)
             for traj in trajectories:
-                episodes = jnp.sum(traj.dones)
-                rewards += jnp.where(episodes != 0, jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8), 0)
+                rewards.append(jnp.where(num_episodes != 0, jnp.sum(traj.rewards) / num_episodes, 0))
             env_stats = {}
             if args.env_id == "Rice-v1":
-                env_stats = rice_stats(trajectories, args.num_players, args.mediator)
+                env_stats = rice_stats(trajectories, args.num_players, args.has_mediator)
 
             return (
                 env_stats,
@@ -207,7 +210,7 @@ class CTDERunner:
             # RL Rollout
             (
                 env_stats,
-                rewards_1,
+                rewards,
                 a1_state,
                 memories,
                 a1_metrics,
@@ -228,7 +231,7 @@ class CTDERunner:
                 print(f"Episode {i}/{num_iters}")
 
                 print(f"Env Stats: {env_stats}")
-                print(f"Total Episode Reward: {float(rewards_1.mean())}")
+                print(f"Total Episode Reward:c {float(rewards.sum())}")
                 print()
 
                 if watcher:
@@ -244,9 +247,6 @@ class CTDERunner:
                     wandb.log(
                         {
                             "episodes": self.train_episodes,
-                            "train/episode_reward/player_1": float(
-                                rewards_1.mean()
-                            ),
                         }
                         | env_stats,
                     )

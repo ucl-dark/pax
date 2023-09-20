@@ -27,9 +27,9 @@ def test_rice():
 
     for i in range(3 * ep_length + 1):
         # Do random actions
-        key, _ = jax.ranydom.split(rng, 2)
-        action = jax.random.uniform(rng, (env.num_actions,))
-        actions = tuple([action for _ in range(num_players)])
+        key, _ = jax.random.split(rng, 2)
+        actions = jax.random.uniform(key, (num_players, env.num_actions))
+        actions = tuple([action for action in actions])
         obs, env_state, rewards, done, info = env.step(
             rng, env_state, actions, env_params
         )
