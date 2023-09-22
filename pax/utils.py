@@ -93,6 +93,19 @@ def to_numpy(values):
     return jax.tree_util.tree_map(np.asarray, values)
 
 
+class LOLATrainingState(NamedTuple):
+    """Training state consists of network parameters, optimiser state, random key, timesteps, and extras."""
+
+    policy_params: hk.Params
+    value_params: hk.Params
+    policy_opt_state: optax.GradientTransformation
+    value_opt_state: optax.GradientTransformation
+    random_key: jnp.ndarray
+    timesteps: int
+    extras: Mapping[str, jnp.ndarray]
+    hidden: None
+
+
 class TrainingState(NamedTuple):
     """Training state consists of network parameters, optimiser state, random key, timesteps"""
 
@@ -133,3 +146,66 @@ def load(filename: str):
     with open(filename, "rb") as handle:
         es_logger = pickle.load(handle)
     return es_logger
+
+
+def copy_state_and_network(agent):
+    import copy
+
+    """Copies an agent state and returns the state"""
+    state = TrainingState(
+        params=copy.deepcopy(agent._state.params),
+        opt_state=agent._state.opt_state,
+        random_key=agent._state.random_key,
+        timesteps=agent._state.timesteps,
+    )
+    mem = MemoryState(
+        hidden=copy.deepcopy(agent._mem.hidden),
+        extras={
+            "values": copy.deepcopy(agent._mem.extras["values"]),
+            "log_probs": copy.deepcopy(agent._mem.extras["log_probs"]),
+        },
+    )
+    network = agent.network
+    return state, mem, network
+
+def copy_state_and_mem(state, mem):
+    import copy
+
+    """Copies an agent state and returns the state"""
+    state = TrainingState(
+        params=copy.deepcopy(state.params),
+        opt_state=state.opt_state,
+        random_key=state.random_key,
+        timesteps=state.timesteps,
+    )
+    mem = MemoryState(
+        hidden=copy.deepcopy(mem.hidden),
+        extras={
+            "values": copy.deepcopy(mem.extras["values"]),
+            "log_probs": copy.deepcopy(mem.extras["log_probs"]),
+        },
+    )
+    return state, mem
+
+
+
+def copy_extended_state_and_network(agent):
+    import copy
+
+    """Copies an agent state and returns the state"""
+    state = LOLATrainingState(
+        policy_params=copy.deepcopy(agent._state.policy_params),
+        value_params=copy.deepcopy(agent._state.value_params),
+        policy_opt_state=agent._state.policy_opt_state,
+        value_opt_state=agent._state.value_opt_state,
+        random_key=agent._state.random_key,
+        timesteps=agent._state.timesteps,
+        extras={
+            "values": jnp.zeros(agent._num_envs),
+            "log_probs": jnp.zeros(agent._num_envs),
+        },
+        hidden=None,
+    )
+    policy_network = agent.policy_network
+    value_network = agent.value_network
+    return state, policy_network, value_network

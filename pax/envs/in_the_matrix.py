@@ -1,5 +1,5 @@
-from enum import IntEnum
 import math
+from enum import IntEnum
 from typing import Any, Optional, Tuple, Union
 
 import chex
@@ -17,7 +17,6 @@ from pax.envs.rendering import (
     point_in_triangle,
     rotate_fn,
 )
-
 
 GRID_SIZE = 8
 OBS_SIZE = 5

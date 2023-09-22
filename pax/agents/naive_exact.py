@@ -2,8 +2,8 @@ from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-from pax.agents.agent import AgentInterface
 
+from pax.agents.agent import AgentInterface
 from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.utils import MemoryState
 
