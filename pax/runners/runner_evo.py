@@ -9,7 +9,6 @@ from evosax import FitnessShaper
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats

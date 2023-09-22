@@ -11,7 +11,6 @@ from omegaconf import OmegaConf
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog, n_player_ipd_visitation
