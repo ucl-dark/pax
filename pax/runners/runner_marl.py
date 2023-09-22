@@ -6,13 +6,8 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import (
-    MemoryState,
-    TrainingState,
-    copy_state_and_mem,
-    copy_state_and_network,
-    save,
-)
+from pax.utils import (MemoryState, TrainingState, copy_state_and_mem,
+                       copy_state_and_network, save)
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000
@@ -126,7 +121,7 @@ class RLRunner:
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         num_outer_steps = self.args.num_outer_steps
         agent1, agent2 = agents
-        agent1.agent2 = agent2 # Pointer for LOLA
+        agent1.agent2 = agent2  # Pointer for LOLA
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -142,7 +137,7 @@ class RLRunner:
         if args.agent1 == "LOLA":
             # batch for num_opps
             agent1.batch_in_lookahead = jax.vmap(
-                agent1.in_lookahead, (0, None, 0, 0, 0), (0,0)
+                agent1.in_lookahead, (0, None, 0, 0, 0), (0, 0)
             )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1

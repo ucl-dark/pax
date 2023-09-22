@@ -13,7 +13,6 @@ import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
 from pax.envs.in_the_matrix import InTheMatrix
 from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
-from pax.envs.in_the_matrix import InTheMatrix
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])

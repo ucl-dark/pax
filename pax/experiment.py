@@ -12,33 +12,20 @@ from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
 
 import wandb
 from pax.agents.hyper.ppo import make_hyper
+from pax.agents.lola.lola import make_lola
 from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
 from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
-from pax.agents.strategies import (
-    Altruistic,
-    Defect,
-    EvilGreedy,
-    GoodGreedy,
-    GrimTrigger,
-    HyperAltruistic,
-    HyperDefect,
-    HyperTFT,
-    Random,
-    RandomGreedy,
-    Stay,
-    TitForTat,
-)
-from pax.agents.tensor_strategies import (
-    TitForTatCooperate,
-    TitForTatDefect,
-    TitForTatHarsh,
-    TitForTatSoft,
-    TitForTatStrictStay,
-    TitForTatStrictSwitch,
-)
+from pax.agents.strategies import (Altruistic, Defect, EvilGreedy, GoodGreedy,
+                                   GrimTrigger, HyperAltruistic, HyperDefect,
+                                   HyperTFT, Random, RandomGreedy, Stay,
+                                   TitForTat)
+from pax.agents.tensor_strategies import (TitForTatCooperate, TitForTatDefect,
+                                          TitForTatHarsh, TitForTatSoft,
+                                          TitForTatStrictStay,
+                                          TitForTatStrictSwitch)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
@@ -47,11 +34,9 @@ from pax.envs.infinite_matrix_game import EnvParams as InfiniteMatrixGameParams
 from pax.envs.infinite_matrix_game import InfiniteMatrixGame
 from pax.envs.iterated_matrix_game import EnvParams as IteratedMatrixGameParams
 from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.iterated_tensor_game_n_player import \
+    EnvParams as IteratedTensorGameNPlayerParams
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
-from pax.envs.iterated_tensor_game_n_player import (
-    EnvParams as IteratedTensorGameNPlayerParams,
-)
-from pax.agents.lola.lola import make_lola
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_multishaper import MultishaperEvalRunner
 from pax.runners.runner_evo import EvoRunner
@@ -59,18 +44,10 @@ from pax.runners.runner_evo_multishaper import MultishaperEvoRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
-from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 from pax.utils import Section
-from pax.watchers import (
-    logger_hyper,
-    logger_naive_exact,
-    losses_naive,
-    losses_ppo,
-    naive_pg_losses,
-    policy_logger_ppo,
-    policy_logger_ppo_with_memory,
-    value_logger_ppo,
-)
+from pax.watchers import (logger_hyper, logger_naive_exact, losses_naive,
+                          losses_ppo, naive_pg_losses, policy_logger_ppo,
+                          policy_logger_ppo_with_memory, value_logger_ppo)
 
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU
@@ -200,10 +177,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if (
-        args.runner == "evo"
-        or args.runner == "multishaper_evo"
-    ):
+    if args.runner == "evo" or args.runner == "multishaper_evo":
         agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -664,24 +638,15 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if (
-        args.runner == "evo"
-        or args.runner == "multishaper_evo"
-    ):
+    if args.runner == "evo" or args.runner == "multishaper_evo":
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif (
-        args.runner == "rl"
-        or args.runner == "tensor_rl_nplayer"
-    ):
+    elif args.runner == "rl" or args.runner == "tensor_rl_nplayer":
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
-    elif (
-        args.runner == "ipditm_eval"
-        or args.runner == "multishaper_eval"
-    ):
+    elif args.runner == "ipditm_eval" or args.runner == "multishaper_eval":
         runner.run_loop(env_params, agent_pair, watchers)
 
     elif args.runner == "sarl":

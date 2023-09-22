@@ -168,6 +168,7 @@ def copy_state_and_network(agent):
     network = agent.network
     return state, mem, network
 
+
 def copy_state_and_mem(state, mem):
     import copy
 
@@ -186,7 +187,6 @@ def copy_state_and_mem(state, mem):
         },
     )
     return state, mem
-
 
 
 def copy_extended_state_and_network(agent):

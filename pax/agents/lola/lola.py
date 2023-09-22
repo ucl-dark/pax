@@ -1,19 +1,18 @@
-from typing import Any, List, Mapping, NamedTuple, Tuple, Dict
+from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
 
-from pax import utils
-from pax.agents.ppo.ppo_gru import PPO
-
-# from pax.lola.buffer import TrajectoryBuffer
-from lola.network import make_network
-from pax.runners.runner_marl import Sample
-from pax.utils import MemoryState, TrainingState
-
-from dm_env import TimeStep
 import haiku as hk
 import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from dm_env import TimeStep
+# from pax.lola.buffer import TrajectoryBuffer
+from lola.network import make_network
+
+from pax import utils
+from pax.agents.ppo.ppo_gru import PPO
+from pax.runners.runner_marl import Sample
+from pax.utils import MemoryState, TrainingState
 
 
 class LOLASample(NamedTuple):
@@ -165,7 +164,6 @@ class LOLA:
             # # want to minimize this value
             value_objective = jnp.mean((R_ts - values) ** 2)
 
-
             # want to maximize this objective
             loss_total = -dice_objective + value_objective
             return loss_total, {
@@ -280,13 +278,11 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-
             G_ts = reverse_cumsum(discounted_rewards[chosen_op_idx], axis=0)
             R_ts = G_ts / cum_discount
             # # want to minimize this value
             value_objective = jnp.mean(
-                (R_ts - other_values[chosen_op_idx])
-                ** 2
+                (R_ts - other_values[chosen_op_idx]) ** 2
             )
 
             # want to maximize this objective
@@ -860,8 +856,11 @@ def make_lola(
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
     )
+
+
 def reverse_cumsum(x, axis):
     return x + jnp.sum(x, axis=axis, keepdims=True) - jnp.cumsum(x, axis=axis)
+
 
 if __name__ == "__main__":
     pass

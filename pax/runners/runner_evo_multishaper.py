@@ -1,15 +1,16 @@
 import os
 import time
 from datetime import datetime
-from typing import Any, Callable, List, NamedTuple, Tuple
 from functools import partial
+from typing import Any, Callable, List, NamedTuple, Tuple
+
 import jax
 import jax.numpy as jnp
 from evosax import FitnessShaper
 from omegaconf import OmegaConf
+
 import wandb
 from pax.utils import MemoryState, TrainingState, save
-
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog, n_player_ipd_visitation
