@@ -9,8 +9,12 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.ppo.networks import (make_coingame_network, make_ipd_network,
-                                     make_ipditm_network, make_sarl_network)
+from pax.agents.ppo.networks import (
+    make_coingame_network,
+    make_ipd_network,
+    make_ipditm_network,
+    make_sarl_network,
+)
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages
 
 

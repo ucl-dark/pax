@@ -8,8 +8,11 @@ from omegaconf import OmegaConf
 
 import wandb
 from pax.utils import MemoryState, TrainingState, load, save
-from pax.watchers import (ipditm_stats, n_player_ipd_visitation,
-                          tensor_ipd_visitation)
+from pax.watchers import (
+    ipditm_stats,
+    n_player_ipd_visitation,
+    tensor_ipd_visitation,
+)
 
 MAX_WANDB_CALLS = 1000
 

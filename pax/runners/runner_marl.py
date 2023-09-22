@@ -6,8 +6,13 @@ import jax
 import jax.numpy as jnp
 
 import wandb
-from pax.utils import (MemoryState, TrainingState, copy_state_and_mem,
-                       copy_state_and_network, save)
+from pax.utils import (
+    MemoryState,
+    TrainingState,
+    copy_state_and_mem,
+    copy_state_and_network,
+    save,
+)
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
 
 MAX_WANDB_CALLS = 1000

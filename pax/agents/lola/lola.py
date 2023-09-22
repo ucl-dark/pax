@@ -6,8 +6,9 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 from dm_env import TimeStep
+
 # from pax.lola.buffer import TrajectoryBuffer
-from lola.network import make_network
+from pax.agents.lola.network import make_network
 
 from pax import utils
 from pax.agents.ppo.ppo_gru import PPO

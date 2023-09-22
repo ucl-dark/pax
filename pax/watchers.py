@@ -1,4 +1,5 @@
 import enum
+import itertools
 import pickle
 from functools import partial
 from typing import NamedTuple
