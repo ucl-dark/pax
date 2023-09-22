@@ -126,7 +126,6 @@ class RLRunner:
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         num_outer_steps = self.args.num_outer_steps
         agent1, agent2 = agents
-        agent1.agent2 = agent2  # Pointer for LOLA
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -138,11 +137,6 @@ class RLRunner:
                 agent1.make_initial_state,
                 (None, 0),
                 (None, 0),
-            )
-        if args.agent1 == "LOLA":
-            # batch for num_opps
-            agent1.batch_in_lookahead = jax.vmap(
-                agent1.in_lookahead, (0, None, 0, 0, 0), (0, 0)
             )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
@@ -333,9 +327,8 @@ class RLRunner:
             rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
-            _rng_run, _ = jax.random.split(_rng_run)
 
-            obs, env_state = env.batch_reset(rngs, _env_params)
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),

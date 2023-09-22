@@ -665,7 +665,6 @@ def main(args):
 
     if args.runner == "evo" or args.runner == "multishaper_evo":
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
-
     elif args.runner == "rl" or args.runner == "tensor_rl_nplayer":
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")

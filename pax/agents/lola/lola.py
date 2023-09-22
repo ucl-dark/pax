@@ -1,17 +1,11 @@
-from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
+from typing import Any, List, NamedTuple, Tuple
 
-import haiku as hk
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
-from dm_env import TimeStep
-
-# from pax.lola.buffer import TrajectoryBuffer
-from pax.agents.lola.network import make_network
 
 from pax import utils
-from pax.agents.ppo.ppo_gru import PPO
+from pax.agents.lola.network import make_network
 from pax.runners.runner_marl import Sample
 from pax.utils import MemoryState, TrainingState
 
