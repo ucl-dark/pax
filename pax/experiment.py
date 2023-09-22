@@ -18,14 +18,28 @@ from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
 from pax.agents.ppo.ppo_gru import make_gru_agent
-from pax.agents.strategies import (Altruistic, Defect, EvilGreedy, GoodGreedy,
-                                   GrimTrigger, HyperAltruistic, HyperDefect,
-                                   HyperTFT, Random, RandomGreedy, Stay,
-                                   TitForTat)
-from pax.agents.tensor_strategies import (TitForTatCooperate, TitForTatDefect,
-                                          TitForTatHarsh, TitForTatSoft,
-                                          TitForTatStrictStay,
-                                          TitForTatStrictSwitch)
+from pax.agents.strategies import (
+    Altruistic,
+    Defect,
+    EvilGreedy,
+    GoodGreedy,
+    GrimTrigger,
+    HyperAltruistic,
+    HyperDefect,
+    HyperTFT,
+    Random,
+    RandomGreedy,
+    Stay,
+    TitForTat,
+)
+from pax.agents.tensor_strategies import (
+    TitForTatCooperate,
+    TitForTatDefect,
+    TitForTatHarsh,
+    TitForTatSoft,
+    TitForTatStrictStay,
+    TitForTatStrictSwitch,
+)
 from pax.envs.coin_game import CoinGame
 from pax.envs.coin_game import EnvParams as CoinGameParams
 from pax.envs.in_the_matrix import EnvParams as InTheMatrixParams
@@ -47,9 +61,16 @@ from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_nplayer import NplayerRLRunner
 from pax.runners.runner_sarl import SARLRunner
 from pax.utils import Section
-from pax.watchers import (logger_hyper, logger_naive_exact, losses_naive,
-                          losses_ppo, naive_pg_losses, policy_logger_ppo,
-                          policy_logger_ppo_with_memory, value_logger_ppo)
+from pax.watchers import (
+    logger_hyper,
+    logger_naive_exact,
+    losses_naive,
+    losses_ppo,
+    naive_pg_losses,
+    policy_logger_ppo,
+    policy_logger_ppo_with_memory,
+    value_logger_ppo,
+)
 
 # NOTE: THIS MUST BE sDONE BEFORE IMPORTING JAX
 # uncomment to debug multi-devices on CPU

@@ -8,9 +8,15 @@ import jax.numpy as jnp
 import numpy as onp
 from gymnax.environments import environment, spaces
 
-from pax.envs.rendering import (downsample, fill_coords, highlight_img,
-                                point_in_circle, point_in_rect,
-                                point_in_triangle, rotate_fn)
+from pax.envs.rendering import (
+    downsample,
+    fill_coords,
+    highlight_img,
+    point_in_circle,
+    point_in_rect,
+    point_in_triangle,
+    rotate_fn,
+)
 
 GRID_SIZE = 8
 OBS_SIZE = 5

@@ -4,8 +4,10 @@ import pytest
 
 from pax.agents.strategies import TitForTat
 from pax.agents.tensor_strategies import TitForTatStrictStay
-from pax.envs.iterated_tensor_game_n_player import (EnvParams,
-                                                    IteratedTensorGameNPlayer)
+from pax.envs.iterated_tensor_game_n_player import (
+    EnvParams,
+    IteratedTensorGameNPlayer,
+)
 
 ####### 2 PLAYERS #######
 payoff_table_2pl = [
