@@ -1,9 +1,9 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'PPO_memory'
-agent3: 'PPO_memory'
+agent1: 'LOLA'
+agent2: 'PPO'
+agent3: 'PPO'
 
 # Environment
 env_id: iterated_nplayer_tensor_game
@@ -11,9 +11,9 @@ num_players: 3
 env_type: sequential
 env_discount: 0.96
 payoff_table: [
-[ 2.33 , 1000 ],
-[ 2.0 , 3 ],
-[ 1.0 , 3 ],
+[ 3.0 , 1000 ],
+[ 1.0 , 4.0 ],
+[ -3 , 0 ],
 [ 1000 , 0 ],
 ]
 # Runner 
@@ -21,15 +21,20 @@ runner: tensor_rl_nplayer
 
 
 # Training
-num_envs: 100
-num_opps: 1
+num_envs: 2
+num_opps: 100
 num_inner_steps: 100 # one game length
 num_outer_steps: 1 # sequential 
-num_iters: 3000  #games
+num_iters: 2000  #games
 # total_timesteps: 2.5e7
 num_devices: 1
 
-
+lola: 
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  lr_out: 0.1
+  gamma: 0.96
+  num_lookaheads: 1
 # PPO agent parameters
 ppo1:
   num_minibatches: 10
@@ -91,10 +96,11 @@ ppo3:
   with_cnn: False
   separate: False
   hidden_size: 16
+
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: tensor
-  group: 'naive_3pl_sd'
-  name: naive_3pl_sd-${seed}
+  group: 'lola_3pl_sh_ppo'
+  name: lola_vs_${agent2}_3pl_sh-${seed}
   log: True

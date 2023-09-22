@@ -18,20 +18,20 @@ env_discount: 0.96
 num_players: 5
 num_shapers: 2
 payoff_table: [
-    [ 8 , 1000 ],
-    [ 6 , 9 ],
-    [ 4 , 7 ],
-    [ 2 , 5 ],
-    [ 0 , 3 ],
-    [ -1000 , 1 ],
+[ 4.2 , 5 ],
+[ 4.0 , 5 ],
+[ 3.667 , 5 ],
+[ 3.0 , 5 ],
+[ 1.0 , 5 ],
+[ 1000 , 0 ],
 ]
 
 # Runner 
 runner: multishaper_eval
-run_path1: ucl-dark/tensor-ipd/3fc4002r
-run_path2: ucl-dark/tensor-ipd/3fc4002r
-model_path1: exp/5pl-2shap-ipd/5pl_2shap_ipd_1/2023-08-10_10.21.25.885437/generation_2499_agent_0
-model_path2: exp/5pl-2shap-ipd/5pl_2shap_ipd_1/2023-08-10_10.21.25.885437/generation_2499_agent_1
+run_path1: ucl-dark/tensor-sd/2zexmchh
+run_path2: ucl-dark/tensor-sd/2zexmchh
+model_path1: exp/5pl-2shap-sd/5pl_2shap_sd_4/2023-08-12_13.10.12.487646/generation_149_agent_0
+model_path2: exp/5pl-2shap-sd/5pl_2shap_sd_4/2023-08-12_13.10.12.487646/generation_149_agent_1
 
 
 # Training
@@ -146,12 +146,32 @@ ppo5:
   separate: False
   hidden_size: 16
 
-
+# ES parameters 
+es: 
+  algo: OpenES        # [OpenES, CMA_ES]
+  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
+  sigma_decay: 0.999  # Multiplicative decay factor
+  sigma_limit: 0.01   # Smallest possible scale
+  init_min: 0.0       # Range of parameter mean initialization - Min
+  init_max: 0.0       # Range of parameter mean initialization - Max
+  clip_min: -1e10     # Range of parameter proposals - Min
+  clip_max: 1e10      # Range of parameter proposals - Max
+  lrate_init: 0.01    # Initial learning rate
+  lrate_decay: 0.9999 # Multiplicative decay factor
+  lrate_limit: 0.001  # Smallest possible lrate
+  beta_1: 0.99        # Adam - beta_1
+  beta_2: 0.999       # Adam - beta_2
+  eps: 1e-8           # eps constant,
+  centered_rank: False # Fitness centered_rank
+  w_decay: 0           # Decay old elite fitness 
+  maximise: True       # Maximise fitness 
+  z_score: False       # Normalise fitness 
+  mean_reduce: True    # Remove mean
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor-ipd
-  group: '5pl_2shap_ipd-eval'
-  name: 5pl_2shap_ipd_1-eval
+  project: tensor-sd
+  group: '5pl_2shap_sd-eval'
+  name: 5pl_2shap_sd_4-eval
   log: True
 

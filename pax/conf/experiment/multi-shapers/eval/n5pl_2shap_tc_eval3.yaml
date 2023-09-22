@@ -16,26 +16,22 @@ env_discount: 0.96
 
 # Runner 
 num_players: 5
-num_shapers: 4
+num_shapers: 2
 payoff_table: [
-[ 4.2 , 5 ],
-[ 4.0 , 5 ],
-[ 3.667 , 5 ],
-[ 3.0 , 5 ],
-[ 1.0 , 5 ],
-[ 1000 , 0 ],
+    [ 2 , 5 ],
+    [ 2 , 5 ],
+    [ 2 , 5 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
+    [ -3 , 0 ],
 ]
 
 # Runner 
 runner: multishaper_eval
-run_path1: ucl-dark/tensor/ooer54uz
-model_path1: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_1
-run_path2: ucl-dark/tensor/ooer54uz
-model_path2: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_2
-run_path3: ucl-dark/tensor/ooer54uz
-model_path3: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_3
-run_path4: ucl-dark/tensor/ooer54uz
-model_path4: exp/multi_shapers_sd/5pl_4shap_sd_1/2023-06-20_20.04.01.494509/generation_400_agent_4
+run_path1: ucl-dark/tensor-tc/3qgerktw
+model_path1: exp/5pl-2shap-tc/5pl_2shap_tc_3/2023-08-13_00.41.28.522172/generation_149_agent_0
+run_path2: ucl-dark/tensor-tc/3qgerktw
+model_path2: exp/5pl-2shap-tc/5pl_2shap_tc_3/2023-08-13_00.41.28.522172/generation_149_agent_1
 
 # Training
 num_envs: 2
@@ -149,32 +145,12 @@ ppo5:
   separate: False
   hidden_size: 16
 
-# ES parameters 
-es: 
-  algo: OpenES        # [OpenES, CMA_ES]
-  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
-  sigma_decay: 0.999  # Multiplicative decay factor
-  sigma_limit: 0.01   # Smallest possible scale
-  init_min: 0.0       # Range of parameter mean initialization - Min
-  init_max: 0.0       # Range of parameter mean initialization - Max
-  clip_min: -1e10     # Range of parameter proposals - Min
-  clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.01    # Initial learning rate
-  lrate_decay: 0.9999 # Multiplicative decay factor
-  lrate_limit: 0.001  # Smallest possible lrate
-  beta_1: 0.99        # Adam - beta_1
-  beta_2: 0.999       # Adam - beta_2
-  eps: 1e-8           # eps constant,
-  centered_rank: False # Fitness centered_rank
-  w_decay: 0           # Decay old elite fitness 
-  maximise: True       # Maximise fitness 
-  z_score: False       # Normalise fitness 
-  mean_reduce: True    # Remove mean
+
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor-sd
-  group: 'multi_shapers_sd-eval'
-  name: 5pl_4shap_sd_1-eval
+  project: tensor-tc
+  group: '5pl_2shap_tc-eval'
+  name: 5pl_2shap_tc_3-eval
   log: True
 

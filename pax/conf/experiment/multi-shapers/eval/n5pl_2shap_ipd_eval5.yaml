@@ -28,10 +28,10 @@ payoff_table: [
 
 # Runner 
 runner: multishaper_eval
-run_path1: ucl-dark/tensor-ipd/3fc4002r
-run_path2: ucl-dark/tensor-ipd/3fc4002r
-model_path1: exp/5pl-2shap-ipd/5pl_2shap_ipd_1/2023-08-10_10.21.25.885437/generation_2499_agent_0
-model_path2: exp/5pl-2shap-ipd/5pl_2shap_ipd_1/2023-08-10_10.21.25.885437/generation_2499_agent_1
+run_path2: ucl-dark/tensor-ipd/f66dw04n
+run_path1: ucl-dark/tensor-ipd/f66dw04n
+model_path1: exp/5pl-2shap-ipd/5pl_2shap_ipd_5/2023-09-08_10.25.51.122297/generation_2499_agent_0
+model_path2: exp/5pl-2shap-ipd/5pl_2shap_ipd_5/2023-09-08_10.25.51.122297/generation_2499_agent_1
 
 
 # Training
@@ -152,6 +152,6 @@ wandb:
   entity: "ucl-dark"
   project: tensor-ipd
   group: '5pl_2shap_ipd-eval'
-  name: 5pl_2shap_ipd_1-eval
+  name: 5pl_2shap_ipd_0-eval
   log: True
 

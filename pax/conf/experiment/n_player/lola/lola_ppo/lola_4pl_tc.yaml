@@ -1,49 +1,41 @@
 # @package _global_
-# two shapers, both trained against PPO mem agents playing each other
 
 # Agents  
-agent1: 'PPO_memory'
-agent2: 'PPO_memory'
-agent3: 'PPO_memory'
-agent4: 'PPO_memory'
-agent5: 'PPO_memory'
-
-
+agent1: 'LOLA'
+agent2: 'PPO'
+agent3: 'PPO'
+agent4: 'PPO'
+seed: 3
 # Environment
 env_id: iterated_nplayer_tensor_game
-env_type: meta
+num_players: 4
+env_type: sequential
 env_discount: 0.96
-
-# Runner 
-num_players: 5
-num_shapers: 2
 payoff_table: [
-    [ 8 , 1000 ],
-    [ 6 , 9 ],
-    [ 4 , 7 ],
-    [ 2 , 5 ],
-    [ 0 , 3 ],
-    [ -1000 , 1 ],
+[ 2 , 5 ],
+[ 2 , 5 ],
+[ -3 , 0 ],
+[ -3 , 0 ],
+[ -3 , 0 ],
 ]
-
 # Runner 
-runner: multishaper_eval
-run_path1: ucl-dark/tensor-ipd/39mk7tha
-model_path1: exp/5pl-2shap-ipd/5pl_2shap_ipd_0/2023-07-15_16.23.49.389635/generation_400_agent_0
-run_path2: ucl-dark/tensor-ipd/39mk7tha
-model_path2: exp/5pl-2shap-ipd/5pl_2shap_ipd_0/2023-07-15_16.23.49.389635/generation_400_agent_1
-
+runner: tensor_rl_nplayer
 
 # Training
 num_envs: 2
-num_opps: 10
-num_inner_steps: 100
-num_outer_steps: 1000 #
-num_iters: 1 # shouldn't do anything, just for lr scheduler to not complain
+num_opps: 100
+num_inner_steps: 100 # one game length
+num_outer_steps: 1 # sequential 
+num_iters: 2000  #games
 # total_timesteps: 2.5e7
 num_devices: 1
 
-# PPO agent parameters
+lola: 
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  lr_out: 0.1
+  gamma: 0.96
+  num_lookaheads: 1
 # PPO agent parameters
 ppo1:
   num_minibatches: 10
@@ -125,33 +117,10 @@ ppo4:
   with_cnn: False
   separate: False
   hidden_size: 16
-ppo5:
-  num_minibatches: 10
-  num_epochs: 4 
-  gamma: 0.96
-  gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True 
-  max_gradient_norm: 0.5
-  anneal_entropy: False
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.4e9
-  entropy_coeff_end: 0.01
-  lr_scheduling: False
-  learning_rate: 3e-4
-  adam_epsilon: 1e-5
-  with_memory: True
-  with_cnn: False
-  separate: False
-  hidden_size: 16
-
-
 # Logging setup
 wandb:
   entity: "ucl-dark"
-  project: tensor-ipd
-  group: '5pl_2shap_ipd-eval'
-  name: 5pl_2shap_ipd_0-eval
+  project: tensor
+  group: 'lola_4pl_tc_ppo'
+  name: lola_vs_${agent2}_4pl_tc-${seed}
   log: True
-
