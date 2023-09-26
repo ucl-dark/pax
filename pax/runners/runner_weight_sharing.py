@@ -216,7 +216,8 @@ class WeightSharingRunner:
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, memories, env_params)
 
-            if i % self.args.save_interval == 0:
+            is_last_iter = i == num_iters - 1
+            if i % self.args.save_interval == 0 or is_last_iter:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
                 if watcher:
@@ -227,11 +228,11 @@ class WeightSharingRunner:
 
             # logging
             self.train_episodes += 1
-            if num_iters % log_interval == 0:
+            if num_iters % log_interval == 0 or is_last_iter:
                 print(f"Episode {i}/{num_iters}")
 
                 print(f"Env Stats: {env_stats}")
-                print(f"Total Episode Reward:c {float(rewards.sum())}")
+                print(f"Total Episode Reward: {float(sum(rewards))}")
                 print()
 
                 if watcher:

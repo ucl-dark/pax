@@ -9,53 +9,12 @@ import yaml
 from gymnax.environments import environment, spaces
 from jax import Array
 
+from pax.envs.rice.rice import EnvState, EnvParams, get_consumption, get_armington_agg, get_utility, get_social_welfare, \
+    get_global_temperature, load_rice_params, get_exogenous_emissions, get_mitigation_cost, get_carbon_intensity, \
+    get_abatement_cost, get_damages, get_production, get_gross_output, get_investment, zero_diag, \
+    get_max_potential_exports, get_land_emissions, get_aux_m, get_global_carbon_mass, get_capital_depreciation, \
+    get_capital, get_labor, get_production_factor, get_carbon_price
 from pax.utils import float_precision
-
-
-@chex.dataclass
-class EnvState:
-    inner_t: int
-    outer_t: int
-
-    # Ecological
-    global_temperature: chex.ArrayDevice
-    global_carbon_mass: chex.ArrayDevice
-    global_exogenous_emissions: float
-    global_land_emissions: float
-
-    # Economic
-    labor_all: chex.ArrayDevice
-    capital_all: chex.ArrayDevice
-    production_factor_all: chex.ArrayDevice
-    intensity_all: chex.ArrayDevice
-    balance_all: chex.ArrayDevice
-
-    # Tariffs are applied to the next time step
-    future_tariff: chex.ArrayDevice
-    # tariff_revenue: chex.ArrayDevice
-
-    # The following values are intermediary values
-    # that we only track in the state for easier evaluation and logging
-    gross_output_all: chex.ArrayDevice
-    investment_all: chex.ArrayDevice
-    production_all: chex.ArrayDevice
-    utility_all: chex.ArrayDevice
-    social_welfare_all: chex.ArrayDevice
-    capital_depreciation_all: chex.ArrayDevice
-    mitigation_cost_all: chex.ArrayDevice
-    consumption_all: chex.ArrayDevice
-    damages_all: chex.ArrayDevice
-    abatement_cost_all: chex.ArrayDevice
-
-    tariff_revenue_all: chex.ArrayDevice
-    carbon_price_all: chex.ArrayDevice
-    club_membership_all: chex.ArrayDevice
-
-
-@chex.dataclass
-class EnvParams:
-    pass
-
 
 eps = 1e-5
 
@@ -68,7 +27,7 @@ which in turn is an adaptation of the RICE IAM.
 class Rice(environment.Environment):
     env_id: str = "Rice-v1"
 
-    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False, uses_clubs=False):
+    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
         super().__init__()
 
         # TODO refactor all the constants to use env_params
@@ -77,7 +36,6 @@ class Rice(environment.Environment):
         # 3. change the references in the code to env params
         params, num_regions = load_rice_params(config_folder)
         self.has_mediator = has_mediator
-        self.uses_clubs = uses_clubs
         self.num_players = num_regions
         self.num_actors = self.num_players + 1 if self.has_mediator else self.num_players
         self.rice_constant = params["_RICE_GLOBAL_CONSTANT"]
@@ -110,6 +68,7 @@ class Rice(environment.Environment):
         self.export_action_index = self.mitigation_rate_action_index + self.mitigation_rate_action_n
         self.tariffs_action_index = self.export_action_index + self.export_action_n
         self.desired_imports_action_index = self.tariffs_action_index + self.tariff_actions_n
+        self.join_club_action_index = self.desired_imports_action_index + self.import_actions_n
 
         # Parameters for armington aggregation utility
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
@@ -139,6 +98,7 @@ class Rice(environment.Environment):
             else:
                 region_actions = actions
 
+            club_membership_all = region_actions[:, self.join_club_action_index]
             mitigation_cost_all = get_mitigation_cost(
                 self.rice_constant["xp_b"],
                 self.rice_constant["xtheta_2"],
@@ -146,8 +106,30 @@ class Rice(environment.Environment):
                 state.intensity_all,
                 t
             )
+            intensity_all = get_carbon_intensity(
+                state.intensity_all,
+                self.rice_constant["xg_sigma"],
+                self.rice_constant["xdelta_sigma"],
+                self.dice_constant["xDelta"],
+                t
+            )
+            # Get the maximum carbon price of non-members from the last timestep
+            club_price = jnp.max(state.carbon_price_all * (1 - state.club_membership_all))
+            club_mitigation_rates = get_club_mitigation_rates(
+                club_price,
+                intensity_all,
+                self.rice_constant["xtheta_2"],
+                mitigation_cost_all,
+                state.damages_all
+            )
+            mitigation_rate_all = jnp.where(
+                club_membership_all == 1,
+                club_mitigation_rates,
+                region_actions[:, self.mitigation_rate_action_index]
+            )
+
             abatement_cost_all = get_abatement_cost(
-                region_actions[:, self.mitigation_rate_action_index], mitigation_cost_all,
+                mitigation_rate_all, mitigation_cost_all,
                 self.rice_constant["xtheta_2"]
             )
             damages_all = get_damages(t_at, self.region_params["xa_1"], self.region_params["xa_2"],
@@ -219,7 +201,7 @@ class Rice(environment.Environment):
 
             aux_m_all = get_aux_m(
                 state.intensity_all,
-                region_actions[:, self.mitigation_rate_action_index],
+                mitigation_rate_all,
                 production_all,
                 global_land_emissions
             )
@@ -230,9 +212,6 @@ class Rice(environment.Environment):
                 self.dice_constant["xB_M"],
                 jnp.sum(aux_m_all),
             )
-    #         def get_global_carbon_mass(phi_m, carbon_mass, b_m, aux_m):
-            # return jnp.dot(phi_m, carbon_mass) + jnp.dot(b_m, aux_m)
-
 
             capital_depreciation = get_capital_depreciation(
                 self.rice_constant["xdelta_K"], self.dice_constant["xDelta"]
@@ -241,13 +220,6 @@ class Rice(environment.Environment):
                 capital_depreciation, state.capital_all,
                 self.dice_constant["xDelta"],
                 investment_all
-            )
-            intensity_all = get_carbon_intensity(
-                state.intensity_all,
-                self.rice_constant["xg_sigma"],
-                self.rice_constant["xdelta_sigma"],
-                self.dice_constant["xDelta"],
-                t
             )
             labor_all = get_labor(state.labor_all, self.region_params["xL_a"], self.region_params["xl_g"])
             production_factor_all = get_production_factor(
@@ -258,7 +230,7 @@ class Rice(environment.Environment):
                 t,
             )
             carbon_price_all = get_carbon_price(mitigation_cost_all, intensity_all,
-                                                region_actions[:, self.mitigation_rate_action_index],
+                                                mitigation_rate_all,
                                                 self.rice_constant["xtheta_2"],
                                                 damages_all)
 
@@ -441,200 +413,5 @@ class Rice(environment.Environment):
         return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=float_precision)
 
 
-def load_rice_params(config_dir=None):
-    """Helper function to read yaml data and set environment configs."""
-    assert config_dir is not None
-    base_params = load_yaml_data(os.path.join(config_dir, "default.yml"))
-    file_list = sorted(os.listdir(config_dir))  #
-    yaml_files = []
-    for file in file_list:
-        if file[-4:] == ".yml" and file != "default.yml":
-            yaml_files.append(file)
-
-    region_params = []
-    for file in yaml_files:
-        region_params.append(load_yaml_data(os.path.join(config_dir, file)))
-
-    # _REGIONS is a list of dictionaries
-    base_params["_REGIONS"] = []
-    for idx, param in enumerate(region_params):
-        region_to_append = param["_RICE_CONSTANT"]
-        for k in base_params["_RICE_CONSTANT_DEFAULT"].keys():
-            if k not in region_to_append.keys():
-                region_to_append[k] = base_params["_RICE_CONSTANT_DEFAULT"][k]
-        base_params["_REGIONS"].append(region_to_append)
-
-    # _REGION_PARAMS is a dictionary of lists
-    base_params["_REGION_PARAMS"] = {}
-    for k in base_params["_RICE_CONSTANT_DEFAULT"].keys():
-        base_params["_REGION_PARAMS"][k] = []
-        for idx, param in enumerate(region_params):
-            parameter_value = param["_RICE_CONSTANT"].get(k, base_params["_RICE_CONSTANT_DEFAULT"][k])
-            base_params["_REGION_PARAMS"][k].append(parameter_value)
-        base_params["_REGION_PARAMS"][k] = jnp.asarray(base_params["_REGION_PARAMS"][k], dtype=float_precision)
-
-    return base_params, len(region_params)
-
-
-def zero_diag(matrix: jax.Array) -> jax.Array:
-    return matrix - matrix * jnp.eye(matrix.shape[0], matrix.shape[1], dtype=matrix.dtype)
-
-
-def get_exogenous_emissions(f_0, f_1, t_f, timestep):
-    return f_0 + jnp.min(jnp.array([f_1 - f_0, (f_1 - f_0) / t_f * (timestep - 1)]))
-
-
-def get_land_emissions(e_l0, delta_el, timestep, num_regions):
-    return e_l0 * pow(1 - delta_el, timestep - 1) / num_regions
-
-
-def get_mitigation_cost(p_b, theta_2, delta_pb, intensity, timestep):
-    return p_b / (1000 * theta_2) * pow(1 - delta_pb, timestep - 1) * intensity
-
-
-def get_damages(t_at, a_1, a_2, a_3):
-    return 1 / (1 + a_1 * t_at + a_2 * pow(t_at, a_3))
-
-
-def get_abatement_cost(mitigation_rate, mitigation_cost, theta_2):
-    return mitigation_cost * pow(mitigation_rate, theta_2)
-
-
-def get_production(production_factor, capital, labor, gamma):
-    """Obtain the amount of goods produced."""
-    return production_factor * pow(capital, gamma) * pow(labor / 1000, 1 - gamma)
-
-
-def get_gross_output(damages, abatement_cost, production):
-    return damages * (1 - abatement_cost) * production
-
-
-def get_investment(savings, gross_output):
-    return savings * gross_output
-
-
-def get_consumption(gross_output, investment, total_exports):
-    return jnp.clip(gross_output - investment - total_exports, 0)
-
-
-def get_max_potential_exports(x_max, gross_output, investment):
-    return jnp.min(jnp.array([x_max * gross_output, gross_output - investment]), axis=0)
-
-
-def get_capital_depreciation(x_delta_k, x_delta):
-    return pow(1 - x_delta_k, x_delta)
-
-
-# Returns shape 2
-def get_global_temperature(
-        phi_t, temperature, b_t, f_2x, m_at, m_at_1750, exogenous_emissions
-):
-    return jnp.dot(phi_t, temperature) + jnp.dot(
-        b_t, f_2x * jnp.log(m_at / m_at_1750) / jnp.log(2) + exogenous_emissions
-    )
-
-
-def get_aux_m(intensity, mitigation_rate, production, land_emissions):
-    """Auxiliary variable to denote carbon mass levels."""
-    return intensity * (1 - mitigation_rate) * production + land_emissions
-
-
-def get_global_carbon_mass(phi_m, carbon_mass, b_m, aux_m):
-    return jnp.dot(phi_m, carbon_mass) + jnp.dot(b_m, aux_m)
-
-
-def get_capital(capital_depreciation, capital, delta, investment):
-    return capital_depreciation * capital + delta * investment
-
-
-def get_labor(labor, l_a, l_g):
-    return labor * pow((1 + l_a) / (1 + labor), l_g)
-
-
-def get_production_factor(production_factor, g_a, delta_a, delta, timestep):
-    return production_factor * (
-            jnp.exp(0.0033) + g_a * jnp.exp(-delta_a * delta * (timestep - 1))
-    )
-
-
-def get_carbon_price(mitigation_cost, intensity, mitigation_rate, theta_2, damages):
-    return theta_2 * damages * pow(mitigation_rate, theta_2 - 1) * mitigation_cost / intensity
-
-
-def get_carbon_intensity(intensity, g_sigma, delta_sigma, delta, timestep):
-    return intensity * jnp.exp(
-        -g_sigma * pow(1 - delta_sigma, delta * (timestep - 1)) * delta
-    )
-
-
-_SMALL_NUM = 1e-0
-
-
-def get_utility(labor, consumption, alpha):
-    return (
-            (labor / 1000.0)
-            * (pow(consumption / (labor / 1000.0) + _SMALL_NUM, 1 - alpha) - 1)
-            / (1 - alpha)
-    )
-
-
-def get_social_welfare(utility, rho, delta, timestep):
-    return utility / pow(1 + rho, delta * timestep)
-
-
-def get_armington_agg(
-        c_dom,
-        imports,  # np.array
-        sub_rate=0.5,  # in (0,1)
-        dom_pref=0.5,  # in [0,1]
-        for_pref=None,  # np.array
-):
-    """
-    Armington aggregate from Lessmann, 2009.
-    Consumption goods from different regions act as imperfect substitutes.
-    As such, consumption of domestic and foreign goods are scaled according to
-    relative preferences, as well as a substitution rate, which are modeled
-    by a CES functional form.
-    Inputs :
-        `C_dom`     : A scalar representing domestic consumption. The value of
-                    C_dom is what is left over from initial production after
-                    investment and exports are deducted.
-        `C_for`     : A matrix representing the trade flows between regions.
-        `sub_rate`  : A substitution parameter in (0,1). The elasticity of
-                    substitution is 1 / (1 - sub_rate).
-        `dom_pref`  : A scalar in [0,1] representing the relative preference for
-                    domestic consumption over foreign consumption.
-        `for_pref`  : An array of the same size as `C_for`. Each element is the
-                    relative preference for foreign goods from that country.
-    """
-
-    c_dom_pref = dom_pref * (c_dom ** sub_rate)
-    # Axis 1 because we consider imports not exports
-    c_for_pref = jnp.sum(for_pref * pow(imports, sub_rate), axis=1)
-
-    c_agg = (c_dom_pref + c_for_pref) ** (1 / sub_rate)  # CES function
-    return c_agg
-
-
-def load_yaml_data(yaml_file: str):
-    """Helper function to read yaml configuration data."""
-    with open(yaml_file, "r", encoding="utf-8") as file_ptr:
-        file_data = file_ptr.read()
-    data = yaml.load(file_data, Loader=yaml.FullLoader)
-    return rec_array_conversion(data)
-
-
-def rec_array_conversion(data):
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if isinstance(value, list):
-                data[key] = jnp.asarray(value, dtype=float_precision)
-            elif isinstance(value, dict):
-                data[key] = rec_array_conversion(value)
-            elif isinstance(value, float):
-                data[key] = jnp.asarray(value, dtype=float_precision)
-            elif isinstance(value, int):
-                data[key] = jnp.asarray(value, dtype=float_precision)
-    elif isinstance(data, list):
-        data = jnp.asarray(data, dtype=float_precision)
-    return data
+def get_club_mitigation_rates(coalition_price, intensity, theta_2, mitigation_cost, damages):
+    return pow(coalition_price * intensity / (theta_2 * mitigation_cost * damages), 1 / (theta_2 - 1))

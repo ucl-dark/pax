@@ -15,14 +15,14 @@ runner: weight_sharing
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 20
+num_envs: 50
 num_inner_steps: 20
 num_iters: 6e6
 save_interval: 100
 num_steps: 2000
 
 
-ppo0:
+ppo_default:
   num_minibatches: 4
   num_epochs: 4
   gamma: 1.0
@@ -43,7 +43,7 @@ ppo0:
   output_channels: 16
   kernel_shape: [ 3, 3 ]
   separate: True
-  hidden_size: 64
+  hidden_size: 32
 
 
 # Logging setup

@@ -13,6 +13,7 @@ from pax.agents.mfos_ppo.networks import (
     make_mfos_ipditm_network,
     make_mfos_network, make_mfos_continuous_network,
 )
+from pax.envs.rice.rice import Rice
 from pax.utils import TrainingState, get_advantages
 
 
@@ -559,7 +560,7 @@ def make_mfos_agent(
             action_spec,
             agent_args.hidden_size,
         )
-    elif args.env_id == "Cournot":
+    elif args.env_id in ["Cournot", Rice.env_id]:
         network, initial_hidden_state = make_mfos_continuous_network(
             action_spec,
             agent_args.hidden_size,
@@ -583,12 +584,12 @@ def make_mfos_agent(
 
     # Optimizer
     transition_steps = (
-        num_iterations * agent_args.num_epochs * agent_args.num_minibatches,
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:
         scheduler = optax.linear_schedule(
-            init_value=agent_args.ppo.learning_rate,
+            init_value=agent_args.learning_rate,
             end_value=0,
             transition_steps=transition_steps,
         )

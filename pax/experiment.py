@@ -554,7 +554,7 @@ def agent_setup(args, env, env_params, logger):
         "HyperTFT": partial(HyperTFT, args.num_envs),
     }
 
-    if args.runner in ["sarl", "ctde"]:
+    if args.runner in ["sarl", "weight_sharing"]:
         assert args.agent1 in strategies
         seeds = [args.seed]
         # Create Player IDs by normalizing seeds to 1, 2 respectively
@@ -694,7 +694,7 @@ def watcher_setup(args, logger):
         "TitForTatDefect": dumb_log,
     }
 
-    if args.runner in ["sarl", "ctde"]:
+    if args.runner in ["sarl", "weight_sharing"]:
         assert args.agent1 in strategies
 
         agent_1_log = naive_pg_log  # strategies[args.agent1] #
@@ -747,7 +747,7 @@ def main(args):
     elif args.runner == "sarl":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
-    elif args.runner == "ctde":
+    elif args.runner == "weight_sharing":
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
     elif args.runner == "eval":

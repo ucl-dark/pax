@@ -568,8 +568,9 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
+            is_last_loop = gen == num_iters - 1
             # Saving
-            if gen % self.args.save_interval == 0:
+            if gen % self.args.save_interval == 0 or is_last_loop:
                 log_savepath1 = os.path.join(self.save_dir, f"generation_{gen}")
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
@@ -596,7 +597,7 @@ class EvoRunner:
                     wandb.save(log_savepath2)
                 else:
                     print(f"Saving iteration {gen} locally")
-            if gen % log_interval == 0:
+            if gen % log_interval == 0 or is_last_loop:
                 print(f"Generation: {gen}/{num_iters}")
                 print(
                     "--------------------------------------------------------------------------"

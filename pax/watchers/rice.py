@@ -25,6 +25,9 @@ def rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool)
         "consumption",
         "investment",
         "balance",
+        "tariff_revenue",
+        "carbon_price",
+        "club_membership",
     ]
 
     offset = 9
@@ -41,7 +44,7 @@ def rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool)
     total_rewards = jnp.array([jnp.sum(_traj.rewards) for _traj in region_trajectories]).sum()
     result["train/total_reward_per_episode"] = jnp.where(num_episodes != 0, total_rewards / num_episodes, 0)
 
-    # Reward per region (necessary to compare ctde against distributed methods)
+    # Reward per region (necessary to compare weight_sharing against distributed methods)
     for i, _traj in enumerate(region_trajectories):
         result[f"train/total_reward_per_episode_region_{i}"] = jnp.where(num_episodes != 0,
                                                                          _traj.rewards.sum() / num_episodes,

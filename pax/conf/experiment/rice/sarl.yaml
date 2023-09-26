@@ -13,7 +13,7 @@ runner: sarl
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 40
+num_envs: 50
 num_inner_steps: 20
 num_iters: 5e6
 save_interval: 100
@@ -49,5 +49,5 @@ ppo0:
 # Logging setup
 wandb:
   project: rice
-  group: 'weight_sharing'
-  name: 'rice-weight_sharing-${agent1}'
+  group: 'sarl'
+  name: 'rice-SARL-${agent1}'

@@ -44,7 +44,7 @@ def test_fishery_convergence():
             assert jnp.isclose(E_star, E, atol=0.01)
 
         # Check that the environment resets correctly
-        if i == ep_length:
+        if done is True:
             assert env_state.inner_t == 0
             assert env_state.outer_t == i // ep_length
             assert env_state.s == env_params.s_0
