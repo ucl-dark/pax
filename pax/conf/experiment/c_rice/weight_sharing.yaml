@@ -1,28 +1,27 @@
 # @package _global_
 
 # Agents
-agent_default: 'PPO'
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
+agent_default: 'PPO_memory'
 
 # Environment
-env_id: Rice-v1
-env_type: meta
-num_players: 6
-has_mediator: True
-config_folder: pax/envs/rice/5_regions
-runner: tensor_evo
+env_id: C-Rice-v1
+env_type: sequential
+num_players: 5
+has_mediator: False
+config_folder: pax/envs/Rice/5_regions
+runner: weight_sharing
+# Training hyperparameters
 
-# Training
-top_k: 5
-popsize: 1000
-num_envs: 2
-num_opps: 1
-num_outer_steps: 1
+# env_batch_size = num_envs * num_opponents
+num_envs: 50
 num_inner_steps: 20
-num_iters: 2000
-num_devices: 1
-num_steps: 200
+num_iters: 6e6
+save_interval: 100
+num_steps: 2000
 
-# PPO agent parameters
+
 ppo_default:
   num_minibatches: 4
   num_epochs: 4
@@ -42,13 +41,13 @@ ppo_default:
   with_memory: True
   with_cnn: False
   output_channels: 16
-  kernel_shape: [3, 3]
+  kernel_shape: [ 3, 3 ]
   separate: True
-  hidden_size: 64
+  hidden_size: 32
+
 
 # Logging setup
 wandb:
-  project: rice
-  group: 'marl_baseline'
-  name: 'rice-MARL-${agent_default}-seed-${seed}'
-  log: True
+  project: c-Rice
+  group: 'weight_sharing'
+  name: 'c-Rice-weight_sharing-${agent1}-seed-${seed}'

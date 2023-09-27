@@ -1,31 +1,27 @@
 # @package _global_
 
 # Agents
-agent1: 'PPO_memory'
-agent2: 'PPO_memory'
-agent_default: 'PPO_memory'
-
-agent2_roles: 4
+agent1: 'PPO'
+agent_default: 'PPO'
 
 # Environment
-env_id: Rice-v1
+env_id: C-Rice-v1
 env_type: meta
-num_players: 5
-has_mediator: False
-shuffle_players: False
-config_folder: pax/envs/rice/5_regions
-runner: evo
+num_players: 6
+has_mediator: True
+config_folder: pax/envs/Rice/5_regions
+runner: tensor_evo
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 4
+num_envs: 1
 num_opps: 1
-num_outer_steps: 500
+num_outer_steps: 2
 num_inner_steps: 20
-num_iters: 1500
+num_iters: 1
 num_devices: 1
-num_steps: 200
+num_steps: 4
 
 
 # PPO agent parameters
@@ -76,9 +72,10 @@ es:
 
 # Logging setup
 wandb:
-  project: c-rice
-  group: 'shaper'
-  name: 'rice-SHAPER-${agent_default}-seed-${seed}'
-  log: True
+  project: c-Rice
+  group: 'mediator'
+  mode: 'offline'
+  name: 'c-Rice-mediator-GS-${agent_default}-seed-${seed}'
+  log: False
 
 

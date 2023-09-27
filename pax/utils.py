@@ -148,7 +148,6 @@ def load(filename: str):
     return es_logger
 
 
-<<<<<<< HEAD
 def copy_state_and_network(agent):
     import copy
 
@@ -210,6 +209,7 @@ def copy_extended_state_and_network(agent):
     policy_network = agent.policy_network
     value_network = agent.value_network
     return state, policy_network, value_network
+
 
 # TODO make this part of the args
 float_precision = jnp.float32

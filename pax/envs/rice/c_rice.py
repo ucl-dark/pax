@@ -25,15 +25,13 @@ which in turn is an adaptation of the RICE IAM.
 
 
 class Rice(environment.Environment):
-    env_id: str = "Rice-v1"
+    env_id: str = "C-Rice-v1"
 
     def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
         super().__init__()
+        if has_mediator is False:
+            raise NotImplementedError("C-Rice environment without mediator is not implemented yet")
 
-        # TODO refactor all the constants to use env_params
-        # 1. Load env params in the experiment.py#env_setup
-        # 2. type env params as a chex dataclass
-        # 3. change the references in the code to env params
         params, num_regions = load_rice_params(config_folder)
         self.has_mediator = has_mediator
         self.num_players = num_regions
@@ -74,6 +72,7 @@ class Rice(environment.Environment):
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
         self.dom_pref = jnp.asarray(0.5, dtype=float_precision)
         self.for_pref = jnp.asarray([0.5 / (self.num_players - 1)] * self.num_players, dtype=float_precision)
+        self.default_club_tariff_rate = jnp.asarray(0.1, dtype=float_precision)
 
         def _step(
                 key: chex.PRNGKey,
@@ -113,15 +112,19 @@ class Rice(environment.Environment):
                 self.dice_constant["xDelta"],
                 t
             )
-            # Get the maximum carbon price of non-members from the last timestep
-            club_price = jnp.max(state.carbon_price_all * (1 - state.club_membership_all))
-            club_mitigation_rates = get_club_mitigation_rates(
-                club_price,
-                intensity_all,
-                self.rice_constant["xtheta_2"],
-                mitigation_cost_all,
-                state.damages_all
-            )
+
+            if has_mediator:
+                club_mitigation_rates = actions[0, self.mitigation_rate_action_index]
+            else:
+                # Get the maximum carbon price of non-members from the last timestep
+                club_price = jnp.max(state.carbon_price_all * (1 - state.club_membership_all))
+                club_mitigation_rates = get_club_mitigation_rates(
+                    club_price,
+                    intensity_all,
+                    self.rice_constant["xtheta_2"],
+                    mitigation_cost_all,
+                    state.damages_all
+                )
             mitigation_rate_all = jnp.where(
                 club_membership_all == 1,
                 club_mitigation_rates,
@@ -233,6 +236,18 @@ class Rice(environment.Environment):
                                                 mitigation_rate_all,
                                                 self.rice_constant["xtheta_2"],
                                                 damages_all)
+
+            if has_mediator:
+                club_tariff_rate = actions[0, self.tariffs_action_index]
+            else:
+                club_tariff_rate = self.default_club_tariff_rate
+
+            desired_future_tariffs = region_actions[:,self.tariffs_action_index: self.tariffs_action_index + self.num_players]
+            future_tariffs = jnp.where(
+                club_membership_all == 1,
+                jnp.clip(desired_future_tariffs, min=club_tariff_rate),
+                desired_future_tariffs
+            )
 
             next_state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t,

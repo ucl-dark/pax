@@ -4,11 +4,11 @@
 agent_default: 'PPO'
 
 # Environment
-env_id: Rice-v1
+env_id: C-Rice-v1
 env_type: meta
 num_players: 6
 has_mediator: True
-config_folder: pax/envs/rice/5_regions
+config_folder: pax/envs/Rice/5_regions
 runner: tensor_evo
 
 # Training
@@ -48,7 +48,7 @@ ppo_default:
 
 # Logging setup
 wandb:
-  project: rice
-  group: 'marl_baseline'
-  name: 'rice-MARL-${agent_default}-seed-${seed}'
+  project: c-Rice
+  group: 'mediator'
+  name: 'c-Rice-MARL-${agent_default}-seed-${seed}'
   log: True
