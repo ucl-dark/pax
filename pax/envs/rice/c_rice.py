@@ -1,11 +1,9 @@
-import os
 from typing import Optional, Tuple
 
 import chex
 import jax
 import jax.debug
 import jax.numpy as jnp
-import yaml
 from gymnax.environments import environment, spaces
 from jax import Array
 
@@ -19,13 +17,20 @@ from pax.utils import float_precision
 eps = 1e-5
 
 """
-Based off the MARL environment from https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4189735
-which in turn is an adaptation of the RICE IAM.
+This extension of the Rice-N environment adds a simple club mechanism as presented by Nordhaus.
+The club mechanism is implemented as follows:
+
+1. Regions can join the club at any time
+2. The club has a fixed tariff rate
+3. Club members must implement a minimum mitigation rate
+ 
+If the mediator is enabled it can choose the club tariff rate and the minimum mitigation rate. 
+ 
 """
 
 
-class Rice(environment.Environment):
-    env_id: str = "C-Rice-v1"
+class ClubRice(environment.Environment):
+    env_id: str = "C-Rice-N"
 
     def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
         super().__init__()
@@ -51,6 +56,7 @@ class Rice(environment.Environment):
         self.import_actions_n = self.num_players
         # Each region sets import tariffs imposed on other countries
         self.tariff_actions_n = self.num_players
+        self.join_club_action_n = 1
 
         self.actions_n = (
                 self.savings_action_n
@@ -58,6 +64,7 @@ class Rice(environment.Environment):
                 + self.export_action_n
                 + self.import_actions_n
                 + self.tariff_actions_n
+                + self.join_club_action_n
         )
 
         # Determine the index of each action to slice them in the step function
@@ -66,7 +73,7 @@ class Rice(environment.Environment):
         self.export_action_index = self.mitigation_rate_action_index + self.mitigation_rate_action_n
         self.tariffs_action_index = self.export_action_index + self.export_action_n
         self.desired_imports_action_index = self.tariffs_action_index + self.tariff_actions_n
-        self.join_club_action_index = self.desired_imports_action_index + self.import_actions_n
+        self.join_club_action_index = self.desired_imports_action_index + self.join_club_action_n
 
         # Parameters for armington aggregation utility
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
@@ -242,12 +249,18 @@ class Rice(environment.Environment):
             else:
                 club_tariff_rate = self.default_club_tariff_rate
 
-            desired_future_tariffs = region_actions[:,self.tariffs_action_index: self.tariffs_action_index + self.num_players]
+            desired_future_tariffs = region_actions[:,
+                                     self.tariffs_action_index: self.tariffs_action_index + self.num_players]
+            # Club members impose a minimum tariff of the club tariff rate
             future_tariffs = jnp.where(
-                club_membership_all == 1,
-                jnp.clip(desired_future_tariffs, min=club_tariff_rate),
+                (club_membership_all == 1).reshape(-1, 1),
+                jnp.clip(desired_future_tariffs, a_min=club_tariff_rate),
                 desired_future_tariffs
             )
+            # Club members don't impose tariffs on themselves or other club members
+            membership_mask = club_membership_all.reshape(-1, 1) * club_membership_all
+            future_tariffs = future_tariffs * (1 - membership_mask)
+            future_tariffs = zero_diag(future_tariffs)
 
             next_state = EnvState(
                 inner_t=state.inner_t + 1, outer_t=state.outer_t,
@@ -262,8 +275,7 @@ class Rice(environment.Environment):
                 intensity_all=intensity_all,
                 balance_all=balance_all,
 
-                future_tariff=region_actions[:,
-                              self.tariffs_action_index: self.tariffs_action_index + self.num_players],
+                future_tariff=future_tariffs,
 
                 gross_output_all=gross_output_all,
                 investment_all=investment_all,

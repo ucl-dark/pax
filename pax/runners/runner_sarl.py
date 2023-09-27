@@ -166,7 +166,7 @@ class SARLRunner:
 
             rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
-            if args.env_id == "SarlRice-v1":
+            if args.env_id == "SarlRice-N":
                 env_stats = self.rice_stats(traj, args.num_players)
 
             return (

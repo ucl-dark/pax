@@ -16,6 +16,7 @@ from pax.agents.ppo.networks import (
     make_GRU_ipditm_network, make_GRU_fishery_network, make_GRU_rice_network,
 )
 from pax.envs.rice.rice import Rice
+from pax.envs.rice.c_rice import ClubRice
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 # from dm_env import TimeStep
@@ -546,6 +547,10 @@ def make_gru_agent(
             action_spec, agent_args.hidden_size
         )
     elif args.env_id == Rice.env_id:
+        network, initial_hidden_state = make_GRU_rice_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == ClubRice.env_id:
         network, initial_hidden_state = make_GRU_rice_network(
             action_spec, agent_args.hidden_size
         )

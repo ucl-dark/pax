@@ -177,7 +177,7 @@ class WeightSharingRunner:
             for traj in trajectories:
                 rewards.append(jnp.where(num_episodes != 0, jnp.sum(traj.rewards) / num_episodes, 0))
             env_stats = {}
-            if args.env_id == "Rice-v1":
+            if args.env_id == "Rice-N":
                 env_stats = rice_stats(trajectories, args.num_players, args.has_mediator)
 
             return (

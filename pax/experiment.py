@@ -57,6 +57,7 @@ from pax.envs.iterated_tensor_game_n_player import (
     EnvParams as IteratedTensorGameNPlayerParams,
 )
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
+from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice, EnvParams as RiceParams
 from pax.envs.rice.sarl_rice import SarlRice
 from pax.runners.runner_weight_sharing import WeightSharingRunner
@@ -229,7 +230,18 @@ def env_setup(args, logger=None):
         )
         if logger:
             logger.info(
-                f"Env Type: Rice | Inner Episode Length: {args.num_inner_steps}"
+                f"Env Type: {env.env_id} | Inner Episode Length: {args.num_inner_steps}"
+            )
+    elif args.env_id == ClubRice.env_id:
+        env_params = RiceParams()
+        env = ClubRice(
+            num_inner_steps=args.num_inner_steps,
+            config_folder=args.config_folder,
+            has_mediator=args.has_mediator,
+        )
+        if logger:
+            logger.info(
+                f"Env Type: {env.env_id} | Inner Episode Length: {args.num_inner_steps}"
             )
     elif args.env_id == SarlRice.env_id:
         env_params = RiceParams()

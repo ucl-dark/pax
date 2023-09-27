@@ -14,7 +14,7 @@ Wrapper to turn Rice into a single-agent environment.
 
 
 class SarlRice(environment.Environment):
-    env_id: str = "SarlRice-v1"
+    env_id: str = "SarlRice-N"
 
     def __init__(self, num_inner_steps: int, config_folder: str):
         super().__init__()

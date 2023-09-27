@@ -6,11 +6,11 @@ agent2: 'PPO_memory'
 agent_default: 'PPO_memory'
 
 # Environment
-env_id: C-Rice-v1
+env_id: C-Rice-N
 env_type: sequential
 num_players: 5
 has_mediator: False
-config_folder: pax/envs/Rice/5_regions
+config_folder: pax/envs/rice/5_regions
 runner: weight_sharing
 # Training hyperparameters
 
@@ -48,6 +48,6 @@ ppo_default:
 
 # Logging setup
 wandb:
-  project: c-Rice
+  project: c-rice
   group: 'weight_sharing'
-  name: 'c-Rice-weight_sharing-${agent1}-seed-${seed}'
+  name: 'c-rice-weight_sharing-${agent1}-seed-${seed}'

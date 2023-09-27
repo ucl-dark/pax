@@ -5,12 +5,12 @@ agent1: 'PPO'
 agent_default: 'PPO'
 
 # Environment
-env_id: C-Rice-v1
+env_id: C-Rice-N
 env_type: meta
 num_players: 6
 has_mediator: True
-config_folder: pax/envs/Rice/5_regions
-runner: tensor_evo
+config_folder: pax/envs/rice/5_regions
+runner: evo
 
 # Training
 top_k: 5
@@ -72,10 +72,10 @@ es:
 
 # Logging setup
 wandb:
-  project: c-Rice
+  project: c-rice
   group: 'mediator'
   mode: 'offline'
-  name: 'c-Rice-mediator-GS-${agent_default}-seed-${seed}'
+  name: 'c-rice-mediator-GS-${agent_default}-seed-${seed}'
   log: False
 
 

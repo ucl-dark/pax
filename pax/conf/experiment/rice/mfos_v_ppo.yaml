@@ -8,7 +8,7 @@ agent_default: 'PPO_memory'
 agent2_roles: 4
 
 # Environment
-env_id: Rice-v1
+env_id: Rice-N
 env_type: meta
 num_players: 5
 has_mediator: False

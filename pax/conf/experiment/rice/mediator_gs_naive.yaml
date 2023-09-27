@@ -5,7 +5,7 @@ agent1: 'PPO'
 agent_default: 'Naive'
 
 # Environment
-env_id: Rice-v1
+env_id: Rice-N
 env_type: meta
 num_players: 6
 has_mediator: True

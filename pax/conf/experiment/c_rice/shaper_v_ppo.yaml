@@ -8,12 +8,12 @@ agent_default: 'PPO_memory'
 agent2_roles: 4
 
 # Environment
-env_id: C-Rice-v1
+env_id: C-Rice-N
 env_type: meta
 num_players: 5
 has_mediator: False
 shuffle_players: False
-config_folder: pax/envs/Rice/5_regions
+config_folder: pax/envs/rice/5_regions
 runner: evo
 
 # Training
@@ -76,9 +76,9 @@ es:
 
 # Logging setup
 wandb:
-  project: c-Rice
+  project: c-rice
   group: 'shaper'
-  name: 'c-Rice-SHAPER-${agent_default}-seed-${seed}'
+  name: 'c-rice-SHAPER-${agent_default}-seed-${seed}'
   log: True
 
 

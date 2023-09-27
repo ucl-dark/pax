@@ -16,6 +16,7 @@ from pax.agents.ppo.networks import (
     make_sarl_network, make_cournot_network,
     make_fishery_network, make_rice_sarl_network,
 )
+from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice
 from pax.envs.rice.sarl_rice import SarlRice
 from pax.utils import Logger, MemoryState, TrainingState, get_advantages, float_precision
@@ -503,12 +504,12 @@ def make_agent(
         network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
     elif args.env_id == Rice.env_id:
         network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == ClubRice.env_id:
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
     elif args.runner == "sarl":
         network = make_sarl_network(action_spec)
     else:
-        network = make_ipd_network(
-            action_spec, tabular, agent_args.hidden_size
-        )
+        raise NotImplementedError(f"No ppo network implemented for env {args.env_id}")
 
     # Optimizer
     transition_steps = (

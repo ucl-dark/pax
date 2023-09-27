@@ -66,9 +66,9 @@ which in turn is an adaptation of the RICE IAM.
 
 
 class Rice(environment.Environment):
-    env_id: str = "Rice-v1"
+    env_id: str = "Rice-N"
 
-    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False, uses_clubs=False):
+    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
         super().__init__()
 
         # TODO refactor all the constants to use env_params
@@ -77,7 +77,6 @@ class Rice(environment.Environment):
         # 3. change the references in the code to env params
         params, num_regions = load_rice_params(config_folder)
         self.has_mediator = has_mediator
-        self.uses_clubs = uses_clubs
         self.num_players = num_regions
         self.num_actors = self.num_players + 1 if self.has_mediator else self.num_players
         self.rice_constant = params["_RICE_GLOBAL_CONSTANT"]

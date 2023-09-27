@@ -6,7 +6,7 @@ agent2: 'PPO_memory'
 agent_default: 'PPO_memory'
 
 # Environment
-env_id: Rice-v1
+env_id: Rice-N
 env_type: sequential
 num_players: 5
 has_mediator: False

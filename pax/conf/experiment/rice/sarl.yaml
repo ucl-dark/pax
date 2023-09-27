@@ -4,7 +4,7 @@
 agent1: 'PPO'
 
 # Environment
-env_id: SarlRice-v1
+env_id: SarlRice-N
 env_type: sequential
 num_players: 5
 has_mediator: False
