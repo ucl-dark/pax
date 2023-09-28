@@ -452,7 +452,7 @@ class EvoRunner:
                         2,
                     ),
                 )
-            elif args.env_id == "Rice-N":
+            elif args.env_id in ["Rice-N", "C-Rice-N"]:
                 env_stats = rice_stats([traj_1] + traj_2, args.num_players, args.has_mediator)
             else:
                 env_stats = {}

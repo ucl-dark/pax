@@ -629,10 +629,11 @@ def watcher_setup(args, logger):
             "coin_game",
             "Cournot",
             "Fishery",
+            "Rice-N",
+            "C-Rice-N",
             "InTheMatrix",
             "iterated_matrix_game",
             "iterated_nplayer_tensor_game",
-            "CournotGame", "Fishery"
         ]:
             policy = policy_logger_ppo(agent)
             value = value_logger_ppo(agent)
