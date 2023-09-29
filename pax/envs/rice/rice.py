@@ -108,7 +108,7 @@ class Rice(environment.Environment):
         self.mitigation_rate_action_index = self.savings_action_index + self.savings_action_n
         self.export_action_index = self.mitigation_rate_action_index + self.mitigation_rate_action_n
         self.tariffs_action_index = self.export_action_index + self.export_action_n
-        self.desired_imports_action_index = self.tariffs_action_index + self.tariff_actions_n
+        self.desired_imports_action_index = self.tariffs_action_index + self.import_actions_n
 
         # Parameters for armington aggregation utility
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
@@ -188,7 +188,7 @@ class Rice(environment.Environment):
             tariffed_imports = scaled_imports * (1 - prev_tariffs)
             # calculate tariffed imports, tariff revenue and budget balance
             # In the paper this goes to a "special reserve fund", i.e. it's not used
-            tariff_revenue_all = jnp.sum(scaled_imports * prev_tariffs, axis=0)
+            tariff_revenue_all = jnp.sum(scaled_imports * prev_tariffs, axis=1)
 
             total_exports = scaled_imports.sum(axis=0)
             balance_all = balance_all + self.dice_constant["xDelta"] * (
@@ -229,9 +229,6 @@ class Rice(environment.Environment):
                 self.dice_constant["xB_M"],
                 jnp.sum(aux_m_all),
             )
-    #         def get_global_carbon_mass(phi_m, carbon_mass, b_m, aux_m):
-            # return jnp.dot(phi_m, carbon_mass) + jnp.dot(b_m, aux_m)
-
 
             capital_depreciation = get_capital_depreciation(
                 self.rice_constant["xdelta_K"], self.dice_constant["xDelta"]

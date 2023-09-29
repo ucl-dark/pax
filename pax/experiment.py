@@ -723,7 +723,7 @@ def watcher_setup(args, logger):
         return agent_log
 
 
-@hydra.main(config_path="conf", config_name="config")
+@hydra.main(config_path="conf", config_name="config", version_base="1.1")
 def main(args):
     print(f"Jax backend: {xla_bridge.get_backend().platform}")
 

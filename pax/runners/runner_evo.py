@@ -326,6 +326,7 @@ class EvoRunner:
                 _rng_run: jnp.ndarray,
                 _a1_state: TrainingState,
                 _a1_mem: MemoryState,
+                _a2_state: TrainingState,
                 _env_params: Any,
         ):
             # env reset
@@ -343,7 +344,9 @@ class EvoRunner:
             _a1_state = _a1_state._replace(params=_params)
             _a1_mem = agent1.batch_reset(_a1_mem, False)
             # Player 2
-            if args.agent2 == "NaiveEx":
+            if _a2_state is not None:
+                a2_state = _a2_state
+            elif args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(obs[1])
             else:
                 # meta-experiments - init 2nd agent per trial
@@ -469,7 +472,7 @@ class EvoRunner:
 
         self.rollout = jax.pmap(
             _rollout,
-            in_axes=(0, None, None, None, None),
+            in_axes=(0, None, None, None, None, None),
         )
 
         print(
@@ -532,6 +535,7 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state = None
 
         for gen in range(num_gens):
             rng, rng_run, rng_evo, rng_key = jax.random.split(rng, 4)
@@ -543,6 +547,10 @@ class EvoRunner:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
+
+            if gen % self.args.agent2_reset_interval == 0:
+                a2_state = None
+
             # Evo Rollout
             (
                 fitness,
@@ -552,7 +560,7 @@ class EvoRunner:
                 rewards_2,
                 a2_metrics,
                 a2_state
-            ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
+            ) = self.rollout(params, rng_run, a1_state, a1_mem, a2_state, env_params)
 
             # Aggregate over devices
             fitness = jnp.reshape(fitness, popsize * self.args.num_devices).astype(dtype=jnp.float32)

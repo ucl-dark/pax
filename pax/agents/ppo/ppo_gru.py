@@ -546,7 +546,7 @@ def make_gru_agent(
         network, initial_hidden_state = make_GRU_fishery_network(
             action_spec, agent_args.hidden_size
         )
-    elif args.env_id == Rice.env_id:
+    elif args.env_id in [Rice.env_id, "Rice-v1"]:
         network, initial_hidden_state = make_GRU_rice_network(
             action_spec, agent_args.hidden_size
         )

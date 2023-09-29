@@ -25,6 +25,7 @@ agent1: 'PPO'
 agent2: 'PPO'
 shuffle_players: False
 agent2_roles: 1
+agent2_reset_interval: 1 # Reset every rollout
 
 # Logging setup
 wandb:
