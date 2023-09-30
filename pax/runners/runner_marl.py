@@ -4,19 +4,15 @@ from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
-
 import wandb
-from pax.utils import (
-    MemoryState,
-    TrainingState,
-    copy_state_and_mem,
-    copy_state_and_network,
-    save,
-)
+
 from pax.utils import MemoryState, TrainingState, save
+from pax.utils import (
+    copy_state_and_mem,
+)
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
-from pax.watchers.fishery import fishery_stats
 from pax.watchers.cournot import cournot_stats
+from pax.watchers.fishery import fishery_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -109,7 +105,6 @@ class RLRunner:
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
         self.cournot_stats = cournot_stats
-        self.fishery_stats = fishery_stats
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
@@ -466,7 +461,7 @@ class RLRunner:
             elif args.env_id == "Fishery":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.fishery_stats(
+                    fishery_stats(
                         traj_1,
                         2,
                     ),

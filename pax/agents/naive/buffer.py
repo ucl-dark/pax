@@ -2,7 +2,6 @@ from typing import NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
-import numpy as np
 from dm_env import TimeStep
 
 
@@ -105,7 +104,7 @@ class TrajectoryBuffer:
         return min(self._rollout_length, self._num_added)
 
     def fraction_filled(self) -> float:
-        return self.size / self._rollout_length
+        return self.size() / self._rollout_length
 
     def reset(self):
         """Resets the replay buffer. Called upon __init__ and when buffer is full"""

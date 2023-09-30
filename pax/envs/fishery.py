@@ -46,6 +46,8 @@ s_max  maximum stock size
 
 
 class Fishery(environment.Environment):
+    env_id: str = "Fishery"
+
     def __init__(self, num_players: int, num_inner_steps: int):
         super().__init__()
         self.num_players = num_players
@@ -119,16 +121,6 @@ class Fishery(environment.Environment):
 
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
-
-    @staticmethod
-    def name() -> str:
-        """Environment name."""
-        return "Fishery"
-
-    @property
-    def name(self) -> str:
-        """Environment name."""
-        return "Fishery-v1"
 
     @property
     def num_actions(self) -> int:

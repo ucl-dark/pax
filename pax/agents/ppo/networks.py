@@ -5,7 +5,7 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import jmp
-from distrax import MultivariateNormalDiag
+from distrax import MultivariateNormalDiag, Categorical
 from jax import Array
 
 from pax import utils
@@ -543,7 +543,7 @@ def make_GRU_ipd_network(num_actions: int, hidden_size: int):
 
     def forward_fn(
             inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)
@@ -561,7 +561,7 @@ def make_GRU_cartpole_network(num_actions: int):
 
     def forward_fn(
             inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = hk.nets.MLP(
             [hidden_size, hidden_size],
@@ -591,7 +591,7 @@ def make_GRU_coingame_network(
 
     def forward_fn(
             inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
 
         if with_cnn:
             torso = CNN(output_channels, kernel_shape)(inputs)
@@ -631,7 +631,7 @@ def make_GRU_ipditm_network(
 
     def forward_fn(
             inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = CNN_ipditm(output_channels, kernel_shape)
         gru = hk.GRU(

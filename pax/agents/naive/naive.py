@@ -6,7 +6,6 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 import optax
-from dm_env import TimeStep
 
 from pax import utils
 from pax.agents.agent import AgentInterface

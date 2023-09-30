@@ -1,5 +1,4 @@
 from functools import partial
-from re import A
 from typing import Callable, NamedTuple, Union
 
 import jax.numpy as jnp

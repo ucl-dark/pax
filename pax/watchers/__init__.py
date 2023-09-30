@@ -12,8 +12,6 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
-from pax.envs.in_the_matrix import InTheMatrix
-from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
 from pax.envs.iterated_matrix_game import EnvState
 
 

@@ -1,4 +1,3 @@
-import jax
 import jax.numpy as jnp
 
 from pax.agents.tensor_strategies import (

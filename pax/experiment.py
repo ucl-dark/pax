@@ -205,7 +205,7 @@ def env_setup(args, logger=None):
             logger.info(
                 f"Env Type: Cournot | Inner Episode Length: {args.num_inner_steps}"
             )
-    elif args.env_id == "Fishery":
+    elif args.env_id == Fishery.env_id:
         env_params = FisheryParams(
             g=args.g,
             e=args.e,
@@ -215,7 +215,7 @@ def env_setup(args, logger=None):
             s_max=args.s_max,
         )
         env = Fishery(
-            num_players=args.num_players, num_inner_steps=args.episode_length,
+            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(

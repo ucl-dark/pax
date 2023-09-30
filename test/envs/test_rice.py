@@ -1,16 +1,13 @@
-import json
 import os
-import pickle
 import time
 
 import jax
 import jax.numpy as jnp
 import tree
-from jax.config import config
-
-#config.update('jax_disable_jit', True)
 
 from pax.envs.rice.rice import Rice, EnvParams
+
+# config.update('jax_disable_jit', True)
 
 file_dir = os.path.join(os.path.dirname(__file__))
 config_folder = os.path.join(file_dir, "../../pax/envs/rice/5_regions")

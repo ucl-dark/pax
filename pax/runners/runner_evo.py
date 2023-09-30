@@ -81,7 +81,6 @@ class EvoRunner:
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
         self.cournot_stats = cournot_stats
-        self.fishery_stats = fishery_stats
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -450,7 +449,7 @@ class EvoRunner:
             elif args.env_id == "Fishery":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.fishery_stats(
+                    fishery_stats(
                         traj_1,
                         2,
                     ),

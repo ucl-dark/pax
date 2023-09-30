@@ -113,10 +113,10 @@ class IteratedMatrixGame(environment.Environment):
         """Action space of the environment."""
         return spaces.Discrete(4)
 
-    def observation_space(self, params: EnvParams) -> spaces.Box:
+    def observation_space(self, params: EnvParams) -> spaces.Discrete:
         """Observation space of the environment."""
         return spaces.Discrete(5)
 
-    def state_space(self, params: EnvParams) -> spaces.Dict:
+    def state_space(self, params: EnvParams) -> spaces.Discrete:
         """State space of the environment."""
         return spaces.Discrete(5)

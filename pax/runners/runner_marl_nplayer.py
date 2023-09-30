@@ -101,7 +101,6 @@ class NplayerRLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = n_player_ipd_visitation
         self.cournot_stats = cournot_stats
-        self.fishery_stats = fishery_stats
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -509,7 +508,7 @@ class NplayerRLRunner:
             elif args.env_id == "Fishery":
                 total_env_stats = jax.tree_util.tree_map(
                     lambda x: x,
-                    self.fishery_stats(
+                    fishery_stats(
                         trajectories[0], args.num_players
                     ),
                 )

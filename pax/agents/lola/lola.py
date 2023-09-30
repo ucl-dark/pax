@@ -289,7 +289,7 @@ class LOLA:
                 "loss_value": value_objective,
             }
 
-        def make_initial_state(key: Any, hidden) -> TrainingState:
+        def make_initial_state(key: Any, hidden) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)

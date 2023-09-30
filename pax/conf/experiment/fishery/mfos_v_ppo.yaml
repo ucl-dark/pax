@@ -26,7 +26,7 @@ num_outer_steps: 100
 num_inner_steps: 300
 num_iters: 1000
 num_devices: 1
-num_steps: '${num_inner_steps}'
+num_steps: 1500
 
 # PPO agent parameters
 ppo1:

@@ -4,6 +4,7 @@ import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+from distrax import Categorical
 
 from pax import utils
 
@@ -174,7 +175,7 @@ def make_mfos_ipditm_network(
     def forward_fn(
         inputs: jnp.ndarray,
         state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         mfos = CNNMFOS(num_actions, hidden_size, output_channels, kernel_shape)
         logits, values, state = mfos(inputs, state)
         return (logits, values), state

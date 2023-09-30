@@ -11,7 +11,6 @@ from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
     make_coingame_network,
-    make_ipd_network,
     make_ipditm_network,
     make_sarl_network, make_cournot_network,
     make_fishery_network, make_rice_sarl_network,

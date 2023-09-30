@@ -5,8 +5,6 @@ import haiku as hk
 import jax
 import jax.numpy as jnp
 
-from pax import utils
-
 
 class CategoricalValueHead(hk.Module):
     """Network head that produces a categorical distribution and value."""

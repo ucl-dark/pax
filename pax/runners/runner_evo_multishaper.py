@@ -57,7 +57,7 @@ class MultishaperEvoRunner:
     """
 
     def __init__(
-        self, agents, env, strategy, es_params, param_reshaper, save_dir, args
+            self, agents, env, strategy, es_params, param_reshaper, save_dir, args
     ):
         self.args = args
         self.algo = args.es.algo
@@ -108,7 +108,7 @@ class MultishaperEvoRunner:
         self.num_targets = args.num_players - args.num_shapers
         self.num_outer_steps = args.num_outer_steps
         shapers = agents[: self.num_shapers]
-        targets = agents[self.num_shapers :]
+        targets = agents[self.num_shapers:]
 
         # vmap agents accordingly
         # shapers are batched over popsize and num_opps
@@ -137,7 +137,7 @@ class MultishaperEvoRunner:
             )
         # go through opponents, we start with agent2
         for agent_idx, target_agent in enumerate(targets):
-            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
+            agent_arg = f"agent{agent_idx + self.num_shapers + 1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 # special case where NaiveEx has a different call signature
@@ -263,10 +263,10 @@ class MultishaperEvoRunner:
                 env_params,
             )
             shapers_next_obs = all_agent_next_obs[: self.num_shapers]
-            targets_next_obs = all_agent_next_obs[self.num_shapers :]
+            targets_next_obs = all_agent_next_obs[self.num_shapers:]
             shapers_reward, targets_reward = (
                 all_agent_rewards[: self.num_shapers],
-                all_agent_rewards[self.num_shapers :],
+                all_agent_rewards[self.num_shapers:],
             )
 
             shapers_traj = [
@@ -337,14 +337,14 @@ class MultishaperEvoRunner:
             ) = vals
             # MFOS has to take a meta-action for each episode
             for agent_idx, shaper_agent in enumerate(shapers):
-                agent_arg = f"agent{agent_idx+1}"
+                agent_arg = f"agent{agent_idx + 1}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "MFOS":
                     shapers_mem[agent_idx] = shaper_agent.meta_policy(
                         shapers_mem[agent_idx]
                     )
             # update opponents
-            targets_traj = trajectories[self.num_shapers :]
+            targets_traj = trajectories[self.num_shapers:]
             for agent_idx, target_agent in enumerate(targets):
                 (
                     targets_state[agent_idx],
@@ -371,11 +371,11 @@ class MultishaperEvoRunner:
             ), (trajectories, targets_metrics)
 
         def _rollout(
-            _params: List[jnp.ndarray],
-            _rng_run: jnp.ndarray,
-            _shapers_state: List[TrainingState],
-            _shapers_mem: List[MemoryState],
-            _env_params: Any,
+                _params: List[jnp.ndarray],
+                _rng_run: jnp.ndarray,
+                _shapers_state: List[TrainingState],
+                _shapers_mem: List[MemoryState],
+                _env_params: Any,
         ):
             # env reset
             env_rngs = jnp.concatenate(
@@ -386,10 +386,10 @@ class MultishaperEvoRunner:
 
             obs, env_state = env.reset(env_rngs, _env_params)
             shapers_obs = obs[: self.num_shapers]
-            targets_obs = obs[self.num_shapers :]
+            targets_obs = obs[self.num_shapers:]
             rewards = [
-                jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
-            ] * args.num_players
+                          jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
+                      ] * args.num_players
 
             # Shapers
             for agent_idx, shaper_agent in enumerate(shapers):
@@ -408,7 +408,7 @@ class MultishaperEvoRunner:
             )
             for agent_idx, target_agent in enumerate(targets):
                 # if eg 2 shapers, agent3 is the first non-shaper
-                agent_arg = f"agent{agent_idx+1+self.num_shapers}"
+                agent_arg = f"agent{agent_idx + 1 + self.num_shapers}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "NaiveEx":
                     (
@@ -439,9 +439,9 @@ class MultishaperEvoRunner:
                 (
                     env_rngs,
                     tuple(obs[: self.num_shapers]),
-                    tuple(obs[self.num_shapers :]),
+                    tuple(obs[self.num_shapers:]),
                     tuple(rewards[: self.num_shapers]),
-                    tuple(rewards[self.num_shapers :]),
+                    tuple(rewards[self.num_shapers:]),
                     _shapers_state,
                     targets_state,
                     _shapers_mem,
@@ -467,7 +467,7 @@ class MultishaperEvoRunner:
             ) = vals
             trajectories, targets_metrics = stack
             shapers_traj = trajectories[: self.num_shapers]
-            targets_traj = trajectories[self.num_shapers :]
+            targets_traj = trajectories[self.num_shapers:]
 
             # Fitness
             shapers_fitness = [
@@ -519,11 +519,11 @@ class MultishaperEvoRunner:
         )
 
     def run_loop(
-        self,
-        env_params,
-        agents,
-        num_iters: int,
-        watchers: Callable,
+            self,
+            env_params,
+            agents,
+            num_iters: int,
+            watchers: Callable,
     ):
         """Run training of agents in environment"""
         print("Training")
@@ -561,18 +561,18 @@ class MultishaperEvoRunner:
             z_score=self.args.es.z_score,
         )
         es_logging = [
-            ESLog(
-                param_reshaper.total_params,
-                num_gens,
-                top_k=self.top_k,
-                maximize=True,
-            )
-        ] * self.num_shapers
+                         ESLog(
+                             param_reshaper.total_params,
+                             num_gens,
+                             top_k=self.top_k,
+                             maximize=True,
+                         )
+                     ] * self.num_shapers
         logs = [es_log.initialize() for es_log in es_logging]
 
         # Reshape a single agent's params before vmapping
         shaper_agents = agents[: self.num_shapers]
-        target_agents = agents[self.num_shapers :]
+        target_agents = agents[self.num_shapers:]
 
         init_hiddens = [
             jnp.tile(
@@ -662,7 +662,7 @@ class MultishaperEvoRunner:
                     if self.args.num_devices > 1:
                         top_params = param_reshaper.reshape(
                             logs[shaper_idx]["top_gen_params"][
-                                0 : self.args.num_devices
+                            0: self.args.num_devices
                             ]
                         )
                         top_params = jax.tree_util.tree_map(
@@ -765,22 +765,22 @@ class MultishaperEvoRunner:
                     / self.args.num_players
                 )
                 wandb_log = {
-                    "train_iteration": gen,
-                    # "train/fitness/top_overall_mean": log["log_top_mean"][gen],
-                    # "train/fitness/top_overall_std": log["log_top_std"][gen],
-                    # "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
-                    # "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
-                    # "train/fitness/gen_std": log["log_gen_std"][gen],
-                    "train/time/minutes": float(
-                        (time.time() - self.start_time) / 60
-                    ),
-                    "train/time/seconds": float(
-                        (time.time() - self.start_time)
-                    ),
-                    "train/welfare/shaper": shaper_welfare,
-                    "train/welfare/target": target_welfare,
-                    "train/global_welfare": global_welfare,
-                } | rewards_dict
+                                "train_iteration": gen,
+                                # "train/fitness/top_overall_mean": log["log_top_mean"][gen],
+                                # "train/fitness/top_overall_std": log["log_top_std"][gen],
+                                # "train/fitness/top_gen_mean": log["log_top_gen_mean"][gen],
+                                # "train/fitness/top_gen_std": log["log_top_gen_std"][gen],
+                                # "train/fitness/gen_std": log["log_gen_std"][gen],
+                                "train/time/minutes": float(
+                                    (time.time() - self.start_time) / 60
+                                ),
+                                "train/time/seconds": float(
+                                    (time.time() - self.start_time)
+                                ),
+                                "train/welfare/shaper": shaper_welfare,
+                                "train/welfare/target": target_welfare,
+                                "train/global_welfare": global_welfare,
+                            } | rewards_dict
                 wandb_log = wandb_log | fitness_dict
                 wandb_log.update(env_stats)
                 # # loop through population

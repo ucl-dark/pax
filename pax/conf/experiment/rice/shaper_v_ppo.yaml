@@ -19,9 +19,9 @@ runner: evo
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 4
+num_envs: 1
 num_opps: 1
-num_outer_steps: 500
+num_outer_steps: 200
 num_inner_steps: 20
 num_iters: 1500
 num_devices: 1
@@ -80,5 +80,3 @@ wandb:
   group: 'shaper'
   name: 'rice-SHAPER-${agent_default}-seed-${seed}'
   log: True
-
-
