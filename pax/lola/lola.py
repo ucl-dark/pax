@@ -133,7 +133,7 @@ class LOLA:
 
             discounted_rewards = self_rewards * cum_discount
             discounted_values = values * cum_discount
-            # jax.debug.breakpoint()
+
             # TODO no clue if this makes any sense
             # stochastics nodes involved in rewards dependencies:
             sum_other_log_probs = jnp.sum(
@@ -160,10 +160,8 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-            G_ts = reverse_cumsum(discounted_rewards, axis=0)
-            R_ts = G_ts / cum_discount
-            # # want to minimize this value
-            value_objective = jnp.mean((R_ts - values) ** 2)
+            # want to minimize this value
+            value_objective = jnp.mean((self_rewards - values) ** 2)
 
 
             # want to maximize this objective
@@ -246,6 +244,7 @@ class LOLA:
             discounted_values = [
                 values * cum_discount for values in other_values
             ]
+
             # TODO do actual maths here - no idea what this is doing
             # stochastics nodes involved in rewards dependencies:
             # dependencies = jnp.cumsum(self_log_prob + other_log_prob, axis=0)
@@ -280,12 +279,9 @@ class LOLA:
                 )
                 dice_objective = dice_objective + baseline_term
 
-
-            G_ts = reverse_cumsum(discounted_rewards[chosen_op_idx], axis=0)
-            R_ts = G_ts / cum_discount
-            # # want to minimize this value
+            # want to minimize this value
             value_objective = jnp.mean(
-                (R_ts - other_values[chosen_op_idx])
+                (other_rewards[chosen_op_idx] - other_values[chosen_op_idx])
                 ** 2
             )
 
@@ -701,8 +697,8 @@ class LOLA:
             first_agent_next_obs, *other_agent_next_obs = all_agent_next_obs
             first_agent_reward, *other_agent_rewards = all_agent_rewards
             traj1 = LOLASample(
-                first_agent_obs,
-                other_agent_obs,
+                first_agent_next_obs,
+                other_agent_next_obs,
                 actions[0],
                 actions[1:],
                 done,
@@ -860,8 +856,7 @@ def make_lola(
         use_baseline=args.lola.use_baseline,
         gamma=args.lola.gamma,
     )
-def reverse_cumsum(x, axis):
-    return x + jnp.sum(x, axis=axis, keepdims=True) - jnp.cumsum(x, axis=axis)
+
 
 if __name__ == "__main__":
     pass
