@@ -21,11 +21,11 @@ runner: tensor_rl_nplayer
 
 
 # Training
-num_envs: 2
-num_opps: 100
+num_envs: 100
+num_opps: 1
 num_inner_steps: 100 # one game length
 num_outer_steps: 1 # sequential 
-num_iters: 2000  #games
+num_iters: 3000  #games
 # total_timesteps: 2.5e7
 num_devices: 1
 

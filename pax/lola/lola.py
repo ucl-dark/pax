@@ -56,7 +56,6 @@ class LOLA:
         self,
         args,
         network: NamedTuple,
-        inner_optimizer: optax.GradientTransformation,
         outer_optimizer: optax.GradientTransformation,
         random_key: jnp.ndarray,
         player_id: int,
@@ -163,6 +162,7 @@ class LOLA:
 
             # want to minimize this value
             value_objective = jnp.mean((self_rewards - values) ** 2)
+
 
             # want to maximize this objective
             loss_total = -dice_objective + value_objective
@@ -358,7 +358,6 @@ class LOLA:
         self.network = network
 
         # initialize some variables
-        self._inner_optimizer = inner_optimizer
         self._outer_optimizer = outer_optimizer
         self.gamma = gamma
 
@@ -837,8 +836,6 @@ def make_lola(
     """Make Naive Learner Policy Gradient agent"""
     # Create Haiku network
     network = make_network(action_spec)
-    # Inner optimizer uses SGD
-    inner_optimizer = optax.sgd(args.lola.lr_in)
     # Outer optimizer uses Adam
     outer_optimizer = optax.adam(args.lola.lr_out)
     # Random key
@@ -847,7 +844,6 @@ def make_lola(
     return LOLA(
         args=args,
         network=network,
-        inner_optimizer=inner_optimizer,
         outer_optimizer=outer_optimizer,
         random_key=random_key,
         obs_spec=obs_spec,
