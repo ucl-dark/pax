@@ -1,7 +1,8 @@
 from typing import Tuple
 
-from pax.utils import MemoryState, TrainingState
 import jax.numpy as jnp
+
+from pax.utils import MemoryState, TrainingState
 
 
 class AgentInterface:

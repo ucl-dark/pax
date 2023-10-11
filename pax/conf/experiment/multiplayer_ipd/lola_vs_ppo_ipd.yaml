@@ -1,0 +1,80 @@
+# @package _global_
+
+# Agents  
+agent1: 'LOLA'
+agent2: 'PPO'
+
+# Environment
+env_id: iterated_nplayer_tensor_game
+env_type: sequential
+env_discount: 0.96
+payoff_table: [
+[ -1 , 1000 ],
+[ -3 , 0 ],
+[ 1000 , -2 ],
+]
+runner: tensor_rl_nplayer
+num_players: 2
+
+num_envs: 100
+num_opps: 1 # TODO idk?
+num_outer_steps: 1
+num_inner_steps: 100 # how long a game takes
+num_iters: 1000
+
+# LOLA agent parameters
+lola: 
+  use_baseline: True   
+  adam_epsilon: 1e-5
+  lr_out: 0.1
+  gamma: 0.96
+  num_lookaheads: 1
+
+ppo1: # TODO unsure if I need ppo1 or ppo2 if second agent is ppo
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.25e9
+  entropy_coeff_end: 0.05
+  lr_scheduling: True
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  hidden_size: 16
+  with_cnn: False
+
+ppo2:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.25e9
+  entropy_coeff_end: 0.05
+  lr_scheduling: True
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  hidden_size: 16
+  with_cnn: False
+
+
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: tensor-ipd
+  group: 'test'
+  name: 'LOLA-vs-${agent2}'
+  log: True 

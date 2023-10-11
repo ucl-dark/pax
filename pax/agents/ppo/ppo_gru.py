@@ -377,6 +377,7 @@ class PPO(AgentInterface):
                 subkey, dummy_obs, initial_hidden_state
             )
             initial_opt_state = optimizer.init(initial_params)
+            self.optimizer = optimizer
             return TrainingState(
                 random_key=key,
                 params=initial_params,
@@ -441,6 +442,7 @@ class PPO(AgentInterface):
         }
 
         # Initialize functions
+        self.network = network
         self._policy = policy
         self.forward = network.apply
         self.player_id = player_id
@@ -471,8 +473,7 @@ class PPO(AgentInterface):
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-
-        _, _, mem = self._policy(state, obs, mem)
+        _1, _2, mem = self._policy(state, obs, mem)
         traj_batch = self._prepare_batch(
             traj_batch, traj_batch.dones[-1, ...], mem.extras
         )
@@ -513,7 +514,13 @@ def make_gru_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
-    elif args.env_id == "iterated_matrix_game":
+    elif args.env_id in [
+        "iterated_matrix_game",
+        "iterated_tensor_game",
+        "iterated_nplayer_tensor_game",
+        "third_party_punishment",
+        "third_party_random",
+    ]:
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )
