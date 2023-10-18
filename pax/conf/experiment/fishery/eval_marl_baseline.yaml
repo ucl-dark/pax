@@ -1,0 +1,79 @@
+# @package _global_
+
+# Agents
+agent1: 'PPO_memoruy'
+agent2: 'PPO'
+
+# Environment
+env_id: Fishery
+env_type: sequential
+g: 0.15
+e: 0.009
+P: 200
+w: 0.9
+s_0: 0.5
+s_max: 1.0
+
+# Runner
+runner: eval
+
+# TODO
+run_path: chrismatix/thesis/dhzxkw57
+model_path: exp/fishery/fishery-GS-PPO-vs-PPO_memory/2023-08-01_20.27.07.402547/generation_900
+
+# env_batch_size = num_envs * num_opponents
+num_envs: 100
+num_opps: 1
+num_outer_steps: 1
+num_inner_steps: 300 # number of inner steps (only for MetaFinite Env)
+num_iters: 1e6
+
+# Useful information
+# batch_size = num_envs * num_steps
+
+# PPO agent parameters
+ppo1:
+  num_minibatches: 10
+  num_epochs: 4
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.25e9
+  entropy_coeff_end: 0.05
+  lr_scheduling: True
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  hidden_size: 16
+  with_cnn: False
+
+ppo2:
+  num_minibatches: 10
+  num_epochs: 4
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: True
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.25e9
+  entropy_coeff_end: 0.05
+  lr_scheduling: True
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  hidden_size: 16
+  with_cnn: False
+
+# Logging setup
+wandb:
+  project: fishery
+  name: 'fishery-MARL^2-${agent1}-vs-${agent2}-parity'
+  log: True

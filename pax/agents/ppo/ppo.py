@@ -10,12 +10,23 @@ import optax
 from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
+    make_coingame_network,
     make_ipditm_network,
     make_sarl_network,
-    make_coingame_network,
-    make_ipd_network,
+    make_cournot_network,
+    make_fishery_network,
+    make_rice_sarl_network,
 )
-from pax.utils import Logger, MemoryState, TrainingState, get_advantages
+from pax.envs.rice.c_rice import ClubRice
+from pax.envs.rice.rice import Rice
+from pax.envs.rice.sarl_rice import SarlRice
+from pax.utils import (
+    Logger,
+    MemoryState,
+    TrainingState,
+    get_advantages,
+    float_precision,
+)
 
 
 class Batch(NamedTuple):
@@ -64,9 +75,11 @@ class PPO(AgentInterface):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
             dist, values = network.apply(state.params, observation)
-            actions = dist.sample(seed=subkey)
+            # Calculating logprob separately can cause numerical issues
+            # https://github.com/deepmind/distrax/issues/7
+            actions, log_prob = dist.sample_and_log_prob(seed=subkey)
             mem.extras["values"] = values
-            mem.extras["log_probs"] = dist.log_prob(actions)
+            mem.extras["log_probs"] = log_prob
             mem = mem._replace(extras=mem.extras)
             state = state._replace(random_key=key)
             return actions, state, mem
@@ -336,7 +349,9 @@ class PPO(AgentInterface):
 
             return new_state, new_memory, metrics
 
-        def make_initial_state(key: Any, hidden: jnp.ndarray) -> TrainingState:
+        def make_initial_state(
+            key: Any, hidden: jnp.ndarray
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
 
@@ -346,7 +361,7 @@ class PPO(AgentInterface):
                     dummy_obs[k] = jnp.zeros(shape=v)
 
             elif not tabular:
-                dummy_obs = jnp.zeros(shape=obs_spec)
+                dummy_obs = jnp.zeros(shape=obs_spec, dtype=float_precision)
                 dummy_obs = dummy_obs.at[0].set(1)
                 dummy_obs = dummy_obs.at[9].set(1)
                 dummy_obs = dummy_obs.at[18].set(1)
@@ -357,6 +372,7 @@ class PPO(AgentInterface):
             dummy_obs = utils.add_batch_dim(dummy_obs)
             initial_params = network.init(subkey, dummy_obs)
             initial_opt_state = optimizer.init(initial_params)
+            self.optimizer = optimizer
             return TrainingState(
                 random_key=key,
                 params=initial_params,
@@ -413,6 +429,7 @@ class PPO(AgentInterface):
         # Initialize functions
         self._policy = policy
         self.player_id = player_id
+        self.network = network
 
         # Other useful hyperparameters
         self._num_envs = num_envs  # number of environments
@@ -466,10 +483,8 @@ def make_agent(
     tabular=False,
 ):
     """Make PPO agent"""
-    if args.runner == "sarl":
-        network = make_sarl_network(action_spec)
-    elif args.env_id == "coin_game":
-        print(f"Making network for {args.env_id}")
+    print(f"Making network for {args.env_id}")
+    if args.env_id == "coin_game":
         network = make_coingame_network(
             action_spec,
             tabular,
@@ -488,9 +503,21 @@ def make_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
+    elif args.env_id == "Cournot":
+        network = make_cournot_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == "Fishery":
+        network = make_fishery_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == SarlRice.env_id:
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == Rice.env_id:
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
+    elif args.env_id == ClubRice.env_id:
+        network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
+    elif args.runner == "sarl":
+        network = make_sarl_network(action_spec)
     else:
-        network = make_ipd_network(
-            action_spec, tabular, agent_args.hidden_size
+        raise NotImplementedError(
+            f"No ppo network implemented for env {args.env_id}"
         )
 
     # Optimizer

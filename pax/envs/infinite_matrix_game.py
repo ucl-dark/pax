@@ -83,7 +83,7 @@ class InfiniteMatrixGame(environment.Environment):
 
         def _reset(
             key: chex.PRNGKey, params: EnvParams
-        ) -> Tuple[chex.Array, EnvState]:
+        ) -> Tuple[Tuple, EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
                 outer_t=jnp.zeros((), dtype=jnp.int8),
@@ -104,9 +104,7 @@ class InfiniteMatrixGame(environment.Environment):
         """Number of actions possible in environment."""
         return 5
 
-    def action_space(
-        self, params: Optional[EnvParams] = None
-    ) -> spaces.Discrete:
+    def action_space(self, params: Optional[EnvParams] = None) -> spaces.Box:
         """Action space of the environment."""
         return spaces.Box(low=0, high=1, shape=(5,))
 
@@ -114,6 +112,6 @@ class InfiniteMatrixGame(environment.Environment):
         """Observation space of the environment."""
         return spaces.Box(0, 1, (10,), dtype=jnp.float32)
 
-    def state_space(self, params: EnvParams) -> spaces.Dict:
+    def state_space(self, params: EnvParams) -> spaces.Box:
         """State space of the environment."""
         return spaces.Box(0, 1, (10,), dtype=jnp.float32)

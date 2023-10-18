@@ -1,0 +1,77 @@
+# @package _global_
+
+# Agents
+# Agent default applies to all agents
+agent_default: 'PPO'
+
+# Environment
+env_id: Cournot
+env_type: meta
+a: 100
+b: 1
+marginal_cost: 10
+# This means the nash quantity is 2(a-marginal_cost)/3b = 60
+
+# Runner
+runner: tensor_evo
+
+# Training
+top_k: 5
+popsize: 1000
+num_envs: 4
+num_opps: 1
+num_outer_steps: 300
+num_inner_steps: 1 # One-shot game
+num_iters: 3000
+num_devices: 1
+
+# PPO agent parameters
+ppo_default:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+# ES parameters
+es:
+  algo: OpenES        # [OpenES, CMA_ES]
+  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
+  sigma_decay: 0.999  # Multiplicative decay factor
+  sigma_limit: 0.01   # Smallest possible scale
+  init_min: 0.0       # Range of parameter mean initialization - Min
+  init_max: 0.0       # Range of parameter mean initialization - Max
+  clip_min: -1e10     # Range of parameter proposals - Min
+  clip_max: 1e10      # Range of parameter proposals - Max
+  lrate_init: 0.01    # Initial learning rate
+  lrate_decay: 0.9999 # Multiplicative decay factor
+  lrate_limit: 0.001  # Smallest possible lrate
+  beta_1: 0.99        # Adam - beta_1
+  beta_2: 0.999       # Adam - beta_2
+  eps: 1e-8           # eps constant,
+  centered_rank: False # Fitness centered_rank
+  w_decay: 0           # Decay old elite fitness
+  maximise: True       # Maximise fitness
+  z_score: False       # Normalise fitness
+  mean_reduce: True    # Remove mean
+
+# Logging setup
+wandb:
+  project: cournot
+  name: 'cournot-GS-${agent1}-vs-${agent2}'
+  log: True
+
+

@@ -14,7 +14,11 @@ from pax.agents.ppo.networks import (
     make_GRU_coingame_network,
     make_GRU_ipd_network,
     make_GRU_ipditm_network,
+    make_GRU_fishery_network,
+    make_GRU_rice_network,
 )
+from pax.envs.rice.rice import Rice
+from pax.envs.rice.c_rice import ClubRice
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 # from dm_env import TimeStep
@@ -359,7 +363,7 @@ class PPO(AgentInterface):
 
         def make_initial_state(
             key: Any, initial_hidden_state: jnp.ndarray
-        ) -> TrainingState:
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
 
             # We pass through initial_hidden_state so its easy to batch memory
@@ -377,6 +381,7 @@ class PPO(AgentInterface):
                 subkey, dummy_obs, initial_hidden_state
             )
             initial_opt_state = optimizer.init(initial_params)
+            self.optimizer = optimizer
             return TrainingState(
                 random_key=key,
                 params=initial_params,
@@ -392,7 +397,6 @@ class PPO(AgentInterface):
                 },
             )
 
-        # @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple,
             done: Any,
@@ -441,6 +445,7 @@ class PPO(AgentInterface):
         }
 
         # Initialize functions
+        self.network = network
         self._policy = policy
         self.forward = network.apply
         self.player_id = player_id
@@ -471,8 +476,7 @@ class PPO(AgentInterface):
     ):
 
         """Update the agent -> only called at the end of a trajectory"""
-
-        _, _, mem = self._policy(state, obs, mem)
+        _1, _2, mem = self._policy(state, obs, mem)
         traj_batch = self._prepare_batch(
             traj_batch, traj_batch.dones[-1, ...], mem.extras
         )
@@ -513,11 +517,44 @@ def make_gru_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
-    elif args.env_id == "iterated_matrix_game":
+    elif args.env_id in [
+        "iterated_matrix_game",
+        "iterated_tensor_game",
+        "iterated_nplayer_tensor_game",
+        "third_party_punishment",
+        "third_party_random",
+    ]:
         network, initial_hidden_state = make_GRU_ipd_network(
             action_spec, agent_args.hidden_size
         )
-
+    elif args.env_id == "Fishery":
+        network, initial_hidden_state = make_GRU_fishery_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == "iterated_tensor_game":
+        network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == "iterated_nplayer_tensor_game":
+        network, initial_hidden_state = make_GRU_ipd_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == "Fishery":
+        network, initial_hidden_state = make_GRU_fishery_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id == "Cournot":
+        network, initial_hidden_state = make_GRU_fishery_network(
+            action_spec, agent_args.hidden_size
+        )
+    elif args.env_id in [Rice.env_id, "Rice-v1"]:
+        network, initial_hidden_state = make_GRU_rice_network(
+            action_spec, agent_args.hidden_size, args.rice_v2_network
+        )
+    elif args.env_id == ClubRice.env_id:
+        network, initial_hidden_state = make_GRU_rice_network(
+            action_spec, agent_args.hidden_size, args.rice_v2_network
+        )
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(
             action_spec,
@@ -525,6 +562,10 @@ def make_gru_agent(
             agent_args.separate,
             agent_args.output_channels,
             agent_args.kernel_shape,
+        )
+    else:
+        raise NotImplementedError(
+            f"No gru network implemented for env {args.env_id}"
         )
 
     gru_dim = initial_hidden_state.shape[1]

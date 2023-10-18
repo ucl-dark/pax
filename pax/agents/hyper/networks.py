@@ -4,6 +4,7 @@ import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+from distrax import MultivariateNormalDiag
 
 from pax import utils
 
@@ -74,7 +75,7 @@ def make_GRU(num_actions: int):
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[MultivariateNormalDiag, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)
@@ -92,7 +93,7 @@ def make_GRU_hypernetwork(num_actions: int):
 
     def forward_fn(
         inputs: jnp.ndarray, state: jnp.ndarray
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[MultivariateNormalDiag, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
         embedding, state = gru(inputs, state)

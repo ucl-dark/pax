@@ -1,0 +1,64 @@
+# @package _global_
+
+# Agents
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
+agent_default: 'PPO_memory'
+
+# Environment
+env_id: Fishery
+env_type: meta
+g: 0.15
+e: 0.009
+P: 200
+w: 0.9
+s_0: 0.5
+s_max: 1.0
+# Runner
+runner: eval
+
+run_path: chrismatix/fishery/runs/8ux5pgbx
+model_path: exp/weight_sharing/fishery-weight_sharing-PPO_memory-seed-0/2023-09-30_21.05.25.064114/iteration_59999
+
+
+# env_batch_size = num_envs * num_opponents
+num_devices: 1
+num_envs: 10
+num_opps: 1
+num_inner_steps: 300
+num_iters: 500
+num_outer_steps: 2
+num_steps: 4200
+
+agent2_reset_interval: 500
+
+
+ppo_default:
+  num_minibatches: 4
+  num_epochs: 4
+  gamma: 1.0
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.0
+  entropy_coeff_horizon: 10000000
+  entropy_coeff_end: 0.0
+  lr_scheduling: True
+  learning_rate: 1e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [ 3, 3 ]
+  separate: True
+  hidden_size: 32
+
+
+# Logging setup
+wandb:
+  project: fishery
+  group: 'eval'
+  name: 'eval-fishery-weight_sharing-${agent1}-seed-${seed}'
