@@ -16,6 +16,5 @@ optax
 pytest
 wandb
 pytest-cov
-pytest-regressions
 bsuite
 tqdm
