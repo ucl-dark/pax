@@ -104,7 +104,7 @@ class TrajectoryBuffer:
         return min(self._rollout_length, self._num_added)
 
     def fraction_filled(self) -> float:
-        return self.size / self._rollout_length
+        return self.size() / self._rollout_length
 
     def reset(self):
         """Resets the replay buffer. Called upon __init__ and when buffer is full"""

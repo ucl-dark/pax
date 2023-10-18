@@ -9,6 +9,8 @@ from omegaconf import OmegaConf
 import wandb
 from pax.utils import MemoryState, TrainingState, copy_state_and_mem, save
 from pax.watchers import n_player_ipd_visitation
+from pax.watchers.cournot import cournot_stats
+from pax.watchers.fishery import fishery_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -99,6 +101,7 @@ class NplayerRLRunner:
 
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = n_player_ipd_visitation
+        self.cournot_stats = cournot_stats
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
@@ -150,7 +153,7 @@ class NplayerRLRunner:
 
         # go through opponents, we start with agent2
         for agent_idx, non_first_agent in enumerate(other_agents):
-            agent_arg = f"agent{agent_idx+2}"
+            agent_arg = f"agent{agent_idx + 2}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 # special case where NaiveEx has a different call signature
@@ -207,11 +210,8 @@ class NplayerRLRunner:
             # unpack rngs
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, 0, :]
-            # a1_rng = rngs[:, :, 1, :]
-            # a2_rng = rngs[:, :, 2, :]
             rngs = rngs[:, :, 3, :]
             new_other_agent_mem = [None] * len(other_agents)
-            actions = []
 
             (
                 first_action,
@@ -222,7 +222,7 @@ class NplayerRLRunner:
                 first_agent_obs,
                 first_agent_mem,
             )
-            actions.append(first_action)
+            actions = [first_action]
             for agent_idx, non_first_agent in enumerate(other_agents):
                 (
                     non_first_action,
@@ -377,7 +377,7 @@ class NplayerRLRunner:
 
             for agent_idx, non_first_agent in enumerate(other_agents):
                 # indexing starts at 2 for args
-                agent_arg = f"agent{agent_idx+2}"
+                agent_arg = f"agent{agent_idx + 2}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "NaiveEx":
                     (
@@ -395,6 +395,7 @@ class NplayerRLRunner:
                         non_first_agent._mem.hidden,
                     )
                     _rng_run, other_agent_rng = jax.random.split(_rng_run, 2)
+
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -488,7 +489,8 @@ class NplayerRLRunner:
                 other_agent_mem[agent_idx] = non_first_agent.batch_reset(
                     other_agent_mem[agent_idx], False
                 )
-            # Stats
+
+            total_rewards = [traj.rewards.mean() for traj in trajectories]
             if args.env_id == "iterated_nplayer_tensor_game":
                 total_env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -497,10 +499,19 @@ class NplayerRLRunner:
                         num_players=args.num_players,
                     ),
                 )
-                total_rewards = [traj.rewards.mean() for traj in trajectories]
+            elif args.env_id == "Cournot":
+                total_env_stats = jax.tree_util.tree_map(
+                    lambda x: x,
+                    self.cournot_stats(
+                        trajectories[0].observations,
+                        _env_params,
+                        args.num_players,
+                    ),
+                )
+            elif args.env_id == "Fishery":
+                total_env_stats = fishery_stats(trajectories, args.num_players)
             else:
                 total_env_stats = {}
-                total_rewards = [traj.rewards.mean() for traj in trajectories]
 
             return (
                 total_env_stats,
@@ -514,15 +525,16 @@ class NplayerRLRunner:
                 trajectories,
             )
 
-        # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env_params, agents, num_iters, watchers):
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        # log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
-        log_interval = 100
+        num_iters = max(
+            int(num_iters / (self.args.num_envs * self.num_opps)), 1
+        )
+        log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         save_interval = self.args.save_interval
 
         agent1, *other_agents = agents
@@ -594,6 +606,15 @@ class NplayerRLRunner:
                     agent1._logger.metrics = (
                         agent1._logger.metrics | flattened_metrics_1
                     )
+                    for agent, metric in zip(
+                        other_agents, other_agent_metrics
+                    ):
+                        flattened_metrics = jax.tree_util.tree_map(
+                            lambda x: jnp.mean(x), first_agent_metrics
+                        )
+                        agent._logger.metrics = (
+                            agent._logger.metrics | flattened_metrics
+                        )
 
                 for watcher, agent in zip(watchers, agents):
                     watcher(agent)

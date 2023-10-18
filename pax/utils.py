@@ -5,9 +5,21 @@ from typing import Mapping, NamedTuple
 import chex
 import haiku as hk
 import jax
-import jax.numpy as jnp
 import numpy as np
 import optax
+from jax import numpy as jnp
+
+
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
 
 
 class Section(object):
@@ -209,3 +221,7 @@ def copy_extended_state_and_network(agent):
     policy_network = agent.policy_network
     value_network = agent.value_network
     return state, policy_network, value_network
+
+
+# TODO make this part of the args
+float_precision = jnp.float32

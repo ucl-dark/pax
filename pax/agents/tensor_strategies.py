@@ -1,13 +1,12 @@
 from functools import partial
-from re import A
-from typing import Callable, NamedTuple
+from typing import NamedTuple
 
 import jax.numpy as jnp
 import jax.random
 
 from pax.agents.agent import AgentInterface
 from pax.agents.strategies import initial_state_fun
-from pax.utils import Logger, MemoryState, TrainingState
+from pax.utils import Logger, MemoryState
 
 
 class TitForTatStrictStay(AgentInterface):
@@ -191,8 +190,8 @@ class TitForTatHarsh(AgentInterface):
         # 0th state is all c...cc
         # 1st state is all c...cd
         # (2**num_playerth)-1 state is d...dd
-        # we cooperate in states _CCCC (0th and (2**num_player-1)th) and in start state (state 2**num_player)th )
-        # otherwise we defect
+        # we cooperate in states _CCCC (0th and (2**num_player-1)th)
+        # and in start state (state 2**num_player)th ) otherwise we defect
         # 0 is cooperate, 1 is defect
         action = jnp.where(obs % jnp.exp2(num_players - 1) == 0, 0, 1)
         return action

@@ -8,18 +8,27 @@ hydra:
     root:
       level: INFO
 
-# Global variables 
+# Global variables
 seed: 0
 save_dir: "./exp/${wandb.group}/${wandb.name}"
 save: True
 save_interval: 100
 debug: False
 
-# Agents  
+
+# Agents
 num_players: 2
 num_shapers: 1
+
+# Agents
 agent1: 'PPO'
 agent2: 'PPO'
+shuffle_players: False
+# Disable agent 2 learning in an eval setting
+agent2_learning: True
+agent1_roles: 1
+agent2_roles: 1 # Make agent 2 assume multiple roles in an n-player game
+agent2_reset_interval: 1 # Reset agent 2 every rollout
 
 # Logging setup
 wandb:
@@ -28,3 +37,5 @@ wandb:
   group: ??
   name: run-seed-${seed}
   log: True
+  mode: online
+  tags: []

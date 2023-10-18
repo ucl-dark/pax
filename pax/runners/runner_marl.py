@@ -4,16 +4,15 @@ from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
-
 import wandb
+
+from pax.utils import MemoryState, TrainingState, save
 from pax.utils import (
-    MemoryState,
-    TrainingState,
     copy_state_and_mem,
-    copy_state_and_network,
-    save,
 )
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
+from pax.watchers.cournot import cournot_stats
+from pax.watchers.fishery import fishery_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -105,6 +104,7 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.cournot_stats = cournot_stats
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
@@ -126,7 +126,6 @@ class RLRunner:
         self.split = jax.vmap(jax.vmap(jax.random.split, (0, None)), (0, None))
         num_outer_steps = self.args.num_outer_steps
         agent1, agent2 = agents
-        agent1.agent2 = agent2  # Pointer for LOLA
 
         # set up agents
         if args.agent1 == "NaiveEx":
@@ -138,11 +137,6 @@ class RLRunner:
                 agent1.make_initial_state,
                 (None, 0),
                 (None, 0),
-            )
-        if args.agent1 == "LOLA":
-            # batch for num_opps
-            agent1.batch_in_lookahead = jax.vmap(
-                agent1.in_lookahead, (0, None, 0, 0, 0), (0, 0)
             )
         agent1.batch_reset = jax.jit(
             jax.vmap(agent1.reset_memory, (0, None), 0), static_argnums=1
@@ -239,15 +233,16 @@ class RLRunner:
                     a1_mem.hidden,
                     a1_mem.th,
                 )
-            traj1 = Sample(
-                obs1,
-                a1,
-                rewards[0],
-                new_a1_mem.extras["log_probs"],
-                new_a1_mem.extras["values"],
-                done,
-                a1_mem.hidden,
-            )
+            else:
+                traj1 = Sample(
+                    obs1,
+                    a1,
+                    rewards[0],
+                    new_a1_mem.extras["log_probs"],
+                    new_a1_mem.extras["values"],
+                    done,
+                    a1_mem.hidden,
+                )
             traj2 = Sample(
                 obs2,
                 a2,
@@ -333,9 +328,8 @@ class RLRunner:
             rngs = jnp.concatenate(
                 [jax.random.split(_rng_run, args.num_envs)] * args.num_opps
             ).reshape((args.num_opps, args.num_envs, -1))
-            _rng_run, _ = jax.random.split(_rng_run)
 
-            obs, env_state = env.batch_reset(rngs, _env_params)
+            obs, env_state = env.reset(rngs, _env_params)
             rewards = [
                 jnp.zeros((args.num_opps, args.num_envs)),
                 jnp.zeros((args.num_opps, args.num_envs)),
@@ -426,6 +420,8 @@ class RLRunner:
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
+            rewards_1 = traj_1.rewards.mean()
+            rewards_2 = traj_2.rewards.mean()
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -435,7 +431,6 @@ class RLRunner:
 
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
             elif args.env_id == "iterated_matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -445,8 +440,6 @@ class RLRunner:
                         obs1,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
             elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -457,12 +450,15 @@ class RLRunner:
                         args.num_envs,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "Cournot":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cournot_stats(traj_1.observations, _env_params, 2),
+                )
+            elif args.env_id == "Fishery":
+                env_stats = fishery_stats([traj_1, traj_2], 2)
             else:
                 env_stats = {}
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
 
             return (
                 env_stats,
@@ -536,7 +532,7 @@ class RLRunner:
                 for stat in env_stats.keys():
                     print(stat + f": {env_stats[stat].item()}")
                 print(
-                    f"Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
+                    f"Average Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 

@@ -117,7 +117,7 @@ class MultishaperEvalRunner:
         # set up agents
         # batch MemoryState not TrainingState
         for agent_idx, shaper_agent in enumerate(shapers):
-            agent_arg = f"agent{agent_idx+1}"
+            agent_arg = f"agent{agent_idx + 1}"
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 # special case where NaiveEx has a different call signature
                 shaper_agent.batch_init = jax.jit(
@@ -141,7 +141,7 @@ class MultishaperEvalRunner:
 
         # go through opponents
         for agent_idx, target_agent in enumerate(targets):
-            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
+            agent_arg = f"agent{agent_idx + self.num_shapers + 1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 target_agent.batch_init = jax.jit(
@@ -161,7 +161,7 @@ class MultishaperEvalRunner:
             )
 
         for agent_idx, shaper_agent in enumerate(shapers):
-            agent_arg = f"agent{agent_idx+1}"
+            agent_arg = f"agent{agent_idx + 1}"
             if OmegaConf.select(args, agent_arg) != "NaiveEx":
                 # NaiveEx requires env first step to init.
                 init_hidden = jnp.tile(
@@ -175,7 +175,7 @@ class MultishaperEvalRunner:
                 )
 
         for agent_idx, target_agent in enumerate(targets):
-            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
+            agent_arg = f"agent{agent_idx + self.num_shapers + 1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) != "NaiveEx":
                 # NaiveEx requires env first step to init.
@@ -321,7 +321,7 @@ class MultishaperEvalRunner:
             ) = vals
             # MFOS has to take a meta-action for each episode
             for agent_idx, shaper_agent in enumerate(shapers):
-                agent_arg = f"agent{agent_idx+1}"
+                agent_arg = f"agent{agent_idx + 1}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "MFOS":
                     shapers_mem[agent_idx] = shaper_agent.meta_policy(
@@ -385,7 +385,7 @@ class MultishaperEvalRunner:
             targets_state = [None] * self.num_targets
             for agent_idx, target_agent in enumerate(targets):
                 # if eg 2 shapers, agent3 is the first non-shaper
-                agent_arg = f"agent{agent_idx+1+self.num_shapers}"
+                agent_arg = f"agent{agent_idx + 1 + self.num_shapers}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "NaiveEx":
                     (
@@ -509,11 +509,11 @@ class MultishaperEvalRunner:
             targets_mem.append(target_agent._mem)
 
         for agent_idx, shaper_agent in enumerate(shaper_agents):
-            model_path = f"model_path{agent_idx+1}"
-            run_path = f"run_path{agent_idx+1}"
+            model_path = f"model_path{agent_idx + 1}"
+            run_path = f"run_path{agent_idx + 1}"
             if model_path not in self.args:
                 raise ValueError(
-                    f"Please provide a model path for shaper {agent_idx+1}"
+                    f"Please provide a model path for shaper {agent_idx + 1}"
                 )
 
             wandb.restore(
@@ -594,7 +594,7 @@ class MultishaperEvalRunner:
             # log the inner episodes
             shaper_rewards_log = [
                 {
-                    f"eval/reward_per_timestep/shaper_{shaper_idx+1}": float(
+                    f"eval/reward_per_timestep/shaper_{shaper_idx + 1}": float(
                         traj.rewards[i].mean().item()
                     )
                     for (shaper_idx, traj) in enumerate(shaper_traj)
@@ -603,7 +603,7 @@ class MultishaperEvalRunner:
             ]
             target_rewards_log = [
                 {
-                    f"eval/reward_per_timestep/target_{target_idx+1}": float(
+                    f"eval/reward_per_timestep/target_{target_idx + 1}": float(
                         traj.rewards[i].mean().item()
                     )
                     for (target_idx, traj) in enumerate(target_traj)
@@ -662,11 +662,11 @@ class MultishaperEvalRunner:
                     | global_welfare_log[i]
                 )
             shaper_rewards_log = {
-                f"eval/meta_reward/shaper{idx+1}": float(rew.mean().item())
+                f"eval/meta_reward/shaper{idx + 1}": float(rew.mean().item())
                 for (idx, rew) in enumerate(shapers_rewards)
             }
             target_rewards_log = {
-                f"eval/meta_reward/target{idx+1}": float(rew.mean().item())
+                f"eval/meta_reward/target{idx + 1}": float(rew.mean().item())
                 for (idx, rew) in enumerate(targets_rewards)
             }
 

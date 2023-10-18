@@ -1,17 +1,11 @@
-from typing import Any, Dict, List, Mapping, NamedTuple, Tuple
+from typing import Any, List, NamedTuple, Tuple
 
-import haiku as hk
 import jax
 import jax.numpy as jnp
-import numpy as np
 import optax
-from dm_env import TimeStep
-
-# from pax.lola.buffer import TrajectoryBuffer
-from pax.agents.lola.network import make_network
 
 from pax import utils
-from pax.agents.ppo.ppo_gru import PPO
+from pax.agents.lola.network import make_network
 from pax.runners.runner_marl import Sample
 from pax.utils import MemoryState, TrainingState
 
@@ -295,7 +289,9 @@ class LOLA:
                 "loss_value": value_objective,
             }
 
-        def make_initial_state(key: Any, hidden) -> TrainingState:
+        def make_initial_state(
+            key: Any, hidden
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
             dummy_obs = jnp.zeros(shape=obs_spec)
@@ -530,7 +526,7 @@ class LOLA:
         )
         my_mem = carry[7]
         other_mems = carry[8]
-        # jax.debug.breakpoint()
+
         # flip axes to get (num_envs, num_inner, obs_dim) to vmap over numenvs
         vmap_trajectories = jax.tree_map(
             lambda x: jnp.swapaxes(x, 0, 1), trajectories
@@ -545,7 +541,7 @@ class LOLA:
             rewards_self=vmap_trajectories[0].rewards_self,
             rewards_other=[traj.rewards for traj in vmap_trajectories[1:]],
         )
-        # jax.debug.breakpoint()
+
         # get gradients of opponents
         other_gradients = []
         for idx in range(len((self.other_agents))):

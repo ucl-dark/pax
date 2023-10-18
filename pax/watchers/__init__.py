@@ -2,7 +2,7 @@ import enum
 import itertools
 import pickle
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, Any
 
 import chex
 import jax
@@ -12,8 +12,11 @@ from flax import linen as nn
 import pax.agents.hyper.ppo as HyperPPO
 import pax.agents.ppo.ppo as PPO
 from pax.agents.naive_exact import NaiveExact
-from pax.envs.in_the_matrix import InTheMatrix
-from pax.envs.iterated_matrix_game import EnvState, IteratedMatrixGame
+from pax.envs.iterated_matrix_game import EnvState
+
+
+from .fishery import fishery_stats
+from .cournot import cournot_stats
 
 # five possible states
 START = jnp.array([[0, 0, 0, 0, 1]])
@@ -39,7 +42,7 @@ def policy_logger(agent) -> dict:
     ]  # [layer_name]['w']
     log_pi = nn.softmax(weights)
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
+        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi, strict=True)
     }  # probability of cooperating is p[0]
     return probs
 
@@ -47,10 +50,14 @@ def policy_logger(agent) -> dict:
 def value_logger(agent) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, weights, strict=True)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {
+            f"value/{str(s)}.defect": p[1]
+            for (s, p) in zip(State, weights, strict=True)
+        }
     )
     return values
 
@@ -63,12 +70,12 @@ def policy_logger_dqn(agent) -> None:
     target_steps = agent.target_step_updates
     probs = {
         f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(State, pi, strict=True)
     }
     probs.update(
         {
             f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, pi)
+            for (s, p) in zip(State, pi, strict=True)
         }
     )
     probs.update({"policy/target_step_updates": target_steps})
@@ -81,12 +88,12 @@ def value_logger_dqn(agent) -> dict:
     target_steps = agent.target_step_updates
     values = {
         f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, weights)
+        for (s, p) in zip(State, weights, strict=True)
     }
     values.update(
         {
             f"value/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, weights)
+            for (s, p) in zip(State, weights, strict=True)
         }
     )
     values.update({"value/target_step_updates": target_steps})
@@ -97,7 +104,10 @@ def policy_logger_ppo(agent: PPO) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    probs = {
+        f"policy/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, pi, strict=True)
+    }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
 
@@ -108,7 +118,8 @@ def value_logger_ppo(agent: PPO) -> dict:
     ]  # 5 x 1 matrix
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, weights, strict=True)
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
@@ -138,19 +149,18 @@ def policy_logger_ppo_with_memory(agent) -> dict:
     return {}
 
 
-def naive_pg_losses(agent) -> None:
+def naive_pg_losses(agent) -> dict[str, Any]:
     pid = agent.player_id
     sgd_steps = agent._logger.metrics["sgd_steps"]
     loss_total = agent._logger.metrics["loss_total"]
     loss_policy = agent._logger.metrics["loss_policy"]
     loss_value = agent._logger.metrics["loss_value"]
-    losses = {
+    return {
         f"train/naive_learner{pid}/sgd_steps": sgd_steps,
         f"train/naive_learner{pid}/total": loss_total,
         f"train/naive_learner{pid}/policy": loss_policy,
         f"train/naive_learner{pid}/value": loss_value,
     }
-    return losses
 
 
 def logger_hyper(agent: HyperPPO) -> dict:
@@ -212,7 +222,7 @@ def policy_logger_naive(agent) -> None:
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
         f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(State, pi, strict=True)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
@@ -277,6 +287,7 @@ class ESLog(object):
         self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
         """Update the logging storage with newest data."""
+
         # Check if there are solutions better than current archive
         def get_top_idx(maximize: bool, vals: jnp.ndarray) -> jnp.ndarray:
             top_idx = maximize * ((-1) * vals).argsort() + (
@@ -497,10 +508,10 @@ def n_player_ipd_visitation(
     ]
 
     visitation_dict = (
-        dict(zip(visitation_strs, state_freq))
-        | dict(zip(prob_strs, state_probs))
-        | dict(zip(grouped_visitation_strs, grouped_state_freq))
-        | dict(zip(grouped_prob_strs, grouped_state_probs))
+        dict(zip(visitation_strs, state_freq, strict=True))
+        | dict(zip(prob_strs, state_probs, strict=True))
+        | dict(zip(grouped_visitation_strs, grouped_state_freq, strict=True))
+        | dict(zip(grouped_prob_strs, grouped_state_probs, strict=True))
     )
     return visitation_dict
 
@@ -796,14 +807,20 @@ def third_party_punishment_visitation(
     total_punishment_str = "total_punishment"
 
     visitation_dict = (
-        dict(zip(all_game_visitation_strs, action_freq))
-        | dict(zip(all_game_prob_strs, action_probs))
-        | dict(zip(pl1_v_pl2_visitation_strs, pl1_v_pl2_action_freq))
-        | dict(zip(pl1_v_pl2_prob_strs, pl1_v_pl2_action_probs))
-        | dict(zip(pl1_v_pl3_visitation_strs, pl1_v_pl3_action_freq))
-        | dict(zip(pl1_v_pl3_prob_strs, pl1_v_pl3_action_probs))
-        | dict(zip(pl2_v_pl3_visitation_strs, pl2_v_pl3_action_freq))
-        | dict(zip(pl2_v_pl3_prob_strs, pl2_v_pl3_action_probs))
+        dict(zip(all_game_visitation_strs, action_freq, strict=True))
+        | dict(zip(all_game_prob_strs, action_probs, strict=True))
+        | dict(
+            zip(pl1_v_pl2_visitation_strs, pl1_v_pl2_action_freq, strict=True)
+        )
+        | dict(zip(pl1_v_pl2_prob_strs, pl1_v_pl2_action_probs, strict=True))
+        | dict(
+            zip(pl1_v_pl3_visitation_strs, pl1_v_pl3_action_freq, strict=True)
+        )
+        | dict(zip(pl1_v_pl3_prob_strs, pl1_v_pl3_action_probs, strict=True))
+        | dict(
+            zip(pl2_v_pl3_visitation_strs, pl2_v_pl3_action_freq, strict=True)
+        )
+        | dict(zip(pl2_v_pl3_prob_strs, pl2_v_pl3_action_probs, strict=True))
         | {pl1_total_defects_prob_str: pl1_total_defects_prob}
         | {pl2_total_defects_prob_str: pl2_total_defects_prob}
         | {pl3_total_defects_prob_str: pl3_total_defects_prob}
@@ -860,10 +877,6 @@ def third_party_random_visitation(
     game1 = jnp.stack([prev_cd_actions[:, 0], prev_cd_actions[:, 1]], axis=-1)
     game2 = jnp.stack([prev_cd_actions[:, 1], prev_cd_actions[:, 2]], axis=-1)
     game3 = jnp.stack([prev_cd_actions[:, 2], prev_cd_actions[:, 0]], axis=-1)
-
-    selected_game_actions = jnp.stack(  # len_idx3x2
-        [game1, game2, game3], axis=1
-    )
 
     b2i = 2 ** jnp.arange(2 - 1, -1, -1)
     pl1_vs_pl2 = (game1 * b2i).sum(axis=-1)
@@ -993,10 +1006,10 @@ def third_party_random_visitation(
     )
 
     visitation_dict = (
-        dict(zip(game_prob_strs, action_probs))
-        | dict(zip(game1_prob_strs, pl1_v_pl2_action_probs))
-        | dict(zip(game2_prob_strs, pl2_v_pl3_action_probs))
-        | dict(zip(game3_prob_strs, pl3_v_pl1_action_probs))
+        dict(zip(game_prob_strs, action_probs, strict=True))
+        | dict(zip(game1_prob_strs, pl1_v_pl2_action_probs, strict=True))
+        | dict(zip(game2_prob_strs, pl2_v_pl3_action_probs, strict=True))
+        | dict(zip(game3_prob_strs, pl3_v_pl1_action_probs, strict=True))
         | {game_selected_punish_str: game_selected_punish}
         | {pl1_defects_prob_str: pl1_defect_prob}
         | {pl2_defects_prob_str: pl2_defect_prob}

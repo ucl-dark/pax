@@ -1,9 +1,8 @@
-from typing import Optional, Tuple
+from typing import Tuple
 
 import chex
 import jax
 import jax.numpy as jnp
-from flax import struct
 from gymnax.environments import environment, spaces
 
 
@@ -107,7 +106,7 @@ class IteratedTensorGameNPlayer(environment.Environment):
 
         def _reset(
             key: chex.PRNGKey, params: EnvParams
-        ) -> Tuple[chex.Array, EnvState]:
+        ) -> Tuple[Tuple[chex.Array, ...], EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
                 outer_t=jnp.zeros((), dtype=jnp.int8),

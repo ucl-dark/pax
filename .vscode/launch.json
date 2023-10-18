@@ -13,7 +13,7 @@
             "justMyCode": false,
             "env": {
                 "OBJC_DISABLE_INITIALIZE_FORK_SAFETY": "YES",
-                "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": "python",
+                "PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION": "python"
             }
         }
     ]

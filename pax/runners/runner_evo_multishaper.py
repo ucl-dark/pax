@@ -137,7 +137,7 @@ class MultishaperEvoRunner:
             )
         # go through opponents, we start with agent2
         for agent_idx, target_agent in enumerate(targets):
-            agent_arg = f"agent{agent_idx+self.num_shapers+1}"
+            agent_arg = f"agent{agent_idx + self.num_shapers + 1}"
             # equivalent of args.agent_n
             if OmegaConf.select(args, agent_arg) == "NaiveEx":
                 # special case where NaiveEx has a different call signature
@@ -337,7 +337,7 @@ class MultishaperEvoRunner:
             ) = vals
             # MFOS has to take a meta-action for each episode
             for agent_idx, shaper_agent in enumerate(shapers):
-                agent_arg = f"agent{agent_idx+1}"
+                agent_arg = f"agent{agent_idx + 1}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "MFOS":
                     shapers_mem[agent_idx] = shaper_agent.meta_policy(
@@ -408,7 +408,7 @@ class MultishaperEvoRunner:
             )
             for agent_idx, target_agent in enumerate(targets):
                 # if eg 2 shapers, agent3 is the first non-shaper
-                agent_arg = f"agent{agent_idx+1+self.num_shapers}"
+                agent_arg = f"agent{agent_idx + 1 + self.num_shapers}"
                 # equivalent of args.agent_n
                 if OmegaConf.select(args, agent_arg) == "NaiveEx":
                     (
@@ -572,7 +572,6 @@ class MultishaperEvoRunner:
 
         # Reshape a single agent's params before vmapping
         shaper_agents = agents[: self.num_shapers]
-        target_agents = agents[self.num_shapers :]
 
         init_hiddens = [
             jnp.tile(
@@ -601,7 +600,7 @@ class MultishaperEvoRunner:
             shapers_params = []
             old_evo_states = evo_states
             evo_states = []
-            for shaper_idx, shaper_agent in enumerate(shaper_agents):
+            for shaper_idx, _ in enumerate(shaper_agents):
                 shaper_rng, rng_evo = jax.random.split(rng_evo, 2)
                 x, evo_state = strategy.ask(
                     shaper_rng, old_evo_states[shaper_idx], es_params
@@ -636,21 +635,23 @@ class MultishaperEvoRunner:
             # Tell
             fitness_re = [
                 fit_shaper.apply(x, fitness)
-                for x, fitness in zip(xs, shapers_fitness)
+                for x, fitness in zip(xs, shapers_fitness, strict=True)
             ]
 
             if self.args.es.mean_reduce:
                 fitness_re = [fit_re - fit_re.mean() for fit_re in fitness_re]
             evo_states = [
                 strategy.tell(x, fit_re, evo_state, es_params)
-                for x, fit_re, evo_state in zip(xs, fitness_re, evo_states)
+                for x, fit_re, evo_state in zip(
+                    xs, fitness_re, evo_states, strict=True
+                )
             ]
 
             # Logging
             logs = [
                 es_log.update(log, x, fitness)
                 for es_log, log, x, fitness in zip(
-                    es_logging, logs, xs, shapers_fitness
+                    es_logging, logs, xs, shapers_fitness, strict=True
                 )
             ]
             # Saving
@@ -726,7 +727,9 @@ class MultishaperEvoRunner:
                 ]
                 rewards_strs = shaper_rewards_strs + target_rewards_strs
                 rewards_val = shaper_rewards_val + target_rewards_val
-                rewards_dict = dict(zip(rewards_strs, rewards_val))
+                rewards_dict = dict(
+                    zip(rewards_strs, rewards_val, strict=True)
+                )
 
                 shaper_fitness_str = [
                     "train/fitness/shaper_" + str(i)
@@ -745,7 +748,9 @@ class MultishaperEvoRunner:
                 fitness_strs = shaper_fitness_str + target_fitness_str
                 fitness_vals = shaper_fitness_val + target_fitness_val
 
-                fitness_dict = dict(zip(fitness_strs, fitness_vals))
+                fitness_dict = dict(
+                    zip(fitness_strs, fitness_vals, strict=True)
+                )
 
                 shaper_welfare = float(
                     sum([reward.mean() for reward in shapers_rewards])
@@ -796,7 +801,9 @@ class MultishaperEvoRunner:
 
                 # other player metrics
                 # metrics [outer_timesteps, num_opps]
-                for agent, metrics in zip(agents[1:], targets_metrics):
+                for agent, metrics in zip(
+                    agents[1:], targets_metrics, strict=True
+                ):
                     flattened_metrics = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), metrics
                     )

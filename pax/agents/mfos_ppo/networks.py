@@ -4,12 +4,13 @@ import distrax
 import haiku as hk
 import jax
 import jax.numpy as jnp
+from distrax import Categorical
 
 from pax import utils
 
 
 class ActorCriticMFOS(hk.Module):
-    def __init__(self, num_values, hidden_size):
+    def __init__(self, num_values, hidden_size, categorical=True):
         super().__init__(name="ActorCriticMFOS")
         self.linear_t_0 = hk.Linear(hidden_size)
         self.linear_a_0 = hk.Linear(hidden_size)
@@ -30,6 +31,7 @@ class ActorCriticMFOS(hk.Module):
             w_init=hk.initializers.Orthogonal(1.0),  # baseline
             with_bias=False,
         )
+        self._categorical = categorical
 
     def __call__(self, inputs: jnp.ndarray, state: jnp.ndarray):
         input, th = inputs
@@ -54,7 +56,10 @@ class ActorCriticMFOS(hk.Module):
 
         hidden = jnp.concatenate([hidden_t, hidden_a, hidden_v], axis=-1)
         state = (_current_th, hidden)
-        return (distrax.Categorical(logits=logits), value, state)
+        if self._categorical:
+            return distrax.Categorical(logits=logits), value, state
+        else:
+            return distrax.MultivariateNormalDiag(loc=logits), value, state
 
 
 class CNNFusion(hk.Module):
@@ -147,6 +152,21 @@ def make_mfos_network(num_actions: int, hidden_size: int):
     return network, hidden_state
 
 
+def make_mfos_continuous_network(num_actions: int, hidden_size: int):
+    hidden_state = jnp.zeros((1, 3 * hidden_size))
+
+    def forward_fn(
+        inputs: jnp.ndarray,
+        state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+        mfos = ActorCriticMFOS(num_actions, hidden_size, categorical=False)
+        logits, values, state = mfos(inputs, state)
+        return (logits, values), state
+
+    network = hk.without_apply_rng(hk.transform(forward_fn))
+    return network, hidden_state
+
+
 def make_mfos_ipditm_network(
     num_actions: int, hidden_size: int, output_channels, kernel_shape
 ):
@@ -155,7 +175,7 @@ def make_mfos_ipditm_network(
     def forward_fn(
         inputs: jnp.ndarray,
         state: Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
-    ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
+    ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         mfos = CNNMFOS(num_actions, hidden_size, output_channels, kernel_shape)
         logits, values, state = mfos(inputs, state)
         return (logits, values), state

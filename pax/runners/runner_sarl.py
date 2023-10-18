@@ -7,6 +7,7 @@ import jax.numpy as jnp
 
 import wandb
 from pax.utils import MemoryState, TrainingState, save
+from pax.watchers.rice import rice_sarl_stats
 
 # from jax.config import config
 # config.update('jax_disable_jit', True)
@@ -36,6 +37,7 @@ class SARLRunner:
         self.args = args
         self.random_key = jax.random.PRNGKey(args.seed)
         self.save_dir = save_dir
+        self.rice_stats = rice_sarl_stats
 
         # VMAP for num envs: we vmap over the rng but not params
         env.reset = jax.vmap(env.reset, (0, None), 0)
@@ -80,8 +82,6 @@ class SARLRunner:
             # import pdb; pdb.set_trace()
             rngs = self.split(rngs, 2)
             env_rng = rngs[:, 0, :]
-            # a1_rng = rngs[:, 1, :]
-            # a2_rng = rngs[:, 2, :]
             rngs = rngs[:, 1, :]
 
             a1, a1_state, new_a1_mem = agent.batch_policy(
@@ -162,12 +162,12 @@ class SARLRunner:
                 _a1_mem,
             )
 
-            # reset memory
             _a1_mem = agent.batch_reset(_a1_mem, False)
 
-            # Stats
             rewards = jnp.sum(traj.rewards) / (jnp.sum(traj.dones) + 1e-8)
             env_stats = {}
+            if args.env_id == "SarlRice-N":
+                env_stats = self.rice_stats(traj, args.num_players)
 
             return (
                 env_stats,
@@ -177,8 +177,7 @@ class SARLRunner:
                 _a1_metrics,
             )
 
-        self.rollout = _rollout
-        # self.rollout = jax.jit(_rollout)
+        self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env, env_params, agent, num_iters, watcher):
         """Run training of agent in environment"""
@@ -206,7 +205,9 @@ class SARLRunner:
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
 
-            if i % self.args.save_interval == 0:
+            is_last_loop = i == num_iters - 1
+
+            if i % self.args.save_interval == 0 or is_last_loop:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
                 if watcher:
@@ -217,11 +218,13 @@ class SARLRunner:
 
             # logging
             self.train_episodes += 1
-            if num_iters % log_interval == 0:
-                print(f"Episode {i}")
+            if num_iters % log_interval == 0 or is_last_loop:
+                print(f"Episode {i}/{num_iters}")
 
-                print(f"Env Stats: {env_stats}")
-                print(f"Total Episode Reward: {float(rewards_1.mean())}")
+                print(
+                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                )
+                print(f"Total Reward per Episode: {float(rewards_1.mean())}")
                 print()
 
                 if watcher:
