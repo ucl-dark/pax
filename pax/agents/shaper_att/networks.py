@@ -330,6 +330,7 @@ def make_GRU_ipd_avg_network(num_actions: int, hidden_size: int):
         """forward function"""
         gru = hk.GRU(hidden_size)
         old_state = state
+        # jax.debug.breakpoint()
         state = jnp.mean(state, axis=0, keepdims=True).repeat(state.shape[0], axis=0)
         state = 0.5*state + 0.5*old_state
         embedding, state = gru(inputs, state)
@@ -348,7 +349,7 @@ def make_GRU_ipd_att_network(num_actions: int, hidden_size: int):
         inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[jnp.ndarray, jnp.ndarray], jnp.ndarray]:
         """forward function"""
-        print(state.shape, 'STATE shape')
+        # print(state.shape, 'STATE shape')
         gru = hk.GRU(hidden_size)
         layer_norm1 = hk.LayerNorm(
             axis=-2, create_scale=True, create_offset=True

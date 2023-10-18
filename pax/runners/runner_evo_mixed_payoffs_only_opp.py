@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoMixedPayoffGenRunner:
+class EvoMixedPayoffOnlyOppRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -85,13 +85,13 @@ class EvoMixedPayoffGenRunner:
         # num envs
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0), 0  # rng, state, actions, params
         )
 
         # num opps
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0), 0  # rng, state, actions, params
         )
         # pop size
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -316,8 +316,18 @@ class EvoMixedPayoffGenRunner:
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
             # set payoff matrix to random integers of shape [4,2]
             _rng_run, payoff_rng = jax.random.split(_rng_run)
-            payoff_matrix = -jax.random.randint(payoff_rng, minval=0, maxval=10, shape=(4,2), dtype=jnp.int8)
-            # payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1))
+            # jnp.array([T, R, P, S], dtype=jnp.int8)
+            payoff_matrix_opp = jax.random.uniform(payoff_rng, minval=-0.5, maxval=0.5, shape=(args.num_envs,4,1)) #, dtype=jnp.int8
+            payoff_matrix_ag1 = jnp.expand_dims(jnp.tile(jnp.array([1, 3, 0, 2], dtype=jnp.int8), (args.num_envs,1)), axis=-1)
+            payoff_matrix_ag2 = payoff_matrix_opp + payoff_matrix_ag1
+            payoff_matrix = -jnp.concatenate((payoff_matrix_ag1, payoff_matrix_ag2), axis=-1)
+
+            # payoff_matrix = -jnp.array([[R, R], [S, T], [T, S], [P, P]], dtype=jnp.int8)
+            # payoff_matrix = -jnp.array([[1, payoff_matrix_opp[1]], 
+            #                             [3, payoff_matrix_opp[0]], 
+            #                             [0, payoff_matrix_opp[3]], 
+            #                             [2, payoff_matrix_opp[2]]]) #, dtype=jnp.int8
+            payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1, 1))
 
             _env_params.payoff_matrix = payoff_matrix
 
@@ -348,6 +358,7 @@ class EvoMixedPayoffGenRunner:
                 # # repeat the array 1000 times along the first dimension
                 # learning_rates = jnp.tile(random_numbers, (1000, 1))
                 # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                # jax.debug.breakpoint()
 
             # run trials
             vals, stack = jax.lax.scan(

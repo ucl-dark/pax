@@ -59,6 +59,7 @@ from pax.runners.runner_evo_mixed_IPD_payoffs import EvoMixedIPDPayoffRunner
 from pax.runners.runner_evo_mixed_payoffs_input import EvoMixedPayoffInputRunner
 from pax.runners.runner_evo_mixed_payoffs_gen import EvoMixedPayoffGenRunner
 from pax.runners.runner_evo_mixed_payoffs_pred import EvoMixedPayoffPredRunner
+from pax.runners.runner_evo_mixed_payoffs_only_opp import EvoMixedPayoffOnlyOppRunner
 from pax.runners.runner_evo_scanned import EvoScannedRunner
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_sarl import SARLRunner
@@ -190,7 +191,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp"]:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -305,6 +306,10 @@ def runner_setup(args, env, agents, save_dir, logger):
             )
         elif args.runner == "evo_mixed_payoff_pred":
             return EvoMixedPayoffPredRunner(
+                agents, env, strategy, es_params, param_reshaper, save_dir, args
+            )
+        elif args.runner == "evo_mixed_payoff_only_opp":
+            return EvoMixedPayoffOnlyOppRunner(
                 agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
         elif args.runner == "evo_scanned":
@@ -653,7 +658,7 @@ def main(args):
     print(f"Number of Training Iterations: {args.num_iters}")
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp"]:
         print(f"Running {args.runner}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 

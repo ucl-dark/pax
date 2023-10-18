@@ -21,6 +21,8 @@ num_opps: 10
 num_outer_steps: 100 
 num_inner_steps: 100 
 num_iters: 1000
+num_devices: 1
+att_type: 'nothing'
 
 # PPO agent parameters
 ppo1:

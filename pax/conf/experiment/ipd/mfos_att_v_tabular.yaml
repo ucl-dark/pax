@@ -27,18 +27,7 @@ att_type: 'avg'
 # MFOS vs. Tabular trained on seed = 0
 run_path: ucl-dark/ipd/1r9txdso
 model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400
-# MFOS vs. Tabular trained on seed = 1
-# run_path: ucl-dark/ipd/13srlkhp
-# model_path: exp/GS-MFOS-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_20.33.11.352762/generation_4300
-# MFOS vs. Tabular trained on seed = 2
-# run_path: ucl-dark/ipd/3pfmqrpw
-# model_path: exp/GS-MFOS-vs-Tabular/run-seed-2-pop-size-1000/2022-09-25_20.34.04.832865/generation_4400
-# MFOS vs. Tabular trained on seed = 3
-# run_path: ucl-dark/ipd/groh4iwx
-# model_path: exp/GS-MFOS-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_20.36.02.555928/generation_4400
-# MFOS vs. Tabular trained on seed = 4
-# run_path: ucl-dark/ipd/26cqaqyc
-# model_path:  exp/GS-MFOS-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_20.38.01.382774/generation_4400
+
 
 # PPO agent parameters
 ppo1:

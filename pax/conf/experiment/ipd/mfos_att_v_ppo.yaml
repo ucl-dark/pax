@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents  
-agent1: 'PPO'
+agent1: 'MFOS'
 agent2: 'PPO'
 
 # Environment
@@ -17,11 +17,17 @@ runner: evo
 top_k: 5
 popsize: 1000
 num_envs: 2
-num_opps: 1
+num_opps: 10
 num_outer_steps: 100 
 num_inner_steps: 100 
-num_iters: 5000
+num_iters: 1000
 num_devices: 1
+att_type: 'avg'
+
+# MFOS vs. Tabular trained on seed = 0
+run_path: ucl-dark/ipd/1r9txdso
+model_path:  exp/GS-MFOS-vs-Tabular/run-seed-0-pop-size-1000/2022-09-25_20.32.20.821162/generation_4400
+
 
 # PPO agent parameters
 ppo1:
@@ -64,6 +70,7 @@ ppo2:
   with_cnn: False
   hidden_size: 16
 
+
 # ES parameters 
 es: 
   algo: OpenES        # [OpenES, CMA_ES]
@@ -74,23 +81,23 @@ es:
   init_max: 0.0       # Range of parameter mean initialization - Max
   clip_min: -1e10     # Range of parameter proposals - Min
   clip_max: 1e10      # Range of parameter proposals - Max
-  lrate_init: 0.01    # Initial learning rate
+  lrate_init: 0.1    # Initial learning rate
   lrate_decay: 0.9999 # Multiplicative decay factor
   lrate_limit: 0.001  # Smallest possible lrate
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-  centered_rank: False # Fitness centered_rank
-  w_decay: 0           # Decay old elite fitness 
-  maximise: True       # Maximise fitness 
-  z_score: False       # Normalise fitness 
+  centered_rank: False     # Fitness centered_rank
+  w_decay: 0        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: True      # Normalise fitness 
   mean_reduce: True    # Remove mean
   
 # Logging setup
 wandb:
   entity: "ucl-dark"
   project: ipd
-  group: 'GS-${agent1}-vs-${agent2}'
+  group: '${agent1}-vs-${agent2}'
   name: run-seed-${seed}-pop-size-${popsize}
   log: False
 
