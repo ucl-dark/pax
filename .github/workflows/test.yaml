@@ -22,6 +22,8 @@ jobs:
     - name: Install from repo in the test mode
       run: "pip install -e '.[dev]'"
     - uses: pre-commit/action@v3.0.0
+      with:
+        extra_args: black --exclude=version.py
     - name: Test with pytest
       run: |
         pip install pytest
