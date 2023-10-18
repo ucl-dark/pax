@@ -35,7 +35,7 @@ class CategoricalValueHead(hk.Module):
     def __call__(self, inputs: jnp.ndarray):
         logits = self._logit_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
-        return (distrax.Categorical(logits=logits), value)
+        return distrax.Categorical(logits=logits), value
 
 
 class CategoricalValueHead_ipd(hk.Module):
@@ -161,23 +161,24 @@ class ContinuousValueHead(hk.Module):
             num_values: int,
             name: Optional[str] = None,
             mean_activation: Optional[str] = None,
+            with_bias=False,
     ):
         super().__init__(name=name)
         self.mean_action = mean_activation
         self._mean_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),
-            with_bias=False,
+            with_bias=with_bias,
         )
         self._scale_layer = hk.Linear(
             num_values,
             w_init=hk.initializers.Orthogonal(0.01),
-            with_bias=False,
+            with_bias=with_bias,
         )
         self._value_layer = hk.Linear(
             1,
             w_init=hk.initializers.Orthogonal(1.0),
-            with_bias=False,
+            with_bias=with_bias,
         )
 
     def __call__(self, inputs: jnp.ndarray):
@@ -684,6 +685,7 @@ def make_GRU_fishery_network(
 def make_GRU_rice_network(
         num_actions: int,
         hidden_size: int,
+        v2=False,
 ):
     # if float_precision == jnp.float16:
     #     policy = jmp.get_policy('params=float16,compute=float16,output=float32')
@@ -693,7 +695,6 @@ def make_GRU_rice_network(
     def forward_fn(
             inputs: jnp.ndarray, state: jnp.ndarray
     ) -> tuple[tuple[MultivariateNormalDiag, Array], Any]:
-        """forward function"""
         gru = hk.GRU(
             hidden_size,
             w_i_init=hk.initializers.Orthogonal(jnp.sqrt(1)),
@@ -701,7 +702,10 @@ def make_GRU_rice_network(
             b_init=hk.initializers.Constant(0),
         )
 
-        cvh = ContinuousValueHead(num_values=num_actions)
+        if v2:
+            cvh = ContinuousValueHead(num_values=num_actions, mean_activation="sigmoid", with_bias=True)
+        else:
+            cvh = ContinuousValueHead(num_values=num_actions)
         embedding, state = gru(inputs, state)
         logits, values = cvh(embedding)
         return (logits, values), state

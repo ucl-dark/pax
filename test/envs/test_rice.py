@@ -18,7 +18,7 @@ ep_length = 20
 def test_rice():
     rng = jax.random.PRNGKey(0)
 
-    env = Rice(num_inner_steps=ep_length, config_folder=config_folder)
+    env = Rice(config_folder=config_folder, episode_length=ep_length)
     env_params = EnvParams()
     obs, env_state = env.reset(rng, EnvParams())
 
@@ -49,7 +49,7 @@ def test_rice():
 def test_rice_regression(data_regression):
     rng = jax.random.PRNGKey(0)
 
-    env = Rice(num_inner_steps=ep_length, config_folder=config_folder)  # Make sure to define 'config_folder'
+    env = Rice(config_folder=config_folder, episode_length=ep_length)  # Make sure to define 'config_folder'
     env_params = EnvParams()
     obs, env_state = env.reset(rng, env_params)
 
@@ -76,7 +76,7 @@ def rice_performance_benchmark():
     rng = jax.random.PRNGKey(0)
     iterations = 1000
 
-    env = Rice(num_inner_steps=ep_length, config_folder=config_folder)
+    env = Rice(config_folder=config_folder, episode_length=ep_length)
     env_params = EnvParams()
     obs, env_state = env.reset(rng, EnvParams())
 

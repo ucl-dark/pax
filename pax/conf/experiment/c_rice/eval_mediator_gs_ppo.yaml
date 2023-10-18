@@ -2,7 +2,8 @@
 
 # Agents
 agent1: 'PPO'
-agent_default: 'Naive'
+agent2: 'PPO_memory'
+agent_default: 'PPO_memory'
 agent2_roles: 5
 
 # Environment
@@ -11,19 +12,30 @@ env_type: meta
 num_players: 6
 has_mediator: True
 config_folder: pax/envs/rice/5_regions
-runner: evo
+runner: eval
+rice_v2_network: True
+shuffle_agents: False
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 1
+num_envs: 2
 num_opps: 1
-num_outer_steps: 2000
-num_inner_steps: 20
-num_iters: 1500
+num_outer_steps: 1
+num_inner_steps: 2000
+num_iters: 2000
 num_devices: 1
-num_steps: 200
+num_steps: 10
 
+# Train to convergence
+agent2_reset_interval: 1000
+# Regular mediator
+#run_path: chrismatix/c-rice/runs/3w7d59ug
+#model_path: exp/mediator/c_rice-mediator-gs-ppo-interval10_seed0/2023-10-09_17.00.59.872280/generation_1499
+
+# Climate objective
+run_path: chrismatix/c-rice/runs/ovss1ahd
+model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0-climate-obj/2023-10-14_17.23.35.878225/generation_1499
 
 # PPO agent parameters
 ppo_default:
@@ -47,17 +59,7 @@ ppo_default:
   output_channels: 16
   kernel_shape: [3, 3]
   separate: True
-  hidden_size: 64
-
-naive:
-  num_minibatches: 1
-  num_epochs: 1
-  gamma: 1
-  gae_lambda: 0.95
-  max_gradient_norm: 1.0
-  learning_rate: 1.0
-  adam_epsilon: 1e-5
-  entropy_coeff: 0.0
+  hidden_size: 32
 
 # ES parameters
 es:
@@ -84,7 +86,7 @@ es:
 # Logging setup
 wandb:
   project: c-rice
-  group: 'mediator'
+  group: 'eval'
   name: 'c-rice-mediator-GS-${agent_default}-seed-${seed}'
   log: True
 

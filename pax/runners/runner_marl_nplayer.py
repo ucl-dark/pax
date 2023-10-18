@@ -506,12 +506,7 @@ class NplayerRLRunner:
                     ),
                 )
             elif args.env_id == "Fishery":
-                total_env_stats = jax.tree_util.tree_map(
-                    lambda x: x,
-                    fishery_stats(
-                        trajectories[0], args.num_players
-                    ),
-                )
+                total_env_stats = fishery_stats(trajectories, args.num_players)
             else:
                 total_env_stats = {}
 
@@ -527,7 +522,6 @@ class NplayerRLRunner:
                 trajectories,
             )
 
-        # self.rollout = _rollout
         self.rollout = jax.jit(_rollout)
 
     def run_loop(self, env_params, agents, num_iters, watchers):

@@ -12,7 +12,7 @@ num_players: 5
 has_mediator: False
 config_folder: pax/envs/rice/5_regions
 runner: weight_sharing
-# Training hyperparameters
+rice_v2_network: True
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 50

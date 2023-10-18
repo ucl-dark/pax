@@ -18,9 +18,9 @@ def test_fishery_convergence():
         s_max=1.0
     )
     # response parameter
-    d = 0.4
 
     obs, env_state = env.reset(rng, env_params)
+    d = 0.4
     E = 1.0
     step_reward = 0
     for i in range(3 * ep_length + 1):

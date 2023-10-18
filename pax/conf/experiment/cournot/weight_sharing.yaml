@@ -1,7 +1,7 @@
 # @package _global_
 
 # Agents
-agent1: 'MFOS'
+agent1: 'PPO'
 agent_default: 'PPO'
 
 # Environment
@@ -21,12 +21,13 @@ num_envs: 4
 num_opps: 1
 num_outer_steps: 300
 num_inner_steps: 1 # One-shot game
-num_iters: 3000
+num_iters: 1000
 num_devices: 1
 num_steps: '${num_inner_steps}'
 
+
 # PPO agent parameters
-ppo_default:
+ppo1:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96
@@ -42,10 +43,11 @@ ppo_default:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: False
   hidden_size: 16
 
+# PPO agent parameters
 ppo2:
   num_minibatches: 4
   num_epochs: 2
@@ -62,7 +64,7 @@ ppo2:
   lr_scheduling: False
   learning_rate: 1
   adam_epsilon: 1e-5
-  with_memory: False
+  with_memory: True
   with_cnn: False
   hidden_size: 16
 
@@ -82,16 +84,17 @@ es:
   beta_1: 0.99        # Adam - beta_1
   beta_2: 0.999       # Adam - beta_2
   eps: 1e-8           # eps constant,
-  centered_rank: False     # Fitness centered_rank
-  w_decay: 0        # Decay old elite fitness
-  maximise: True      # Maximise fitness
-  z_score: True      # Normalise fitness
+  centered_rank: False # Fitness centered_rank
+  w_decay: 0           # Decay old elite fitness
+  maximise: True       # Maximise fitness
+  z_score: False       # Normalise fitness
   mean_reduce: True    # Remove mean
 
 # Logging setup
 wandb:
   project: cournot
-  name: 'cournot-MFOS-${agent1}-vs-${agent2}'
+  group: 'weight_sharing'
+  name: 'cournot-weight_sharing-${num_players}p-seed-${seed}'
   log: True
 
 

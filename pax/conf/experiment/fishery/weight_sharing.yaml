@@ -19,10 +19,10 @@ runner: weight_sharing
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 50
-num_inner_steps: 20
-num_iters: 3e6
+num_inner_steps: 300
+num_iters: 4e6
 save_interval: 100
-num_steps: 2000
+num_steps: 2100
 
 
 ppo_default:

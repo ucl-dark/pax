@@ -316,12 +316,12 @@ class RLRunner:
             ), (*trajectories, a2_metrics)
 
         def _rollout(
-            _rng_run: jnp.ndarray,
-            _a1_state: TrainingState,
-            _a1_mem: MemoryState,
-            _a2_state: TrainingState,
-            _a2_mem: MemoryState,
-            _env_params: Any,
+                _rng_run: jnp.ndarray,
+                _a1_state: TrainingState,
+                _a1_mem: MemoryState,
+                _a2_state: TrainingState,
+                _a2_mem: MemoryState,
+                _env_params: Any,
         ):
             # env reset
             rngs = jnp.concatenate(
@@ -459,13 +459,7 @@ class RLRunner:
                     ),
                 )
             elif args.env_id == "Fishery":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    fishery_stats(
-                        traj_1,
-                        2,
-                    ),
-                )
+                env_stats = fishery_stats([traj_1, traj_2], 2)
             else:
                 env_stats = {}
 
@@ -552,14 +546,14 @@ class RLRunner:
                     )
                     if self.args.agent1 != "LOLA":
                         agent1._logger.metrics = (
-                            agent1._logger.metrics | flattened_metrics_1
+                                agent1._logger.metrics | flattened_metrics_1
                         )
                     # metrics [outer_timesteps, num_opps]
                     flattened_metrics_2 = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
                     agent2._logger.metrics = (
-                        agent2._logger.metrics | flattened_metrics_2
+                            agent2._logger.metrics | flattened_metrics_2
                     )
 
                     for watcher, agent in zip(watchers, agents):

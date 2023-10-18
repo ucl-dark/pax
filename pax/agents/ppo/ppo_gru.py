@@ -361,7 +361,7 @@ class PPO(AgentInterface):
 
         def make_initial_state(
             key: Any, initial_hidden_state: jnp.ndarray
-        ) -> TrainingState:
+        ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
 
             # We pass through initial_hidden_state so its easy to batch memory
@@ -395,7 +395,6 @@ class PPO(AgentInterface):
                 },
             )
 
-        # @jax.jit
         def prepare_batch(
             traj_batch: NamedTuple,
             done: Any,
@@ -548,11 +547,11 @@ def make_gru_agent(
         )
     elif args.env_id in [Rice.env_id, "Rice-v1"]:
         network, initial_hidden_state = make_GRU_rice_network(
-            action_spec, agent_args.hidden_size
+            action_spec, agent_args.hidden_size, args.rice_v2_network
         )
     elif args.env_id == ClubRice.env_id:
         network, initial_hidden_state = make_GRU_rice_network(
-            action_spec, agent_args.hidden_size
+            action_spec, agent_args.hidden_size, args.rice_v2_network
         )
     elif args.env_id == "InTheMatrix":
         network, initial_hidden_state = make_GRU_ipditm_network(

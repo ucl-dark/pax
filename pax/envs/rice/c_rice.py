@@ -32,14 +32,22 @@ If the mediator is enabled it can choose the club tariff rate and the minimum mi
 class ClubRice(environment.Environment):
     env_id: str = "C-Rice-N"
 
-    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
+    def __init__(self,
+                 config_folder: str,
+                 has_mediator=False,
+                 mediator_climate_weight=0,
+                 mediator_utility_weight=1,
+                 mediator_climate_objective=False,
+                 default_club_tariff_rate=0.1,
+                 default_club_mitigation_rate=0.3,
+                 episode_length: int = 20,
+                 ):
         super().__init__()
-        if has_mediator is False:
-            raise NotImplementedError("C-Rice environment without mediator is not implemented yet")
 
         params, num_regions = load_rice_params(config_folder)
         self.has_mediator = has_mediator
         self.num_players = num_regions
+        self.episode_length = episode_length
         self.num_actors = self.num_players + 1 if self.has_mediator else self.num_players
         self.rice_constant = params["_RICE_GLOBAL_CONSTANT"]
         self.dice_constant = params["_DICE_CONSTANT"]
@@ -79,7 +87,15 @@ class ClubRice(environment.Environment):
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
         self.dom_pref = jnp.asarray(0.5, dtype=float_precision)
         self.for_pref = jnp.asarray([0.5 / (self.num_players - 1)] * self.num_players, dtype=float_precision)
-        self.default_club_tariff_rate = jnp.asarray(0.1, dtype=float_precision)
+        self.default_club_tariff_rate = jnp.asarray(default_club_tariff_rate, dtype=float_precision)
+        self.default_club_mitigation_rate = jnp.asarray(default_club_mitigation_rate, dtype=float_precision)
+
+        if mediator_climate_objective:
+            self.mediator_climate_weight = 1
+            self.mediator_utility_weight = 0
+        else:
+            self.mediator_climate_weight = jnp.asarray(mediator_climate_weight, dtype=float_precision)
+            self.mediator_utility_weight = jnp.asarray(mediator_utility_weight, dtype=float_precision)
 
         def _step(
                 key: chex.PRNGKey,
@@ -89,7 +105,7 @@ class ClubRice(environment.Environment):
         ):
             t = state.inner_t + 1  # Rice equations expect to start at t=1
             key, _ = jax.random.split(key, 2)
-            done = t >= num_inner_steps
+            done = t >= self.episode_length
 
             t_at = state.global_temperature[0]
             global_exogenous_emissions = get_exogenous_emissions(
@@ -104,7 +120,8 @@ class ClubRice(environment.Environment):
             else:
                 region_actions = actions
 
-            club_membership_all = region_actions[:, self.join_club_action_index]
+            # TODO it'd be better if this variable was categorical in the agent network
+            club_membership_all = jnp.round(region_actions[:, self.join_club_action_index]).astype(jnp.int8)
             mitigation_cost_all = get_mitigation_cost(
                 self.rice_constant["xp_b"],
                 self.rice_constant["xtheta_2"],
@@ -121,20 +138,23 @@ class ClubRice(environment.Environment):
             )
 
             if has_mediator:
-                club_mitigation_rates = actions[0, self.mitigation_rate_action_index]
+                club_mitigation_rate = actions[0, self.mitigation_rate_action_index]
+                club_tariff_rate = actions[0, self.tariffs_action_index]
             else:
                 # Get the maximum carbon price of non-members from the last timestep
-                club_price = jnp.max(state.carbon_price_all * (1 - state.club_membership_all))
-                club_mitigation_rates = get_club_mitigation_rates(
-                    club_price,
-                    intensity_all,
-                    self.rice_constant["xtheta_2"],
-                    mitigation_cost_all,
-                    state.damages_all
-                )
+                # club_price = jnp.max(state.carbon_price_all * (1 - state.club_membership_all))
+                club_tariff_rate = self.default_club_tariff_rate
+                club_mitigation_rate = self.default_club_mitigation_rate
+                # club_mitigation_rate = get_club_mitigation_rates(
+                #     club_price,
+                #     intensity_all,
+                #     self.rice_constant["xtheta_2"],
+                #     mitigation_cost_all,
+                #     state.damages_all
+                # )
             mitigation_rate_all = jnp.where(
                 club_membership_all == 1,
-                club_mitigation_rates,
+                club_mitigation_rate,
                 region_actions[:, self.mitigation_rate_action_index]
             )
 
@@ -244,11 +264,6 @@ class ClubRice(environment.Environment):
                                                 self.rice_constant["xtheta_2"],
                                                 damages_all)
 
-            if has_mediator:
-                club_tariff_rate = actions[0, self.tariffs_action_index]
-            else:
-                club_tariff_rate = self.default_club_tariff_rate
-
             desired_future_tariffs = region_actions[:,
                                      self.tariffs_action_index: self.tariffs_action_index + self.num_players]
             # Club members impose a minimum tariff of the club tariff rate
@@ -290,7 +305,7 @@ class ClubRice(environment.Environment):
 
                 tariff_revenue_all=tariff_revenue_all,
                 carbon_price_all=carbon_price_all,
-                club_membership_all=jnp.zeros(self.num_players, dtype=jnp.int8),
+                club_membership_all=club_membership_all,
             )
 
             reset_obs, reset_state = _reset(key, params)
@@ -298,27 +313,30 @@ class ClubRice(environment.Environment):
 
             obs = []
             if self.has_mediator:
-                obs.append(self._generate_mediator_observation(actions, next_state))
+                obs.append(self._generate_mediator_observation(next_state, club_mitigation_rate, club_tariff_rate))
 
             for i in range(self.num_players):
-                obs.append(self._generate_observation(i, actions, next_state))
+                obs.append(self._generate_observation(i, next_state, club_mitigation_rate, club_tariff_rate))
 
             obs = jax.tree_map(lambda x, y: jnp.where(done, x, y), reset_obs, tuple(obs))
 
-            state = jax.tree_map(
+            result_state = jax.tree_map(
                 lambda x, y: jnp.where(done, x, y),
                 reset_state,
                 next_state,
             )
 
+            rewards = result_state.utility_all
             if self.has_mediator:
-                rewards = jnp.insert(state.utility_all, 0, state.utility_all.sum())
-            else:
-                rewards = state.utility_all
+                temp_increase = next_state.global_temperature[0] - state.global_temperature[0]
+                # Rescale the social reward to make the weights comparable
+                social_reward = result_state.utility_all.sum() / (self.num_players * 10)
+                mediator_reward = - self.mediator_climate_weight * temp_increase + self.mediator_utility_weight * social_reward
+                rewards = jnp.insert(result_state.utility_all, 0, mediator_reward)
 
             return (
                 tuple(obs),
-                state,
+                result_state,
                 tuple(rewards),
                 done,
                 {},
@@ -328,12 +346,12 @@ class ClubRice(environment.Environment):
                 key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[Tuple, EnvState]:
             state = self._get_initial_state()
-            actions = jnp.asarray([jax.random.uniform(key, (self.num_actions,)) for _ in range(self.num_actors)])
             obs = []
+            club_state = jax.random.uniform(key, (2,))
             if self.has_mediator:
-                obs.append(self._generate_mediator_observation(actions, state))
+                obs.append(self._generate_mediator_observation(state, club_state[0], club_state[1]))
             for i in range(self.num_players):
-                obs.append(self._generate_observation(i, actions, state))
+                obs.append(self._generate_observation(i, state, club_state[0], club_state[1]))
             return tuple(obs), state
 
         self.step = jax.jit(_step)
@@ -372,53 +390,36 @@ class ClubRice(environment.Environment):
             club_membership_all=jnp.zeros(self.num_players, dtype=jnp.int8),
         )
 
-    def _generate_observation(self, index: int, actions: chex.ArrayDevice, state: EnvState) -> Array:
+    def _generate_observation(self, index: int, state: EnvState, club_mitigation_rate, club_tariff_rate) -> Array:
         return jnp.concatenate([
             # Public features
             jnp.asarray([index]),
             jnp.asarray([state.inner_t]),
+            jnp.array([club_mitigation_rate]),
+            jnp.array([club_tariff_rate]),
             state.global_temperature,
             state.global_carbon_mass,
-            jnp.asarray([state.global_exogenous_emissions]),
-            jnp.asarray([state.global_land_emissions]),
-            state.labor_all,
-            state.capital_all,
             state.gross_output_all,
-            state.consumption_all,
             state.investment_all,
-            state.balance_all,
+            state.abatement_cost_all,
             state.tariff_revenue_all,
-            state.carbon_price_all,
             state.club_membership_all,
-            # Private features
-            jnp.asarray([state.damages_all[index]]),
-            jnp.asarray([state.abatement_cost_all[index]]),
-            jnp.asarray([state.production_all[index]]),
-            # All agent actions
-            actions.ravel()
         ], dtype=float_precision)
 
-    def _generate_mediator_observation(self, actions: chex.ArrayDevice, state: EnvState) -> Array:
+    def _generate_mediator_observation(self, state: EnvState, club_mitigation_rate, club_tariff_rate) -> Array:
         return jnp.concatenate([
+            # Public features
             jnp.zeros(1),
             jnp.asarray([state.inner_t]),
+            jnp.array([club_mitigation_rate]),
+            jnp.array([club_tariff_rate]),
             state.global_temperature,
             state.global_carbon_mass,
-            jnp.asarray([state.global_exogenous_emissions]),
-            jnp.asarray([state.global_land_emissions]),
-            state.labor_all,
-            state.capital_all,
             state.gross_output_all,
-            state.consumption_all,
             state.investment_all,
-            state.balance_all,
+            state.abatement_cost_all,
             state.tariff_revenue_all,
-            state.carbon_price_all,
             state.club_membership_all,
-            # Maintain same dimensionality as for other players
-            jnp.zeros(3),
-            # All agent actions
-            actions.ravel()
         ], dtype=float_precision)
 
     @property
@@ -436,7 +437,7 @@ class ClubRice(environment.Environment):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         init_state = self._get_initial_state()
-        obs = self._generate_observation(0, jnp.zeros(self.num_actions * self.num_actors), init_state)
+        obs = self._generate_observation(0, init_state, 0, 0)
         return spaces.Box(low=0, high=float('inf'), shape=obs.shape, dtype=float_precision)
 
 

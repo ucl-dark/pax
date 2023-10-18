@@ -65,7 +65,8 @@ class Fishery(environment.Environment):
             actions = jnp.asarray(actions).squeeze()
             actions = jnp.clip(actions, a_min=0)
             E = actions.sum()
-            s_growth = state.s + params.g * state.s * (1 - state.s / params.s_max)
+            s_new = params.g * state.s * (1 - state.s / params.s_max)
+            s_growth = state.s + s_new
 
             # Prevent s from dropping below 0
             H = jnp.clip(E * state.s * params.e, a_max=s_growth)
@@ -104,6 +105,8 @@ class Fishery(environment.Environment):
                 {
                     "H": H,
                     "E": E,
+                    "growth": s_new,
+                    "cost": params.w * E,
                 },
             )
 

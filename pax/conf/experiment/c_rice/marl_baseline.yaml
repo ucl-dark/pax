@@ -10,6 +10,7 @@ num_players: 6
 has_mediator: True
 config_folder: pax/envs/rice/5_regions
 runner: evo
+rice_v2_network: True
 
 # Training
 top_k: 5

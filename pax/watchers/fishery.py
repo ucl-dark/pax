@@ -1,5 +1,5 @@
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, List
 
 import jax
 import numpy as np
@@ -7,14 +7,12 @@ import wandb
 from jax import numpy as jnp
 
 
-@partial(jax.jit, static_argnums=(1,))
-def fishery_stats(traj: NamedTuple, num_players: int) -> dict:
+@partial(jax.jit, static_argnums=1)
+def fishery_stats(trajectories: List[NamedTuple], num_players: int) -> dict:
+    traj = trajectories[0]
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
     stock_obs = traj.observations[..., -1]
     actions = traj.observations[..., :num_players]
-    # TODO this blows up the memory usage
-    # flattened_stock_obs = jnp.ravel(stock_obs)
-    # split_stock_obs = jnp.array(jnp.split(flattened_stock_obs, flattened_stock_obs.shape[0] // num_inner_steps))
     completed_episodes = jnp.sum(traj.dones)
     stats = {
         "fishery/stock": jnp.mean(stock_obs),
@@ -26,6 +24,10 @@ def fishery_stats(traj: NamedTuple, num_players: int) -> dict:
     for i in range(num_players):
         stats["fishery/effort_" + str(i)] = jnp.mean(traj.observations[..., i])
         stats["fishery/effort_" + str(i) + "_std"] = jnp.mean(traj.observations[..., i])
+        stats["train/total_reward_" + str(i)] = jnp.where(completed_episodes != 0, trajectories[i].rewards.sum() / completed_episodes, 0)
+
+    total_reward = jnp.array([jnp.sum(_traj.rewards) for _traj in trajectories]).sum()
+    stats["train/total_reward_per_episode"] = jnp.where(completed_episodes != 0, total_reward / completed_episodes, 0)
 
     return stats
 

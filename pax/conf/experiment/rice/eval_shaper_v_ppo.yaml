@@ -14,20 +14,37 @@ num_players: 5
 has_mediator: False
 shuffle_players: True
 config_folder: pax/envs/rice/5_regions
-runner: evo
 rice_v2_network: True
+
+runner: eval
+
+run_path: chrismatix/rice/runs/yg67hb4e
+model_path: exp/shaper/rice-SHAPER-PPO_memory-seed-0-interval_20/2023-10-09_12.14.28.778753/generation_1499
+
+# Better run but with old network
+#run_path: chrismatix/rice/runs/btpdx3d2
+#model_path: exp/shaper/rice-SHAPER-PPO_memory-seed-0-interval_10/2023-10-03_17.06.36.625352/generation_1499
+
+# v2 network sharing
+run_path2: chrismatix/rice/runs/l6ug3nod
+model_path2: exp/weight_sharing/rice-weight_sharing-PPO_memory-seed-0/2023-10-12_18.54.03.092581/iteration_119999
+
+# v1 network weight sharing
+#run_path2: chrismatix/rice/runs/ozked2ow
+#model_path2: exp/weight_sharing/rice-weight_sharing-PPO_memory-seed-0/2023-09-23_09.07.36.737803/iteration_119999
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 1
-num_opps: 1
-num_outer_steps: 200
-num_inner_steps: 20
-num_iters: 1500
 num_devices: 1
+num_envs: 20
+num_opps: 1
+num_inner_steps: 20
+num_outer_steps: 1
+num_iters: 100
 num_steps: 200
 
+agent2_reset_interval: 1000
 
 # PPO agent parameters
 ppo_default:
@@ -78,6 +95,6 @@ es:
 # Logging setup
 wandb:
   project: rice
-  group: 'shaper'
-  name: 'rice-SHAPER-${agent_default}-seed-${seed}'
+  group: 'eval'
+  name: 'eval-rice-SHAPER-${agent_default}-seed-${seed}'
   log: True

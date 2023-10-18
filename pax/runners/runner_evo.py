@@ -8,7 +8,7 @@ import jax.numpy as jnp
 from evosax import FitnessShaper
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save, float_precision
+from pax.utils import MemoryState, TrainingState, save, float_precision, Sample
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -16,20 +16,9 @@ from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats
 from pax.watchers.fishery import fishery_stats
 from pax.watchers.cournot import cournot_stats
 from pax.watchers.rice import rice_stats
+from pax.watchers.c_rice import c_rice_stats
 
 MAX_WANDB_CALLS = 1000
-
-
-class Sample(NamedTuple):
-    """Object containing a batch of data"""
-
-    observations: jnp.ndarray
-    actions: jnp.ndarray
-    rewards: jnp.ndarray
-    behavior_log_probs: jnp.ndarray
-    behavior_values: jnp.ndarray
-    dones: jnp.ndarray
-    hiddens: jnp.ndarray
 
 
 class EvoRunner:
@@ -228,6 +217,10 @@ class EvoRunner:
                 env_params,
             )
 
+            inv_agent_order = jnp.argsort(agent_order)
+            obs = jnp.asarray(obs)[inv_agent_order]
+            rewards = jnp.asarray(rewards)[inv_agent_order]
+
             traj1 = Sample(
                 obs1,
                 a1,
@@ -244,12 +237,9 @@ class EvoRunner:
                        new_memory.extras["log_probs"],
                        new_memory.extras["values"],
                        done,
-                       memory.hidden) for observation, action, reward, memory, new_memory in
-                zip(obs2, a2_actions, rewards, new_a2_memories, a2_mem)]
+                       memory.hidden) for observation, action, reward, new_memory, memory in
+                zip(obs2, a2_actions, rewards[1:], new_a2_memories, a2_mem)]
 
-            inv_agent_order = jnp.argsort(agent_order)
-            obs = jnp.asarray(obs)[inv_agent_order]
-            rewards = jnp.asarray(rewards)[inv_agent_order]
             return (
                 rngs,
                 obs[0],
@@ -275,7 +265,7 @@ class EvoRunner:
                 _inner_rollout,
                 carry,
                 None,
-                length=args.num_steps,
+                length=args.num_inner_steps,
             )
             (
                 rngs,
@@ -343,9 +333,7 @@ class EvoRunner:
             _a1_state = _a1_state._replace(params=_params)
             _a1_mem = agent1.batch_reset(_a1_mem, False)
             # Player 2
-            if _a2_state is not None:
-                a2_state = _a2_state
-            elif args.agent2 == "NaiveEx":
+            if args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(obs[1])
             else:
                 # meta-experiments - init 2nd agent per trial
@@ -356,6 +344,9 @@ class EvoRunner:
                     a2_rng,
                     agent2._mem.hidden,
                 )
+
+            if _a2_state is not None:
+                a2_state = _a2_state
 
             agent_order = jnp.arange(args.num_players)
             if args.shuffle_players:
@@ -447,15 +438,11 @@ class EvoRunner:
                     ),
                 )
             elif args.env_id == "Fishery":
-                env_stats = jax.tree_util.tree_map(
-                    lambda x: x.mean(),
-                    fishery_stats(
-                        traj_1,
-                        2,
-                    ),
-                )
-            elif args.env_id in ["Rice-N", "C-Rice-N"]:
+                env_stats = fishery_stats([traj_1] + traj_2, args.num_players)
+            elif args.env_id == "Rice-N":
                 env_stats = rice_stats([traj_1] + traj_2, args.num_players, args.has_mediator)
+            elif args.env_id == "C-Rice-N":
+                env_stats = c_rice_stats([traj_1] + traj_2, args.num_players, args.has_mediator)
             else:
                 env_stats = {}
 
@@ -549,6 +536,13 @@ class EvoRunner:
 
             if gen % self.args.agent2_reset_interval == 0:
                 a2_state = None
+
+            if self.args.num_devices == 1 and a2_state is not None:
+                # The first rollout returns a2_state with an extra batch dim that will cause issues when passing
+                # it back to the vmapped batch_policy
+                a2_state = jax.tree_util.tree_map(
+                    lambda w: jnp.squeeze(w, axis=0), a2_state
+                )
 
             # Evo Rollout
             (

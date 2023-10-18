@@ -224,7 +224,6 @@ def env_setup(args, logger=None):
     elif args.env_id == Rice.env_id:
         env_params = RiceParams()
         env = Rice(
-            num_inner_steps=args.num_inner_steps,
             config_folder=args.config_folder,
             has_mediator=args.has_mediator,
         )
@@ -235,9 +234,13 @@ def env_setup(args, logger=None):
     elif args.env_id == ClubRice.env_id:
         env_params = RiceParams()
         env = ClubRice(
-            num_inner_steps=args.num_inner_steps,
             config_folder=args.config_folder,
             has_mediator=args.has_mediator,
+            mediator_climate_objective=args.get("mediator_climate_objective", None),
+            default_club_mitigation_rate=args.get("default_club_mitigation_rate", None),
+            default_club_tariff_rate=args.get("default_club_tariff_rate", None),
+            mediator_climate_weight=args.get("mediator_climate_weight", None),
+            mediator_utility_weight=args.get("mediator_utility_weight", None),
         )
         if logger:
             logger.info(
@@ -246,8 +249,8 @@ def env_setup(args, logger=None):
     elif args.env_id == SarlRice.env_id:
         env_params = RiceParams()
         env = SarlRice(
-            num_inner_steps=args.num_inner_steps,
             config_folder=args.config_folder,
+            fixed_mitigation_rate=args.get("fixed_mitigation_rate", None),
         )
         if logger:
             logger.info(

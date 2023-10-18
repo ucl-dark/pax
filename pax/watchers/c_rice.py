@@ -4,31 +4,29 @@ from typing import NamedTuple, List
 import jax
 from jax import numpy as jnp
 
+from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import EnvState, Rice
 
 
 @partial(jax.jit, static_argnums=(1, 2))
-def rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool) -> dict:
+def c_rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool) -> dict:
     traj = trajectories[0]
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
     result = {
-        "temperature": jnp.mean(traj.observations[..., 2]),
-        "land_temperature": jnp.mean(traj.observations[..., 3]),
-        "carbon_atmosphere": jnp.mean(traj.observations[..., 4]),
-        "carbon_upper_ocean": jnp.mean(traj.observations[..., 5]),
-        "carbon_land": jnp.mean(traj.observations[..., 6]),
-        # Omitted: exogenous_emissions, land_emissions
+        "club_mitigation_rate": jnp.mean(traj.observations[..., 2]),
+        "club_tariff_rate": jnp.mean(traj.observations[..., 3]),
+        "temperature": jnp.mean(traj.observations[..., 4]),
+        "land_temperature": jnp.mean(traj.observations[..., 5]),
+        "carbon_atmosphere": jnp.mean(traj.observations[..., 6]),
+        "carbon_upper_ocean": jnp.mean(traj.observations[..., 7]),
+        "carbon_land": jnp.mean(traj.observations[..., 8]),
     }
 
     region_vars = [
-        "labor",
-        "capital",
         "gross_output",
-        "consumption",
         "investment",
-        "balance",
+        "abatement_cost",
         "tariff_revenue",
-        "carbon_price",
         "club_membership",
     ]
 
@@ -40,7 +38,7 @@ def rice_stats(trajectories: List[NamedTuple], num_players: int, mediator: bool)
 
     num_episodes = jnp.sum(traj.dones)
     result["final_temperature"] = jnp.where(num_episodes != 0,
-                                            jnp.sum(traj.dones * traj.observations[..., 2]) / num_episodes, 0)
+                                            jnp.sum(traj.dones * traj.observations[..., 4]) / num_episodes, 0)
 
     region_trajectories = trajectories if mediator is False else trajectories[1:]
     total_reward = jnp.array([jnp.sum(_traj.rewards) for _traj in region_trajectories]).sum()
@@ -59,7 +57,7 @@ ep_length = 20
 
 
 @partial(jax.jit, static_argnums=(2))
-def rice_eval_stats(trajectories: List[NamedTuple], env_state: EnvState, env: Rice) -> dict:
+def c_rice_eval_stats(trajectories: List[NamedTuple], env_state: EnvState, env: ClubRice) -> dict:
     # In the stacked env_state the inner steps are one long sequence in the first dimension
     # But to compute step statistics we need it to be episodes x steps x  ...
     ep_count = int(env_state.global_temperature.shape[1] / 20)
@@ -103,6 +101,7 @@ def rice_eval_stats(trajectories: List[NamedTuple], env_state: EnvState, env: Ri
     add_atrib("mitigation_cost", env_state.mitigation_cost_all, axis=(0, 2, 3))
     add_atrib("damages", env_state.damages_all, axis=(0, 2, 3))
 
+
     actions = jnp.stack([traj.actions for traj in trajectories])
     # n_players x rollouts x steps x ... x n_actions
     # reshape -> n_players x (rollouts * n_episodes) x episode_steps x ... x n_actions
@@ -115,6 +114,7 @@ def rice_eval_stats(trajectories: List[NamedTuple], env_state: EnvState, env: Ri
     add_atrib("savings_rate", actions[..., env.savings_action_index], axis=(2, 3, 4))
     add_atrib("mitigation_rate", actions[..., env.mitigation_rate_action_index], axis=(2, 3, 4))
     add_atrib("export_limit", actions[..., env.export_action_index], axis=(2, 3, 4))
+    add_atrib("club_join_action", actions[..., env.join_club_action_index], axis=(2, 3, 4))
     add_atrib("imports",
               actions[..., env.desired_imports_action_index: env.desired_imports_action_index + env.import_actions_n],
               axis=(2, 3, 4))
@@ -122,46 +122,13 @@ def rice_eval_stats(trajectories: List[NamedTuple], env_state: EnvState, env: Ri
               actions[..., env.tariffs_action_index: env.tariffs_action_index + env.tariff_actions_n],
               axis=(2, 3, 4))
 
-    return result
-
-@partial(jax.jit, static_argnums=(1,))
-def rice_sarl_stats(traj: NamedTuple, num_players: int) -> dict:
-    # obs shape: num_steps x num_envs x obs_dim
-    result = {
-        # Actions
-        "savings_rate": jnp.mean(traj.actions[..., 0]),
-        "mitigation_rate": jnp.mean(traj.actions[..., 1]),
-
-        "temperature": jnp.mean(traj.observations[..., 1]),
-        "land_temperature": jnp.mean(traj.observations[..., 2]),
-        "carbon_atmosphere": jnp.mean(traj.observations[..., 3]),
-        "carbon_upper_ocean": jnp.mean(traj.observations[..., 4]),
-        "carbon_land": jnp.mean(traj.observations[..., 5]),
-        "exogenous_emissions": jnp.mean(traj.observations[..., 6]),
-        "land_emissions": jnp.mean(traj.observations[..., 7]),
-    }
-
-    region_vars = [
-        "labor",
-        "capital",
-        "gross_output",
-        "consumption",
-        "investment",
-        "balance",
-        "tariff_revenue",
-        "carbon_price",
-        "club_membership",
-    ]
-
-    offset = 8
-    for i, label in enumerate(region_vars):
-        start = offset + i * num_players
-        end = offset + (i + 1) * num_players
-        result[label] = jnp.mean(traj.observations[..., start:end])
-
-    num_episodes = jnp.sum(traj.dones)
-    result["final_temperature"] = jnp.where(num_episodes != 0,
-                                            jnp.sum(traj.dones * traj.observations[..., 1]) / num_episodes, 0)
-    result["train/total_reward_per_episode"] = jnp.where(num_episodes != 0, traj.rewards.sum() / num_episodes, 0)
+    observations = trajectories[0].observations
+    observations = jax.tree_util.tree_map(
+        lambda x: x.reshape((x.shape[0] * ep_count, ep_length, *x.shape[2:]))
+        .transpose((1, 0, 2, 3, 4)),
+        observations,
+        )
+    add_atrib("club_mitigation_rate", observations[..., 2], axis=(1, 2, 3))
+    add_atrib("club_tariff_rate", observations[..., 3], axis=(1, 2, 3))
 
     return result

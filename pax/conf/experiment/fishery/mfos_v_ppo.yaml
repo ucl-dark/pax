@@ -94,6 +94,7 @@ es:
 # Logging setup
 wandb:
   project: fishery
+  group: mfos
   name: 'fishery-MFOS-${agent1}-vs-${agent2}'
   log: True
 

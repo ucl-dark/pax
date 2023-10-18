@@ -8,6 +8,19 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import optax
+from jax import numpy as jnp
+
+
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
 
 
 class Section(object):

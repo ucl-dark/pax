@@ -6,21 +6,31 @@ agent2: 'PPO_memory'
 agent_default: 'PPO_memory'
 
 # Environment
-env_id: Rice-N
-env_type: sequential
-num_players: 5
-has_mediator: False
-config_folder: pax/envs/rice/5_regions
-runner: weight_sharing
-rice_v2_network: True
-# Training hyperparameters
+env_id: Fishery
+env_type: meta
+g: 0.15
+e: 0.009
+P: 200
+w: 0.9
+s_0: 0.5
+s_max: 1.0
+# Runner
+runner: eval
+
+run_path: chrismatix/fishery/runs/8ux5pgbx
+model_path: exp/weight_sharing/fishery-weight_sharing-PPO_memory-seed-0/2023-09-30_21.05.25.064114/iteration_59999
+
 
 # env_batch_size = num_envs * num_opponents
-num_envs: 50
-num_inner_steps: 20
-num_iters: 6e6
-save_interval: 100
-num_steps: 2000
+num_devices: 1
+num_envs: 10
+num_opps: 1
+num_inner_steps: 300
+num_iters: 500
+num_outer_steps: 2
+num_steps: 4200
+
+agent2_reset_interval: 500
 
 
 ppo_default:
@@ -49,6 +59,6 @@ ppo_default:
 
 # Logging setup
 wandb:
-  project: rice
-  group: 'weight_sharing'
-  name: 'rice-weight_sharing-${agent1}-seed-${seed}'
+  project: fishery
+  group: 'eval'
+  name: 'eval-fishery-weight_sharing-${agent1}-seed-${seed}'

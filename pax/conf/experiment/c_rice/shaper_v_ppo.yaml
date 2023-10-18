@@ -15,11 +15,17 @@ has_mediator: False
 shuffle_players: False
 config_folder: pax/envs/rice/5_regions
 runner: evo
+rice_v2_network: True
+
+default_club_mitigation_rate: 0.1
+default_club_tariff_rate: 0.1
+
+agent2_reset_interval: 10
 
 # Training
 top_k: 5
 popsize: 1000
-num_envs: 4
+num_envs: 1
 num_opps: 1
 num_outer_steps: 500
 num_inner_steps: 20

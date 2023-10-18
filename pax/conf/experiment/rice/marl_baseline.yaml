@@ -6,7 +6,7 @@ agent_default: 'PPO'
 # Environment
 env_id: Rice-N
 env_type: meta
-num_players: 6
+num_players: 5
 has_mediator: True
 config_folder: pax/envs/rice/5_regions
 runner: tensor_evo

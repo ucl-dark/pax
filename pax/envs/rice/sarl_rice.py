@@ -9,16 +9,17 @@ from gymnax.environments import environment, spaces
 from pax.envs.rice.rice import Rice, EnvState, EnvParams
 
 """
-Wrapper to turn Rice into a single-agent environment.
+Wrapper to turn Rice-N into a single-agent environment.
 """
 
 
 class SarlRice(environment.Environment):
     env_id: str = "SarlRice-N"
 
-    def __init__(self, num_inner_steps: int, config_folder: str):
+    def __init__(self, config_folder: str, fixed_mitigation_rate: int = None, episode_length: int = 20):
         super().__init__()
-        self.rice = Rice(num_inner_steps, config_folder)
+        self.rice = Rice(config_folder, episode_length=episode_length)
+        self.fixed_mitigation_rate = fixed_mitigation_rate
 
         def _step(
                 key: chex.PRNGKey,
@@ -32,8 +33,12 @@ class SarlRice(environment.Environment):
             actions = actions.at[:, self.rice.export_action_index].set(1.0)
             actions = actions.at[:, self.rice.tariffs_action_index:
                                     self.rice.tariffs_action_index + self.rice.num_players].set(0.0)
-            actions = actions.at[:, self.rice.desired_imports_action_index:
-                                    self.rice.desired_imports_action_index + self.rice.num_players].set(0.0)
+
+            if self.fixed_mitigation_rate is not None:
+                actions = actions.at[:, self.rice.mitigation_rate_action_index].set(self.fixed_mitigation_rate)
+
+            # actions = actions.at[:, self.rice.desired_imports_action_index:
+            #                         self.rice.desired_imports_action_index + self.rice.num_players].set(0.0)
             obs, state, rewards, done, info = self.rice.step(key, state, tuple(actions), params)
 
             return (

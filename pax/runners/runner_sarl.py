@@ -205,7 +205,9 @@ class SARLRunner:
                 a1_metrics,
             ) = self.rollout(rng_run, a1_state, a1_mem, env_params)
 
-            if i % self.args.save_interval == 0:
+            is_last_loop = i == num_iters - 1
+
+            if i % self.args.save_interval == 0 or is_last_loop:
                 log_savepath = os.path.join(self.save_dir, f"iteration_{i}")
                 save(a1_state.params, log_savepath)
                 if watcher:
@@ -216,7 +218,7 @@ class SARLRunner:
 
             # logging
             self.train_episodes += 1
-            if num_iters % log_interval == 0:
+            if num_iters % log_interval == 0 or is_last_loop:
                 print(f"Episode {i}/{num_iters}")
 
                 print(

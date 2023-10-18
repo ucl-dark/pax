@@ -10,6 +10,9 @@ num_players: 5
 has_mediator: False
 config_folder: pax/envs/rice/5_regions
 runner: sarl
+rice_v2_network: True
+
+# fixed_mitigation_rate: 0 Set this to test BAU scenario
 # Training hyperparameters
 
 # env_batch_size = num_envs * num_opponents

@@ -68,7 +68,7 @@ which in turn is an adaptation of the RICE IAM.
 class Rice(environment.Environment):
     env_id: str = "Rice-N"
 
-    def __init__(self, num_inner_steps: int, config_folder: str, has_mediator=False):
+    def __init__(self, config_folder: str, has_mediator=False, episode_length=20):
         super().__init__()
 
         # TODO refactor all the constants to use env_params
@@ -114,6 +114,7 @@ class Rice(environment.Environment):
         self.sub_rate = jnp.asarray(0.5, dtype=float_precision)
         self.dom_pref = jnp.asarray(0.5, dtype=float_precision)
         self.for_pref = jnp.asarray([0.5 / (self.num_players - 1)] * self.num_players, dtype=float_precision)
+        self.episode_length = episode_length
 
         def _step(
                 key: chex.PRNGKey,
@@ -123,7 +124,7 @@ class Rice(environment.Environment):
         ):
             t = state.inner_t + 1  # Rice equations expect to start at t=1
             key, _ = jax.random.split(key, 2)
-            done = t >= num_inner_steps
+            done = t >= self.episode_length
 
             t_at = state.global_temperature[0]
             global_exogenous_emissions = get_exogenous_emissions(

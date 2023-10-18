@@ -1,28 +1,17 @@
 import os
 import time
-from typing import Any, NamedTuple, List, Tuple
+from typing import Any, List, Tuple
 
 import jax
 import jax.numpy as jnp
 import wandb
 
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, Sample
+from pax.watchers import fishery_stats
 from pax.watchers.rice import rice_stats
+from pax.watchers.c_rice import c_rice_stats
 
 MAX_WANDB_CALLS = 1000000
-
-
-class Sample(NamedTuple):
-    """Object containing a batch of data"""
-
-    observations: jnp.ndarray
-    actions: jnp.ndarray
-    rewards: jnp.ndarray
-    behavior_log_probs: jnp.ndarray
-    behavior_values: jnp.ndarray
-    dones: jnp.ndarray
-    hiddens: jnp.ndarray
-
 
 """
 This runner implements weight sharing by letting the agent assume each role in the environment per turn.
@@ -177,8 +166,12 @@ class WeightSharingRunner:
             for traj in trajectories:
                 rewards.append(jnp.where(num_episodes != 0, jnp.sum(traj.rewards) / num_episodes, 0))
             env_stats = {}
-            if args.env_id in ["Rice-N", "C-Rice-N"]:
+            if args.env_id == "Rice-N":
                 env_stats = rice_stats(trajectories, args.num_players, args.has_mediator)
+            elif args.env_id == "C-Rice-N":
+                env_stats = c_rice_stats(trajectories, args.num_players, args.has_mediator)
+            elif args.env_id == "Fishery":
+                env_stats = fishery_stats(trajectories, args.num_players)
 
             return (
                 env_stats,
