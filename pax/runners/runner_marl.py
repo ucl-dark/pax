@@ -4,10 +4,15 @@ from typing import Any, NamedTuple
 
 import jax
 import jax.numpy as jnp
-
 import wandb
+
 from pax.utils import MemoryState, TrainingState, save
+from pax.utils import (
+    copy_state_and_mem,
+)
 from pax.watchers import cg_visitation, ipd_visitation, ipditm_stats
+from pax.watchers.cournot import cournot_stats
+from pax.watchers.fishery import fishery_stats
 
 MAX_WANDB_CALLS = 1000
 
@@ -35,6 +40,16 @@ class MFOSSample(NamedTuple):
     dones: jnp.ndarray
     hiddens: jnp.ndarray
     meta_actions: jnp.ndarray
+
+
+class LOLASample(NamedTuple):
+    obs_self: jnp.ndarray
+    obs_other: jnp.ndarray
+    actions_self: jnp.ndarray
+    actions_other: jnp.ndarray
+    dones: jnp.ndarray
+    rewards_self: jnp.ndarray
+    rewards_other: jnp.ndarray
 
 
 @jax.jit
@@ -89,19 +104,22 @@ class RLRunner:
         self.reduce_opp_dim = jax.jit(_reshape_opp_dim)
         self.ipd_stats = jax.jit(ipd_visitation)
         self.cg_stats = jax.jit(cg_visitation)
+        self.cournot_stats = cournot_stats
         # VMAP for num_envs
         self.ipditm_stats = jax.jit(ipditm_stats)
         # VMAP for num envs: we vmap over the rng but not params
-        env.reset = jax.vmap(env.reset, (0, None), 0)
-        env.step = jax.vmap(
+        env.batch_reset = jax.vmap(env.reset, (0, None), 0)
+        env.batch_step = jax.vmap(
             env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
 
         # VMAP for num opps: we vmap over the rng but not params
-        env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
-        env.step = jax.jit(
+        env.batch_reset = jax.jit(jax.vmap(env.batch_reset, (0, None), 0))
+        env.batch_step = jax.jit(
             jax.vmap(
-                env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+                env.batch_step,
+                (0, 0, 0, None),
+                0,  # rng, state, actions, params
             )
         )
 
@@ -191,7 +209,13 @@ class RLRunner:
                 obs2,
                 a2_mem,
             )
-            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
+            (
+                (next_obs1, next_obs2),
+                env_state,
+                rewards,
+                done,
+                info,
+            ) = env.batch_step(
                 env_rng,
                 env_state,
                 (a1, a2),
@@ -358,17 +382,46 @@ class RLRunner:
             traj_1, traj_2, a2_metrics = stack
 
             # update outer agent
-            a1_state, _, a1_metrics = agent1.update(
-                reduce_outer_traj(traj_1),
-                self.reduce_opp_dim(obs1),
-                a1_state,
-                self.reduce_opp_dim(a1_mem),
-            )
+            if args.agent1 != "LOLA":
+                a1_state, _, a1_metrics = agent1.update(
+                    reduce_outer_traj(traj_1),
+                    self.reduce_opp_dim(obs1),
+                    a1_state,
+                    self.reduce_opp_dim(a1_mem),
+                )
+            if args.agent1 == "LOLA":
+                a1_metrics = None
+                # copy so we don't modify the original during simulation
+                self_state, self_mem = copy_state_and_mem(a1_state, a1_mem)
+                other_state, other_mem = copy_state_and_mem(a2_state, a2_mem)
+                # get new state of opponent after their lookahead optimisation
+                for _ in range(args.lola.num_lookaheads):
+                    _rng_run, _ = jax.random.split(_rng_run)
+                    lookahead_rng = jax.random.split(_rng_run, args.num_opps)
+
+                    # we want to batch this num_opps times
+                    other_state, other_mem = agent1.batch_in_lookahead(
+                        lookahead_rng,
+                        self_state,
+                        self_mem,
+                        other_state,
+                        other_mem,
+                    )
+                # get our new state after our optimisation based on ops new state
+                _rng_run, out_look_rng = jax.random.split(_rng_run)
+                a1_state = agent1.out_lookahead(
+                    out_look_rng, a1_state, a1_mem, other_state, other_mem
+                )
+
+            if args.agent2 == "LOLA":
+                raise NotImplementedError("LOLA not implemented for agent2")
 
             # reset memory
             a1_mem = agent1.batch_reset(a1_mem, False)
             a2_mem = agent2.batch_reset(a2_mem, False)
 
+            rewards_1 = traj_1.rewards.mean()
+            rewards_2 = traj_2.rewards.mean()
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -378,7 +431,6 @@ class RLRunner:
 
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
             elif args.env_id == "iterated_matrix_game":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -388,8 +440,6 @@ class RLRunner:
                         obs1,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
             elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -400,12 +450,15 @@ class RLRunner:
                         args.num_envs,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "Cournot":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    self.cournot_stats(traj_1.observations, _env_params, 2),
+                )
+            elif args.env_id == "Fishery":
+                env_stats = fishery_stats([traj_1, traj_2], 2)
             else:
                 env_stats = {}
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
 
             return (
                 env_stats,
@@ -426,9 +479,6 @@ class RLRunner:
         """Run training of agents in environment"""
         print("Training")
         print("-----------------------")
-        num_iters = max(
-            int(num_iters / (self.args.num_envs * self.num_opps)), 1
-        )
         log_interval = int(max(num_iters / MAX_WANDB_CALLS, 5))
         save_interval = self.args.save_interval
 
@@ -482,7 +532,7 @@ class RLRunner:
                 for stat in env_stats.keys():
                     print(stat + f": {env_stats[stat].item()}")
                 print(
-                    f"Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
+                    f"Average Reward per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print()
 
@@ -491,9 +541,10 @@ class RLRunner:
                     flattened_metrics_1 = jax.tree_util.tree_map(
                         lambda x: jnp.mean(x), a1_metrics
                     )
-                    agent1._logger.metrics = (
-                        agent1._logger.metrics | flattened_metrics_1
-                    )
+                    if self.args.agent1 != "LOLA":
+                        agent1._logger.metrics = (
+                            agent1._logger.metrics | flattened_metrics_1
+                        )
                     # metrics [outer_timesteps, num_opps]
                     flattened_metrics_2 = jax.tree_util.tree_map(
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics

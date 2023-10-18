@@ -1,8 +1,8 @@
 # .github/workflows/app.yaml
 name: PyTest
-on: 
+on:
   pull_request:
-    branches: 
+    branches:
       - main
 
 jobs:
@@ -16,6 +16,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+    - uses: pre-commit/action@v3.0.0
     - name: Ensure latest pip
       run: |
         python -m pip install --upgrade pip

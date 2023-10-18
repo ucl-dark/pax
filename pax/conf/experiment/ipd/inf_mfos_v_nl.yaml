@@ -1,6 +1,6 @@
 # @package _global_
 
-# Agents  
+# Agents
 agent1: 'Hyper'
 agent2: 'NaiveEx'
 
@@ -9,12 +9,11 @@ env_id: infinite_matrix_game
 env_type: meta
 env_discount: 0.96
 payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
-runner: rl 
+runner: rl
 
 # Training hyperparameters
 num_envs: 4000
 num_opps: 1
-num_outer_steps: 1 
 num_outer_steps: 100
 num_iters: 1e4
 
@@ -24,7 +23,7 @@ num_iters: 1e4
 # PPO agent parameters
 ppo:
   num_minibatches: 1
-  num_epochs: 4 
+  num_epochs: 4
   gamma: 0.96
   gae_lambda: 0.99
   ppo_clipping_epsilon: 0.2
@@ -33,7 +32,7 @@ ppo:
   max_gradient_norm: 0.5
   anneal_entropy: False
   entropy_coeff_start: 0.01
-  entropy_coeff_horizon: 0.4e9 
+  entropy_coeff_horizon: 0.4e9
   entropy_coeff_end: 0.001
   lr_scheduling: False
   learning_rate: 4e-3

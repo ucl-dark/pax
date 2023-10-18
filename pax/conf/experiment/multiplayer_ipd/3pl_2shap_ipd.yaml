@@ -1,0 +1,132 @@
+# @package _global_
+# two shapers, both trained against PPO mem agents playing each other
+
+# Agents  
+agent1: 'PPO_memory'
+agent2: 'PPO_memory'
+agent3: 'PPO_memory'
+
+
+# Environment
+env_id: iterated_nplayer_tensor_game
+env_type: meta
+env_discount: 0.96
+
+# Runner 
+num_players: 3
+num_shapers: 2
+
+# rows are (C,D) payoffs depending on number of D in total
+# top is 0D payoff, bottom is 0C, 
+# one more player plays D going downwards
+payoff_table: [
+    [ 4 , 1000 ],
+    [ 2 , 5 ],
+    [ 0 , 3 ],
+    [ -1000 , 1 ],
+]
+# Runner 
+runner: multishaper_evo
+
+# Training
+top_k: 5
+popsize: 100
+num_envs: 2
+num_opps: 10
+num_inner_steps: 100
+num_outer_steps: 1000
+num_iters: 200000
+num_devices: 1
+
+# PPO agent parameters
+# PPO agent parameters
+ppo1:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
+ppo2:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
+ppo3:
+  num_minibatches: 10
+  num_epochs: 4 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.4e9
+  entropy_coeff_end: 0.01
+  lr_scheduling: False
+  learning_rate: 3e-4
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  separate: False
+  hidden_size: 16
+
+# ES parameters 
+es: 
+  algo: OpenES        # [OpenES, CMA_ES]
+  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
+  sigma_decay: 0.999  # Multiplicative decay factor
+  sigma_limit: 0.01   # Smallest possible scale
+  init_min: 0.0       # Range of parameter mean initialization - Min
+  init_max: 0.0       # Range of parameter mean initialization - Max
+  clip_min: -1e10     # Range of parameter proposals - Min
+  clip_max: 1e10      # Range of parameter proposals - Max
+  lrate_init: 0.01    # Initial learning rate
+  lrate_decay: 0.9999 # Multiplicative decay factor
+  lrate_limit: 0.001  # Smallest possible lrate
+  beta_1: 0.99        # Adam - beta_1
+  beta_2: 0.999       # Adam - beta_2
+  eps: 1e-8           # eps constant,
+  centered_rank: False # Fitness centered_rank
+  w_decay: 0           # Decay old elite fitness 
+  maximise: True       # Maximise fitness 
+  z_score: False       # Normalise fitness 
+  mean_reduce: True    # Remove mean
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: tensor-ipd
+  group: 'test'
+  name: 3pl_2shap_ipd_${seed}
+  log: True
+
