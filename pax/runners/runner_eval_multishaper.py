@@ -113,7 +113,7 @@ class MultishaperEvalRunner:
         self.num_targets = args.num_players - args.num_shapers
         self.num_outer_steps = self.args.num_outer_steps
         shapers = agents[: self.num_shapers]
-        targets = agents[self.num_shapers:]
+        targets = agents[self.num_shapers :]
         # set up agents
         # batch MemoryState not TrainingState
         for agent_idx, shaper_agent in enumerate(shapers):
@@ -252,10 +252,10 @@ class MultishaperEvalRunner:
                 env_params,
             )
             shapers_next_obs = all_agent_next_obs[: self.num_shapers]
-            targets_next_obs = all_agent_next_obs[self.num_shapers:]
+            targets_next_obs = all_agent_next_obs[self.num_shapers :]
             shapers_reward, targets_reward = (
                 all_agent_rewards[: self.num_shapers],
-                all_agent_rewards[self.num_shapers:],
+                all_agent_rewards[self.num_shapers :],
             )
 
             shapers_traj = [
@@ -329,7 +329,7 @@ class MultishaperEvalRunner:
                     )
 
             # update second agent
-            targets_traj = trajectories[self.num_shapers:]
+            targets_traj = trajectories[self.num_shapers :]
             for agent_idx, target_agent in enumerate(targets):
                 (
                     targets_state[agent_idx],
@@ -356,10 +356,10 @@ class MultishaperEvalRunner:
             ), (trajectories, targets_metrics)
 
         def _rollout(
-                _rng_run: jnp.ndarray,
-                _shapers_state: List[TrainingState],
-                _shapers_mem: List[MemoryState],
-                _env_params: Any,
+            _rng_run: jnp.ndarray,
+            _shapers_state: List[TrainingState],
+            _shapers_mem: List[MemoryState],
+            _env_params: Any,
         ):
             # env reset
             rngs = jnp.concatenate(
@@ -368,10 +368,10 @@ class MultishaperEvalRunner:
 
             obs, env_state = env.reset(rngs, _env_params)
             shapers_obs = obs[: self.num_shapers]
-            targets_obs = obs[self.num_shapers:]
+            targets_obs = obs[self.num_shapers :]
             rewards = [
-                          jnp.zeros((args.num_opps, args.num_envs), dtype=jnp.float32)
-                      ] * args.num_players
+                jnp.zeros((args.num_opps, args.num_envs), dtype=jnp.float32)
+            ] * args.num_players
             # Player 1
             for agent_idx, shaper_agent in enumerate(shapers):
                 _shapers_mem[agent_idx] = shaper_agent.batch_reset(
@@ -411,9 +411,9 @@ class MultishaperEvalRunner:
                 (
                     rngs,
                     tuple(obs[: self.num_shapers]),
-                    tuple(obs[self.num_shapers:]),
+                    tuple(obs[self.num_shapers :]),
                     tuple(rewards[: self.num_shapers]),
-                    tuple(rewards[self.num_shapers:]),
+                    tuple(rewards[self.num_shapers :]),
                     _shapers_state,
                     targets_state,
                     _shapers_mem,
@@ -440,7 +440,7 @@ class MultishaperEvalRunner:
             ) = vals
             trajectories, targets_metrics = stack
             shapers_traj = trajectories[: self.num_shapers]
-            targets_traj = trajectories[self.num_shapers:]
+            targets_traj = trajectories[self.num_shapers :]
 
             # reset memory
             for agent_idx, shaper_agent in enumerate(shapers):
@@ -493,7 +493,7 @@ class MultishaperEvalRunner:
         print("Training")
         print("-----------------------")
         shaper_agents = agents[: self.num_shapers]
-        target_agents = agents[self.num_shapers:]
+        target_agents = agents[self.num_shapers :]
         rng, _ = jax.random.split(self.random_key)
 
         # get initial state and memory
@@ -587,7 +587,7 @@ class MultishaperEvalRunner:
                 for traj in list_traj1
             ]
             shaper_traj = trajectories[: self.num_shapers]
-            target_traj = trajectories[self.num_shapers:]
+            target_traj = trajectories[self.num_shapers :]
 
             # log agent one
             watchers[0](agents[0])
@@ -620,7 +620,7 @@ class MultishaperEvalRunner:
                             for traj in trajectories
                         )
                     )
-                                                         / len(trajectories)
+                    / len(trajectories)
                 }
                 for i in range(len(list_of_env_stats))
             ]
@@ -632,7 +632,7 @@ class MultishaperEvalRunner:
                             for traj in shaper_traj
                         )
                     )
-                                                         / len(shaper_traj)
+                    / len(shaper_traj)
                 }
                 for i in range(len(list_of_env_stats))
             ]
@@ -644,7 +644,7 @@ class MultishaperEvalRunner:
                             for traj in target_traj
                         )
                     )
-                                                         / len(target_traj)
+                    / len(target_traj)
                 }
                 for i in range(len(list_of_env_stats))
             ]

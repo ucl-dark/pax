@@ -9,7 +9,7 @@ from pax.envs.iterated_tensor_game_n_player import (
     IteratedTensorGameNPlayer,
 )
 
-####### 2 PLAYERS #######
+# 2 PLAYERS
 payoff_table_2pl = [
     [4, jnp.nan],
     [2, 5],
@@ -25,7 +25,7 @@ cd_obs = 1
 dc_obs = 2
 dd_obs = 3
 
-####### 3 PLAYERS #######
+# 3 PLAYERS
 payoff_table_3pl = [
     [4, jnp.nan],
     [2.66, 5.66],
@@ -84,7 +84,7 @@ dcd_obs = 5
 ddc_obs = 6
 ddd_obs = 7
 
-####### 4 PLAYERS #######
+# 4 PLAYERS
 payoff_table_4pl = [
     [4, jnp.nan],
     [3, 6],
@@ -207,6 +207,7 @@ ddcd_obs = 13
 dddc_obs = 14
 dddd_obs = 15
 
+
 # ###### Begin actual tests #######
 @pytest.mark.parametrize("payoff", [payoff_table_2pl])
 def test_single_batch_2pl(payoff) -> None:
@@ -214,7 +215,7 @@ def test_single_batch_2pl(payoff) -> None:
     rng = jax.random.PRNGKey(0)
     num_players = 2
     len_one_hot = 2**num_players + 1
-    ##### setup
+    # setup
     env = IteratedTensorGameNPlayer(
         num_players=2, num_inner_steps=5, num_outer_steps=1
     )
@@ -230,7 +231,7 @@ def test_single_batch_2pl(payoff) -> None:
     )
     obs, env_state = env.reset(rng, env_params)
 
-    ###### test 2 player
+    # test 2 player
     # cc
     obs, env_state, rewards, done, info = env.step(
         rng, env_state, (0 * action, 0 * action), env_params
@@ -248,7 +249,7 @@ def test_single_batch_2pl(payoff) -> None:
     assert jnp.array_equal(obs[0], expected_obs1)
     assert jnp.array_equal(obs[1], expected_obs2)
 
-    ##dc
+    # dc
     obs, env_state, rewards, done, info = env.step(
         rng, env_state, (1 * action, 0 * action), env_params
     )
@@ -264,7 +265,7 @@ def test_single_batch_2pl(payoff) -> None:
     assert jnp.array_equal(obs[0], expected_obs1)
     assert jnp.array_equal(obs[1], expected_obs2)
 
-    ##cd
+    # cd
     obs, env_state, rewards, done, info = env.step(
         rng, env_state, (0 * action, 1 * action), env_params
     )
@@ -279,7 +280,7 @@ def test_single_batch_2pl(payoff) -> None:
     assert jnp.array_equal(obs[0], expected_obs1)
     assert jnp.array_equal(obs[1], expected_obs2)
 
-    ##dd
+    # dd
     obs, env_state, rewards, done, info = env.step(
         rng, env_state, (1 * action, 1 * action), env_params
     )
@@ -301,7 +302,7 @@ def test_single_batch_4pl(payoff) -> None:
     rng = jax.random.PRNGKey(0)
     num_players = 4
     len_one_hot = 2**num_players + 1
-    ##### setup
+    # setup
     env = IteratedTensorGameNPlayer(
         num_players=num_players, num_inner_steps=100, num_outer_steps=1
     )
@@ -317,7 +318,7 @@ def test_single_batch_4pl(payoff) -> None:
     )
     obs, env_state = env.reset(rng, env_params)
 
-    ###### test 4 player
+    # test 4 player
     # cccc
     cccc = (0 * action, 0 * action, 0 * action, 0 * action)
     obs, env_state, rewards, done, info = env.step(
@@ -510,7 +511,7 @@ def test_single_batch_3pl(payoff) -> None:
     rng = jax.random.PRNGKey(0)
     num_players = 3
     len_one_hot = 2**num_players + 1
-    ##### setup
+    # setup
     env = IteratedTensorGameNPlayer(
         num_players=num_players, num_inner_steps=100, num_outer_steps=1
     )
@@ -526,7 +527,7 @@ def test_single_batch_3pl(payoff) -> None:
     )
     obs, env_state = env.reset(rng, env_params)
 
-    ###### test 3 player
+    # test 3 player
     # ccc
     ccc = (0 * action, 0 * action, 0 * action)
     obs, env_state, rewards, done, info = env.step(
@@ -617,9 +618,6 @@ def test_single_batch_3pl(payoff) -> None:
 
 
 def test_batch_diff_actions() -> None:
-    num_envs = 5
-    all_ones = jnp.ones((num_envs,))
-
     rng = jax.random.PRNGKey(0)
 
     # 5 envs, with actions ccc, dcc, cdc, ddd, ccd

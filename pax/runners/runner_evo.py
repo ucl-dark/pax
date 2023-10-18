@@ -46,8 +46,10 @@ class EvoRunner:
             A tuple of experiment arguments used (usually provided by HydraConfig).
     """
 
+    # TODO fix C901 (function too complex)
+    # flake8: noqa: C901
     def __init__(
-            self, agents, env, strategy, es_params, param_reshaper, save_dir, args
+        self, agents, env, strategy, es_params, param_reshaper, save_dir, args
     ):
         self.args = args
         self.algo = args.es.algo
@@ -185,7 +187,7 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ) = carry
 
             # unpack rngs
@@ -200,7 +202,7 @@ class EvoRunner:
             )
             a2_actions = []
             new_a2_memories = []
-            for _obs, _mem in zip(obs2, a2_mem):
+            for _obs, _mem in zip(obs2, a2_mem, strict=True):
                 a2_action, a2_state, new_a2_memory = agent2.batch_policy(
                     a2_state,
                     _obs,
@@ -231,14 +233,24 @@ class EvoRunner:
                 a1_mem.hidden,
             )
             a2_trajectories = [
-                Sample(observation,
-                       action,
-                       reward * jnp.logical_not(done),
-                       new_memory.extras["log_probs"],
-                       new_memory.extras["values"],
-                       done,
-                       memory.hidden) for observation, action, reward, new_memory, memory in
-                zip(obs2, a2_actions, rewards[1:], new_a2_memories, a2_mem)]
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, new_memory, memory in zip(
+                    obs2,
+                    a2_actions,
+                    rewards[1:],
+                    new_a2_memories,
+                    a2_mem,
+                    strict=True,
+                )
+            ]
 
             return (
                 rngs,
@@ -252,7 +264,7 @@ class EvoRunner:
                 tuple(new_a2_memories),
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ), (
                 traj1,
                 a2_trajectories,
@@ -279,7 +291,7 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ) = vals
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
@@ -287,7 +299,9 @@ class EvoRunner:
 
             # update second agent
             new_a2_memories = []
-            for _obs, mem, traj in zip(obs2, a2_mem, trajectories[1]):
+            for _obs, mem, traj in zip(
+                obs2, a2_mem, trajectories[1], strict=True
+            ):
                 a2_state, a2_mem, a2_metrics = agent2.batch_update(
                     traj,
                     _obs,
@@ -307,16 +321,16 @@ class EvoRunner:
                 tuple(new_a2_memories),
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ), (*trajectories, a2_metrics)
 
         def _rollout(
-                _params: jnp.ndarray,
-                _rng_run: jnp.ndarray,
-                _a1_state: TrainingState,
-                _a1_mem: MemoryState,
-                _a2_state: TrainingState,
-                _env_params: Any,
+            _params: jnp.ndarray,
+            _rng_run: jnp.ndarray,
+            _a1_state: TrainingState,
+            _a1_mem: MemoryState,
+            _a2_state: TrainingState,
+            _env_params: Any,
         ):
             # env reset
             env_rngs = jnp.concatenate(
@@ -326,8 +340,12 @@ class EvoRunner:
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
 
             obs, env_state = env.reset(env_rngs, _env_params)
-            rewards = [jnp.zeros((args.popsize, args.num_opps, args.num_envs), dtype=float_precision)] * (
-                    1 + args.agent2_roles)
+            rewards = [
+                jnp.zeros(
+                    (args.popsize, args.num_opps, args.num_envs),
+                    dtype=float_precision,
+                )
+            ] * (1 + args.agent2_roles)
 
             # Player 1
             _a1_state = _a1_state._replace(params=_params)
@@ -369,7 +387,7 @@ class EvoRunner:
                     (a2_mem,) * args.agent2_roles,
                     env_state,
                     _env_params,
-                    agent_order
+                    agent_order,
                 ),
                 None,
                 length=self.num_outer_steps,
@@ -387,13 +405,15 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 _env_params,
-                agent_order
+                agent_order,
             ) = vals
             traj_1, traj_2, a2_metrics = stack
 
             # Fitness
             fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            agent_2_rewards = jnp.concatenate([traj.rewards for traj in traj_2])
+            agent_2_rewards = jnp.concatenate(
+                [traj.rewards for traj in traj_2]
+            )
             other_fitness = agent_2_rewards.mean(axis=(0, 1, 3, 4))
             rewards_1 = traj_1.rewards.mean()
             rewards_2 = agent_2_rewards.mean()
@@ -431,18 +451,18 @@ class EvoRunner:
             elif args.env_id == "Cournot":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    self.cournot_stats(
-                        traj_1.observations,
-                        _env_params,
-                        2
-                    ),
+                    self.cournot_stats(traj_1.observations, _env_params, 2),
                 )
             elif args.env_id == "Fishery":
                 env_stats = fishery_stats([traj_1] + traj_2, args.num_players)
             elif args.env_id == "Rice-N":
-                env_stats = rice_stats([traj_1] + traj_2, args.num_players, args.has_mediator)
+                env_stats = rice_stats(
+                    [traj_1] + traj_2, args.num_players, args.has_mediator
+                )
             elif args.env_id == "C-Rice-N":
-                env_stats = c_rice_stats([traj_1] + traj_2, args.num_players, args.has_mediator)
+                env_stats = c_rice_stats(
+                    [traj_1] + traj_2, args.num_players, args.has_mediator
+                )
             else:
                 env_stats = {}
 
@@ -453,7 +473,7 @@ class EvoRunner:
                 rewards_1,
                 rewards_2,
                 a2_metrics,
-                a2_state
+                a2_state,
             )
 
         self.rollout = jax.pmap(
@@ -466,11 +486,11 @@ class EvoRunner:
         )
 
     def run_loop(
-            self,
-            env_params,
-            agents,
-            num_iters: int,
-            watchers: Callable,
+        self,
+        env_params,
+        agents,
+        num_iters: int,
+        watchers: Callable,
     ):
         """Run training of agents in environment"""
         print("Training")
@@ -538,8 +558,8 @@ class EvoRunner:
                 a2_state = None
 
             if self.args.num_devices == 1 and a2_state is not None:
-                # The first rollout returns a2_state with an extra batch dim that will cause issues when passing
-                # it back to the vmapped batch_policy
+                # The first rollout returns a2_state with an extra batch dim that
+                # will cause issues when passing it back to the vmapped batch_policy
                 a2_state = jax.tree_util.tree_map(
                     lambda w: jnp.squeeze(w, axis=0), a2_state
                 )
@@ -552,11 +572,15 @@ class EvoRunner:
                 rewards_1,
                 rewards_2,
                 a2_metrics,
-                a2_state
-            ) = self.rollout(params, rng_run, a1_state, a1_mem, a2_state, env_params)
+                a2_state,
+            ) = self.rollout(
+                params, rng_run, a1_state, a1_mem, a2_state, env_params
+            )
 
             # Aggregate over devices
-            fitness = jnp.reshape(fitness, popsize * self.args.num_devices).astype(dtype=jnp.float32)
+            fitness = jnp.reshape(
+                fitness, popsize * self.args.num_devices
+            ).astype(dtype=jnp.float32)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
@@ -572,10 +596,12 @@ class EvoRunner:
             is_last_loop = gen == num_iters - 1
             # Saving
             if gen % self.args.save_interval == 0 or is_last_loop:
-                log_savepath1 = os.path.join(self.save_dir, f"generation_{gen}")
+                log_savepath1 = os.path.join(
+                    self.save_dir, f"generation_{gen}"
+                )
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0: self.args.num_devices]
+                        log["top_gen_params"][0 : self.args.num_devices]
                     )
                     top_params = jax.tree_util.tree_map(
                         lambda x: x[0].reshape(x[0].shape[1:]), top_params
@@ -655,7 +681,9 @@ class EvoRunner:
                 wandb_log.update(env_stats)
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
-                        zip(log["top_fitness"], log["top_gen_fitness"])
+                    zip(
+                        log["top_fitness"], log["top_gen_fitness"], strict=True
+                    )
                 ):
                     wandb_log[
                         f"train/fitness/top_overall_agent_{idx + 1}"
@@ -671,7 +699,7 @@ class EvoRunner:
                 )
 
                 agent2._logger.metrics.update(flattened_metrics)
-                for watcher, agent in zip(watchers, agents):
+                for watcher, agent in zip(watchers, agents, strict=True):
                     watcher(agent)
                 wandb_log = jax.tree_util.tree_map(
                     lambda x: x.item() if isinstance(x, jax.Array) else x,

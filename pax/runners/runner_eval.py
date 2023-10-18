@@ -134,7 +134,7 @@ class EvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ) = carry
 
             # unpack rngs
@@ -144,7 +144,7 @@ class EvalRunner:
 
             a1_actions = []
             new_a1_memories = []
-            for _obs, _mem in zip(obs1, a1_mem):
+            for _obs, _mem in zip(obs1, a1_mem, strict=True):
                 a1_action, a1_state, new_a1_memory = agent1.batch_policy(
                     a1_state,
                     _obs,
@@ -155,7 +155,7 @@ class EvalRunner:
 
             a2_actions = []
             new_a2_memories = []
-            for _obs, _mem in zip(obs2, a2_mem):
+            for _obs, _mem in zip(obs2, a2_mem, strict=True):
                 a2_action, a2_state, new_a2_memory = agent2.batch_policy(
                     a2_state,
                     _obs,
@@ -177,37 +177,57 @@ class EvalRunner:
             rewards = jnp.asarray(rewards)[inv_agent_order]
 
             a1_trajectories = [
-                Sample(observation,
-                       action,
-                       reward * jnp.logical_not(done),
-                       new_memory.extras["log_probs"],
-                       new_memory.extras["values"],
-                       done,
-                       memory.hidden) for observation, action, reward, new_memory, memory in
-                zip(obs1, a2_actions, rewards[:self.args.agent1_roles], new_a1_memories, a1_mem)]
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, new_memory, memory in zip(
+                    obs1,
+                    a2_actions,
+                    rewards[: self.args.agent1_roles],
+                    new_a1_memories,
+                    a1_mem,
+                    strict=True,
+                )
+            ]
             a2_trajectories = [
-                Sample(observation,
-                       action,
-                       reward * jnp.logical_not(done),
-                       new_memory.extras["log_probs"],
-                       new_memory.extras["values"],
-                       done,
-                       memory.hidden) for observation, action, reward, new_memory, memory in
-                zip(obs2, a2_actions, rewards[self.args.agent1_roles:], new_a2_memories, a2_mem)]
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, new_memory, memory in zip(
+                    obs2,
+                    a2_actions,
+                    rewards[self.args.agent1_roles :],
+                    new_a2_memories,
+                    a2_mem,
+                    strict=True,
+                )
+            ]
 
             return (
                 rngs,
-                tuple(obs[:self.args.agent1_roles]),
-                tuple(obs[self.args.agent1_roles:]),
-                tuple(rewards[:self.args.agent1_roles]),
-                tuple(rewards[self.args.agent1_roles:]),
+                tuple(obs[: self.args.agent1_roles]),
+                tuple(obs[self.args.agent1_roles :]),
+                tuple(rewards[: self.args.agent1_roles]),
+                tuple(rewards[self.args.agent1_roles :]),
                 a1_state,
                 tuple(new_a1_memories),
                 a2_state,
                 tuple(new_a2_memories),
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ), (
                 a1_trajectories,
                 a2_trajectories,
@@ -235,7 +255,7 @@ class EvalRunner:
                 a2_mem,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ) = vals
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
@@ -247,7 +267,9 @@ class EvalRunner:
                 a2_metrics = {}
             else:
                 new_a2_memories = []
-                for _obs, mem, traj in zip(obs2, a2_mem, stack[1]):
+                for _obs, mem, traj in zip(
+                    obs2, a2_mem, stack[1], strict=True
+                ):
                     a2_state, a2_mem, a2_metrics = agent2.batch_update(
                         traj,
                         _obs,
@@ -268,7 +290,7 @@ class EvalRunner:
                 new_a2_memories,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ), (*stack, a2_metrics)
 
         self.rollout = jax.jit(_outer_rollout)
@@ -283,7 +305,9 @@ class EvalRunner:
         a1_state, a1_mem = agent1._state, agent1._mem
         a2_state, a2_mem = agent2._state, agent2._mem
 
-        preload_agent_2 = self.model_path2 is not None and self.run_path2 is not None
+        preload_agent_2 = (
+            self.model_path2 is not None and self.run_path2 is not None
+        )
 
         if watchers and not self.args.wandb.mode == "offline":
             wandb.restore(
@@ -291,7 +315,9 @@ class EvalRunner:
             )
             if preload_agent_2:
                 wandb.restore(
-                    name=self.model_path2, run_path=self.run_path2, root=os.getcwd()
+                    name=self.model_path2,
+                    run_path=self.run_path2,
+                    root=os.getcwd(),
                 )
 
         pretrained_params = load(self.model_path)
@@ -315,12 +341,14 @@ class EvalRunner:
         for i in range(num_episodes):
             rng, _ = jax.random.split(rng)
             rngs = jnp.concatenate(
-                [jax.random.split(rng, self.args.num_envs)] * self.args.num_opps
+                [jax.random.split(rng, self.args.num_envs)]
+                * self.args.num_opps
             ).reshape((self.args.num_opps, self.args.num_envs, -1))
 
             obs, env_state = env.reset(rngs, env_params)
             rewards = [jnp.zeros((self.args.num_opps, self.args.num_envs))] * (
-                        self.args.agent1_roles + self.args.agent2_roles)
+                self.args.agent1_roles + self.args.agent2_roles
+            )
 
             if i % self.args.agent2_reset_interval == 0:
                 if self.args.agent2 == "NaiveEx":
@@ -333,9 +361,12 @@ class EvalRunner:
 
                 if preload_agent_2:
                     # If we are preloading agent 2 we want to keep the state
-                    a2_state = a2_state._replace(params=jax.tree_util.tree_map(
-                        lambda x: jnp.expand_dims(x, 0), a2_pretrained_params
-                    ))
+                    a2_state = a2_state._replace(
+                        params=jax.tree_util.tree_map(
+                            lambda x: jnp.expand_dims(x, 0),
+                            a2_pretrained_params,
+                        )
+                    )
                 a2_mem = (a2_mem,) * self.args.agent2_roles
 
             agent_order = jnp.arange(self.args.num_players)
@@ -347,17 +378,17 @@ class EvalRunner:
                 self.rollout,
                 (
                     rngs,
-                    tuple(obs[:self.args.agent1_roles]),
-                    tuple(obs[self.args.agent1_roles:]),
-                    tuple(rewards[:self.args.agent1_roles]),
-                    tuple(rewards[self.args.agent1_roles:]),
+                    tuple(obs[: self.args.agent1_roles]),
+                    tuple(obs[self.args.agent1_roles :]),
+                    tuple(rewards[: self.args.agent1_roles]),
+                    tuple(rewards[self.args.agent1_roles :]),
                     a1_state,
                     a1_mem,
                     a2_state,
                     a2_mem,
                     env_state,
                     env_params,
-                    agent_order
+                    agent_order,
                 ),
                 None,
                 length=self.args.num_steps,
@@ -376,7 +407,7 @@ class EvalRunner:
                 _a2_mem,
                 env_state,
                 env_params,
-                agent_order
+                agent_order,
             ) = vals
             traj_1, traj_2, env_states, a2_metrics = stack
 
@@ -396,27 +427,41 @@ class EvalRunner:
                     rewards_2 = rewards_2.sum(axis=1).mean()
 
                 elif self.args.env_id == "Fishery":
-                    env_stats = fishery_stats(traj_1 + traj_2, self.args.num_players)
+                    env_stats = fishery_stats(
+                        traj_1 + traj_2, self.args.num_players
+                    )
                     rewards_1 = rewards_1.sum(axis=1).mean()
                     rewards_2 = rewards_2.sum(axis=1).mean()
 
                 elif self.args.env_id == "Rice-N":
-                    env_stats = rice_eval_stats(traj_1 + traj_2, env_states, env)
+                    env_stats = rice_eval_stats(
+                        traj_1 + traj_2, env_states, env
+                    )
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.tolist(),
                         env_stats,
                     )
-                    env_stats = env_stats | rice_stats(traj_1 + traj_2, self.args.num_players, self.args.has_mediator)
+                    env_stats = env_stats | rice_stats(
+                        traj_1 + traj_2,
+                        self.args.num_players,
+                        self.args.has_mediator,
+                    )
                     rewards_1 = rewards_1.sum(axis=1).mean()
                     rewards_2 = rewards_2.sum(axis=1).mean()
 
                 elif self.args.env_id == "C-Rice-N":
-                    env_stats = c_rice_eval_stats(traj_1 + traj_2, env_states, env)
+                    env_stats = c_rice_eval_stats(
+                        traj_1 + traj_2, env_states, env
+                    )
                     env_stats = jax.tree_util.tree_map(
                         lambda x: x.tolist(),
                         env_stats,
                     )
-                    env_stats = env_stats | c_rice_stats(traj_1 + traj_2, self.args.num_players, self.args.has_mediator)
+                    env_stats = env_stats | c_rice_stats(
+                        traj_1 + traj_2,
+                        self.args.num_players,
+                        self.args.has_mediator,
+                    )
                     rewards_1 = rewards_1.sum(axis=1).mean()
                     rewards_2 = rewards_2.sum(axis=1).mean()
 
@@ -441,11 +486,17 @@ class EvalRunner:
                     env_stats = {}
 
                 # Due to the permutation and roles the rewards are not in order
-                agent_indices = jnp.array([0] * self.args.agent1_roles + [1] * self.args.agent2_roles)
+                agent_indices = jnp.array(
+                    [0] * self.args.agent1_roles + [1] * self.args.agent2_roles
+                )
                 agent_indices = agent_indices[agent_order]
 
                 # Omit rich per timestep statistics for cleaner logging
-                printable_env_stats = {k: v for k, v in env_stats.items() if not k.startswith("states")}
+                printable_env_stats = {
+                    k: v
+                    for k, v in env_stats.items()
+                    if not k.startswith("states")
+                }
                 print(f"Env Stats: {printable_env_stats}")
                 print(
                     f"Total Episode Reward: {float(rewards_1.mean()), float(rewards_2.mean())}"
@@ -458,10 +509,10 @@ class EvalRunner:
                         lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
                     )
                     agent2._logger.metrics = (
-                            agent2._logger.metrics | flattened_metrics
+                        agent2._logger.metrics | flattened_metrics
                     )
 
-                    for watcher, agent in zip(watchers, agents):
+                    for watcher, agent in zip(watchers, agents, strict=True):
                         watcher(agent)
                     wandb.log(
                         {

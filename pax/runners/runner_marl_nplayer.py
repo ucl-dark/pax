@@ -24,6 +24,7 @@ class LOLASample(NamedTuple):
     rewards_self: jnp.ndarray
     rewards_other: jnp.ndarray
 
+
 class Sample(NamedTuple):
     """Object containing a batch of data"""
 
@@ -349,12 +350,12 @@ class NplayerRLRunner:
             ), (trajectories, other_agent_metrics)
 
         def _rollout(
-                _rng_run: jnp.ndarray,
-                first_agent_state: TrainingState,
-                first_agent_mem: MemoryState,
-                other_agent_state: List[TrainingState],
-                other_agent_mem: List[MemoryState],
-                _env_params: Any,
+            _rng_run: jnp.ndarray,
+            first_agent_state: TrainingState,
+            first_agent_mem: MemoryState,
+            other_agent_state: List[TrainingState],
+            other_agent_mem: List[MemoryState],
+            _env_params: Any,
         ):
             # env reset
             rngs = jnp.concatenate(
@@ -363,8 +364,8 @@ class NplayerRLRunner:
 
             obs, env_state = env.reset(rngs, _env_params)
             rewards = [
-                          jnp.zeros((args.num_opps, args.num_envs)),
-                      ] * args.num_players
+                jnp.zeros((args.num_opps, args.num_envs)),
+            ] * args.num_players
             # Player 1
             first_agent_mem = agent1.batch_reset(first_agent_mem, False)
             # Other players
@@ -502,7 +503,9 @@ class NplayerRLRunner:
                 total_env_stats = jax.tree_util.tree_map(
                     lambda x: x,
                     self.cournot_stats(
-                        trajectories[0].observations, _env_params, args.num_players
+                        trajectories[0].observations,
+                        _env_params,
+                        args.num_players,
                     ),
                 )
             elif args.env_id == "Fishery":
@@ -540,7 +543,6 @@ class NplayerRLRunner:
         first_agent_state, first_agent_mem = agent1._state, agent1._mem
         other_agent_mem = [None] * len(other_agents)
         other_agent_state = [None] * len(other_agents)
-
 
         for agent_idx, non_first_agent in enumerate(other_agents):
             other_agent_state[agent_idx], other_agent_mem[agent_idx] = (
@@ -602,14 +604,16 @@ class NplayerRLRunner:
                 )
                 if self.args.agent1 != "LOLA":
                     agent1._logger.metrics = (
-                            agent1._logger.metrics | flattened_metrics_1
+                        agent1._logger.metrics | flattened_metrics_1
                     )
-                    for agent, metric in zip(other_agents, other_agent_metrics):
+                    for agent, metric in zip(
+                        other_agents, other_agent_metrics
+                    ):
                         flattened_metrics = jax.tree_util.tree_map(
                             lambda x: jnp.mean(x), first_agent_metrics
                         )
                         agent._logger.metrics = (
-                                agent._logger.metrics | flattened_metrics
+                            agent._logger.metrics | flattened_metrics
                         )
 
                 for watcher, agent in zip(watchers, agents):

@@ -190,8 +190,8 @@ class TitForTatHarsh(AgentInterface):
         # 0th state is all c...cc
         # 1st state is all c...cd
         # (2**num_playerth)-1 state is d...dd
-        # we cooperate in states _CCCC (0th and (2**num_player-1)th) and in start state (state 2**num_player)th )
-        # otherwise we defect
+        # we cooperate in states _CCCC (0th and (2**num_player-1)th)
+        # and in start state (state 2**num_player)th ) otherwise we defect
         # 0 is cooperate, 1 is defect
         action = jnp.where(obs % jnp.exp2(num_players - 1) == 0, 0, 1)
         return action

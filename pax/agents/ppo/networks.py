@@ -16,9 +16,9 @@ class CategoricalValueHead(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
@@ -42,9 +42,9 @@ class CategoricalValueHead_ipd(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
@@ -68,9 +68,9 @@ class CategoricalValueHeadSeparate(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._action_body = hk.nets.MLP(
@@ -112,10 +112,10 @@ class CategoricalValueHeadSeparate_ipditm(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            hidden_size: int,
-            name: Optional[str] = None,
+        self,
+        num_values: int,
+        hidden_size: int,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._action_body = hk.nets.MLP(
@@ -157,11 +157,11 @@ class ContinuousValueHead(hk.Module):
     """Network head that produces a continuous distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
-            mean_activation: Optional[str] = None,
-            with_bias=False,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+        mean_activation: Optional[str] = None,
+        with_bias=False,
     ):
         super().__init__(name=name)
         self.mean_action = mean_activation
@@ -189,7 +189,10 @@ class ContinuousValueHead(hk.Module):
         scales = self._scale_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         scales = jnp.maximum(scales, 0.01)
-        return distrax.MultivariateNormalDiag(loc=means, scale_diag=scales), value
+        return (
+            distrax.MultivariateNormalDiag(loc=means, scale_diag=scales),
+            value,
+        )
 
 
 class Tabular(hk.Module):
@@ -207,7 +210,7 @@ class Tabular(hk.Module):
         )
 
         def _input_to_onehot(input: jnp.ndarray):
-            chunks = jnp.array([9 ** 3, 9 ** 2, 9, 1], dtype=jnp.int32)
+            chunks = jnp.array([9**3, 9**2, 9, 1], dtype=jnp.int32)
             idx = input.nonzero(size=4)[0]
             idx = jnp.mod(idx, 9)
             idx = chunks * idx
@@ -367,7 +370,9 @@ def make_cournot_network(num_actions: int, hidden_size: int):
                     activate_final=True,
                     activation=jnp.tanh,
                 ),
-                ContinuousValueHead(num_values=num_actions, name="cournot_value_head"),
+                ContinuousValueHead(
+                    num_values=num_actions, name="cournot_value_head"
+                ),
             ]
         )
         policy_value_network = hk.Sequential(layers)
@@ -391,7 +396,9 @@ def make_fishery_network(num_actions: int, hidden_size: int):
                     activate_final=True,
                     activation=jnp.tanh,
                 ),
-                ContinuousValueHead(num_values=num_actions, name="fishery_value_head"),
+                ContinuousValueHead(
+                    num_values=num_actions, name="fishery_value_head"
+                ),
             ]
         )
         policy_value_network = hk.Sequential(layers)
@@ -404,7 +411,9 @@ def make_fishery_network(num_actions: int, hidden_size: int):
 def make_rice_sarl_network(num_actions: int, hidden_size: int):
     """Continuous action space network with values clipped between 0 and 1"""
     if float_precision == jnp.float16:
-        policy = jmp.get_policy('params=float16,compute=float16,output=float32')
+        policy = jmp.get_policy(
+            "params=float16,compute=float16,output=float32"
+        )
         hk.mixed_precision.set_policy(hk.nets.MLP, policy)
 
     def forward_fn(inputs):
@@ -416,7 +425,11 @@ def make_rice_sarl_network(num_actions: int, hidden_size: int):
                 activate_final=True,
                 activation=jax.nn.relu,
             ),
-            ContinuousValueHead(num_values=num_actions, name="rice_value_head", mean_activation="sigmoid"),
+            ContinuousValueHead(
+                num_values=num_actions,
+                name="rice_value_head",
+                mean_activation="sigmoid",
+            ),
         ]
 
         policy_value_network = hk.Sequential(layers)
@@ -427,13 +440,13 @@ def make_rice_sarl_network(num_actions: int, hidden_size: int):
 
 
 def make_coingame_network(
-        num_actions: int,
-        tabular: bool,
-        with_cnn: bool,
-        separate: bool,
-        hidden_size: int,
-        output_channels: int,
-        kernel_shape: int,
+    num_actions: int,
+    tabular: bool,
+    with_cnn: bool,
+    separate: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: int,
 ):
     def forward_fn(inputs):
         layers = []
@@ -510,12 +523,12 @@ def make_sarl_network(num_actions: int):
 
 
 def make_ipditm_network(
-        num_actions: int,
-        separate: bool,
-        with_cnn: bool,
-        hidden_size: int,
-        output_channels: int,
-        kernel_shape: int,
+    num_actions: int,
+    separate: bool,
+    with_cnn: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: int,
 ):
     def forward_fn(inputs: dict):
         layers = []
@@ -543,7 +556,7 @@ def make_GRU_ipd_network(num_actions: int, hidden_size: int):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         gru = hk.GRU(hidden_size)
@@ -561,7 +574,7 @@ def make_GRU_cartpole_network(num_actions: int):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = hk.nets.MLP(
@@ -582,16 +595,16 @@ def make_GRU_cartpole_network(num_actions: int):
 
 
 def make_GRU_coingame_network(
-        num_actions: int,
-        with_cnn: bool,
-        hidden_size: int,
-        output_channels: int,
-        kernel_shape: Tuple[int],
+    num_actions: int,
+    with_cnn: bool,
+    hidden_size: int,
+    output_channels: int,
+    kernel_shape: Tuple[int],
 ):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
 
         if with_cnn:
@@ -622,16 +635,16 @@ def make_GRU_coingame_network(
 
 
 def make_GRU_ipditm_network(
-        num_actions: int,
-        hidden_size: int,
-        separate: bool,
-        output_channels: int,
-        kernel_shape: Tuple[int],
+    num_actions: int,
+    hidden_size: int,
+    separate: bool,
+    output_channels: int,
+    kernel_shape: Tuple[int],
 ):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> Tuple[Tuple[Categorical, jnp.ndarray], jnp.ndarray]:
         """forward function"""
         torso = CNN_ipditm(output_channels, kernel_shape)
@@ -657,13 +670,13 @@ def make_GRU_ipditm_network(
 
 
 def make_GRU_fishery_network(
-        num_actions: int,
-        hidden_size: int,
+    num_actions: int,
+    hidden_size: int,
 ):
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> tuple[tuple[MultivariateNormalDiag, Array], Any]:
         """forward function"""
         gru = hk.GRU(
@@ -683,9 +696,9 @@ def make_GRU_fishery_network(
 
 
 def make_GRU_rice_network(
-        num_actions: int,
-        hidden_size: int,
-        v2=False,
+    num_actions: int,
+    hidden_size: int,
+    v2=False,
 ):
     # if float_precision == jnp.float16:
     #     policy = jmp.get_policy('params=float16,compute=float16,output=float32')
@@ -693,7 +706,7 @@ def make_GRU_rice_network(
     hidden_state = jnp.zeros((1, hidden_size))
 
     def forward_fn(
-            inputs: jnp.ndarray, state: jnp.ndarray
+        inputs: jnp.ndarray, state: jnp.ndarray
     ) -> tuple[tuple[MultivariateNormalDiag, Array], Any]:
         gru = hk.GRU(
             hidden_size,
@@ -703,7 +716,11 @@ def make_GRU_rice_network(
         )
 
         if v2:
-            cvh = ContinuousValueHead(num_values=num_actions, mean_activation="sigmoid", with_bias=True)
+            cvh = ContinuousValueHead(
+                num_values=num_actions,
+                mean_activation="sigmoid",
+                with_bias=True,
+            )
         else:
             cvh = ContinuousValueHead(num_values=num_actions)
         embedding, state = gru(inputs, state)

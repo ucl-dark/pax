@@ -5,7 +5,6 @@ from typing import Mapping, NamedTuple
 import chex
 import haiku as hk
 import jax
-import jax.numpy as jnp
 import numpy as np
 import optax
 from jax import numpy as jnp

@@ -104,9 +104,7 @@ class InfiniteMatrixGame(environment.Environment):
         """Number of actions possible in environment."""
         return 5
 
-    def action_space(
-        self, params: Optional[EnvParams] = None
-    ) -> spaces.Box:
+    def action_space(self, params: Optional[EnvParams] = None) -> spaces.Box:
         """Action space of the environment."""
         return spaces.Box(low=0, high=1, shape=(5,))
 

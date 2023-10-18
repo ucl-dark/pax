@@ -42,7 +42,7 @@ def policy_logger(agent) -> dict:
     ]  # [layer_name]['w']
     log_pi = nn.softmax(weights)
     probs = {
-        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi)
+        "policy/" + str(s): p[0] for (s, p) in zip(State, log_pi, strict=True)
     }  # probability of cooperating is p[0]
     return probs
 
@@ -50,10 +50,14 @@ def policy_logger(agent) -> dict:
 def value_logger(agent) -> dict:
     weights = agent.critic_optimizer.target["Dense_0"]["kernel"]
     values = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, weights, strict=True)
     }
     values.update(
-        {f"value/{str(s)}.defect": p[1] for (s, p) in zip(State, weights)}
+        {
+            f"value/{str(s)}.defect": p[1]
+            for (s, p) in zip(State, weights, strict=True)
+        }
     )
     return values
 
@@ -66,12 +70,12 @@ def policy_logger_dqn(agent) -> None:
     target_steps = agent.target_step_updates
     probs = {
         f"policy/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(State, pi, strict=True)
     }
     probs.update(
         {
             f"policy/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, pi)
+            for (s, p) in zip(State, pi, strict=True)
         }
     )
     probs.update({"policy/target_step_updates": target_steps})
@@ -84,12 +88,12 @@ def value_logger_dqn(agent) -> dict:
     target_steps = agent.target_step_updates
     values = {
         f"value/player_{str(pid)}/{str(s)}.cooperate": p[0]
-        for (s, p) in zip(State, weights)
+        for (s, p) in zip(State, weights, strict=True)
     }
     values.update(
         {
             f"value/player_{str(pid)}/{str(s)}.defect": p[1]
-            for (s, p) in zip(State, weights)
+            for (s, p) in zip(State, weights, strict=True)
         }
     )
     values.update({"value/target_step_updates": target_steps})
@@ -100,7 +104,10 @@ def policy_logger_ppo(agent: PPO) -> dict:
     weights = agent._state.params["categorical_value_head/~/linear"]["w"]
     pi = nn.softmax(weights)
     sgd_steps = agent._total_steps / agent._num_steps
-    probs = {f"policy/{str(s)}.cooperate": p[0] for (s, p) in zip(State, pi)}
+    probs = {
+        f"policy/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, pi, strict=True)
+    }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
 
@@ -111,7 +118,8 @@ def value_logger_ppo(agent: PPO) -> dict:
     ]  # 5 x 1 matrix
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
-        f"value/{str(s)}.cooperate": p[0] for (s, p) in zip(State, weights)
+        f"value/{str(s)}.cooperate": p[0]
+        for (s, p) in zip(State, weights, strict=True)
     }
     probs.update({"value/total_steps": sgd_steps})
     return probs
@@ -214,7 +222,7 @@ def policy_logger_naive(agent) -> None:
     sgd_steps = agent._total_steps / agent._num_steps
     probs = {
         f"policy/{str(s)}/{agent.player_id}.cooperate": p[0]
-        for (s, p) in zip(State, pi)
+        for (s, p) in zip(State, pi, strict=True)
     }
     probs.update({"policy/total_steps": sgd_steps})
     return probs
@@ -222,7 +230,7 @@ def policy_logger_naive(agent) -> None:
 
 class ESLog(object):
     def __init__(
-            self, num_dims: int, num_generations: int, top_k: int, maximize: bool
+        self, num_dims: int, num_generations: int, top_k: int, maximize: bool
     ):
         """Simple jittable logging tool for ES rollouts."""
         self.num_dims = num_dims
@@ -235,55 +243,55 @@ class ESLog(object):
         """Initialize the logger storage."""
         log = {
             "top_fitness": jnp.zeros(self.top_k)
-                           - 1e10 * self.maximize
-                           + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "top_params": jnp.zeros((self.top_k, self.num_dims))
-                          - 1e10 * self.maximize
-                          + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_top_1": jnp.zeros(self.num_generations)
-                         - 1e10 * self.maximize
-                         + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_top_mean": jnp.zeros(self.num_generations)
-                            - 1e10 * self.maximize
-                            + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_top_std": jnp.zeros(self.num_generations)
-                           - 1e10 * self.maximize
-                           + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "top_gen_fitness": jnp.zeros(self.top_k)
-                               - 1e10 * self.maximize
-                               + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "top_gen_params": jnp.zeros((self.top_k, self.num_dims))
-                              - 1e10 * self.maximize
-                              + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_gen_1": jnp.zeros(self.num_generations)
-                         - 1e10 * self.maximize
-                         + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_top_gen_mean": jnp.zeros(self.num_generations)
-                                - 1e10 * self.maximize
-                                + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_top_gen_std": jnp.zeros(self.num_generations)
-                               - 1e10 * self.maximize
-                               + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_gen_mean": jnp.zeros(self.num_generations)
-                            - 1e10 * self.maximize
-                            + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "log_gen_std": jnp.zeros(self.num_generations)
-                           - 1e10 * self.maximize
-                           + 1e10 * (1 - self.maximize),
+            - 1e10 * self.maximize
+            + 1e10 * (1 - self.maximize),
             "gen_counter": 0,
         }
         return log
 
     # @partial(jax.jit, static_argnums=(0,))
     def update(
-            self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
+        self, log: chex.ArrayTree, x: chex.Array, fitness: chex.Array
     ) -> chex.ArrayTree:
         """Update the logging storage with newest data."""
 
         # Check if there are solutions better than current archive
         def get_top_idx(maximize: bool, vals: jnp.ndarray) -> jnp.ndarray:
             top_idx = maximize * ((-1) * vals).argsort() + (
-                    (1 - maximize) * vals.argsort()
+                (1 - maximize) * vals.argsort()
             )
             return top_idx
 
@@ -347,13 +355,13 @@ class ESLog(object):
         return es_logger
 
     def plot(
-            self,
-            log,
-            title,
-            ylims=None,
-            fig=None,
-            ax=None,
-            no_legend=False,
+        self,
+        log,
+        title,
+        ylims=None,
+        fig=None,
+        ax=None,
+        no_legend=False,
     ):
         """Plot fitness trajectory from evo logger over generations."""
         import matplotlib.pyplot as plt
@@ -391,7 +399,7 @@ class ESLog(object):
 
 
 def ipd_visitation(
-        observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
+    observations: jnp.ndarray, actions: jnp.ndarray, final_obs: jnp.ndarray
 ) -> dict:
     # obs [num_outer_steps, num_inner_steps, num_opps, num_envs, ...]
     # final_t [num_opps, num_envs, ...]
@@ -402,7 +410,7 @@ def ipd_visitation(
     state_actions = jnp.reshape(
         state_actions,
         (num_timesteps,) + state_actions.shape[2:],
-        )
+    )
     # assume final step taken is cooperate
     final_obs = jax.lax.expand_dims(2 * jnp.argmax(final_obs, axis=-1), [0])
     state_actions = jnp.append(state_actions, final_obs, axis=0)
@@ -500,10 +508,10 @@ def n_player_ipd_visitation(
     ]
 
     visitation_dict = (
-        dict(zip(visitation_strs, state_freq))
-        | dict(zip(prob_strs, state_probs))
-        | dict(zip(grouped_visitation_strs, grouped_state_freq))
-        | dict(zip(grouped_prob_strs, grouped_state_probs))
+        dict(zip(visitation_strs, state_freq, strict=True))
+        | dict(zip(prob_strs, state_probs, strict=True))
+        | dict(zip(grouped_visitation_strs, grouped_state_freq, strict=True))
+        | dict(zip(grouped_prob_strs, grouped_state_probs, strict=True))
     )
     return visitation_dict
 
@@ -799,14 +807,20 @@ def third_party_punishment_visitation(
     total_punishment_str = "total_punishment"
 
     visitation_dict = (
-        dict(zip(all_game_visitation_strs, action_freq))
-        | dict(zip(all_game_prob_strs, action_probs))
-        | dict(zip(pl1_v_pl2_visitation_strs, pl1_v_pl2_action_freq))
-        | dict(zip(pl1_v_pl2_prob_strs, pl1_v_pl2_action_probs))
-        | dict(zip(pl1_v_pl3_visitation_strs, pl1_v_pl3_action_freq))
-        | dict(zip(pl1_v_pl3_prob_strs, pl1_v_pl3_action_probs))
-        | dict(zip(pl2_v_pl3_visitation_strs, pl2_v_pl3_action_freq))
-        | dict(zip(pl2_v_pl3_prob_strs, pl2_v_pl3_action_probs))
+        dict(zip(all_game_visitation_strs, action_freq, strict=True))
+        | dict(zip(all_game_prob_strs, action_probs, strict=True))
+        | dict(
+            zip(pl1_v_pl2_visitation_strs, pl1_v_pl2_action_freq, strict=True)
+        )
+        | dict(zip(pl1_v_pl2_prob_strs, pl1_v_pl2_action_probs, strict=True))
+        | dict(
+            zip(pl1_v_pl3_visitation_strs, pl1_v_pl3_action_freq, strict=True)
+        )
+        | dict(zip(pl1_v_pl3_prob_strs, pl1_v_pl3_action_probs, strict=True))
+        | dict(
+            zip(pl2_v_pl3_visitation_strs, pl2_v_pl3_action_freq, strict=True)
+        )
+        | dict(zip(pl2_v_pl3_prob_strs, pl2_v_pl3_action_probs, strict=True))
         | {pl1_total_defects_prob_str: pl1_total_defects_prob}
         | {pl2_total_defects_prob_str: pl2_total_defects_prob}
         | {pl3_total_defects_prob_str: pl3_total_defects_prob}
@@ -863,10 +877,6 @@ def third_party_random_visitation(
     game1 = jnp.stack([prev_cd_actions[:, 0], prev_cd_actions[:, 1]], axis=-1)
     game2 = jnp.stack([prev_cd_actions[:, 1], prev_cd_actions[:, 2]], axis=-1)
     game3 = jnp.stack([prev_cd_actions[:, 2], prev_cd_actions[:, 0]], axis=-1)
-
-    selected_game_actions = jnp.stack(  # len_idx3x2
-        [game1, game2, game3], axis=1
-    )
 
     b2i = 2 ** jnp.arange(2 - 1, -1, -1)
     pl1_vs_pl2 = (game1 * b2i).sum(axis=-1)
@@ -996,10 +1006,10 @@ def third_party_random_visitation(
     )
 
     visitation_dict = (
-        dict(zip(game_prob_strs, action_probs))
-        | dict(zip(game1_prob_strs, pl1_v_pl2_action_probs))
-        | dict(zip(game2_prob_strs, pl2_v_pl3_action_probs))
-        | dict(zip(game3_prob_strs, pl3_v_pl1_action_probs))
+        dict(zip(game_prob_strs, action_probs, strict=True))
+        | dict(zip(game1_prob_strs, pl1_v_pl2_action_probs, strict=True))
+        | dict(zip(game2_prob_strs, pl2_v_pl3_action_probs, strict=True))
+        | dict(zip(game3_prob_strs, pl3_v_pl1_action_probs, strict=True))
         | {game_selected_punish_str: game_selected_punish}
         | {pl1_defects_prob_str: pl1_defect_prob}
         | {pl2_defects_prob_str: pl2_defect_prob}
@@ -1121,16 +1131,16 @@ def cg_visitation(state: NamedTuple) -> dict:
 
 
 def ipditm_stats(
-        state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
+    state: EnvState, traj1: NamedTuple, traj2: NamedTuple, num_envs: int
 ) -> dict:
     from pax.envs.in_the_matrix import Actions
 
     """Compute statistics for IPDITM."""
     interacts1 = (
-            jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
+        jnp.count_nonzero(traj1.actions == Actions.interact) / num_envs
     )
     interacts2 = (
-            jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
+        jnp.count_nonzero(traj2.actions == Actions.interact) / num_envs
     )
 
     soft_reset_mask = jnp.where(traj1.rewards != 0, 1, 0)
@@ -1138,17 +1148,17 @@ def ipditm_stats(
 
     num_sft_resets = jnp.maximum(1, num_soft_resets)
     coops1 = (
-                     soft_reset_mask * traj1.observations["inventory"][..., 0]
-             ).sum() / (num_envs * num_sft_resets)
+        soft_reset_mask * traj1.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
     defect1 = (
-                      soft_reset_mask * traj1.observations["inventory"][..., 1]
-              ).sum() / (num_envs * num_sft_resets)
+        soft_reset_mask * traj1.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
     coops2 = (
-                     soft_reset_mask * traj2.observations["inventory"][..., 0]
-             ).sum() / (num_envs * num_sft_resets)
+        soft_reset_mask * traj2.observations["inventory"][..., 0]
+    ).sum() / (num_envs * num_sft_resets)
     defect2 = (
-                      soft_reset_mask * traj2.observations["inventory"][..., 1]
-              ).sum() / (num_envs * num_sft_resets)
+        soft_reset_mask * traj2.observations["inventory"][..., 1]
+    ).sum() / (num_envs * num_sft_resets)
 
     rewards1 = traj1.rewards.sum() / num_envs
     rewards2 = traj2.rewards.sum() / num_envs
@@ -1172,5 +1182,3 @@ def ipditm_stats(
         "train/final_reward/player1": f_rewards1,
         "train/final_reward/player2": f_rewards2,
     }
-
-

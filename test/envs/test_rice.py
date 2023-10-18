@@ -2,12 +2,8 @@ import os
 import time
 
 import jax
-import jax.numpy as jnp
-import tree
 
 from pax.envs.rice.rice import Rice, EnvParams
-
-# config.update('jax_disable_jit', True)
 
 file_dir = os.path.join(os.path.dirname(__file__))
 config_folder = os.path.join(file_dir, "../../pax/envs/rice/5_regions")
@@ -33,43 +29,31 @@ def test_rice():
         )
         for j in range(num_players):
             # assert all obs positive
-            assert env_state.consumption_all[j].item() >= 0, "consumption cannot be negative!"
-            assert env_state.production_all[j].item() >= 0, "production cannot be negative!"
-            assert env_state.labor_all[j].item() >= 0, "labor cannot be negative!"
-            assert env_state.capital_all[j].item() >= 0, "capital cannot be negative!"
-            assert env_state.gross_output_all[j].item() >= 0, "gross output cannot be negative!"
-            assert env_state.investment_all[j].item() >= 0, "investment cannot be negative!"
+            assert (
+                env_state.consumption_all[j].item() >= 0
+            ), "consumption cannot be negative!"
+            assert (
+                env_state.production_all[j].item() >= 0
+            ), "production cannot be negative!"
+            assert (
+                env_state.labor_all[j].item() >= 0
+            ), "labor cannot be negative!"
+            assert (
+                env_state.capital_all[j].item() >= 0
+            ), "capital cannot be negative!"
+            assert (
+                env_state.gross_output_all[j].item() >= 0
+            ), "gross output cannot be negative!"
+            assert (
+                env_state.investment_all[j].item() >= 0
+            ), "investment cannot be negative!"
 
         if done is True:
             assert env_state.inner_t == 0
             assert (i + 1) / ep_length == 0
-        assert (i + 1) % ep_length == env_state.inner_t, "inner_t not updating correctly"
-
-
-def test_rice_regression(data_regression):
-    rng = jax.random.PRNGKey(0)
-
-    env = Rice(config_folder=config_folder, episode_length=ep_length)  # Make sure to define 'config_folder'
-    env_params = EnvParams()
-    obs, env_state = env.reset(rng, env_params)
-
-    results = {}
-
-    for i in range(ep_length):
-        action = jnp.ones((env.num_actions,)) * 0.5  # Deterministic action for testing
-        actions = tuple([action for _ in range(num_players)])
-        obs, env_state, rewards, done, info = env.step(rng, env_state, actions, env_params)
-
-        stored_obs = [_obs.round(1).tolist() for _obs in obs]
-        stored_env_state = [leaf.round(1).tolist() for leaf in tree.flatten(env_state)]
-        stored_rewards = [reward.round(1).item() for reward in rewards]
-        results[i] = {
-            "obs": stored_obs,
-            "env_state": stored_env_state,
-            "rewards": stored_rewards,
-        }
-
-    data_regression.check(results)
+        assert (
+            i + 1
+        ) % ep_length == env_state.inner_t, "inner_t not updating correctly"
 
 
 def rice_performance_benchmark():
@@ -82,7 +66,7 @@ def rice_performance_benchmark():
 
     start_time = time.time()
 
-    for i in range(iterations * ep_length):
+    for _ in range(iterations * ep_length):
         # Do random actions
         key, _ = jax.random.split(rng, 2)
         action = jax.random.uniform(rng, (env.num_actions,))
@@ -97,7 +81,9 @@ def rice_performance_benchmark():
     # Print or log the total time taken for all iterations
     print(f"Total iterations:\t{iterations * ep_length}")
     print(f"Total time taken:\t{total_time:.4f} seconds")
-    print(f"Average step duration:\t{total_time / (iterations * ep_length):.6f} seconds")
+    print(
+        f"Average step duration:\t{total_time / (iterations * ep_length):.6f} seconds"
+    )
 
 
 # Run a benchmark

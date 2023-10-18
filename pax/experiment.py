@@ -199,7 +199,8 @@ def env_setup(args, logger=None):
             a=args.a, b=args.b, marginal_cost=args.marginal_cost
         )
         env = CournotGame(
-            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
+            num_players=args.num_players,
+            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
@@ -215,7 +216,8 @@ def env_setup(args, logger=None):
             s_max=args.s_max,
         )
         env = Fishery(
-            num_players=args.num_players, num_inner_steps=args.num_inner_steps,
+            num_players=args.num_players,
+            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
@@ -236,9 +238,15 @@ def env_setup(args, logger=None):
         env = ClubRice(
             config_folder=args.config_folder,
             has_mediator=args.has_mediator,
-            mediator_climate_objective=args.get("mediator_climate_objective", None),
-            default_club_mitigation_rate=args.get("default_club_mitigation_rate", None),
-            default_club_tariff_rate=args.get("default_club_tariff_rate", None),
+            mediator_climate_objective=args.get(
+                "mediator_climate_objective", None
+            ),
+            default_club_mitigation_rate=args.get(
+                "default_club_mitigation_rate", None
+            ),
+            default_club_tariff_rate=args.get(
+                "default_club_tariff_rate", None
+            ),
             mediator_climate_weight=args.get("mediator_climate_weight", None),
             mediator_utility_weight=args.get("mediator_utility_weight", None),
         )
@@ -428,8 +436,12 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_memory_agent(seed, player_id):
-        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
-        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        player_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
 
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
@@ -445,8 +457,12 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_agent(seed, player_id):
-        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
-        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        player_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
 
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
@@ -462,8 +478,12 @@ def agent_setup(args, env, env_params, logger):
         )
 
     def get_PPO_tabular_agent(seed, player_id):
-        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
-        player_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        player_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
 
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
@@ -481,8 +501,12 @@ def agent_setup(args, env, env_params, logger):
         return ppo_agent
 
     def get_mfos_agent(seed, player_id):
-        default_player_args = omegaconf.OmegaConf.select(args, "ppo_default", default=None)
-        agent_args = omegaconf.OmegaConf.select(args, "ppo" + str(player_id), default=default_player_args)
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        agent_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
 
         num_iterations = args.num_iters
         if player_id == 1 and args.env_type == "meta":
@@ -582,9 +606,15 @@ def agent_setup(args, env, env_params, logger):
             logger.info("Using Independent Learners")
         return agent_1
     else:
-        default_agent = omegaconf.OmegaConf.select(args, "agent_default", default=None)
-        agent_strategies = [omegaconf.OmegaConf.select(args, "agent" + str(i), default=default_agent) for i in
-                            range(1, args.num_players + 1)]
+        default_agent = omegaconf.OmegaConf.select(
+            args, "agent_default", default=None
+        )
+        agent_strategies = [
+            omegaconf.OmegaConf.select(
+                args, "agent" + str(i), default=default_agent
+            )
+            for i in range(1, args.num_players + 1)
+        ]
         for strategy in agent_strategies:
             assert strategy in strategies
 
@@ -598,12 +628,8 @@ def agent_setup(args, env, env_params, logger):
         ]
         agents = []
         for idx, strategy in enumerate(agent_strategies):
-            agents.append(
-                strategies[strategy](seeds[idx], pids[idx])
-            )
-        logger.info(
-            f"Agent Pair: {agents}"
-        )
+            agents.append(strategies[strategy](seeds[idx], pids[idx]))
+        logger.info(f"Agent Pair: {agents}")
         logger.info(f"Agent seeds: {seeds}")
 
         return agents
@@ -613,7 +639,7 @@ def watcher_setup(args, logger):
     """Set up watcher variables."""
 
     def ppo_memory_log(
-            agent,
+        agent,
     ):
         losses = losses_ppo(agent)
         if args.env_id not in [
@@ -717,9 +743,15 @@ def watcher_setup(args, logger):
         return agent_1_log
     else:
         agent_log = []
-        default_agent = omegaconf.OmegaConf.select(args, "agent_default", default=None)
-        agent_strategies = [omegaconf.OmegaConf.select(args, "agent" + str(i), default=default_agent) for i in
-                            range(1, args.num_players + 1)]
+        default_agent = omegaconf.OmegaConf.select(
+            args, "agent_default", default=None
+        )
+        agent_strategies = [
+            omegaconf.OmegaConf.select(
+                args, "agent" + str(i), default=default_agent
+            )
+            for i in range(1, args.num_players + 1)
+        ]
         for strategy in agent_strategies:
             assert strategy in strategies
             agent_log.append(strategies[strategy])

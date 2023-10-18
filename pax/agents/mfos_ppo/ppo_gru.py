@@ -11,7 +11,8 @@ from pax import utils
 from pax.agents.agent import AgentInterface
 from pax.agents.mfos_ppo.networks import (
     make_mfos_ipditm_network,
-    make_mfos_network, make_mfos_continuous_network,
+    make_mfos_network,
+    make_mfos_continuous_network,
 )
 from pax.envs.rice.rice import Rice
 from pax.utils import TrainingState, get_advantages

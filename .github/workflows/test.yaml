@@ -1,8 +1,8 @@
 # .github/workflows/app.yaml
 name: PyTest
-on: 
+on:
   pull_request:
-    branches: 
+    branches:
       - main
 
 jobs:
@@ -21,6 +21,7 @@ jobs:
         python -m pip install --upgrade pip
     - name: Install from repo in the test mode
       run: "pip install -e '.[dev]'"
+    - uses: pre-commit/action@v3.0.0
     - name: Test with pytest
       run: |
         pip install pytest

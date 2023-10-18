@@ -12,13 +12,21 @@ from pax.agents.agent import AgentInterface
 from pax.agents.ppo.networks import (
     make_coingame_network,
     make_ipditm_network,
-    make_sarl_network, make_cournot_network,
-    make_fishery_network, make_rice_sarl_network,
+    make_sarl_network,
+    make_cournot_network,
+    make_fishery_network,
+    make_rice_sarl_network,
 )
 from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice
 from pax.envs.rice.sarl_rice import SarlRice
-from pax.utils import Logger, MemoryState, TrainingState, get_advantages, float_precision
+from pax.utils import (
+    Logger,
+    MemoryState,
+    TrainingState,
+    get_advantages,
+    float_precision,
+)
 
 
 class Batch(NamedTuple):
@@ -40,29 +48,29 @@ class PPO(AgentInterface):
     """A simple PPO agent using JAX"""
 
     def __init__(
-            self,
-            network: NamedTuple,
-            optimizer: optax.GradientTransformation,
-            random_key: jnp.ndarray,
-            obs_spec: Tuple,
-            num_envs: int = 4,
-            num_minibatches: int = 16,
-            num_epochs: int = 4,
-            clip_value: bool = True,
-            value_coeff: float = 0.5,
-            anneal_entropy: bool = False,
-            entropy_coeff_start: float = 0.1,
-            entropy_coeff_end: float = 0.01,
-            entropy_coeff_horizon: int = 3_000_000,
-            ppo_clipping_epsilon: float = 0.2,
-            gamma: float = 0.99,
-            gae_lambda: float = 0.95,
-            tabular: bool = False,
-            player_id: int = 0,
+        self,
+        network: NamedTuple,
+        optimizer: optax.GradientTransformation,
+        random_key: jnp.ndarray,
+        obs_spec: Tuple,
+        num_envs: int = 4,
+        num_minibatches: int = 16,
+        num_epochs: int = 4,
+        clip_value: bool = True,
+        value_coeff: float = 0.5,
+        anneal_entropy: bool = False,
+        entropy_coeff_start: float = 0.1,
+        entropy_coeff_end: float = 0.01,
+        entropy_coeff_horizon: int = 3_000_000,
+        ppo_clipping_epsilon: float = 0.2,
+        gamma: float = 0.99,
+        gae_lambda: float = 0.95,
+        tabular: bool = False,
+        player_id: int = 0,
     ):
         @jax.jit
         def policy(
-                state: TrainingState, observation: jnp.ndarray, mem: MemoryState
+            state: TrainingState, observation: jnp.ndarray, mem: MemoryState
         ):
             """Agent policy to select actions and calculate agent specific information"""
             key, subkey = jax.random.split(state.random_key)
@@ -78,7 +86,7 @@ class PPO(AgentInterface):
 
         @jax.jit
         def gae_advantages(
-                rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
+            rewards: jnp.ndarray, values: jnp.ndarray, dones: jnp.ndarray
         ) -> jnp.ndarray:
             """Calculates the gae advantages from a sequence. Note that the
             arguments are of length = rollout length + 1"""
@@ -107,14 +115,14 @@ class PPO(AgentInterface):
             return advantages, target_values
 
         def loss(
-                params: hk.Params,
-                timesteps: int,
-                observations: jnp.ndarray,
-                actions: jnp.array,
-                behavior_log_probs: jnp.array,
-                target_values: jnp.array,
-                advantages: jnp.array,
-                behavior_values: jnp.array,
+            params: hk.Params,
+            timesteps: int,
+            observations: jnp.ndarray,
+            actions: jnp.array,
+            behavior_log_probs: jnp.array,
+            target_values: jnp.array,
+            advantages: jnp.array,
+            behavior_values: jnp.array,
         ):
             """Surrogate loss using clipped probability ratios."""
             distribution, values = network.apply(params, observations)
@@ -136,7 +144,7 @@ class PPO(AgentInterface):
             # Value loss: MSE
             value_cost = value_coeff
             unclipped_value_error = target_values - values
-            unclipped_value_loss = unclipped_value_error ** 2
+            unclipped_value_loss = unclipped_value_error**2
 
             # Value clipping
             if clip_value:
@@ -147,7 +155,7 @@ class PPO(AgentInterface):
                     ppo_clipping_epsilon,
                 )
                 clipped_value_error = target_values - clipped_values
-                clipped_value_loss = clipped_value_error ** 2
+                clipped_value_loss = clipped_value_error**2
                 value_loss = jnp.mean(
                     jnp.fmax(unclipped_value_loss, clipped_value_loss)
                 )
@@ -159,8 +167,8 @@ class PPO(AgentInterface):
             if anneal_entropy:
                 fraction = jnp.fmax(1 - timesteps / entropy_coeff_horizon, 0)
                 entropy_cost = (
-                        fraction * entropy_coeff_start
-                        + (1 - fraction) * entropy_coeff_end
+                    fraction * entropy_coeff_start
+                    + (1 - fraction) * entropy_coeff_end
                 )
             # Constant Entropy term
             else:
@@ -169,9 +177,9 @@ class PPO(AgentInterface):
 
             # Total loss: Minimize policy and value loss; maximize entropy
             total_loss = (
-                    policy_loss
-                    + entropy_cost * entropy_loss
-                    + value_loss * value_cost
+                policy_loss
+                + entropy_cost * entropy_loss
+                + value_loss * value_cost
             )
 
             return total_loss, {
@@ -184,7 +192,7 @@ class PPO(AgentInterface):
 
         @jax.jit
         def sgd_step(
-                state: TrainingState, sample: NamedTuple
+            state: TrainingState, sample: NamedTuple
         ) -> Tuple[TrainingState, Dict[str, jnp.ndarray]]:
             """Performs a minibatch SGD step, returning new state and metrics."""
 
@@ -241,8 +249,8 @@ class PPO(AgentInterface):
 
             @jax.jit
             def model_update_minibatch(
-                    carry: Tuple[hk.Params, optax.OptState, int],
-                    minibatch: Batch,
+                carry: Tuple[hk.Params, optax.OptState, int],
+                minibatch: Batch,
             ) -> Tuple[
                 Tuple[hk.Params, optax.OptState, int], Dict[str, jnp.ndarray]
             ]:
@@ -250,9 +258,9 @@ class PPO(AgentInterface):
                 params, opt_state, timesteps = carry
                 # Normalize advantages at the minibatch level before using them.
                 advantages = (
-                                     minibatch.advantages
-                                     - jnp.mean(minibatch.advantages, axis=0)
-                             ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
+                    minibatch.advantages
+                    - jnp.mean(minibatch.advantages, axis=0)
+                ) / (jnp.std(minibatch.advantages, axis=0) + 1e-8)
                 gradients, metrics = grad_fn(
                     params,
                     timesteps,
@@ -274,10 +282,10 @@ class PPO(AgentInterface):
 
             @jax.jit
             def model_update_epoch(
-                    carry: Tuple[
-                        jnp.ndarray, hk.Params, optax.OptState, int, Batch
-                    ],
-                    unused_t: Tuple[()],
+                carry: Tuple[
+                    jnp.ndarray, hk.Params, optax.OptState, int, Batch
+                ],
+                unused_t: Tuple[()],
             ) -> Tuple[
                 Tuple[jnp.ndarray, hk.Params, optax.OptState, Batch],
                 Dict[str, jnp.ndarray],
@@ -342,7 +350,7 @@ class PPO(AgentInterface):
             return new_state, new_memory, metrics
 
         def make_initial_state(
-                key: Any, hidden: jnp.ndarray
+            key: Any, hidden: jnp.ndarray
         ) -> Tuple[TrainingState, MemoryState]:
             """Initialises the training state (parameters and optimiser state)."""
             key, subkey = jax.random.split(key)
@@ -379,7 +387,7 @@ class PPO(AgentInterface):
             )
 
         def prepare_batch(
-                traj_batch: NamedTuple, done: Any, action_extras: dict
+            traj_batch: NamedTuple, done: Any, action_extras: dict
         ):
             # Rollouts complete -> Training begins
             # Add an additional rollout step for advantage calculation
@@ -439,11 +447,11 @@ class PPO(AgentInterface):
         return memory
 
     def update(
-            self,
-            traj_batch,
-            obs: jnp.ndarray,
-            state: TrainingState,
-            mem: MemoryState,
+        self,
+        traj_batch,
+        obs: jnp.ndarray,
+        state: TrainingState,
+        mem: MemoryState,
     ):
         """Update the agent -> only called at the end of a trajectory"""
         _, _, mem = self._policy(state, obs, mem)
@@ -453,7 +461,7 @@ class PPO(AgentInterface):
         )
         state, mem, metrics = self._sgd_step(state, traj_batch)
         self._logger.metrics["sgd_steps"] += (
-                self._num_minibatches * self._num_epochs
+            self._num_minibatches * self._num_epochs
         )
         self._logger.metrics["loss_total"] = metrics["loss_total"]
         self._logger.metrics["loss_policy"] = metrics["loss_policy"]
@@ -465,14 +473,14 @@ class PPO(AgentInterface):
 
 
 def make_agent(
-        args,
-        agent_args,
-        obs_spec,
-        action_spec,
-        seed: int,
-        num_iterations: int,
-        player_id: int,
-        tabular=False,
+    args,
+    agent_args,
+    obs_spec,
+    action_spec,
+    seed: int,
+    num_iterations: int,
+    player_id: int,
+    tabular=False,
 ):
     """Make PPO agent"""
     print(f"Making network for {args.env_id}")
@@ -508,11 +516,13 @@ def make_agent(
     elif args.runner == "sarl":
         network = make_sarl_network(action_spec)
     else:
-        raise NotImplementedError(f"No ppo network implemented for env {args.env_id}")
+        raise NotImplementedError(
+            f"No ppo network implemented for env {args.env_id}"
+        )
 
     # Optimizer
     transition_steps = (
-            num_iterations * agent_args.num_epochs * agent_args.num_minibatches
+        num_iterations * agent_args.num_epochs * agent_args.num_minibatches
     )
 
     if agent_args.lr_scheduling:

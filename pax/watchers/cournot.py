@@ -7,7 +7,9 @@ from pax.envs.cournot import EnvParams as CournotEnvParams, CournotGame
 
 
 @partial(jax.jit, static_argnums=2)
-def cournot_stats(observations: jnp.ndarray, params: CournotEnvParams, num_players: int) -> dict:
+def cournot_stats(
+    observations: jnp.ndarray, params: CournotEnvParams, num_players: int
+) -> dict:
     opt_quantity = CournotGame.nash_policy(params)
 
     actions = observations[..., :num_players]
@@ -15,7 +17,9 @@ def cournot_stats(observations: jnp.ndarray, params: CournotEnvParams, num_playe
 
     stats = {
         "cournot/average_quantity": average_quantity,
-        "cournot/quantity_loss": jnp.mean((opt_quantity - average_quantity) ** 2),
+        "cournot/quantity_loss": jnp.mean(
+            (opt_quantity - average_quantity) ** 2
+        ),
     }
 
     for i in range(num_players):

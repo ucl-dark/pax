@@ -10,9 +10,9 @@ class CategoricalValueHead(hk.Module):
     """Network head that produces a categorical distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
     ):
         super().__init__(name=name)
         self._logit_layer = hk.Linear(
@@ -34,10 +34,10 @@ class ContinuousValueHead(hk.Module):
     """Network head that produces a continuous distribution and value."""
 
     def __init__(
-            self,
-            num_values: int,
-            name: Optional[str] = None,
-            mean_activation: Optional[str] = None,
+        self,
+        num_values: int,
+        name: Optional[str] = None,
+        mean_activation: Optional[str] = None,
     ):
         super().__init__(name=name)
         self.mean_action = mean_activation
@@ -65,7 +65,10 @@ class ContinuousValueHead(hk.Module):
         scales = self._scale_layer(inputs)
         value = jnp.squeeze(self._value_layer(inputs), axis=-1)
         scales = jnp.maximum(scales, 0.01)
-        return distrax.MultivariateNormalDiag(loc=means, scale_diag=scales), value
+        return (
+            distrax.MultivariateNormalDiag(loc=means, scale_diag=scales),
+            value,
+        )
 
 
 class CNN(hk.Module):

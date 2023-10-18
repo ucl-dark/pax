@@ -17,7 +17,10 @@ def test_single_cournot_game():
 
         obs, env_state = env.reset(rng, env_params)
         obs, env_state, rewards, done, info = env.step(
-            rng, env_state, tuple([nash_action for _ in range(n_player)]), env_params
+            rng,
+            env_state,
+            tuple([nash_action for _ in range(n_player)]),
+            env_params,
         )
 
         assert all(element == rewards[0] for element in rewards)
@@ -26,14 +29,18 @@ def test_single_cournot_game():
         nash_reward = CournotGame.nash_reward(env_params)
         assert nash_reward == 1800
         assert jnp.isclose(nash_reward / n_player, rewards[0], atol=0.01)
-        expected_obs = jnp.array([60/n_player for _ in range(n_player)] + [40])
+        expected_obs = jnp.array(
+            [60 / n_player for _ in range(n_player)] + [40]
+        )
         assert jnp.allclose(obs[0], expected_obs, atol=0.01)
         assert jnp.allclose(obs[0], obs[1], atol=0.0)
 
         social_opt_action = jnp.array([45 / n_player])
         obs, env_state = env.reset(rng, env_params)
         obs, env_state, rewards, done, info = env.step(
-            rng, env_state, tuple([social_opt_action for _ in range(n_player)]), env_params
+            rng,
+            env_state,
+            tuple([social_opt_action for _ in range(n_player)]),
+            env_params,
         )
         assert jnp.asarray(rewards).sum() == 2025
-

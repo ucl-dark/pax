@@ -9,7 +9,11 @@ import optax
 
 from pax import utils
 from pax.agents.agent import AgentInterface
-from pax.agents.naive.network import make_coingame_network, make_network, make_rice_network
+from pax.agents.naive.network import (
+    make_coingame_network,
+    make_network,
+    make_rice_network,
+)
 from pax.utils import MemoryState, TrainingState, get_advantages
 
 

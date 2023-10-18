@@ -20,6 +20,7 @@ This runner implements weight sharing by letting the agent assume each role in t
 
 class WeightSharingRunner:
     """Holds the runner's state."""
+
     id = "weight_sharing"
 
     def __init__(self, agent, env, save_dir, args):
@@ -93,14 +94,19 @@ class WeightSharingRunner:
             )
 
             trajectories = [
-                Sample(observation,
-                       action,
-                       reward * jnp.logical_not(done),
-                       new_memory.extras["log_probs"],
-                       new_memory.extras["values"],
-                       done,
-                       memory.hidden) for observation, action, reward, memory, new_memory in
-                zip(obs, actions, rewards, memories, new_memories)]
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, memory, new_memory in zip(
+                    obs, actions, rewards, memories, new_memories, strict=True
+                )
+            ]
 
             return (
                 rngs,
@@ -112,10 +118,10 @@ class WeightSharingRunner:
             ), trajectories
 
         def _rollout(
-                _rng_run: jnp.ndarray,
-                _a1_state: TrainingState,
-                _memories: List[MemoryState],
-                _env_params: Any,
+            _rng_run: jnp.ndarray,
+            _a1_state: TrainingState,
+            _memories: List[MemoryState],
+            _env_params: Any,
         ):
             # env reset
             rngs = jnp.concatenate(
@@ -164,12 +170,22 @@ class WeightSharingRunner:
             rewards = []
             num_episodes = jnp.sum(trajectories[0].dones)
             for traj in trajectories:
-                rewards.append(jnp.where(num_episodes != 0, jnp.sum(traj.rewards) / num_episodes, 0))
+                rewards.append(
+                    jnp.where(
+                        num_episodes != 0,
+                        jnp.sum(traj.rewards) / num_episodes,
+                        0,
+                    )
+                )
             env_stats = {}
             if args.env_id == "Rice-N":
-                env_stats = rice_stats(trajectories, args.num_players, args.has_mediator)
+                env_stats = rice_stats(
+                    trajectories, args.num_players, args.has_mediator
+                )
             elif args.env_id == "C-Rice-N":
-                env_stats = c_rice_stats(trajectories, args.num_players, args.has_mediator)
+                env_stats = c_rice_stats(
+                    trajectories, args.num_players, args.has_mediator
+                )
             elif args.env_id == "Fishery":
                 env_stats = fishery_stats(trajectories, args.num_players)
 
@@ -234,7 +250,7 @@ class WeightSharingRunner:
                         lambda x: jnp.mean(x), a1_metrics
                     )
                     agent._logger.metrics = (
-                            agent._logger.metrics | flattened_metrics_1
+                        agent._logger.metrics | flattened_metrics_1
                     )
 
                     watcher(agent)

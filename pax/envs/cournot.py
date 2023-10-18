@@ -18,16 +18,17 @@ class EnvParams:
     b: float
     marginal_cost: float
 
+
 class CournotGame(environment.Environment):
     def __init__(self, num_players: int, num_inner_steps: int):
         super().__init__()
         self.num_players = num_players
 
         def _step(
-                key: chex.PRNGKey,
-                state: EnvState,
-                actions: Tuple[float, ...],
-                params: EnvParams,
+            key: chex.PRNGKey,
+            state: EnvState,
+            actions: Tuple[float, ...],
+            params: EnvParams,
         ):
             assert len(actions) == num_players
             t = state.outer_t
@@ -61,7 +62,7 @@ class CournotGame(environment.Environment):
             )
 
         def _reset(
-                key: chex.PRNGKey, params: EnvParams
+            key: chex.PRNGKey, params: EnvParams
         ) -> Tuple[Tuple, EnvState]:
             state = EnvState(
                 inner_t=jnp.zeros((), dtype=jnp.int8),
@@ -84,15 +85,18 @@ class CournotGame(environment.Environment):
         """Number of actions possible in environment."""
         return 1
 
-    def action_space(
-            self, params: Optional[EnvParams] = None
-    ) -> spaces.Box:
+    def action_space(self, params: Optional[EnvParams] = None) -> spaces.Box:
         """Action space of the environment."""
-        return spaces.Box(low=0, high=float('inf'), shape=(1,))
+        return spaces.Box(low=0, high=float("inf"), shape=(1,))
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        return spaces.Box(low=0, high=float('inf'), shape=self.num_players + 1, dtype=jnp.float32)
+        return spaces.Box(
+            low=0,
+            high=float("inf"),
+            shape=self.num_players + 1,
+            dtype=jnp.float32,
+        )
 
     @staticmethod
     def nash_policy(params: EnvParams) -> float:
