@@ -195,14 +195,20 @@ class EvoRunner:
             env_rng = rngs[:, :, :, 0, :]
             rngs = rngs[:, :, :, 3, :]
 
-            a1, a1_state, new_a1_mem = agent1.batch_policy(
-                a1_state,
-                obs1,
-                a1_mem,
-            )
+            a1_actions = []
+            new_a1_memories = []
+            for _obs, _mem in zip(obs1, a1_mem):
+                a1_action, a1_state, new_a1_memory = agent1.batch_policy(
+                    a1_state,
+                    _obs,
+                    _mem,
+                )
+                a1_actions.append(a1_action)
+                new_a1_memories.append(new_a1_memory)
+
             a2_actions = []
             new_a2_memories = []
-            for _obs, _mem in zip(obs2, a2_mem, strict=True):
+            for _obs, _mem in zip(obs2, a2_mem):
                 a2_action, a2_state, new_a2_memory = agent2.batch_policy(
                     a2_state,
                     _obs,
@@ -211,7 +217,7 @@ class EvoRunner:
                 a2_actions.append(a2_action)
                 new_a2_memories.append(new_a2_memory)
 
-            actions = jnp.asarray([a1, *a2_actions])[agent_order]
+            actions = jnp.asarray([*a1_actions, *a2_actions])[agent_order]
             obs, env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
@@ -248,7 +254,6 @@ class EvoRunner:
                     rewards[1:],
                     new_a2_memories,
                     a2_mem,
-                    strict=True,
                 )
             ]
 
@@ -299,9 +304,7 @@ class EvoRunner:
 
             # update second agent
             new_a2_memories = []
-            for _obs, mem, traj in zip(
-                obs2, a2_mem, trajectories[1], strict=True
-            ):
+            for _obs, mem, traj in zip(obs2, a2_mem, trajectories[1]):
                 a2_state, a2_mem, a2_metrics = agent2.batch_update(
                     traj,
                     _obs,
@@ -370,8 +373,6 @@ class EvoRunner:
             if args.shuffle_players:
                 agent_order = jax.random.permutation(_rng_run, agent_order)
 
-            inv_agent_order = jnp.argsort(agent_order)
-            obs = jnp.asarray(obs)[inv_agent_order]
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
@@ -681,9 +682,7 @@ class EvoRunner:
                 wandb_log.update(env_stats)
                 # loop through population
                 for idx, (overall_fitness, gen_fitness) in enumerate(
-                    zip(
-                        log["top_fitness"], log["top_gen_fitness"], strict=True
-                    )
+                    zip(log["top_fitness"], log["top_gen_fitness"])
                 ):
                     wandb_log[
                         f"train/fitness/top_overall_agent_{idx + 1}"
@@ -699,7 +698,7 @@ class EvoRunner:
                 )
 
                 agent2._logger.metrics.update(flattened_metrics)
-                for watcher, agent in zip(watchers, agents, strict=True):
+                for watcher, agent in zip(watchers, agents):
                     watcher(agent)
                 wandb_log = jax.tree_util.tree_map(
                     lambda x: x.item() if isinstance(x, jax.Array) else x,

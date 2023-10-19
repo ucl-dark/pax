@@ -23,10 +23,9 @@ popsize: 1000
 num_envs: 1
 num_opps: 1
 num_outer_steps: 200
-num_inner_steps: 20
+num_inner_steps: 200
 num_iters: 1500
 num_devices: 1
-num_steps: 200
 
 
 # PPO agent parameters
