@@ -104,7 +104,7 @@ class WeightSharingRunner:
                     memory.hidden,
                 )
                 for observation, action, reward, memory, new_memory in zip(
-                    obs, actions, rewards, memories, new_memories, strict=True
+                    obs, actions, rewards, memories, new_memories
                 )
             ]
 

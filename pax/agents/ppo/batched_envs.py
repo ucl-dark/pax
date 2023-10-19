@@ -30,7 +30,7 @@ class BatchedEnvs(Environment):
         rewards = []
         observations = []
         discounts = []
-        for env, action in zip(self.envs, actions, strict=True):
+        for env, action in zip(self.envs, actions):
             t = env.step(int(action))
             if t.step_type == 2:
                 t_reset = env.reset()

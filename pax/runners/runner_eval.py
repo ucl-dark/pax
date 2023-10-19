@@ -144,7 +144,7 @@ class EvalRunner:
 
             a1_actions = []
             new_a1_memories = []
-            for _obs, _mem in zip(obs1, a1_mem, strict=True):
+            for _obs, _mem in zip(obs1, a1_mem):
                 a1_action, a1_state, new_a1_memory = agent1.batch_policy(
                     a1_state,
                     _obs,
@@ -155,7 +155,7 @@ class EvalRunner:
 
             a2_actions = []
             new_a2_memories = []
-            for _obs, _mem in zip(obs2, a2_mem, strict=True):
+            for _obs, _mem in zip(obs2, a2_mem):
                 a2_action, a2_state, new_a2_memory = agent2.batch_policy(
                     a2_state,
                     _obs,
@@ -192,7 +192,6 @@ class EvalRunner:
                     rewards[: self.args.agent1_roles],
                     new_a1_memories,
                     a1_mem,
-                    strict=True,
                 )
             ]
             a2_trajectories = [
@@ -211,7 +210,6 @@ class EvalRunner:
                     rewards[self.args.agent1_roles :],
                     new_a2_memories,
                     a2_mem,
-                    strict=True,
                 )
             ]
 
@@ -267,9 +265,7 @@ class EvalRunner:
                 a2_metrics = {}
             else:
                 new_a2_memories = []
-                for _obs, mem, traj in zip(
-                    obs2, a2_mem, stack[1], strict=True
-                ):
+                for _obs, mem, traj in zip(obs2, a2_mem, stack[1]):
                     a2_state, a2_mem, a2_metrics = agent2.batch_update(
                         traj,
                         _obs,
@@ -512,7 +508,7 @@ class EvalRunner:
                         agent2._logger.metrics | flattened_metrics
                     )
 
-                    for watcher, agent in zip(watchers, agents, strict=True):
+                    for watcher, agent in zip(watchers, agents):
                         watcher(agent)
                     wandb.log(
                         {
