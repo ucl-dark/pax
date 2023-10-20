@@ -30,6 +30,11 @@ agent1_roles: 1
 agent2_roles: 1 # Make agent 2 assume multiple roles in an n-player game
 agent2_reset_interval: 1 # Reset agent 2 every rollout
 
+# When True: runner_evo will replace the opponent by the agent itself
+# at a linearly increasing probability during training
+self_play_anneal: False
+
+
 # Logging setup
 wandb:
   entity: "ucl-dark"

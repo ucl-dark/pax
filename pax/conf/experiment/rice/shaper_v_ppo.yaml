@@ -27,6 +27,8 @@ num_inner_steps: 200
 num_iters: 1500
 num_devices: 1
 
+agent2_reset_interval: 10
+
 
 # PPO agent parameters
 ppo_default:
