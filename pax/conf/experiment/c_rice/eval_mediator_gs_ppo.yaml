@@ -22,20 +22,37 @@ popsize: 1000
 num_envs: 2
 num_opps: 1
 num_outer_steps: 1
-num_inner_steps: 2000
+num_inner_steps: 20
 num_iters: 2000
 num_devices: 1
-num_steps: 10
+num_steps: 1
 
 # Train to convergence
-agent2_reset_interval: 1000
-# Regular mediator
+agent2_reset_interval: 2000
+# Reward objective
 #run_path: chrismatix/c-rice/runs/3w7d59ug
 #model_path: exp/mediator/c_rice-mediator-gs-ppo-interval10_seed0/2023-10-09_17.00.59.872280/generation_1499
 
 # Climate objective
 run_path: chrismatix/c-rice/runs/ovss1ahd
 model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0-climate-obj/2023-10-14_17.23.35.878225/generation_1499
+
+# 0.9 climate 0.1 reward
+#run_path: chrismatix/c-rice/runs/mmtc40ja
+#model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0-c.9-u.1/2023-10-17_17.03.26.660387/generation_1499
+
+
+# 0.7 climate 0.3 reward
+#run_path: chrismatix/c-rice/runs/sdpc3s71
+#model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0-c.7-u.3/2023-10-20_17.12.09.658666/generation_1499
+
+# 0.5 climate 0.5 reward
+#run_path: chrismatix/c-rice/runs/6wpuz6i2
+#model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0-c.5-u.5/2023-10-20_15.48.04.605509/generation_1499
+
+# high reward
+#run_path: chrismatix/c-rice/runs/l4enoiku
+#model_path: exp/mediator/c-rice-mediator-GS-PPO_memory-seed-0/2023-10-02_18.01.15.434206/generation_1499
 
 # PPO agent parameters
 ppo_default:

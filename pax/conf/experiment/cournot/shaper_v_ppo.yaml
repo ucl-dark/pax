@@ -12,7 +12,7 @@ b: 1
 marginal_cost: 10
 
 # Runner
-runner: tensor_evo
+runner: evo
 
 # Training
 top_k: 5

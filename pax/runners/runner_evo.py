@@ -590,7 +590,6 @@ class EvoRunner:
             self_play_prob = gen / num_gens
             agent1_roles = 1
             if self.args.self_play_anneal:
-                # There always needs to be at least one agent 1
                 agent1_roles = np.random.binomial(
                     self.args.num_players, self_play_prob
                 )
