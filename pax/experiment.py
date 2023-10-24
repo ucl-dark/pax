@@ -70,7 +70,6 @@ from pax.runners.experimental.runner_evo_mixed_payoffs import EvoMixedPayoffRunn
 from pax.runners.experimental.runner_evo_mixed_IPD_payoffs import EvoMixedIPDPayoffRunner
 from pax.runners.experimental.runner_evo_mixed_payoffs_input import EvoMixedPayoffInputRunner
 from pax.runners.experimental.runner_evo_mixed_payoffs_gen import EvoMixedPayoffGenRunner
-from pax.runners.experimental.runner_evo_mixed_payoffs_pred import EvoMixedPayoffPredRunner
 from pax.runners.experimental.runner_evo_mixed_payoffs_only_opp import EvoMixedPayoffOnlyOppRunner
 from pax.runners.runner_evo_scanned import EvoScannedRunner
 

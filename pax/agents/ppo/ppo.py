@@ -16,6 +16,7 @@ from pax.agents.ppo.networks import (
     make_cournot_network,
     make_fishery_network,
     make_rice_sarl_network,
+    make_ipd_network,
 )
 from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice
@@ -502,6 +503,16 @@ def make_agent(
             agent_args.hidden_size,
             agent_args.output_channels,
             agent_args.kernel_shape,
+        )
+    elif args.env_id in [
+        "iterated_matrix_game",
+        "iterated_tensor_game",
+        "iterated_nplayer_tensor_game",
+        "third_party_punishment",
+        "third_party_random",
+    ]:
+        network = make_ipd_network(
+            action_spec, tabular, agent_args.hidden_size
         )
     elif args.env_id == "Cournot":
         network = make_cournot_network(action_spec, agent_args.hidden_size)
