@@ -16,7 +16,10 @@ from pax.agents.ppo.networks import (
     make_cournot_network,
     make_fishery_network,
     make_rice_sarl_network,
+    make_ipd_network,
 )
+from pax.envs.iterated_matrix_game import IteratedMatrixGame
+from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice
 from pax.envs.rice.sarl_rice import SarlRice
@@ -515,6 +518,11 @@ def make_agent(
         network = make_rice_sarl_network(action_spec, agent_args.hidden_size)
     elif args.runner == "sarl":
         network = make_sarl_network(action_spec)
+    elif args.env_id in [
+        IteratedMatrixGame.env_id,
+        IteratedTensorGameNPlayer.env_id,
+    ]:
+        network = make_ipd_network(action_spec, True, agent_args.hidden_size)
     else:
         raise NotImplementedError(
             f"No ppo network implemented for env {args.env_id}"

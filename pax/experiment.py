@@ -60,6 +60,7 @@ from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice, EnvParams as RiceParams
 from pax.envs.rice.sarl_rice import SarlRice
+from pax.runners.runner_evo_nroles import EvoRunnerNRoles
 from pax.runners.runner_weight_sharing import WeightSharingRunner
 from pax.runners.runner_eval import EvalRunner
 from pax.runners.runner_eval_multishaper import MultishaperEvalRunner
@@ -217,7 +218,6 @@ def env_setup(args, logger=None):
         )
         env = Fishery(
             num_players=args.num_players,
-            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
@@ -282,7 +282,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
-    if args.runner == "evo" or args.runner == "multishaper_evo":
+    if args.runner in ["evo", "multishaper_evo", "evo_nroles"]:
         agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -370,6 +370,18 @@ def runner_setup(args, env, agents, save_dir, logger):
         if args.runner == "evo":
             logger.info("Training with EVO runner")
             return EvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+
+        elif args.runner == "evo_nroles":
+            logger.info("Training with n_roles EVO runner")
+            return EvoRunnerNRoles(
                 agents,
                 env,
                 strategy,
@@ -783,7 +795,7 @@ def main(args):
 
     print(f"Number of Training Iterations: {args.num_iters}")
 
-    if args.runner == "evo" or args.runner == "multishaper_evo":
+    if args.runner in ["evo", "evo_nroles", "multishaper_evo"]:
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
     elif args.runner == "rl" or args.runner == "tensor_rl_nplayer":
         # number of episodes

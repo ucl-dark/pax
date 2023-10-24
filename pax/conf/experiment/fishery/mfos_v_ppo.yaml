@@ -15,7 +15,7 @@ s_0: 0.5
 s_max: 1.0
 
 # Runner
-runner: evo
+runner: evo_nroles
 
 # Training
 top_k: 5

@@ -1,6 +1,6 @@
 # @package _global_
 
-# Agents  
+# Agents
 agent1: 'PPO'
 
 # Environment
@@ -15,19 +15,19 @@ runner: sarl
 
 # env_batch_size = num_envs * num_opponents
 num_envs: 8
-num_steps: 500 # 500 Cartpole 
+num_steps: 500 # 500 Cartpole
 num_iters: 1e6
-save_interval: 100 
+save_interval: 100
 
-# Evaluation 
+# Evaluation
 run_path: ucl-dark/cg/3sp0y2cy
 model_path: exp/coin_game-PPO_memory-vs-PPO_memory-parity/run-seed-0/2022-09-12_11.21.52.633382/iteration_74900
 
 # PPO agent parameters
-ppo:
+ppo0:
   num_minibatches: 4
-  num_epochs: 4 
-  gamma: 0.99 
+  num_epochs: 4
+  gamma: 0.99
   gae_lambda: 0.95
   ppo_clipping_epsilon: 0.2
   value_coeff: 0.5
@@ -56,7 +56,7 @@ ppo:
 #   learning_rate: 1.0
 #   adam_epsilon: 1e-5
 #   entropy_coeff: 0
-  
+
 
 
 # Logging setup

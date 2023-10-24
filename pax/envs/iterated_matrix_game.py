@@ -18,6 +18,8 @@ class EnvParams:
 
 
 class IteratedMatrixGame(environment.Environment):
+    env_id = "iterated_matrix_game"
+
     """
     JAX Compatible version of matrix game environment.
     """
