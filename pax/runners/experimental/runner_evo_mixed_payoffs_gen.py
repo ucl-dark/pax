@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoMixedPayoffRunner:
+class EvoMixedPayoffGenRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -37,6 +37,7 @@ class EvoMixedPayoffRunner:
     It composes together agents, watchers, and the environment.
     Within the init, we declare vmaps and pmaps for training.
     The environment provided must conform to a meta-environment.
+    Payoff matrix is randomly sampled at each rollout. Each opponent has the same payoff matrix.
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is
@@ -91,7 +92,7 @@ class EvoMixedPayoffRunner:
         # num opps
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, 0), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
         # pop size
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -317,8 +318,8 @@ class EvoMixedPayoffRunner:
             # set payoff matrix to random integers of shape [4,2]
             _rng_run, payoff_rng = jax.random.split(_rng_run)
             payoff_matrix = -jax.random.randint(payoff_rng, minval=0, maxval=10, shape=(4,2), dtype=jnp.int8)
-            payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1))
-            # jax.debug.breakpoint()
+            # payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1))
+
             _env_params.payoff_matrix = payoff_matrix
 
             obs, env_state = env.reset(env_rngs, _env_params)
@@ -348,7 +349,6 @@ class EvoMixedPayoffRunner:
                 # # repeat the array 1000 times along the first dimension
                 # learning_rates = jnp.tile(random_numbers, (1000, 1))
                 # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
-                # jax.debug.breakpoint()
 
             # run trials
             vals, stack = jax.lax.scan(

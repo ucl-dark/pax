@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoMixedLRRunner:
+class EvoMixedIPDPayoffRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -37,6 +37,8 @@ class EvoMixedLRRunner:
     It composes together agents, watchers, and the environment.
     Within the init, we declare vmaps and pmaps for training.
     The environment provided must conform to a meta-environment.
+    Each opponent has a different payoff matrix that follows the IPD conditions but each member 
+    of the evo population plays against the same payoff matrices to ensure fair comparison.
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is
@@ -91,7 +93,7 @@ class EvoMixedLRRunner:
         # num opps
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, 0), 0  # rng, state, actions, params
         )
         # pop size
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -212,7 +214,6 @@ class EvoMixedLRRunner:
                 obs2,
                 a2_mem,
             )
-            jax.debug.print("env_params: {x}", x=env_params)
             (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
@@ -315,6 +316,36 @@ class EvoMixedLRRunner:
                 * args.num_opps
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
+            # set payoff matrix to random integers of shape [4,2]
+            payoffs = jnp.array([0, 0, 0, 0], dtype=jnp.int8)
+            def cond_fun(val):
+                _rng_run, payoffs = val
+                return 2*payoffs[1] <= (payoffs[0] + payoffs[2])
+            def body_fun(val):
+                _rng_run, payoffs = val
+                _rng_run, payoff_T, payoff_R, payoff_P, payoff_S = jax.random.split(_rng_run, 5)
+                T = jax.random.randint(payoff_T, minval=0, maxval=2, shape=(1,), dtype=jnp.int8)[0]
+                R = jax.random.randint(payoff_R, minval=T, maxval=4, shape=(1,), dtype=jnp.int8)[0]
+                P = jax.random.randint(payoff_P, minval=R, maxval=6, shape=(1,), dtype=jnp.int8)[0]
+                S = jax.random.randint(payoff_S, minval=P, maxval=8, shape=(1,), dtype=jnp.int8)[0]
+                # payoff_matrix = -jnp.array([[R, R], [S, T], [T, S], [P, P]], dtype=jnp.int8)
+                payoffs = jnp.array([T, R, P, S], dtype=jnp.int8)
+                return (_rng_run, payoffs)
+            # _rng_run, payoff_T, payoff_R, payoff_P, payoff_S = jax.random.split(_rng_run, 5)
+            # T = jax.random.randint(payoff_T, minval=0, maxval=2, shape=(1,), dtype=jnp.int8)[0]
+            # R = jax.random.randint(payoff_R, minval=T, maxval=4, shape=(1,), dtype=jnp.int8)[0]
+            # P = jax.random.randint(payoff_P, minval=R, maxval=6, shape=(1,), dtype=jnp.int8)[0]
+            # S = jax.random.randint(payoff_S, minval=P, maxval=8, shape=(1,), dtype=jnp.int8)[0]
+            _rng_run, payoffs = jax.lax.while_loop(cond_fun, body_fun, (_rng_run, payoffs))
+            T = payoffs[0]
+            R = payoffs[1]
+            P = payoffs[2]
+            S = payoffs[3]
+            payoff_matrix = -jnp.array([[R, R], [S, T], [T, S], [P, P]], dtype=jnp.int8)
+            # payoff_matrix = -jax.random.randint(payoff_rng, minval=0, maxval=10, shape=(4,2), dtype=jnp.int8)
+            payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1))
+            # jax.debug.breakpoint()
+            _env_params.payoff_matrix = payoff_matrix
 
             obs, env_state = env.reset(env_rngs, _env_params)
             rewards = [
@@ -339,10 +370,10 @@ class EvoMixedLRRunner:
                     agent2._mem.hidden,
                 )
                 # generate an array of shape [10]
-                random_numbers = jax.random.uniform(_rng_run, minval=1.0, maxval=1.0, shape=(10,))
+                # random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
                 # # repeat the array 1000 times along the first dimension
-                learning_rates = jnp.tile(random_numbers, (1000, 1))
-                a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                # learning_rates = jnp.tile(random_numbers, (1000, 1))
+                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
                 # jax.debug.breakpoint()
 
             # run trials
@@ -508,6 +539,7 @@ class EvoMixedLRRunner:
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
             # Evo Rollout
+            # jax.debug.breakpoint()
             (
                 fitness,
                 other_fitness,

@@ -29,7 +29,7 @@ class Sample(NamedTuple):
     hiddens: jnp.ndarray
 
 
-class EvoMixedPayoffInputRunner:
+class EvoMixedLRRunner:
     """
     Evoluationary Strategy runner provides a convenient example for quickly writing
     a MARL runner for PAX. The EvoRunner class can be used to
@@ -37,6 +37,9 @@ class EvoMixedPayoffInputRunner:
     It composes together agents, watchers, and the environment.
     Within the init, we declare vmaps and pmaps for training.
     The environment provided must conform to a meta-environment.
+    Each opponent has a different learning rate, but the members of the population
+    play against the same learning rates to ensure a fair comparison.
+    
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is
@@ -91,7 +94,7 @@ class EvoMixedPayoffInputRunner:
         # num opps
         env.reset = jax.vmap(env.reset, (0, None), 0)
         env.step = jax.vmap(
-            env.step, (0, 0, 0, 0), 0  # rng, state, actions, params
+            env.step, (0, 0, 0, None), 0  # rng, state, actions, params
         )
         # pop size
         env.reset = jax.jit(jax.vmap(env.reset, (0, None), 0))
@@ -201,17 +204,6 @@ class EvoMixedPayoffInputRunner:
             # a1_rng = rngs[:, :, :, 1, :]
             # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
-            print("OBS1 shape: ", obs1.shape)
-            print("env params shape: ", env_params.payoff_matrix.shape)
-            # flatten the payoff matrix and append it to the observations
-            # the observations have shape (500, 10, 2, 5) and the payoff matrix has shape (10, 4, 2)
-            # we want to append the payoff matrix to the observations so that the observations have shape (500, 10, 2, 5+8)
-            # we want to flatten the payoff matrix so that it has shape (10, 8)
-            # This is the code
-            payoff_matrix = env_params.payoff_matrix.reshape((10, 8))
-            payoff_matrix = jnp.tile(jnp.expand_dims(jnp.tile(payoff_matrix, (500, 1, 1)), 2), (1, 1, 2, 1))
-            obs1 = jnp.concatenate((obs1, payoff_matrix), axis=3)
-            # obs2 = jnp.concatenate((obs2, payoff_matrix), axis=3)
 
             a1, a1_state, new_a1_mem = agent1.batch_policy(
                 a1_state,
@@ -223,6 +215,7 @@ class EvoMixedPayoffInputRunner:
                 obs2,
                 a2_mem,
             )
+            # jax.debug.print("env_params: {x}", x=env_params)
             (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
@@ -290,15 +283,11 @@ class EvoMixedPayoffInputRunner:
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
                 a1_mem = agent1.meta_policy(a1_mem)
-            # print("OBS2 shape: ", obs2.shape)
-            # payoff_matrix = env_params.payoff_matrix.reshape((10, 8))
-            # payoff_matrix = jnp.tile(jnp.expand_dims(jnp.tile(payoff_matrix, (500, 1, 1)), 2), (1, 1, 2, 1))
-            # obs2_update = jnp.concatenate((obs2, payoff_matrix), axis=3)
 
             # update second agent
             a2_state, a2_mem, a2_metrics = agent2.batch_update(
                 trajectories[1],
-                obs2_update,
+                obs2,
                 a2_state,
                 a2_mem,
             )
@@ -329,13 +318,6 @@ class EvoMixedPayoffInputRunner:
                 * args.num_opps
                 * args.popsize
             ).reshape((args.popsize, args.num_opps, args.num_envs, -1))
-            # set payoff matrix to random integers of shape [4,2]
-            _rng_run, payoff_rng = jax.random.split(_rng_run)
-            # payoff_matrix = -jax.random.randint(payoff_rng, minval=0, maxval=10, shape=(4,2), dtype=jnp.int8)
-            payoff_matrix = jnp.array([[-1, -1], [-3, 0], [0, -3], [-2, -2]])
-            payoff_matrix = jnp.tile(payoff_matrix, (args.num_opps, 1, 1))
-            # jax.debug.breakpoint()
-            _env_params.payoff_matrix = payoff_matrix
 
             obs, env_state = env.reset(env_rngs, _env_params)
             rewards = [
@@ -359,11 +341,11 @@ class EvoMixedPayoffInputRunner:
                     a2_rng,
                     agent2._mem.hidden,
                 )
-                # generate an array of shape [10]
-                # random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
-                # # repeat the array 1000 times along the first dimension
-                # learning_rates = jnp.tile(random_numbers, (1000, 1))
-                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                # generate an array of shape [args.num_opps]
+                random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(args.num_opps,))
+                # # repeat the array popsize-times along the first dimension
+                learning_rates = jnp.tile(random_numbers, (args.popsize, 1))
+                a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
                 # jax.debug.breakpoint()
 
             # run trials
@@ -529,7 +511,6 @@ class EvoMixedPayoffInputRunner:
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
             # Evo Rollout
-            # jax.debug.breakpoint()
             (
                 fitness,
                 other_fitness,
