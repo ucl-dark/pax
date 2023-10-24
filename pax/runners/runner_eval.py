@@ -305,7 +305,7 @@ class EvalRunner:
             self.model_path2 is not None and self.run_path2 is not None
         )
 
-        if watchers and not self.args.wandb.mode not in [
+        if watchers and self.args.wandb.mode not in [
             "offline",
             "disabled",
         ]:
