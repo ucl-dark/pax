@@ -4,7 +4,6 @@
 agent1: 'PPO_memory'
 agent_default: 'PPO'
 
-
 # Environment
 env_id: Cournot
 env_type: meta
@@ -47,6 +46,7 @@ ppo_default:
   with_memory: True
   with_cnn: False
   hidden_size: 16
+
 
 # ES parameters
 es:

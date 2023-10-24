@@ -314,6 +314,7 @@ class EvoRunner:
 
             # update second agent
             new_a2_memories = []
+            a2_metrics = None
             for _obs, mem, traj in zip(obs2, a2_mem, trajectories[1]):
                 a2_state, a2_mem, a2_metrics = agent2.batch_update(
                     traj,
@@ -468,10 +469,12 @@ class EvoRunner:
             elif args.env_id == "Cournot":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
-                    cournot_stats(traj_1.observations, _env_params, 2),
+                    cournot_stats(
+                        traj_1[0].observations, _env_params, args.num_players
+                    ),
                 )
             elif args.env_id == "Fishery":
-                env_stats = fishery_stats([traj_1] + traj_2, args.num_players)
+                env_stats = fishery_stats(traj_1 + traj_2, args.num_players)
             elif args.env_id == "Rice-N":
                 env_stats = rice_stats(
                     traj_1 + traj_2, args.num_players, args.has_mediator
@@ -732,9 +735,11 @@ class EvoRunner:
 
                 # player 2 metrics
                 # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
+                flattened_metrics = {}
+                if a2_metrics is not None:
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    )
 
                 agent2._logger.metrics.update(flattened_metrics)
                 for watcher, agent in zip(watchers, agents):

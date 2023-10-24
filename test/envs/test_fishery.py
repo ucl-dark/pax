@@ -8,7 +8,7 @@ def test_fishery_convergence():
     rng = jax.random.PRNGKey(0)
     ep_length = 300
 
-    env = Fishery(num_players=2, num_inner_steps=ep_length)
+    env = Fishery(num_players=2)
     env_params = EnvParams(g=0.15, e=0.009, P=200, w=0.9, s_0=1.0, s_max=1.0)
     # response parameter
 

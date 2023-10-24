@@ -48,9 +48,10 @@ s_max  maximum stock size
 class Fishery(environment.Environment):
     env_id: str = "Fishery"
 
-    def __init__(self, num_players: int, num_inner_steps: int):
+    def __init__(self, num_players: int):
         super().__init__()
         self.num_players = num_players
+        self.num_inner_steps = 300
 
         def _step(
             key: chex.PRNGKey,
@@ -60,7 +61,7 @@ class Fishery(environment.Environment):
         ):
             t = state.inner_t + 1
             key, _ = jax.random.split(key, 2)
-            done = t >= num_inner_steps
+            done = t >= self.num_inner_steps
 
             actions = jnp.asarray(actions).squeeze()
             actions = jnp.clip(actions, a_min=0)
@@ -78,7 +79,9 @@ class Fishery(environment.Environment):
             all_obs = []
             all_rewards = []
             for i in range(num_players):
-                obs = jnp.concatenate([actions, jnp.array([s_next])])
+                obs = jnp.concatenate(
+                    [actions, jnp.array([s_next]), jnp.array([i])]
+                )
                 obs = jax.lax.select(done, reset_obs[i], obs)
                 all_obs.append(obs)
 
@@ -116,8 +119,17 @@ class Fishery(environment.Environment):
                 s=params.s_0,
             )
             obs = jax.random.uniform(key, (num_players,))
-            obs = jnp.concatenate([obs, jnp.array([state.s])])
-            return tuple([obs for _ in range(num_players)]), state
+            return (
+                tuple(
+                    [
+                        jnp.concatenate(
+                            [obs, jnp.array([state.s]), jnp.array([i])]
+                        )
+                        for i in range(num_players)
+                    ]
+                ),
+                state,
+            )
 
         self.step = jax.jit(_step)
         self.reset = jax.jit(_reset)
@@ -136,7 +148,7 @@ class Fishery(environment.Environment):
         return spaces.Box(
             low=0,
             high=float("inf"),
-            shape=self.num_players + 1,
+            shape=self.num_players + 2,  # + 1 index of player, + 1 stock
             dtype=jnp.float32,
         )
 

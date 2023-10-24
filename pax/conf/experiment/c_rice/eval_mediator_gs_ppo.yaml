@@ -22,10 +22,10 @@ popsize: 1000
 num_envs: 2
 num_opps: 1
 num_outer_steps: 1
-num_inner_steps: 20
+num_inner_steps: 2000
 num_iters: 2000
 num_devices: 1
-num_steps: 1
+num_steps: 10
 
 # Train to convergence
 agent2_reset_interval: 2000

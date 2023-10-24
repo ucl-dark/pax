@@ -11,7 +11,7 @@ from jax import numpy as jnp
 def fishery_stats(trajectories: List[NamedTuple], num_players: int) -> dict:
     traj = trajectories[0]
     # obs shape: num_outer_steps x num_inner_steps x num_opponents x num_envs x obs_dim
-    stock_obs = traj.observations[..., -1]
+    stock_obs = traj.observations[..., -2]
     actions = traj.observations[..., :num_players]
     completed_episodes = jnp.sum(traj.dones)
     stats = {

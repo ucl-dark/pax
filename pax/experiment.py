@@ -217,7 +217,6 @@ def env_setup(args, logger=None):
         )
         env = Fishery(
             num_players=args.num_players,
-            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
