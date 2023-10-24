@@ -63,7 +63,7 @@ def fishery_eval_stats(traj1: NamedTuple, traj2: NamedTuple) -> dict:
 
     stock_obs = traj1.observations[..., 0].squeeze().tolist()
     stock_table = wandb.Table(
-        data=[[x, y] for (x, y) in zip(ep_length, stock_obs, strict=True)],
+        data=[[x, y] for (x, y) in zip(ep_length, stock_obs)],
         columns=["step", "stock"],
     )
     # Plot the stock in a separate graph

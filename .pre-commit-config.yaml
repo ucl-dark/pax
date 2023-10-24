@@ -11,7 +11,7 @@ repos:
       additional_dependencies: [flake8-bugbear]
       args: [
         "--show-source",
-        "--ignore=E203,E266,E501,W503,F403,F401,B008,E712",
+        "--ignore=E203,E266,E501,W503,F403,F401,B008,B905,E712",
         "--max-line-length=100",
         "--max-complexity=18",
         "--select=B,C,E,F,W,T4,B9"]
