@@ -18,8 +18,8 @@ rice_v2_network: True
 
 runner: eval
 
-run_path: chrismatix/rice/runs/yg67hb4e
-model_path: exp/shaper/rice-SHAPER-PPO_memory-seed-0-interval_20/2023-10-09_12.14.28.778753/generation_1499
+run_path: chrismatix/rice/runs/k7nw6h8j
+model_path: exp/shaper/rice-SHAPER-PPO_memory-seed-0-interval_10/2023-10-16_20.08.43.003976/generation_1499
 
 # Better run but with old network
 #run_path: chrismatix/rice/runs/btpdx3d2
@@ -39,10 +39,10 @@ popsize: 1000
 num_devices: 1
 num_envs: 20
 num_opps: 1
-num_inner_steps: 20
+num_inner_steps: 2000
 num_outer_steps: 1
-num_iters: 100
-num_steps: 200
+num_iters: 1000
+num_steps: 20
 
 agent2_reset_interval: 1000
 

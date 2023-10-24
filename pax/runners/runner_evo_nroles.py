@@ -1,42 +1,33 @@
 import os
 import time
 from datetime import datetime
-from typing import Any, Callable, NamedTuple
+from typing import Any, Callable, NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 from evosax import FitnessShaper
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, float_precision, Sample
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
 from pax.watchers import ESLog, cg_visitation, ipd_visitation, ipditm_stats
+from pax.watchers.fishery import fishery_stats
+from pax.watchers.cournot import cournot_stats
+from pax.watchers.rice import rice_stats
+from pax.watchers.c_rice import c_rice_stats
 
 MAX_WANDB_CALLS = 1000
 
 
-class Sample(NamedTuple):
-    """Object containing a batch of data"""
-
-    observations: jnp.ndarray
-    actions: jnp.ndarray
-    rewards: jnp.ndarray
-    behavior_log_probs: jnp.ndarray
-    behavior_values: jnp.ndarray
-    dones: jnp.ndarray
-    hiddens: jnp.ndarray
-
-
-class EvoRunner:
+class EvoRunnerNRoles:
     """
-    Evoluationary Strategy runner provides a convenient example for quickly writing
-    a MARL runner for PAX. The EvoRunner class can be used to
-    run an RL agent (optimised by an Evolutionary Strategy) against an Reinforcement Learner.
-    It composes together agents, watchers, and the environment.
-    Within the init, we declare vmaps and pmaps for training.
-    The environment provided must conform to a meta-environment.
+    This Runner extends the EvoRunner class with three features:
+    1. Allow for both the first and second agent to assume multiple roles in the game.
+    2. Allow for shuffling of these roles for each rollout.
+    3. Enable annealed self_play via the self_play_anneal flag.
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is
@@ -54,6 +45,8 @@ class EvoRunner:
             A tuple of experiment arguments used (usually provided by HydraConfig).
     """
 
+    # TODO fix C901 (function too complex)
+    # flake8: noqa: C901
     def __init__(
         self, agents, env, strategy, es_params, param_reshaper, save_dir, args
     ):
@@ -77,6 +70,9 @@ class EvoRunner:
         self.ipditm_stats = jax.jit(
             jax.vmap(ipditm_stats, in_axes=(0, 2, 2, None))
         )
+
+        if args.num_players != args.agent1_roles + args.agent2_roles:
+            raise ValueError("Number of players must match number of roles")
 
         # Evo Runner has 3 vmap dims (popsize, num_opps, num_envs)
         # Evo Runner also has an additional pmap dim (num_devices, ...)
@@ -106,7 +102,7 @@ class EvoRunner:
         )
 
         self.num_outer_steps = args.num_outer_steps
-        agent1, agent2 = agents
+        agent1, agent2 = agents[0], agents[1]
 
         # vmap agents accordingly
         # agent 1 is batched over popsize and num_opps
@@ -126,9 +122,7 @@ class EvoRunner:
         )
 
         agent1.batch_policy = jax.jit(
-            jax.vmap(
-                jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0)),
-            )
+            jax.vmap(jax.vmap(agent1._policy, (None, 0, 0), (0, None, 0))),
         )
 
         if args.agent2 == "NaiveEx":
@@ -143,6 +137,18 @@ class EvoRunner:
                     (0, None),
                     0,
                 )
+            )
+            # NaiveEx requires env first step to init.
+            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
+
+            a2_rng = jnp.concatenate(
+                [jax.random.split(agent2._state.random_key, args.num_opps)]
+                * args.popsize
+            ).reshape(args.popsize, args.num_opps, -1)
+
+            agent2._state, agent2._mem = agent2.batch_init(
+                a2_rng,
+                init_hidden,
             )
 
         agent2.batch_policy = jax.jit(jax.vmap(jax.vmap(agent2._policy, 0, 0)))
@@ -159,19 +165,6 @@ class EvoRunner:
                 (1, 0, 0, 0),
             )
         )
-        if args.agent2 != "NaiveEx":
-            # NaiveEx requires env first step to init.
-            init_hidden = jnp.tile(agent2._mem.hidden, (args.num_opps, 1, 1))
-
-            a2_rng = jnp.concatenate(
-                [jax.random.split(agent2._state.random_key, args.num_opps)]
-                * args.popsize
-            ).reshape(args.popsize, args.num_opps, -1)
-
-            agent2._state, agent2._mem = agent2.batch_init(
-                a2_rng,
-                init_hidden,
-            )
 
         # jit evo
         strategy.ask = jax.jit(strategy.ask)
@@ -192,66 +185,102 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                agent_order,
             ) = carry
 
             # unpack rngs
             rngs = self.split(rngs, 4)
             env_rng = rngs[:, :, :, 0, :]
-
-            # a1_rng = rngs[:, :, :, 1, :]
-            # a2_rng = rngs[:, :, :, 2, :]
             rngs = rngs[:, :, :, 3, :]
 
-            a1, a1_state, new_a1_mem = agent1.batch_policy(
-                a1_state,
-                obs1,
-                a1_mem,
-            )
-            a2, a2_state, new_a2_mem = agent2.batch_policy(
-                a2_state,
-                obs2,
-                a2_mem,
-            )
-            (next_obs1, next_obs2), env_state, rewards, done, info = env.step(
+            a1_actions = []
+            new_a1_memories = []
+            for _obs, _mem in zip(obs1, a1_mem):
+                a1_action, a1_state, new_a1_memory = agent1.batch_policy(
+                    a1_state,
+                    _obs,
+                    _mem,
+                )
+                a1_actions.append(a1_action)
+                new_a1_memories.append(new_a1_memory)
+
+            a2_actions = []
+            new_a2_memories = []
+            for _obs, _mem in zip(obs2, a2_mem):
+                a2_action, a2_state, new_a2_memory = agent2.batch_policy(
+                    a2_state,
+                    _obs,
+                    _mem,
+                )
+                a2_actions.append(a2_action)
+                new_a2_memories.append(new_a2_memory)
+
+            actions = jnp.asarray([*a1_actions, *a2_actions])[agent_order]
+            obs, env_state, rewards, done, info = env.step(
                 env_rng,
                 env_state,
-                (a1, a2),
+                tuple(actions),
                 env_params,
             )
 
-            traj1 = Sample(
-                obs1,
-                a1,
-                rewards[0],
-                new_a1_mem.extras["log_probs"],
-                new_a1_mem.extras["values"],
-                done,
-                a1_mem.hidden,
-            )
-            traj2 = Sample(
-                obs2,
-                a2,
-                rewards[1],
-                new_a2_mem.extras["log_probs"],
-                new_a2_mem.extras["values"],
-                done,
-                a2_mem.hidden,
-            )
+            inv_agent_order = jnp.argsort(agent_order)
+            obs = jnp.asarray(obs)[inv_agent_order]
+            rewards = jnp.asarray(rewards)[inv_agent_order]
+            agent1_roles = len(a1_actions)
+
+            a1_trajectories = [
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, new_memory, memory in zip(
+                    obs1,
+                    a1_actions,
+                    rewards[:agent1_roles],
+                    new_a1_memories,
+                    a1_mem,
+                )
+            ]
+            a2_trajectories = [
+                Sample(
+                    observation,
+                    action,
+                    reward * jnp.logical_not(done),
+                    new_memory.extras["log_probs"],
+                    new_memory.extras["values"],
+                    done,
+                    memory.hidden,
+                )
+                for observation, action, reward, new_memory, memory in zip(
+                    obs2,
+                    a2_actions,
+                    rewards[agent1_roles:],
+                    new_a2_memories,
+                    a2_mem,
+                )
+            ]
+
             return (
                 rngs,
-                next_obs1,
-                next_obs2,
-                rewards[0],
-                rewards[1],
+                tuple(obs[:agent1_roles]),
+                tuple(obs[agent1_roles:]),
+                tuple(rewards[:agent1_roles]),
+                tuple(rewards[agent1_roles:]),
                 a1_state,
-                new_a1_mem,
+                tuple(new_a1_memories),
                 a2_state,
-                new_a2_mem,
+                tuple(new_a2_memories),
                 env_state,
                 env_params,
+                agent_order,
             ), (
-                traj1,
-                traj2,
+                a1_trajectories,
+                a2_trajectories,
             )
 
         def _outer_rollout(carry, unused):
@@ -275,18 +304,23 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 env_params,
+                agent_order,
             ) = vals
             # MFOS has to take a meta-action for each episode
             if args.agent1 == "MFOS":
-                a1_mem = agent1.meta_policy(a1_mem)
+                a1_mem = [agent1.meta_policy(_a1_mem) for _a1_mem in a1_mem]
 
             # update second agent
-            a2_state, a2_mem, a2_metrics = agent2.batch_update(
-                trajectories[1],
-                obs2,
-                a2_state,
-                a2_mem,
-            )
+            new_a2_memories = []
+            a2_metrics = None
+            for _obs, mem, traj in zip(obs2, a2_mem, trajectories[1]):
+                a2_state, a2_mem, a2_metrics = agent2.batch_update(
+                    traj,
+                    _obs,
+                    a2_state,
+                    mem,
+                )
+                new_a2_memories.append(a2_mem)
             return (
                 rngs,
                 obs1,
@@ -296,9 +330,10 @@ class EvoRunner:
                 a1_state,
                 a1_mem,
                 a2_state,
-                a2_mem,
+                tuple(new_a2_memories),
                 env_state,
                 env_params,
+                agent_order,
             ), (*trajectories, a2_metrics)
 
         def _rollout(
@@ -306,7 +341,9 @@ class EvoRunner:
             _rng_run: jnp.ndarray,
             _a1_state: TrainingState,
             _a1_mem: MemoryState,
+            _a2_state: TrainingState,
             _env_params: Any,
+            roles: Tuple[int, int],
         ):
             # env reset
             env_rngs = jnp.concatenate(
@@ -317,9 +354,11 @@ class EvoRunner:
 
             obs, env_state = env.reset(env_rngs, _env_params)
             rewards = [
-                jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
-                jnp.zeros((args.popsize, args.num_opps, args.num_envs)),
-            ]
+                jnp.zeros(
+                    (args.popsize, args.num_opps, args.num_envs),
+                    dtype=float_precision,
+                )
+            ] * (1 + args.agent2_roles)
 
             # Player 1
             _a1_state = _a1_state._replace(params=_params)
@@ -327,7 +366,6 @@ class EvoRunner:
             # Player 2
             if args.agent2 == "NaiveEx":
                 a2_state, a2_mem = agent2.batch_init(obs[1])
-
             else:
                 # meta-experiments - init 2nd agent per trial
                 a2_rng = jnp.concatenate(
@@ -337,26 +375,32 @@ class EvoRunner:
                     a2_rng,
                     agent2._mem.hidden,
                 )
-                # generate an array of shape [10]
-                # random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
-                # # repeat the array 1000 times along the first dimension
-                # learning_rates = jnp.tile(random_numbers, (1000, 1))
-                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
-                # jax.debug.breakpoint()
 
+            if _a2_state is not None:
+                a2_state = _a2_state
+
+            agent_order = jnp.arange(args.num_players)
+            if args.shuffle_players:
+                agent_order = jax.random.permutation(_rng_run, agent_order)
+
+            agent1_roles, agent2_roles = roles
             # run trials
             vals, stack = jax.lax.scan(
                 _outer_rollout,
                 (
                     env_rngs,
-                    *obs,
-                    *rewards,
+                    # Split obs and rewards between agents
+                    tuple(obs[:agent1_roles]),
+                    tuple(obs[agent1_roles:]),
+                    tuple(rewards[:agent1_roles]),
+                    tuple(rewards[agent1_roles:]),
                     _a1_state,
-                    _a1_mem,
+                    (_a1_mem,) * agent1_roles,
                     a2_state,
-                    a2_mem,
+                    (a2_mem,) * agent2_roles,
                     env_state,
                     _env_params,
+                    agent_order,
                 ),
                 None,
                 length=self.num_outer_steps,
@@ -374,12 +418,26 @@ class EvoRunner:
                 a2_mem,
                 env_state,
                 _env_params,
+                agent_order,
             ) = vals
             traj_1, traj_2, a2_metrics = stack
 
             # Fitness
-            fitness = traj_1.rewards.mean(axis=(0, 1, 3, 4))
-            other_fitness = traj_2.rewards.mean(axis=(0, 1, 3, 4))
+            agent_1_rewards = jnp.concatenate(
+                [traj.rewards for traj in traj_1]
+            )
+            fitness = agent_1_rewards.mean(axis=(0, 1, 3, 4))
+            # At the end of self play annealing there will be no agent2 reward
+            if agent2_roles > 0:
+                agent_2_rewards = jnp.concatenate(
+                    [traj.rewards for traj in traj_2]
+                )
+            else:
+                agent_2_rewards = jnp.zeros_like(agent_1_rewards)
+            other_fitness = agent_2_rewards.mean(axis=(0, 1, 3, 4))
+            rewards_1 = agent_1_rewards.mean()
+            rewards_2 = agent_2_rewards.mean()
+
             # Stats
             if args.env_id == "coin_game":
                 env_stats = jax.tree_util.tree_map(
@@ -389,7 +447,6 @@ class EvoRunner:
 
                 rewards_1 = traj_1.rewards.sum(axis=1).mean()
                 rewards_2 = traj_2.rewards.sum(axis=1).mean()
-
             elif args.env_id in [
                 "iterated_matrix_game",
             ]:
@@ -401,9 +458,6 @@ class EvoRunner:
                         obs1,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
-
             elif args.env_id == "InTheMatrix":
                 env_stats = jax.tree_util.tree_map(
                     lambda x: x.mean(),
@@ -414,12 +468,30 @@ class EvoRunner:
                         args.num_envs,
                     ),
                 )
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+            elif args.env_id == "Cournot":
+                env_stats = jax.tree_util.tree_map(
+                    lambda x: x.mean(),
+                    cournot_stats(
+                        traj_1[0].observations, _env_params, args.num_players
+                    ),
+                )
+            elif args.env_id == "Fishery":
+                env_stats = fishery_stats(traj_1 + traj_2, args.num_players)
+            elif args.env_id == "Rice-N":
+                env_stats = rice_stats(
+                    traj_1 + traj_2, args.num_players, args.has_mediator
+                )
+            elif args.env_id == "C-Rice-N":
+                env_stats = c_rice_stats(
+                    traj_1 + traj_2, args.num_players, args.has_mediator
+                )
             else:
                 env_stats = {}
-                rewards_1 = traj_1.rewards.mean()
-                rewards_2 = traj_2.rewards.mean()
+
+            env_stats = env_stats | {
+                "train/agent1_roles": agent1_roles,
+                "train/agent2_roles": agent2_roles,
+            }
 
             return (
                 fitness,
@@ -428,11 +500,13 @@ class EvoRunner:
                 rewards_1,
                 rewards_2,
                 a2_metrics,
+                a2_state,
             )
 
         self.rollout = jax.pmap(
             _rollout,
-            in_axes=(0, None, None, None, None),
+            in_axes=(0, None, None, None, None, None, None),
+            static_broadcasted_argnums=6,
         )
 
         print(
@@ -458,7 +532,7 @@ class EvoRunner:
         print(f"Log Interval: {log_interval}")
         print("------------------------------")
         # Initialize agents and RNG
-        agent1, agent2 = agents
+        agent1, agent2 = agents[0], agents[1]
         rng, _ = jax.random.split(self.random_key)
 
         # Initialize evolution
@@ -495,6 +569,7 @@ class EvoRunner:
         )
 
         a1_state, a1_mem = agent1._state, agent1._mem
+        a2_state = None
 
         for gen in range(num_gens):
             rng, rng_run, rng_evo, rng_key = jax.random.split(rng, 4)
@@ -506,6 +581,28 @@ class EvoRunner:
                 params = jax.tree_util.tree_map(
                     lambda x: jax.lax.expand_dims(x, (0,)), params
                 )
+
+            if gen % self.args.agent2_reset_interval == 0:
+                a2_state = None
+
+            if self.args.num_devices == 1 and a2_state is not None:
+                # The first rollout returns a2_state with an extra batch dim that
+                # will cause issues when passing it back to the vmapped batch_policy
+                a2_state = jax.tree_util.tree_map(
+                    lambda w: jnp.squeeze(w, axis=0), a2_state
+                )
+
+            self_play_prob = gen / num_gens
+            agent1_roles = self.args.agent1_roles
+            if self.args.self_play_anneal:
+                agent1_roles = np.random.binomial(
+                    self.args.num_players, self_play_prob
+                )
+                agent1_roles = np.maximum(
+                    agent1_roles, 1
+                )  # Ensure at least one agent 1
+            agent2_roles = self.args.num_players - agent1_roles
+
             # Evo Rollout
             (
                 fitness,
@@ -514,10 +611,21 @@ class EvoRunner:
                 rewards_1,
                 rewards_2,
                 a2_metrics,
-            ) = self.rollout(params, rng_run, a1_state, a1_mem, env_params)
+                a2_state,
+            ) = self.rollout(
+                params,
+                rng_run,
+                a1_state,
+                a1_mem,
+                a2_state,
+                env_params,
+                (agent1_roles, agent2_roles),
+            )
 
             # Aggregate over devices
-            fitness = jnp.reshape(fitness, popsize * self.args.num_devices)
+            fitness = jnp.reshape(
+                fitness, popsize * self.args.num_devices
+            ).astype(dtype=jnp.float32)
             env_stats = jax.tree_util.tree_map(lambda x: x.mean(), env_stats)
 
             # Tell
@@ -530,9 +638,12 @@ class EvoRunner:
             # Logging
             log = es_logging.update(log, x, fitness)
 
+            is_last_loop = gen == num_iters - 1
             # Saving
-            if gen % self.args.save_interval == 0:
-                log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
+            if gen % self.args.save_interval == 0 or is_last_loop:
+                log_savepath1 = os.path.join(
+                    self.save_dir, f"generation_{gen}"
+                )
                 if self.args.num_devices > 1:
                     top_params = param_reshaper.reshape(
                         log["top_gen_params"][0 : self.args.num_devices]
@@ -547,15 +658,19 @@ class EvoRunner:
                     top_params = jax.tree_util.tree_map(
                         lambda x: x.reshape(x.shape[1:]), top_params
                     )
-                save(top_params, log_savepath)
+                save(top_params, log_savepath1)
+                log_savepath2 = os.path.join(
+                    self.save_dir, f"agent2_iteration_{gen}"
+                )
+                save(a2_state.params, log_savepath2)
                 if watchers:
-                    print(f"Saving generation {gen} locally and to WandB")
-                    wandb.save(log_savepath)
+                    print(f"Saving iteration {gen} locally and to WandB")
+                    wandb.save(log_savepath1)
+                    wandb.save(log_savepath2)
                 else:
                     print(f"Saving iteration {gen} locally")
-
-            if gen % log_interval == 0:
-                print(f"Generation: {gen}")
+            if gen % log_interval == 0 or is_last_loop:
+                print(f"Generation: {gen}/{num_iters}")
                 print(
                     "--------------------------------------------------------------------------"
                 )
@@ -614,17 +729,19 @@ class EvoRunner:
                     zip(log["top_fitness"], log["top_gen_fitness"])
                 ):
                     wandb_log[
-                        f"train/fitness/top_overall_agent_{idx+1}"
+                        f"train/fitness/top_overall_agent_{idx + 1}"
                     ] = overall_fitness
                     wandb_log[
-                        f"train/fitness/top_gen_agent_{idx+1}"
+                        f"train/fitness/top_gen_agent_{idx + 1}"
                     ] = gen_fitness
 
                 # player 2 metrics
                 # metrics [outer_timesteps, num_opps]
-                flattened_metrics = jax.tree_util.tree_map(
-                    lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
-                )
+                flattened_metrics = {}
+                if a2_metrics is not None:
+                    flattened_metrics = jax.tree_util.tree_map(
+                        lambda x: jnp.sum(jnp.mean(x, 1)), a2_metrics
+                    )
 
                 agent2._logger.metrics.update(flattened_metrics)
                 for watcher, agent in zip(watchers, agents):

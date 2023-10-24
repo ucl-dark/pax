@@ -1,36 +1,34 @@
 # @package _global_
 
 # Agents
-agent1: 'MFOS'
-agent2: 'PPO_memory'
+agent1: 'PPO_memory'
+agent_default: 'PPO'
 
 # Environment
-env_id: coin_game
+env_id: Cournot
 env_type: meta
-egocentric: True
-env_discount: 0.96
-payoff: [[1, 1, -2], [1, 1, -2]]
+a: 100
+b: 1
+marginal_cost: 10
 
 # Runner
-runner: evo
+runner: evo_nroles
 
-top_k: 4
-popsize: 1000 #512
-# env_batch_size = num_envs * num_opponents
-num_envs: 250
+# Training
+top_k: 5
+popsize: 1000
+num_envs: 4
 num_opps: 1
-num_outer_steps: 600
-num_inner_steps: 16
-save_interval: 100
+num_outer_steps: 300
+num_inner_steps: 1 # One-shot game
+num_iters: 1000
+num_devices: 1
 num_steps: '${num_inner_steps}'
 
-# Evaluation
-run_path: ucl-dark/cg/12auc9um
-model_path: exp/sanity-PPO-vs-PPO-parity/run-seed-0/2022-09-08_20.04.17.155963/iteration_500
 
 # PPO agent parameters
-ppo1:
-  num_minibatches: 8
+ppo_default:
+  num_minibatches: 4
   num_epochs: 2
   gamma: 0.96
   gae_lambda: 0.95
@@ -39,41 +37,16 @@ ppo1:
   clip_value: True
   max_gradient_norm: 0.5
   anneal_entropy: False
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.005
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
   lr_scheduling: False
-  learning_rate: 0.01 #0.05
+  learning_rate: 1
   adam_epsilon: 1e-5
   with_memory: True
   with_cnn: False
-  output_channels: 16
-  kernel_shape: [3, 3]
-  separate: True # only works with CNN
-  hidden_size: 16 #50
+  hidden_size: 16
 
-ppo2:
-  num_minibatches: 8
-  num_epochs: 2
-  gamma: 0.96
-  gae_lambda: 0.95
-  ppo_clipping_epsilon: 0.2
-  value_coeff: 0.5
-  clip_value: True
-  max_gradient_norm: 0.5
-  anneal_entropy: False
-  entropy_coeff_start: 0.1
-  entropy_coeff_horizon: 0.6e8
-  entropy_coeff_end: 0.005
-  lr_scheduling: False
-  learning_rate: 0.01 #0.05
-  adam_epsilon: 1e-5
-  with_memory: True
-  with_cnn: False
-  output_channels: 16
-  kernel_shape: [3, 3]
-  separate: True # only works with CNN
-  hidden_size: 16 #50
 
 # ES parameters
 es:
@@ -97,11 +70,11 @@ es:
   z_score: False       # Normalise fitness
   mean_reduce: True    # Remove mean
 
-
 # Logging setup
 wandb:
-  entity: "ucl-dark"
-  project: cg
-  group: 'mfos-${agent1}-vs-${agent2}-parity'
-  name: run-seed-${seed}
-  log: False
+  project: cournot
+  group: 'shaper'
+  name: 'cournot-SHAPER-${num_players}p-seed-${seed}'
+  log: True
+
+

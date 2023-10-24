@@ -14,22 +14,21 @@ w: 0.9
 s_0: 0.5
 s_max: 1.0
 # Runner
-runner: evo
+runner: evo_nroles
 
 # Training
 top_k: 5
 popsize: 1000
 num_envs: 2
 num_opps: 1
-num_outer_steps: 4%0
-num_inner_steps: 300
+num_outer_steps: 20
+num_inner_steps: 2000
 num_iters: 1500
 num_devices: 1
-num_steps: 1100
 
 
 # PPO agent parameters
-ppo1:
+ppo_default:
   num_minibatches: 4
   num_epochs: 2
   gamma: 0.96

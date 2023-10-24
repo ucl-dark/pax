@@ -20,6 +20,7 @@ def cournot_stats(
         "cournot/quantity_loss": jnp.mean(
             (opt_quantity - average_quantity) ** 2
         ),
+        "cournot/price": observations[..., -1],
     }
 
     for i in range(num_players):

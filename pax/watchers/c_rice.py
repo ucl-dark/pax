@@ -78,6 +78,7 @@ def c_rice_eval_stats(
         lambda x: x.reshape((x.shape[0] * ep_count, ep_length, *x.shape[2:])),
         env_state,
     )
+    # Output dim: episodes x steps x envs x agents x opps x envs x ...
     # Because the initial obs are not included the timesteps are shifted like so:
     # 1, 2, ..., 19, 0
     # Since the initial obs are always the same we can just shift them to the start
@@ -168,7 +169,26 @@ def c_rice_eval_stats(
         ).transpose((1, 0, 2, 3, 4)),
         observations,
     )
-    add_atrib("club_mitigation_rate", observations[..., 2], axis=(1, 2, 3))
+    club_mitigation_rate = observations[..., 2]
+    add_atrib("club_mitigation_rate", club_mitigation_rate, axis=(1, 2, 3))
     add_atrib("club_tariff_rate", observations[..., 3], axis=(1, 2, 3))
+
+    # Mitigation and tariff after climate club applied
+    real_mitigation = jnp.where(
+        env_state.club_membership_all == 1,
+        # Ensure all arrays are of shape (episodes, steps, opps, envs, agents)
+        actions[..., env.mitigation_rate_action_index].transpose(
+            (2, 0, 3, 4, 1)
+        )[..., 0:1],
+        actions[..., env.mitigation_rate_action_index].transpose(
+            (2, 0, 3, 4, 1)
+        )[..., 1:],
+    )
+    add_atrib(
+        "real_mitigation_rate",
+        real_mitigation,
+        axis=(2, 3, 4),
+    )
+    add_atrib("real_tariff", env_state.future_tariff, axis=(0, 2, 3))
 
     return result

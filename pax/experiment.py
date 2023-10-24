@@ -77,6 +77,7 @@ from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.rice.c_rice import ClubRice
 from pax.envs.rice.rice import Rice, EnvParams as RiceParams
 from pax.envs.rice.sarl_rice import SarlRice
+from pax.runners.runner_evo_nroles import EvoRunnerNRoles
 from pax.runners.runner_weight_sharing import WeightSharingRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
 
@@ -231,7 +232,6 @@ def env_setup(args, logger=None):
         )
         env = Fishery(
             num_players=args.num_players,
-            num_inner_steps=args.num_inner_steps,
         )
         if logger:
             logger.info(
@@ -307,8 +307,8 @@ def runner_setup(args, env, agents, save_dir, logger):
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo"]:
-        agent1, _ = agents
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
+        agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
         assert algo in strategies, f"{algo} not in evolution strategies"
@@ -433,6 +433,19 @@ def runner_setup(args, env, agents, save_dir, logger):
             return EvoScannedRunner(
                 agents, env, strategy, es_params, param_reshaper, save_dir, args
             )
+
+        elif args.runner == "evo_nroles":
+            logger.info("Training with n_roles EVO runner")
+            return EvoRunnerNRoles(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+
         elif args.runner == "multishaper_evo":
             logger.info("Training with multishaper EVO runner")
             return MultishaperEvoRunner(
@@ -864,7 +877,7 @@ def main(args):
     print(f"Number of Training Iterations: {args.num_iters}")
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
         print(f"Running {args.runner}")
 
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)

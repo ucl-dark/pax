@@ -12,7 +12,7 @@ num_players: 5
 has_mediator: False
 shuffle_players: False
 config_folder: pax/envs/rice/5_regions
-runner: evo
+runner: evo_nroles
 
 
 # Training
