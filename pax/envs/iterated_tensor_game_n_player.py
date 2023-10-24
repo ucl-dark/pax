@@ -18,6 +18,7 @@ class EnvParams:
 
 
 class IteratedTensorGameNPlayer(environment.Environment):
+    env_id = "iterated_nplayer_tensor_game"
     """
     JAX Compatible version of tensor game environment.
     """
