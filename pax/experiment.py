@@ -877,7 +877,7 @@ def main(args):
     print(f"Number of Training Iterations: {args.num_iters}")
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
         print(f"Running {args.runner}")
 
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
