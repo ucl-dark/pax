@@ -307,7 +307,7 @@ def runner_setup(args, env, agents, save_dir, logger):
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_mixed_payoff_pred", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo"]:
         agent1, _ = agents
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}

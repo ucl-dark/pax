@@ -37,6 +37,8 @@ class EvoScannedRunner:
     It composes together agents, watchers, and the environment.
     Within the init, we declare vmaps and pmaps for training.
     The environment provided must conform to a meta-environment.
+    This runner also scans over the evolutionary step, which leads to longer compilation time,
+    shorter run time and logging is not possible.
     Args:
         agents (Tuple[agents]):
             The set of agents that will run in the experiment. Note, ordering is
