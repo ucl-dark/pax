@@ -73,3 +73,39 @@ def test_runner_marl_nplayer():
     _test_runner(
         ["+experiment/multiplayer_ipd=lola_vs_ppo_ipd", "++num_inner_steps=10"]
     )
+
+
+def test_runner_evo_hardstop():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_hardstop"])
+
+
+def test_runner_evo_mixed_rl():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_lr"])
+
+
+def test_runner_evo_mixed_payoff():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_payoff"])
+
+
+def test_runner_evo_mixed_ipd_payoff():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_ipd_payoff"])
+
+
+def test_runner_evo_mixed_payoff_gen():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_payoff_gen"])
+
+
+def test_runner_evo_mixed_payoff_input():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_payoff_input"])
+
+
+def test_runner_evo_mixed_payoff_input():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_payoff_input"])
+
+
+def test_runner_evo_scanned():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_scanned"])
+
+
+def test_runner_evo_mixed_payoff_only_opp():
+    _test_runner(["+experiment/ipd=shaper_att_v_tabular", "++runner=evo_mixed_payoff_only_opp"])

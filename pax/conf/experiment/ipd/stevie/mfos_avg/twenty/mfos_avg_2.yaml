@@ -1,0 +1,156 @@
+# @package _global_
+
+# Agents  
+agent1: 'MFOS'
+agent2: 'Tabular'
+
+# Environment
+env_id: iterated_matrix_game
+env_type: meta
+env_discount: 0.96
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+
+# Runner 
+runner: stevie
+
+# Training
+top_k: 5
+popsize: 1000
+num_envs: 20
+num_opps: 1
+num_outer_steps: 100 
+num_inner_steps: 100 
+num_steps: 10000
+num_iters: 1
+num_devices: 1
+att_type: 'avg'
+seed: 47
+
+# MFOS vs. Tabular trained on seed = 0
+# AVG model seed=23
+# run_path: ucl-dark/ipd/4ykf9oe8
+# model_path: exp/MFOS-vs-Tabular/run-seed-23-pop-size-1000/2023-05-11_14.58.45.927266/generation_900
+
+## avg model 1 seed=65
+# run_path: ucl-dark/ipd/eopf93re
+# model_path: exp/MFOS-vs-Tabular/run-seed-65-pop-size-1000/2023-05-11_20.31.48.530245/generation_900
+
+# #avg model 2 seed=47
+run_path: ucl-dark/ipd/1sqbd09n
+model_path: exp/MFOS-vs-Tabular/run-seed-47-pop-size-1000/2023-05-11_17.45.03.318240/generation_900
+
+# ## avg model 3 seed=8
+# run_path: ucl-dark/ipd/3n7l8ods
+# model_path: exp/MFOS-vs-Tabular/run-seed-8-pop-size-1000/2023-05-11_12.12.19.914211/generation_900
+
+# ## avg model 4 seed=6
+# run_path: ucl-dark/ipd/4mf1ecxq
+# model_path: exp/MFOS-vs-Tabular/run-seed-6-pop-size-1000/2023-05-11_09.25.40.656392/generation_900
+
+# #nothing model, seed=23
+# run_path: ucl-dark/ipd/3i5m1agd
+# model_path:  exp/MFOS-vs-Tabular/run-seed-23-pop-size-1000/2023-05-14_21.53.30.316487/generation_900
+
+# #nothing model, seed=65
+# run_path: ucl-dark/ipd/1s3kty0d
+# model_path:  exp/MFOS-vs-Tabular/run-seed-65-pop-size-1000 /2023-05-15_03.29.53.728701/generation_900
+
+# #nothing model, seed=47
+# run_path: ucl-dark/ipd/37v877f5
+# model_path: exp/MFOS-vs-Tabular/run-seed-47-pop-size-1000/2023-05-15_00.41.45.864580/generation_900
+
+# #nothing model, seed=8
+# run_path: ucl-dark/ipd/1wcrrl9h
+# model_path: exp/MFOS-vs-Tabular/run-seed-8-pop-size-1000/2023-05-14_19.05.09.345813/generation_900
+
+# #nothing model, seed=6
+# run_path: ucl-dark/ipd/1vkddd7q
+# model_path: exp/MFOS-vs-Tabular/run-seed-6-pop-size-1000/2023-05-14_16.16.28.014913/generation_900
+
+ 
+# MFOS vs. Tabular trained on seed = 1
+# run_path: ucl-dark/ipd/13srlkhp
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-1-pop-size-1000/2022-09-25_20.33.11.352762/generation_4300
+# MFOS vs. Tabular trained on seed = 2
+# run_path: ucl-dark/ipd/3pfmqrpw
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-2-pop-size-1000/2022-09-25_20.34.04.832865/generation_4400
+# MFOS vs. Tabular trained on seed = 3
+# run_path: ucl-dark/ipd/groh4iwx
+# model_path: exp/GS-MFOS-vs-Tabular/run-seed-3-pop-size-1000/2022-09-25_20.36.02.555928/generation_4400
+# MFOS vs. Tabular trained on seed = 4
+# run_path: ucl-dark/ipd/26cqaqyc
+# model_path:  exp/GS-MFOS-vs-Tabular/run-seed-4-pop-size-1000/2022-09-25_20.38.01.382774/generation_4400
+
+# PPO agent parameters
+ppo1:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+ppo2:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True 
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+
+# ES parameters 
+es: 
+  algo: OpenES        # [OpenES, CMA_ES]
+  sigma_init: 0.04    # Initial scale of isotropic Gaussian noise
+  sigma_decay: 0.999  # Multiplicative decay factor
+  sigma_limit: 0.01   # Smallest possible scale
+  init_min: 0.0       # Range of parameter mean initialization - Min
+  init_max: 0.0       # Range of parameter mean initialization - Max
+  clip_min: -1e10     # Range of parameter proposals - Min
+  clip_max: 1e10      # Range of parameter proposals - Max
+  lrate_init: 0.1    # Initial learning rate
+  lrate_decay: 0.9999 # Multiplicative decay factor
+  lrate_limit: 0.001  # Smallest possible lrate
+  beta_1: 0.99        # Adam - beta_1
+  beta_2: 0.999       # Adam - beta_2
+  eps: 1e-8           # eps constant,
+  centered_rank: False     # Fitness centered_rank
+  w_decay: 0        # Decay old elite fitness 
+  maximise: True      # Maximise fitness 
+  z_score: True      # Normalise fitness 
+  mean_reduce: True    # Remove mean
+  
+# Logging setup
+wandb:
+  entity: "ucl-dark"
+  project: ipd
+  group: '${agent1}-vs-${agent2}'
+  name: run-seed-${seed}-pop-size-${popsize}-stevie 
+  log: False
+
+

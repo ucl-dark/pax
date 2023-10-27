@@ -506,6 +506,16 @@ def make_agent(
             agent_args.output_channels,
             agent_args.kernel_shape,
         )
+    elif args.env_id in [
+        "iterated_matrix_game",
+        "iterated_tensor_game",
+        "iterated_nplayer_tensor_game",
+        "third_party_punishment",
+        "third_party_random",
+    ]:
+        network = make_ipd_network(
+            action_spec, tabular, agent_args.hidden_size
+        )
     elif args.env_id == "Cournot":
         network = make_cournot_network(action_spec, agent_args.hidden_size)
     elif args.env_id == "Fishery":
@@ -534,6 +544,7 @@ def make_agent(
     )
 
     if agent_args.lr_scheduling:
+        scale = optax.inject_hyperparams(optax.scale)(step_size=-1.0)
         scheduler = optax.linear_schedule(
             init_value=agent_args.learning_rate,
             end_value=0,
@@ -543,15 +554,18 @@ def make_agent(
             optax.clip_by_global_norm(agent_args.max_gradient_norm),
             optax.scale_by_adam(eps=agent_args.adam_epsilon),
             optax.scale_by_schedule(scheduler),
-            optax.scale(-1),
+            scale,
         )
+        # optimizer = optax.inject_hyperparams(optimizer)(learning_rate=agent_args.learning_rate)
 
     else:
+        scale = optax.inject_hyperparams(optax.scale)(step_size=-agent_args.learning_rate)
         optimizer = optax.chain(
             optax.clip_by_global_norm(agent_args.max_gradient_norm),
             optax.scale_by_adam(eps=agent_args.adam_epsilon),
-            optax.scale(-agent_args.learning_rate),
+            scale,
         )
+        # optimizer = optax.inject_hyperparams(optimizer)(learning_rate=agent_args.learning_rate)
 
     # Random key
     random_key = jax.random.PRNGKey(seed=seed)

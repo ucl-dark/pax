@@ -337,6 +337,12 @@ class EvoRunner:
                     a2_rng,
                     agent2._mem.hidden,
                 )
+                # generate an array of shape [10]
+                # random_numbers = jax.random.uniform(_rng_run, minval=1e-5, maxval=1.0, shape=(10,))
+                # # repeat the array 1000 times along the first dimension
+                # learning_rates = jnp.tile(random_numbers, (1000, 1))
+                # a2_state.opt_state[2].hyperparams['step_size'] = learning_rates
+                # jax.debug.breakpoint()
 
             # run trials
             vals, stack = jax.lax.scan(

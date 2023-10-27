@@ -114,3 +114,8 @@ experiment.log
 
 # Pax
 pax/version.py
+
+*.gif
+*.json
+*.png
+*.sh
