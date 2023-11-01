@@ -231,9 +231,9 @@ python -m pax.experiment +train_iters=1e3 +num_envs=10
 ```
 
 We currently support two major environments: `MatrixGames` and `CoinGame`.
-```
 
 For `MatrixGames`, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
+
 ```bash 
 python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.group="testing"
 ```
