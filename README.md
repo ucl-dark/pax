@@ -258,7 +258,7 @@ If you use Pax in any of your work, please cite:
 
 ```
 @misc{pax,
-    author = {Khan, Akbir and Willi, Timon and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris},
+    author = { Willi, Timon, and Khan, Akbir and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris},
     title = {Pax: Multi-Agent Learning in JAX},
     year = {2022},
     publisher = {GitHub},
