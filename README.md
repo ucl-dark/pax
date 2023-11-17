@@ -19,7 +19,9 @@ Pax is an experiment runner for multi and meta agent research built on top of JA
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-Pax is composed of 3 components: Environments, Agents and Runners.
+For a simple starting points, please refer to this [notebook](https://github.com/ucl-dark/pax/blob/main/proof_of_concept.ipynb), which introduces the very basic concepts of pax.
+
+Pax is composed of 3 components: Environments, Agents and Runners. The following code snippets are meant as pseudocode to get a quick overview, refer to the above notebook for a working example.
 
 ### Environments
 Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
