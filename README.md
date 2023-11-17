@@ -232,9 +232,9 @@ We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydr
 python -m pax.experiment +train_iters=1e3 +num_envs=10
 ```
 
-We currently support two major environments: `MatrixGames` and `CoinGame`.
+We currently support the following environments: `MatrixGames` (both infinite and finite versions), `CoinGame`, `InTheMatrix` (recently renamed to [STORM](https://arxiv.org/pdf/2311.10090.pdf) and `iterated_tensor_games` (n-player version of matrix games). These environments are great testing grounds for general-sum games. From the climate literature, we also support the `Cournot` and the `Fishery` environments. For more information about the environments, please see [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
 
-For `MatrixGames`, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
+For most games, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
 
 ```bash 
 python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.group="testing"
@@ -260,11 +260,11 @@ If you use Pax in any of your work, please cite:
 
 ```
 @misc{pax,
-    author = { Willi, Timon, and Khan, Akbir and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris},
+    author = {Willi, Timon, and Khan, Akbir and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris, Foerster, and Foerster, Jakob},
     title = {Pax: Multi-Agent Learning in JAX},
-    year = {2022},
+    year = {2023},
     publisher = {GitHub},
     journal = {GitHub repository},
-    howpublished = {\url{https://github.com/akbir/pax}},
+    howpublished = {\url{https://github.com/ucl-dark/pax}},
 }
 ```
