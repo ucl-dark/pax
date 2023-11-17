@@ -92,7 +92,7 @@ final_state, trajectory = jax.lax.scan(
     rollout, (obs, env_state, rng), rollout_length
 )
 ```
-
+A description of most available environments is available [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
 ### Agents
 The agent interface is as follows:
 
@@ -136,7 +136,7 @@ agent1.batch_init = jax.vmap(
     (None, 0),
 )
 ```
-
+A list of most available agents is available [here](https://github.com/ucl-dark/pax/blob/main/docs/agents.md).
 ### Runners
 We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up,
 
@@ -208,7 +208,7 @@ for _ in range(num_updates):
 ```
 
 Note this isn't even a fully optimised example - we could jit the outer loop!
-
+A list of most available runners is available [here](https://github.com/ucl-dark/pax/blob/main/docs/getting-started/runners.md). 
 
 # Installation
 Pax is written in pure Python, but depends on C++ code via JAX.
