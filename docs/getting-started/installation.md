@@ -6,7 +6,9 @@ Because JAX installation is different depending on your CUDA version, Haiku does
 
 First, follow these instructions to [install](https://github.com/google/jax#installation) JAX with the relevant accelerator support.
 
-After the JAX installation, if you run into into the following problem
+Then, install the following [requirements](https://github.com/ucl-dark/pax/blob/main/requirements.txt).
+
+If you run into into the following problem
 
 ```
 Traceback (most recent call last):
@@ -19,4 +21,6 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'pax.version'
 ```
 
-run `python setup.py sdist`. Then you should be setup.
+run `python setup.py sdist`.
+
+
