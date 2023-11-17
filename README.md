@@ -232,7 +232,7 @@ We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydr
 python -m pax.experiment +train_iters=1e3 +num_envs=10
 ```
 
-We currently support the following environments: `MatrixGames` (both infinite and finite versions), `CoinGame`, `InTheMatrix` (recently renamed to [STORM](https://arxiv.org/pdf/2311.10090.pdf) and `iterated_tensor_games` (n-player version of matrix games). These environments are great testing grounds for general-sum games. From the climate literature, we also support the `Cournot` and the `Fishery` environments. For more information about the environments, please see [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
+We currently support the following environments: `MatrixGames` (both infinite and finite versions), `CoinGame`, `InTheMatrix` (recently renamed to [STORM](https://arxiv.org/pdf/2311.10090.pdf) and `iterated_tensor_games` (n-player version of matrix games). These environments are great testing grounds for general-sum games. From the climate literature, we also support the `Cournot`, `Fishery`, `Rice-N` and `C-Rice-N` environments. For more information about the environments, please see [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
 
 For most games, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
 
