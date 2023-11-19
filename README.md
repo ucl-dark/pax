@@ -271,7 +271,7 @@ We currently support the following environments: `MatrixGames` (both infinite an
 For most games, we support the ability to specify your own payoff matrix either through the CLI or the `.yaml` files. For example, if you want to run the experiment where PPO plays against a TitForTat agent in the common Iterated Prisoners Dilemma:
 
 ```bash 
-python -m pax.experiment +experiment/ipd=ppo_v_tft ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.log=False
+python -m pax.experiment +experiment/ipd=ppo_v_tft ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++ppo1.num_epochs=4 ++wandb.log=False
 ```
 
 ## Experiments
