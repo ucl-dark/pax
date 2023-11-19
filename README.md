@@ -275,7 +275,7 @@ python -m pax.experiment +experiment/ipd=ppo_v_tft ++payoff="[[-2,-2], [0,-3], [
 ```
 If you wanted to train M-FOS vs a Naive Learner in the IPD, you could run
 ```bash 
-python -m pax.experiment +experiment/ipd=mfos_att_v_tabular ++runner="evo" ++wandb.log=True
+python -m pax.experiment +experiment/ipd=mfos_att_v_tabular ++runner="evo" ++env_type="meta" ++wandb.log=True
 ```
 Check out the according [`.yaml` file](https://github.com/ucl-dark/pax/blob/main/pax/conf/experiment/ipd/mfos_att_v_tabular.yaml)
 
