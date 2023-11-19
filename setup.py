@@ -55,7 +55,7 @@ if __name__ == "__main__":
         long_description=long_description,
         long_description_content_type="text/markdown",
         author="Akbir Khan",
-        url="https://github.com/akbir/pax",
+        url="https://github.com/ucl-dark/pax",
         license="Apache License, Version 2.0",
         packages=["pax"],
         python_requires=">=3.9",
