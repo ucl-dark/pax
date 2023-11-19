@@ -19,12 +19,12 @@ Pax is an experiment runner for multi and meta agent research built on top of JA
 
 > *Pax (noun) - a period of peace that has been forced on a large area, such as an empire or even the whole world*
 
-For a simple starting points, please refer to this [notebook](https://github.com/ucl-dark/pax/blob/main/proof_of_concept.ipynb), which introduces the very basic concepts of pax.
+For a simple starting points, please refer to this [notebook](https://github.com/ucl-dark/pax/blob/main/proof_of_concept.ipynb), which introduces the very basic concepts of pax. Please read the README, the 5 minutes spent reading will save you a lot of time. If you run into any problems, please open an issue.
 
-Pax is composed of 3 components: Environments, Agents and Runners. The following code snippets are meant as pseudocode to get a quick overview, refer to the above notebook for a working example.
+Pax is composed of 3 components: Environments, Agents and Runners.
 
 ### Environments
-Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax).
+Environments are similar to [gymnax](https://github.com/RobertTLange/gymnax). We can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan`. In the following example, we batch over the number of environments.
 
 ```python
 from pax.envs.iterated_matrix_game import (
@@ -32,35 +32,18 @@ from pax.envs.iterated_matrix_game import (
     EnvParams,
 )
 
-env = IteratedMatrixGame(num_inner_steps=5)
-env_params = EnvParams(payoff_matrix=payoff)
-
-# 0 = Defect, 1 = Cooperate
-actions = (jnp.ones(()), jnp.ones(()))
-obs, env_state = env.reset(rng, env_params)
-done = False
-
-while not done:
-    obs, env_state, rewards, done, info = env.step(
-        rng, env_state, actions, env_params
-    )
-```
-We can compose these with JAX built-in functins `jit`, `vmap`, `pmap` and `lax.scan`.
-
-```python
-import IteratedMatrixGame, EnvParams
+import jax
 import jax.numpy as jnp
 
-# batch over env initalisations
 num_envs = 2
-payoff = [[2, 2], [0, 3], [3, 0], [1, 1]]
+payoff = [[2, 2], [0, 3], [3, 0], [1, 1]] # payoff matrix for the IPD
 rollout_length = 50
 
 rng = jnp.concatenate(
     [jax.random.PRNGKey(0), jax.random.PRNGKey(1)]
 ).reshape(num_envs, -1)
 
-env = IteratedMatrixGame(num_inner_steps=rollout_length)
+env = IteratedMatrixGame(num_inner_steps=rollout_length, num_outer_steps=1)
 env_params = EnvParams(payoff_matrix=payoff)
 
 action = jnp.ones((num_envs,), dtype=jnp.float32)
@@ -72,11 +55,14 @@ env.step = jax.vmap(
     out_axes=(0, None, 0, 0, 0),
 )
 
+# batch over env initalisations
+env.reset = jax.vmap(
+    env.reset, in_axes=(0, None), out_axes=(0, None))
 obs, env_state = env.reset(rng, env_params)
 
 # lets scan the rollout for speed
 def rollout(carry, unused):
-    carry = (_, env_state, env_rng)
+    last_obs, env_state, env_rng = carry
     actions = (action, action)
     obs, env_state, rewards, done, info = env.step(
         env_rng, env_state, actions, env_params
@@ -91,38 +77,63 @@ def rollout(carry, unused):
 
 
 final_state, trajectory = jax.lax.scan(
-    rollout, (obs, env_state, rng), rollout_length
+    rollout, (obs, env_state, rng), None, rollout_length
 )
 ```
+
 A description of most available environments is available [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
 ### Agents
-The agent interface is as follows:
+`pax` supports a wide range on agents. To initialise agents, we need to define their arguments. This is typically done in the `.yaml` file defining the experiment. In the following code, we'll define in explicitly.
 
 ```python
-import jax.numpy as jnp
-import Agent
+from typing import NamedTuple
 
-args = {"hidden": 16, "observation_spec": 5}
-rng = jax.random.PRNGKey(0)
-bs = 1
-init_hidden = jnp.zeros((bs, args.hidden))
-obs = jnp.ones((bs, 5))
+class EnvArgs(NamedTuple):
+    env_id='iterated_matrix_game'
+    runner='rl'
+    num_envs=num_envs
 
-agent = Agent(args)
-state, memory = agent.make_initial_state(rng, init_hidden)
-action, state, mem = agent.policy(rng, obs, mem)
-
-state, memory, stats = agent.update(
-    traj_batch, obs, state, mem
-)
-
-mem = agent.reset_memory(mem, False)
+class PPOArgs(NamedTuple):
+    num_minibatches=10
+    num_epochs=4
+    gamma=0.96
+    gae_lambda=0.95
+    ppo_clipping_epsilon=0.2
+    value_coeff=0.5
+    clip_value=True
+    max_gradient_norm=0.5
+    anneal_entropy=True
+    entropy_coeff_start=0.2
+    entropy_coeff_horizon=5e5
+    entropy_coeff_end=0.01
+    lr_scheduling=True
+    learning_rate=2.5e-2
+    adam_epsilon=1e-5
+    with_memory=False
+    with_cnn=False
+    hidden_size=16
 ```
+After having defined the arguments, we're ready to initialize the agents. We also vmap over the reset, policy and update function. We do not vmap over the initialisation, as the initialisation already assumes that we are running over multiple environments. If you were to add additional batch dimensions, you'd want to vmap over the initialisation too. The vmapping of the agents is typically done in the runner file.
 
 Note that `make_initial_state`, `policy`, `update` and `reset_memory` all support `jit`, `vmap` and `lax.scan`. Allowing you to compile more of your experiment to [XLA](https://www.tensorflow.org/xla).
 
 
 ```python
+import jax.numpy as jnp
+from pax.agents.ppo.ppo import make_agent
+
+args = EnvArgs()
+agent_args = PPOArgs()
+agent = make_agent(args, 
+    agent_args=agent_args,
+    obs_spec=env.observation_space(env_params).n,
+    action_spec=env.num_actions,
+    seed=42,
+    num_iterations=1e3,
+    player_id=0,
+    tabular=False,)
+
+
 # batch MemoryState not TrainingState
 agent.batch_reset = jax.jit(
     jax.vmap(agent.reset_memory, (0, None), 0),
@@ -132,31 +143,48 @@ agent.batch_reset = jax.jit(
 agent.batch_policy = jax.jit(
     jax.vmap(agent._policy, (None, 0, 0), (0, None, 0))
 )
-agent1.batch_init = jax.vmap(
-    agent.make_initial_state,
-    (None, 0),
-    (None, 0),
+
+agent.batch_update = jax.vmap(
+    agent.update, (0, 0, None, 0), (None, 0, 0)
 )
 ```
 A list of most available agents is available [here](https://github.com/ucl-dark/pax/blob/main/docs/agents.md).
 ### Runners
-We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up,
+We can finally combine all the above into our runner code. This is where you'd expect to write most custom logic for your own experimental set up. Next, we'll define a transition. The transitions is what we're stacking when we're gonna use jax.lax.scan.
+
+```python
+from typing import NamedTuple
+
+class Sample(NamedTuple):
+    """Object containing a batch of data"""
+
+    observations: jnp.ndarray
+    actions: jnp.ndarray
+    rewards: jnp.ndarray
+    behavior_log_probs: jnp.ndarray
+    behavior_values: jnp.ndarray
+    dones: jnp.ndarray
+    hiddens: jnp.ndarray
+```
+
+Now let's define a very simple rollout. Note that the agent plays against itself in the IPD, which isn't particularly meaningful. If you had a second agent, you'd obviously want to fill in that code accordingly. Please refer to the many runners within the repo that already have that code in place.
 
 ```python
 def _rollout(carry, unused):
     """Runner for inner episode"""
     (
-        rngs,
+        rng,
         obs,
         a_state,
         a_mem,
         env_state,
         env_params,
     ) = carry
-
     # unpack rngs
-    rngs = self.split(rngs, 4)
-    action, a_state, new_a_mem = agent1.batch_policy(
+    rngs = jax.random.split(rng, num_envs+1)
+    rngs, rng = rngs[:-1], rngs[-1]
+
+    action, a_state, new_a_mem = agent.batch_policy(
         a_state,
         obs[0],
         a_mem,
@@ -170,46 +198,50 @@ def _rollout(carry, unused):
     )
 
     traj = Sample(
-        obs1,
+        obs[0],
         action,
         rewards[0],
-        new_a1_mem.extras["log_probs"],
-        new_a1_mem.extras["values"],
+        new_a_mem.extras["log_probs"],
+        new_a_mem.extras["values"],
         done,
-        a1_mem.hidden,
+        a_mem.hidden,
     )
 
     return (
-        rngs,
+        rng,
         next_obs,
-        a1_state,
-        new_a1_mem,
+        a_state,
+        new_a_mem,
         env_state,
         env_params,
-    ), (
-        traj1,
-        traj2,
-    )
+    ), traj
+```
 
+Note this isn't even a fully optimised example - we could jit the outer loop! Now we can put everything together and train the agent. This already covers almost everything there is to know in pax. All the runners are just modified versions of this notebook, where initialisations are centralized in experiments.py
 
-agent = Agent(args)
-state, memory = agent.make_initial_state(rng, init_hidden)
+```python
+rng = jax.random.PRNGKey(42)
+init_hidden = jnp.zeros((agent_args.hidden_size))
+rng, _rng = jax.random.split(rng)
+a_state, a_memory = agent.make_initial_state(_rng, init_hidden)
+rngs = jax.random.split(rng, num_envs)
+obs, env_state = env.reset(rngs, env_params)
 
-for _ in range(num_updates):
+for _ in range(10):
+    carry =  (rng, obs, a_state, a_memory, env_state, env_params)
     final_timestep, batch_trajectory = jax.lax.scan(
         _rollout,
-        ((obs, env_state, rng), rollout_length),
+        carry,
+        None,
         10,
     )
 
-    _, obs, rewards, a1_state, a1_mem, _, _ = final_timestep
+    rng, obs, a_state, a_memory, env_state, env_params = final_timestep
 
-    state, memory, stats = agent.update(
-        batch_trajectory, obs[0], state, memory
+    a_state, a_memory, stats = agent.update(
+        batch_trajectory, obs[0], a_state, a_memory
     )
 ```
-
-Note this isn't even a fully optimised example - we could jit the outer loop!
 A list of most available runners is available [here](https://github.com/ucl-dark/pax/blob/main/docs/getting-started/runners.md). 
 
 # Installation
@@ -234,20 +266,20 @@ We currently use [WandB](https://wandb.ai/) for logging and [Hydra](https://hydr
 python -m pax.experiment +train_iters=1e3 +num_envs=10
 ```
 
-We currently support the following environments: `MatrixGames` (both infinite and finite versions), `CoinGame`, `InTheMatrix` (recently renamed to [STORM](https://arxiv.org/pdf/2311.10090.pdf) and `iterated_tensor_games` (n-player version of matrix games). These environments are great testing grounds for general-sum games. From the climate literature, we also support the `Cournot`, `Fishery`, `Rice-N` and `C-Rice-N` environments. For more information about the environments, please see [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
+We currently support the following environments: `MatrixGames` (both infinite and finite versions), `CoinGame`, `InTheMatrix` (recently renamed to [STORM](https://arxiv.org/pdf/2311.10090.pdf), an n-player version of STORM, and `iterated_tensor_games` (n-player version of matrix games). These environments are great testing grounds for general-sum games. From the climate literature, we also support the `Cournot`, `Fishery`, `Rice-N` and `C-Rice-N` environments. For more information about the environments, please see [here](https://github.com/ucl-dark/pax/blob/main/docs/envs.md).
 
-For most games, we support the ability to specify your own payoff matrix either through the CLI or the `yaml` files. For example the common Iterated Prisoners Dilemma is:
+For most games, we support the ability to specify your own payoff matrix either through the CLI or the `.yaml` files. For example, if you want to run the experiment where PPO plays against a TitForTat agent in the common Iterated Prisoners Dilemma:
 
 ```bash 
-python -m pax.experiment +experiment/ipd=ppo ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.group="testing"
+python -m pax.experiment +experiment/ipd=ppo_v_tft ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++wandb.log=False
 ```
 
 ## Experiments
 ```bash 
-python -m pax.experiment +experiment/ipd=yaml ++wandb.group="testing" 
+python -m pax.experiment +experiment/ipd=yaml
 ``` 
 
-We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/docs) to store these configs and keep track of good hyper-paremters. As a rule for development, we try retain backwards compatability and allow all previous results to be replicated. These can be run easily by `python -m pax.experiment +experiment=NAME`. We also provide a  list of our existing experiments and expected result [here](docs/experiments.md).
+We store previous experiments as parity tests. We use [Hydra](https://hydra.cc/docs) to store these configs and keep track of good hyper-paremters. As a rule for development, we try retain backwards compatability and allow all previous results to be replicated. These can be run easily by `python -m pax.experiment +experiment=NAME`. We also provide a list of our existing experiments and expected result [here](docs/experiments.md), though it's not exhaustive and some `.yaml` files not be up to date. Just leave us a message if you run into any problems.
 
 ## Loading and Saving 
 1. All models trained using Pax by default are saved to the `exp` folder. 
