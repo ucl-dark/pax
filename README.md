@@ -273,7 +273,7 @@ For most games, we support the ability to specify your own payoff matrix either 
 ```bash 
 python -m pax.experiment +experiment/ipd=ppo_v_tft ++payoff="[[-2,-2], [0,-3], [-3,0], [-1,-1]]" ++ppo1.num_epochs=4 ++wandb.log=False
 ```
-If you wanted to train M-FOS vs a Naive Learner in the IPD, you could run
+If you wanted to train M-FOS vs a Naive Learner in the IPD, you could run the following command. DON'T FORGET TO UPDATE THE WANDB ARGUMENTS WITH YOUR DETAILS WITHIN THE YAML.
 ```bash 
 python -m pax.experiment +experiment/ipd=mfos_att_v_tabular ++runner="evo" ++env_type="meta" ++wandb.log=True
 ```
