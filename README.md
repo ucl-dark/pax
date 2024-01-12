@@ -300,7 +300,7 @@ If you use Pax in any of your work, please cite:
 ```
 @misc{pax,
     author = {Willi, Timon, and Khan, Akbir and Kwan, Newton, and Samvelyan, Mikayel and Lu, Chris, and Foerster, Jakob},
-    title = {Pax: Multi-Agent Learning in JAX},
+    title = {Pax: Scalable Opponent Shaping in JAX},
     year = {2023},
     publisher = {GitHub},
     journal = {GitHub repository},
