@@ -1,7 +1,7 @@
 <h1 align="center">
   <a href="https://github.com/akbir/pax/blob/main/docs/imgs/logo.png">
     <img src="https://github.com/akbir/pax/blob/main/docs/imgs/logo.png?raw=true" width="215" /></a><br>
-  <b> Pax: Meta|Multi Agent Learning in JAX </b><br>
+  <b> Pax: Scalable Opponent Shaping in JAX </b><br>
 </h1>
 <p align="center">
       <a href="https://pypi.python.org/pypi/gymnax">
