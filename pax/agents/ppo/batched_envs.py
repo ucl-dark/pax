@@ -2,8 +2,9 @@ from tokenize import String
 
 import gym
 import jax.numpy as jnp
-from bsuite.utils import gym_wrapper
 from dm_env import Environment, TimeStep, specs
+
+from . import gym_wrapper
 
 
 class BatchedEnvs(Environment):

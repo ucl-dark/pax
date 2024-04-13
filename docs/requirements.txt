@@ -21,5 +21,4 @@ optax
 pytest
 wandb
 pytest-cov
-bsuite
 tqdm
