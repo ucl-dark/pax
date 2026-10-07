@@ -20,16 +20,19 @@ benchmark: False
 # Runner 
 runner: evo
 
+# Resume (set to checkpoint dir to resume a previous run)
+resume_dir: ""
+
 # Training
 top_k: 8
 popsize: 128 #512
 # total popsize = popsize * num_devices
 num_envs: 50
 num_opps: 1
-num_devices: 8
+num_devices: 4
 num_outer_steps: 500
 num_inner_steps: 152 
-num_iters: 5000
+num_iters: 1601 #1000
 att_type: avg
 
 # Evaluation
@@ -109,8 +112,9 @@ es:
   
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "lichenqi-university-of-regina"
   project: ipditm
-  group: 'shaping-${agent1}-vs-${agent2}'
+  group: 'baseline-shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
+  mode: offline

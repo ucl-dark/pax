@@ -1,0 +1,24 @@
+V1_slow_rcpo 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015
+V1_slow_rcpo 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015
+U_lr3e-4 2 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr3e-4 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+V1_slow_rcpo 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015
+U_lr3e-4 3 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr3e-4 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+V1_slow_rcpo 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015
+U_lr3e-4 4 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr3e-4 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+V1_slow_rcpo 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015
+V1_slow_rcpo 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0004
+V2_slow_pid 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.01 ++welfare.kd=0.02 ++welfare.ki=0.0004 ++welfare.ema_beta=0.95
+V3_mid_rcpo 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.lam_init_shaper=1.0 ++welfare.lam_init_opponent=0.0 ++welfare.kp=0.0 ++welfare.kd=0.0 ++welfare.ki=0.0015

@@ -1,0 +1,86 @@
+# @package _global_
+
+# Evaluate a pretrained Welfare Shaper (MFOS) vs fresh Tabular learner (IPD)
+# Freezes the shaper and lets the opponent learn over many episodes.
+
+# Agents
+agent1: 'WelfareShaper'
+agent2: 'Tabular'
+
+# Environment
+env_id: iterated_matrix_game
+env_type: meta
+env_discount: 0.96
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+
+# Runner
+runner: welfare_eval
+
+# Training / Evaluation
+num_envs: 2
+num_opps: 10
+num_outer_steps: 100
+num_inner_steps: 100
+num_iters: 1000
+num_devices: 1
+agent2_reset_interval: 1
+
+# Evaluation — pretrained model
+run_path: ucl-dark/ipd/REPLACE_WITH_RUN_ID
+model_path: REPLACE_WITH_MODEL_PATH
+
+# Welfare / IR reference values (from calibration during training)
+welfare:
+  v_ref_shaper: 0.0
+  v_ref_opponent: 0.0
+
+# PPO agent parameters (for WelfareShaper = agent1)
+ppo1:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+# PPO agent parameters (for Tabular = agent2)
+ppo2:
+  num_minibatches: 4
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 1
+  adam_epsilon: 1e-5
+  with_memory: False
+  with_cnn: False
+  hidden_size: 16
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: ipd
+  group: 'eval-welfare-${agent1}-vs-${agent2}'
+  name: eval-seed-${seed}
+  log: True
+  mode: offline

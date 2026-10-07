@@ -1,0 +1,6 @@
+V4_vref14 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0
+V4_vref14 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0
+V4_vref14 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0
+V4_vref14 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0
+V4_vref14 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0
+V4_vref14 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ++welfare.v_ref_shaper=-14.0

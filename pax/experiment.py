@@ -1,7 +1,15 @@
+import glob as glob_mod
 import logging
 import os
+import re
 from datetime import datetime
 from functools import partial
+
+# Keep matplotlib cache/config in a writable local folder.
+if "MPLCONFIGDIR" not in os.environ:
+    os.environ["MPLCONFIGDIR"] = os.path.join(
+        os.getcwd(), ".matplotlib"
+    )
 
 import gymnax
 import hydra
@@ -10,11 +18,18 @@ import jax.numpy as jnp
 import omegaconf
 import wandb
 from evosax import CMA_ES, PGPE, OpenES, ParameterReshaper, SimpleGA
-from jax.lib import xla_bridge
+#from jax.lib import xla_bridge
+import jax.extend
 
 from pax.agents.hyper.ppo import make_hyper
 from pax.agents.lola.lola import make_lola
 from pax.agents.mfos_ppo.ppo_gru import make_mfos_agent
+from pax.agents.welfare_shaper.welfare_shaper import make_welfare_shaper_agent
+from pax.agents.coala_pg.coala_pg import (
+    make_coala_a2c_agent,
+    make_coala_pg_agent,
+    make_coala_pg_lagrangian_agent,
+)
 from pax.agents.naive.naive import make_naive_pg
 from pax.agents.naive_exact import NaiveExact
 from pax.agents.ppo.ppo import make_agent
@@ -72,6 +87,14 @@ from pax.runners.experimental.runner_evo_mixed_payoffs_input import EvoMixedPayo
 from pax.runners.experimental.runner_evo_mixed_payoffs_gen import EvoMixedPayoffGenRunner
 from pax.runners.experimental.runner_evo_mixed_payoffs_only_opp import EvoMixedPayoffOnlyOppRunner
 from pax.runners.runner_evo_scanned import EvoScannedRunner
+from pax.runners.runner_welfare_evo import WelfareEvoRunner
+from pax.runners.runner_welfare_unconstrained_evo import WelfareUnconstrainedEvoRunner
+from pax.runners.runner_welfare_marl import WelfareRLRunner
+from pax.runners.runner_coala_pg import CoalaPGRunner
+from pax.runners.runner_coala_pg_lagrangian import (
+    CoalaPGLagrangianRunner,
+)
+from pax.runners.runner_eval_welfare import WelfareEvalRunner
 
 from pax.envs.iterated_tensor_game_n_player import IteratedTensorGameNPlayer
 from pax.envs.rice.c_rice import ClubRice
@@ -80,6 +103,7 @@ from pax.envs.rice.sarl_rice import SarlRice
 from pax.runners.runner_evo_nroles import EvoRunnerNRoles
 from pax.runners.runner_weight_sharing import WeightSharingRunner
 from pax.runners.runner_ipditm_eval import IPDITMEvalRunner
+from pax.runners.runner_ipditm_eval_welfare import IPDITMEvalWelfareRunner
 
 from pax.runners.runner_marl import RLRunner
 from pax.runners.runner_marl_nplayer import NplayerRLRunner
@@ -104,6 +128,34 @@ from pax.watchers import (
 # config.update('jax_disable_jit', True)
 
 
+def _get_wandb_run_id_from_resume(resume_dir):
+    """Scan *resume_dir* for the latest ``generation_*_resume`` file and
+    return the saved wandb run ID (or None)."""
+    if not resume_dir or not os.path.isdir(resume_dir):
+        return None
+    pattern = os.path.join(resume_dir, "**", "generation_*_resume")
+    candidates = glob_mod.glob(pattern, recursive=True)
+    if not candidates:
+        return None
+    best_gen = -1
+    best_path = None
+    for path in candidates:
+        match = re.search(r"generation_(\d+)_resume$", os.path.basename(path))
+        if match:
+            gen_num = int(match.group(1))
+            if gen_num > best_gen:
+                best_gen = gen_num
+                best_path = path
+    if best_path is None:
+        return None
+    from pax.utils import load
+    ckpt = load(best_path)
+    run_id = ckpt.get("wandb_run_id")
+    if run_id:
+        print(f"[Resume] Found wandb run ID '{run_id}' from generation {best_gen}")
+    return run_id
+
+
 def global_setup(args):
     """Set up global variables."""
     save_dir = f"{args.save_dir}/{str(datetime.now()).replace(' ', '_').replace(':', '.')}"
@@ -116,7 +168,17 @@ def global_setup(args):
         print("run name", str(args.wandb.name))
         if args.debug:
             args.wandb.group = "debug-" + args.wandb.group
-        run = wandb.init(
+
+        # Check if we should resume a previous wandb run
+        wandb_resume_id = None
+        # Try welfare.resume_dir first (welfare_evo runner), then top-level resume_dir (evo runner)
+        resume_dir = getattr(getattr(args, 'welfare', None), 'resume_dir', "")
+        if not resume_dir:
+            resume_dir = getattr(args, 'resume_dir', "")
+        if resume_dir:
+            wandb_resume_id = _get_wandb_run_id_from_resume(resume_dir)
+
+        wandb_kwargs = dict(
             reinit=True,
             entity=str(args.wandb.entity),
             project=str(args.wandb.project),
@@ -129,6 +191,12 @@ def global_setup(args):
             ),  # type: ignore
             settings=wandb.Settings(code_dir="."),
         )
+        if wandb_resume_id:
+            wandb_kwargs["id"] = wandb_resume_id
+            wandb_kwargs["resume"] = "allow"
+            print(f"[Resume] Resuming wandb run {wandb_resume_id}")
+
+        run = wandb.init(**wandb_kwargs)
         print("run id", run.id)
         wandb.run.log_code(".")
     return save_dir
@@ -306,8 +374,16 @@ def runner_setup(args, env, agents, save_dir, logger):
         logger.info("Evaluating with ipditmEvalRunner")
         return IPDITMEvalRunner(agents, env, save_dir, args)
 
+    elif args.runner == "ipditm_eval_welfare":
+        logger.info("Evaluating with IPDITMEvalWelfareRunner")
+        return IPDITMEvalWelfareRunner(agents, env, save_dir, args)
+
+    elif args.runner == "welfare_eval":
+        logger.info("Evaluating with WelfareEvalRunner")
+        return WelfareEvalRunner(agents, env, args)
+
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles", "welfare_evo", "welfare_unconstrained_evo"]:
         agent1 = agents[0]
         algo = args.es.algo
         strategies = {"CMA_ES", "OpenES", "PGPE", "SimpleGA"}
@@ -458,6 +534,42 @@ def runner_setup(args, env, agents, save_dir, logger):
                 args,
             )
 
+        elif args.runner == "welfare_evo":
+            logger.info("Training with Welfare EVO runner (Lagrangian IR)")
+            return WelfareEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+
+        elif args.runner == "welfare_unconstrained_evo":
+            logger.info("Training with Welfare Unconstrained EVO runner (no IR constraints)")
+            return WelfareUnconstrainedEvoRunner(
+                agents,
+                env,
+                strategy,
+                es_params,
+                param_reshaper,
+                save_dir,
+                args,
+            )
+
+    elif args.runner == "welfare_rl":
+        logger.info("Training with Welfare RL runner (Lagrangian IR)")
+        return WelfareRLRunner(agents, env, save_dir, args)
+    elif args.runner == "coala_pg":
+        logger.info("Training with COALA-PG runner (learning-aware PG)")
+        return CoalaPGRunner(agents, env, save_dir, args)
+    elif args.runner == "coala_pg_lagrangian":
+        logger.info(
+            "Training with Lagrangian COALA-PG runner "
+            "(constrained welfare, PID dual)"
+        )
+        return CoalaPGLagrangianRunner(agents, env, save_dir, args)
     elif args.runner == "rl":
         logger.info("Training with RL Runner")
         return RLRunner(agents, env, save_dir, args)
@@ -482,7 +594,7 @@ def agent_setup(args, env, env_params, logger):
     ):
         obs_shape = env.observation_space(env_params).n
     elif args.env_id == "InTheMatrix":
-        obs_shape = jax.tree_map(
+        obs_shape = jax.tree_util.tree_map(
             lambda x: x.shape, env.observation_space(env_params)
         )
     else:
@@ -511,7 +623,7 @@ def agent_setup(args, env, env_params, logger):
             num_iterations=num_iterations,
             player_id=player_id,
         )
-    
+
 
     def get_LOLA_agent(seed, player_id):
         return make_lola(
@@ -613,6 +725,89 @@ def agent_setup(args, env, env_params, logger):
         )
         return ppo_agent
 
+    def get_welfare_shaper_agent(seed, player_id):
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        agent_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
+
+        num_iterations = args.num_iters
+        if player_id == 1 and args.env_type == "meta":
+            num_iterations = args.num_outer_steps
+        welfare_agent = make_welfare_shaper_agent(
+            args,
+            agent_args,
+            obs_spec=obs_shape,
+            num_iterations=num_iterations,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+        return welfare_agent
+
+    def get_welfare_shaper_att_agent(seed, player_id):
+        """Reuse the Shaper (attention-based PPO) agent for welfare shaping."""
+        return get_Shaper_agent(seed, player_id)
+
+    def get_coala_pg_agent(seed, player_id):
+        """COALA-PG shaper (Meulemans et al., ICLR 2025)."""
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        agent_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
+        return make_coala_pg_agent(
+            args,
+            agent_args,
+            obs_spec=obs_shape,
+            num_iterations=args.num_iters,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+
+    def get_coala_pg_lagrangian_agent(seed, player_id):
+        """COALA-PG shaper on a constrained-welfare Lagrangian.
+
+        Same torso and hyperparameters as `get_coala_pg_agent`; the network has
+        a second value head for the constraint return.
+        """
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        agent_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
+        return make_coala_pg_lagrangian_agent(
+            args,
+            agent_args,
+            obs_spec=obs_shape,
+            num_iterations=args.num_iters,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+
+    def get_coala_a2c_agent(seed, player_id):
+        """Naive A2C co-player used by the COALA-PG paper."""
+        default_player_args = omegaconf.OmegaConf.select(
+            args, "ppo_default", default=None
+        )
+        agent_args = omegaconf.OmegaConf.select(
+            args, "ppo" + str(player_id), default=default_player_args
+        )
+        return make_coala_a2c_agent(
+            args,
+            agent_args,
+            obs_spec=obs_shape,
+            action_spec=num_actions,
+            seed=seed,
+            player_id=player_id,
+        )
+
     def get_hyper_agent(seed, player_id):
         hyper_agent = make_hyper(
             args,
@@ -677,6 +872,11 @@ def agent_setup(args, env, env_params, logger):
         "Naive": get_naive_pg,
         "Tabular": get_PPO_tabular_agent,
         "MFOS": get_mfos_agent,
+        "WelfareShaper": get_welfare_shaper_agent,
+        "WelfareShaperAtt": get_welfare_shaper_att_agent,
+        "CoalaPG": get_coala_pg_agent,
+        "CoalaPGLagrangian": get_coala_pg_lagrangian_agent,
+        "CoalaA2C": get_coala_a2c_agent,
         # HyperNetworks
         "Hyper": get_hyper_agent,
         "NaiveEx": get_naive_learner,
@@ -810,6 +1010,11 @@ def watcher_setup(args, logger):
         "EvilGreedy": dumb_log,
         "RandomGreedy": dumb_log,
         "MFOS": dumb_log,
+        "WelfareShaper": dumb_log,
+        "WelfareShaperAtt": ppo_memory_log,
+        "CoalaPG": ppo_memory_log,
+        "CoalaPGLagrangian": ppo_memory_log,
+        "CoalaA2C": ppo_memory_log,
         "PPO": ppo_log,
         "LOLA": dumb_log,
         "PPO_memory": ppo_memory_log,
@@ -853,7 +1058,15 @@ def watcher_setup(args, logger):
 
 @hydra.main(config_path="conf", config_name="config", version_base="1.1")
 def main(args):
-    print(f"Jax backend: {xla_bridge.get_backend().platform}")
+    print(f"Jax backend: {jax.extend.backend.get_backend().platform}")
+
+    actual_devices = jax.local_device_count()
+    requested = getattr(args, "num_devices", 1)
+    if requested > 1 and actual_devices != requested:
+        raise RuntimeError(
+            f"num_devices={requested} but JAX sees {actual_devices} GPUs on this node. "
+            f"Check your SLURM --gpus request or use ++num_devices={actual_devices}."
+        )
 
     """Set up main."""
     logger = logging.getLogger()
@@ -877,17 +1090,30 @@ def main(args):
     print(f"Number of Training Iterations: {args.num_iters}")
 
     if args.runner in ["evo", "evo_mixed_lr", "evo_hardstop", "evo_mixed_payoff", "evo_mixed_ipd_payoff",
-    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles"]:
+    "evo_mixed_payoff_gen", "evo_mixed_payoff_input", "evo_scanned", "evo_mixed_payoff_only_opp", "multishaper_evo", "evo_nroles", "welfare_evo", "welfare_unconstrained_evo"]:
         print(f"Running {args.runner}")
 
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
-    elif args.runner == "rl" or args.runner == "tensor_rl_nplayer":
+    elif args.runner in [
+        "rl",
+        "tensor_rl_nplayer",
+        "welfare_rl",
+        "coala_pg",
+        "coala_pg_lagrangian",
+    ]:
         # number of episodes
         print(f"Number of Episodes: {args.num_iters}")
         runner.run_loop(env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner == "ipditm_eval" or args.runner == "multishaper_eval":
         runner.run_loop(env_params, agent_pair, watchers)
+
+    elif args.runner == "ipditm_eval_welfare":
+        runner.run_loop(env_params, agent_pair, watchers)
+
+    elif args.runner == "welfare_eval":
+        print(f"Number of Episodes: {args.num_iters}")
+        runner.run_loop(env, env_params, agent_pair, args.num_iters, watchers)
 
     elif args.runner in ["eval", "stevie", "eval_hardstop", "weight_sharing", "sarl"] or args.runner == 'stevie' or args.runner == "eval_hardstop":
         print(f"Number of Episodes: {args.num_iters}")

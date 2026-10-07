@@ -1,0 +1,129 @@
+# @package _global_
+
+# EVALUATION of a trained SELFISH COALA-PG shaper (the paper baseline),
+# against a FRESH naive A2C learner. Same protocol as
+# eval_shaper_att_v_tabular.yaml / eval_welfare_shaper_att_v_tabular.yaml:
+# load frozen shaper params, re-initialise the co-player, let the co-player
+# learn for num_outer_steps episodes, and log per-episode returns, welfare and
+# IR slack so the CONVERGED behaviour (last few episodes) can be read off.
+#
+# One trial per job; the statistical sample comes from running many seeds.
+#
+# THE EVAL GEOMETRY MUST MATCH TRAINING. num_inner_steps (T) is load-bearing:
+# the shaper is a GRU that conditions on the whole learning trace, so it has
+# only ever seen T=10 episodes and M=20 of them. Changing T at eval evaluates
+# it off-distribution. num_envs (B) is the co-player's minibatch, so it governs
+# how fast the co-player learns and must match too. Raising M above 20 is a
+# legitimate but DIFFERENT experiment (extrapolation past the training
+# horizon) -- say so if you report it.
+
+# Agents
+agent1: 'CoalaPG'
+agent2: 'CoalaA2C'
+
+# Environment
+env_id: iterated_matrix_game
+env_type: meta
+env_discount: 0.96
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+
+# Runner
+runner: welfare_eval
+
+resume_dir: ""
+
+# Eval geometry -- identical to lagrangian_coala_pg_v_tabular.yaml
+num_envs: 16           # B, the co-player's minibatch
+num_opps: 8            # 8 independent fresh co-players per job
+num_outer_steps: 20    # M, inner episodes the co-player gets to learn
+num_inner_steps: 10    # T, MUST match training
+num_iters: 1           # one trial per job -- sample across seeds
+num_devices: 1
+
+
+# ---- which checkpoint to evaluate ----
+#
+# Training writes to  <hydra.run.dir>/exp/<wandb.group>/<wandb.name>/<timestamp>/iteration_<N>
+# and the launcher copies that tree to
+#   /scratch/lichenqi/results/B9_coala_ipd_seed<SEED>/
+#
+# so a concrete model_path looks like:
+#   /scratch/lichenqi/results/B9_coala_ipd_seed1401/baseline-COALA-PG-CoalaPG-vs-CoalaA2C/run-seed-1401/<timestamp>/iteration_3000
+#
+# Override it per job rather than editing this file:
+#   ++model_path=/scratch/.../iteration_3000
+#
+# run_path is only used by wandb.restore, which is skipped in offline mode and
+# for absolute model_paths -- leave it unless you are restoring from wandb.
+run_path: lichenqi-university-of-regina/ipd
+model_path: "SET_ME"
+
+# IR reference values. -20.0 is each player's security level (the
+# mutual-defection payoff at T=10), which makes the logged slack exactly the
+# individual-rationality margin. Keep these equal to the training values so
+# eval slack and training slack mean the same thing.
+#
+# This agent has no constraints; the block exists only so the eval runner can
+# report IR slack on the SAME reference values as the other two conditions.
+# For the selfish shaper the interesting slack is the CO-PLAYER's: a selfish
+# shaper that exploits drives R_o below -20.
+welfare:
+  v_ref_shaper: -20.0
+  v_ref_opponent: -20.0
+
+# Shaper (agent1) -- architecture keys must match training or the checkpoint
+# will not load. hidden_size is the load-bearing one.
+ppo1:
+  num_minibatches: 2
+  num_epochs: 4
+  gamma: 1.0
+  gae_lambda: 1.0
+  advantage_normalization: False
+  reward_rescaling: 0.05
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 1.0
+  anneal_entropy: False
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.0003
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  hidden_size: 32
+
+# Naive co-player (agent2) -- A2C settings from Table 8 of the paper, matching
+# training. This agent DOES learn during eval; that is the point.
+ppo2:
+  num_minibatches: 1
+  num_epochs: 1
+  gamma: 0.99
+  gae_lambda: 1.0
+  advantage_normalization: True
+  reward_rescaling: 0.05
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 1.0
+  anneal_entropy: False
+  entropy_coeff_start: 0.0
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  hidden_size: 32
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: ipd
+  group: 'eval-selfish-${agent1}-vs-${agent2}'
+  name: run-seed-${seed}
+  log: True
+  mode: online

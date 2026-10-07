@@ -528,7 +528,7 @@ class LOLA:
         other_mems = carry[8]
 
         # flip axes to get (num_envs, num_inner, obs_dim) to vmap over numenvs
-        vmap_trajectories = jax.tree_map(
+        vmap_trajectories = jax.tree_util.tree_map(
             lambda x: jnp.swapaxes(x, 0, 1), trajectories
         )
 
@@ -560,7 +560,7 @@ class LOLA:
             other_gradients.append(gradient)
         # avg over numenvs
         other_gradients = [
-            jax.tree_map(lambda x: x.mean(axis=0), other_gradient)
+            jax.tree_util.tree_map(lambda x: x.mean(axis=0), other_gradient)
             for other_gradient in other_gradients
         ]
 
@@ -749,7 +749,7 @@ class LOLA:
             length=self._num_steps,
         )
         # num_inner, num_opps, num_envs to num_opps, num_envs, num_inner
-        vmap_trajectories = jax.tree_map(
+        vmap_trajectories = jax.tree_util.tree_map(
             lambda x: jnp.moveaxis(x, 0, 2), trajectories
         )
         sample = LOLASample(
@@ -774,7 +774,7 @@ class LOLA:
             other_mems,
             sample,
         )
-        gradients = jax.tree_map(lambda x: x.mean(axis=(0, 1)), gradients)
+        gradients = jax.tree_util.tree_map(lambda x: x.mean(axis=(0, 1)), gradients)
         # print("Gradients", gradients)
         # print()
         # Update the optimizer

@@ -1,0 +1,252 @@
+# @package _global_
+
+# Constrained-welfare COALA-PG (PID Lagrangian) vs the paper's naive A2C
+# learner (IPD). ONE config for both conditions of the comparison:
+#
+#   CONSTRAINED (default):
+#     bash jobs/phase0_baselines/B9_ipd_coala_pg_att_v_tabular.sh fir $s offline \
+#         lagrangian_coala_pg_v_tabular
+#
+#   UNCONSTRAINED welfare (controlled ablation -- same agent, runner, critic
+#   heads and every hyperparameter; the multipliers are frozen at zero so the
+#   objective is exactly r_s + r_o):
+#     bash jobs/phase0_baselines/B9_ipd_coala_pg_att_v_tabular.sh fir $s offline \
+#         lagrangian_coala_pg_v_tabular \
+#         ++welfare.freeze_lam=True ++welfare.lam_init=0.0 \
+#         ++wandb.group=unconstrained-CoalaPGLagrangian-vs-CoalaA2C
+#
+#   The launcher folds the overrides into the result directory name, so the
+#   two conditions never overwrite each other. Evaluate either checkpoint
+#   with eval_lagrangian_coala_pg_v_tabular.yaml (see its header).
+#
+# Problem:
+#   max_theta  W(theta) = R_s + R_o
+#   s.t.       R_s(theta) >= v_ref_shaper      (shaper not self-sacrificing)
+#              R_o(theta) >= v_ref_opponent    (co-player not exploited)
+#   L = W + lam_s * (R_s - v_ref_shaper) + lam_o * (R_o - v_ref_opponent)
+#
+# Both constraints are load-bearing: lam_s pulls the shaper back from
+# self-sacrifice, lam_o protects the co-player. Welfare alone is indifferent
+# between (-10, -30) and (-30, -10).
+#
+# Each constraint is itself an expected return, so the Lagrangian gradient is
+# the stock COALA-PG gradient of a reshaped reward:
+#   r_mix = (1 + lam_s) * r_s + (1 + lam_o) * r_o
+# The learning-aware estimator, rollout and co-player are UNCHANGED from
+# coala_pg_v_tabular.yaml (the selfish baseline), so a difference in outcome
+# is attributable to the objective, not the optimizer.
+#
+# Dual update: PID Lagrangian (Stooke, Achiam & Abbeel, ICML 2020), one
+# controller per constraint; kp = kd = 0 recovers RCPO dual ascent.
+#
+# MEASURED OUTCOME (experiments/lr_sweep_lammax2/REPORT.md; 12 seeds, 5001
+# iterations): with the defaults below the co-player is shaped into mutual
+# cooperation in 10/12 seeds, final episode ~(-10.5, -10.5) with a generous
+# tit-for-tat shaper (P(C|CC)~1, P(C|CD)~0.1-0.3, P(C|DD)~0.02). The
+# unconstrained run ends as the "sucker" outcome ~(-27, -2) in 3/4 seeds.
+
+# Agents
+agent1: 'CoalaPGLagrangian'
+agent2: 'CoalaA2C'
+
+# Environment
+env_id: iterated_matrix_game
+env_type: meta
+env_discount: 0.96
+payoff: [[-1, -1], [-3, 0], [0, -3], [-2, -2]]
+
+# Runner
+runner: coala_pg_lagrangian
+
+# Save
+save: True
+save_interval: 1000
+
+# Training (identical to coala_pg_v_tabular.yaml / the constrained ES runs)
+num_envs: 16           # B
+num_opps: 128          # paper Table 2 `meta_batch_size`: independent co-players per update
+# Paper Table 2 `population_size (naive)`: the co-player is re-initialised from
+# a fixed pool of this many parameter vectors (0 = fresh random init each time).
+naive_population_size: 10
+num_outer_steps: 20    # M
+num_inner_steps: 10    # T
+num_iters: 5001
+num_devices: 1
+
+welfare:
+  # ---- shared settings; each may be overridden per player (see below) ----
+  #
+  # PID gains. Tune kp FIRST with ki small and kd = 0; add kd only if lam lags
+  # into violations. kp = kd = 0 gives exactly RCPO dual ascent with lr = ki,
+  # which is the baseline worth reporting alongside.
+  kp: 0.05      # proportional: reacts to the CURRENT violation
+  ki: 0.005     # integral: the dual-ascent term (the only one RCPO has)
+  kd: 0.1       # derivative: reacts to the violation GETTING WORSE
+  #
+  # lam_init > 0 on purpose. Early in meta-training a constraint is often
+  # satisfied by accident, so a lam starting at 0 only decays; by the time real
+  # violations appear the shaper has already learnt to sacrifice (or to
+  # exploit) and lam must climb from nothing to undo it.
+  lam_init: 0.5
+  #
+  # lam_max. The shaper's within-episode (myopic) preference under
+  # r_mix = (1+lam_s) r_s + (1+lam_o) r_o:
+  #   lam_s < 1 + 2*lam_o : cooperate at BOTH states -> unconditional-C (sucker)
+  #   lam_s = 1 + 2*lam_o : no myopic force at all
+  #   lam_s > 1 + 2*lam_o : defect at BOTH states    -> always-D
+  # No multiplier pair makes the myopic gradient prefer tit-for-tat; TFT comes
+  # only from the learning-aware term, so lam only has to be able to EVICT the
+  # policy from the sucker basin. Measured: 1.0 cannot (policy frozen as
+  # sucker), 1.5 undershoots (1/6 seeds cooperate), 2.0 works. Higher values
+  # overshoot into saturated always-D.
+  lam_max: 2.0
+  #
+  # COALA-PG meta-trajectory returns are noisy, and a derivative term on raw
+  # noise is mostly noise. 0.9 smooths the measurement the controller sees
+  # (not the one that is logged). Set to 0.0 to disable.
+  ema_beta: 0.9
+  #
+  # CONSTRAINT WINDOW. 0 (or >= M) constrains a player's mean return over the
+  # WHOLE meta-episode; K constrains only the last K inner episodes.
+  # COALA-PG's estimator already credits rewards that appear only late, so a
+  # window costs nothing in the gradient.
+  #
+  # BOTH CONSTRAINTS USE THE WHOLE META-EPISODE. Individual rationality asks
+  # "did this player do at least as well as the no-shaping alternative?", and
+  # that alternative (mutual defection) pays v_ref in EVERY episode, early
+  # ones included. A tail window exempts the first M-K episodes from whichever
+  # constraint it is applied to -- and that exemption is exactly the failure
+  # the constraint exists to prevent. Measured both ways, same seedless setup:
+  #
+  #   window on the SHAPER    (seed 1306): shaper self-sacrifices for 15
+  #     episodes (first-15 mean -22.4), tail reads -19.0 "satisfied",
+  #     meta-mean -21.6 is below its own security level.
+  #   window on the CO-PLAYER (next run):  shaper EXPLOITS for 15 episodes
+  #     (23.6% of states are DC), tail sits at mutual defection -19.5
+  #     "satisfied", lam_o decays to 0, co-player meta-mean -22.1 violated.
+  #
+  # So: 0 for both. "Cooperation is established" (where the naive learner
+  # ends up) is an OUTCOME METRIC -- report train/final_episode/* -- not a
+  # constraint. Use a window only as an ablation, and say so.
+  constraint_window_shaper: 0
+  constraint_window_opponent: 0
+
+  # ---- reference values (the constraint floors) ----
+  #
+  # v_ref is PER INNER EPISODE (T=10): -10 is all-CC, -20 is all-DD (each
+  # player's security level).
+  #
+  # -14 for both, NOT the security level -20. Measured (12 seeds each): at -20
+  # the floor is slack once cooperation is reached, so the welfare term slowly
+  # erodes the shaper's retaliation P(C|CD), the co-player starts exploiting
+  # again and the shaper drifts back toward self-sacrifice (~3/6 seeds end
+  # cooperative). -14 binds exactly where that drift starts: shaper-only -14
+  # gives 8/12 seeds >= 50% cooperative over the last 2000 iterations and
+  # 0/12 sucker; -14 on both gives 10/12 reaching cooperation. Say so when
+  # reporting: -14 is halfway between mutual cooperation and mutual
+  # defection, a stricter floor than individual rationality.
+  #
+  #   ++welfare.v_ref_shaper=-20 ++welfare.v_ref_opponent=-20   # IR floors
+  v_ref_shaper: -14.0
+  v_ref_opponent: -14.0
+
+  # ---- dropping a constraint (ablation) ----
+  #
+  # False removes that player's constraint entirely. Dropping the co-player's
+  # is the ablation showing both constraints are load-bearing: welfare is
+  # indifferent between (-10, -30) and (-30, -10), so with only the shaper's
+  # constraint the "cooperation" reached can be an exploitative split.
+  #
+  #   ++welfare.constrain_opponent=False
+  constrain_shaper: True
+  constrain_opponent: True
+
+  # ---- per-player overrides ----
+  #
+  # Every setting above may be given per player with a `_shaper` /
+  # `_opponent` suffix, which wins over the shared value. Nothing below needs
+  # setting unless you want the two duals to behave differently, e.g.
+  #
+  #   ki_opponent: 0.002            # slower dual on the co-player
+  #   constraint_window_shaper: 0   # shaper constrained over all M episodes
+
+  # ---- ablation switch ----
+  #
+  # True freezes every lam at its lam_init, giving the STATIC weighted-welfare
+  # ablation r_mix = (1 + lam_s) r_s + (1 + lam_o) r_o. Worth running: a
+  # reviewer will ask whether tuned constant weights do the same job. The
+  # argument for the constrained formulation is that fixed weights sacrifice
+  # or exploit depending on the game, while adaptive lam lands on the boundary
+  # in both -- which requires actually running this.
+  freeze_lam: False
+
+# COALA-PG shaper (agent1). Unchanged from coala_pg_v_tabular.yaml except that
+# the network carries one value head per return (welfare + 2 constraints).
+ppo1:
+  num_minibatches: 2
+  num_epochs: 4
+  # MUST be 1.0: Algorithm 1 applies discount = gamma*lambda uniformly, and
+  # any value < 1 attenuates the future-episode term (the learning-aware
+  # signal) by discount**T. Variance is controlled by the short horizon
+  # (M*T = 200), not by discounting. See pax/agents/coala_pg/coala_pg.py.
+  gamma: 1.0
+  gae_lambda: 1.0
+  advantage_normalization: False
+  reward_rescaling: 0.05
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 1.0
+  anneal_entropy: False
+  # 0.02 matches every other shaper agent in this repo (all ~30 Shaper / M-FOS
+  # / GS / welfare-shaper IPD configs), which is what makes these numbers
+  # comparable to the ES runs. It DEPARTS from the COALA-PG paper's Table 8
+  # value of 0.0, deliberately: at 0.0 the softmax saturates and the policy
+  # dies -- measured P(coop) = 0.000 exactly at every state, so there is no
+  # gradient left for welfare, for the constraint, or for the learning-aware
+  # term to act on (seeds 1309/1400, and the v_ref=-15 sweep).
+  #
+  # It must be IDENTICAL in the welfare baseline and here. Lowering it to make
+  # the baseline fail would rig the comparison; holding it fixed is what lets
+  # a difference in outcome be attributed to the objective.
+  entropy_coeff_start: 0.02
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.0003
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  hidden_size: 32
+
+# Naive co-player (agent2): A2C settings from Table 8 of the paper.
+ppo2:
+  num_minibatches: 1
+  num_epochs: 1
+  gamma: 0.99
+  gae_lambda: 1.0
+  advantage_normalization: True
+  reward_rescaling: 0.05
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 1.0
+  anneal_entropy: False
+  entropy_coeff_start: 0.0
+  entropy_coeff_horizon: 2000000
+  entropy_coeff_end: 0.001
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  hidden_size: 32
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: ipd
+  group: 'constrained-${agent1}-vs-${agent2}'
+  name: run-seed-${seed}
+  log: True
+  mode: offline

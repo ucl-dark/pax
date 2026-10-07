@@ -1,0 +1,131 @@
+# @package _global_
+
+# Evaluate a pretrained Welfare Shaper (Attention) vs fresh PPO_memory (InTheMatrix/STORM)
+# Freezes the shaper and lets the opponent learn over many episodes.
+
+# Agents
+agent1: 'WelfareShaperAtt' # WelfareShaperAtt
+agent2: 'PPO_memory'
+
+# Environment
+env_id: InTheMatrix
+env_type: meta
+env_discount: 0.96
+freeze: 5
+payoff: [[[3, 0], [5, 1]], [[3, 5], [0, 1]]]
+fixed_coins: True
+
+save_interval: 100
+
+runner: ipditm_eval_welfare
+# Training / Evaluation
+num_envs: 50
+num_opps: 1
+num_outer_steps: 500
+num_inner_steps: 152
+num_iters: 1   
+att_type: avg            # one trial per job - multi-seed via launcher
+
+
+Seed 3: most unstable multipliers
+run_path: lichenqi-university-of-regina/ipditm/9txfr9et
+model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory-mean_ref/run-seed-3/2026-04-30_07.49.34.445646/generation_1600
+welfare:
+  v_ref_shaper: 22.44
+  v_ref_opponent: 21.49
+# Seed 5
+# run_path: lichenqi-university-of-regina/ipditm/i4c7pqt8
+# model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory-mean_ref/run-seed-5/2026-04-30_14.38.52.924867/generation_1600
+# welfare:
+#   v_ref_shaper: 5.56
+#   v_ref_opponent: 5.56
+
+# Seed 6: best training performance
+# run_path: lichenqi-university-of-regina/ipditm/d9kmp9yc
+# model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory-mean_ref/run-seed-6/2026-04-16_00.32.56.105478/generation_1600
+# welfare:
+#   v_ref_shaper: 10.0
+#   v_ref_opponent: 10.0
+
+
+#seed:9 unconstrained
+# run_path: lichenqi-university-of-regina/ipditm/xy2k5xr4
+# model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory-mean_ref/run-seed-9/2026-04-30_11.22.59.403047/generation_1600
+# welfare: #no meaningful, just to let the eval runner pass the sanity check
+#   v_ref_shaper: 0.0
+#   v_ref_opponent: 0.0
+
+
+# Seed 7: baseline Shaper
+# model_path: exp/baseline-shaping-Shaper-vs-PPO_memory/run-seed-7/2026-05-04_01.14.41.337020/generation_1600
+# run_path: lichenqi-university-of-regina/ipditm/p5pgn14f
+# welfare:
+#   v_ref_shaper: 0.0
+#   v_ref_opponent: 0.0
+
+# Seed 8: baseline M-FOS
+# model_path: exp/baseline-shaping-MFOS-vs-PPO_memory/run-seed-8/2026-05-04_01.26.34.819990/generation_1600
+# run_path: lichenqi-university-of-regina/ipditm/3g04d449
+# welfare:
+#   v_ref_shaper: 0.0
+#   v_ref_opponent: 0.0
+
+
+
+
+# PPO agent parameters (for WelfareShaperAtt = agent1)
+ppo1:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: True
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: False
+  hidden_size: 32
+
+# PPO agent parameters (for PPO_memory = agent2)
+ppo2:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: True
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True
+  hidden_size: 8
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: ipditm
+  group: 'eval-welfare-${agent1}-vs-${agent2}-${welfare.v_ref_shaper}'
+  name: eval-seed-${seed}
+  log: True
+  mode: online

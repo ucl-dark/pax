@@ -380,11 +380,11 @@ class Rice(environment.Environment):
             for i in range(self.num_players):
                 obs.append(self._generate_observation(i, actions, next_state))
 
-            obs = jax.tree_map(
+            obs = jax.tree_util.tree_map(
                 lambda x, y: jnp.where(done, x, y), reset_obs, tuple(obs)
             )
 
-            state = jax.tree_map(
+            state = jax.tree_util.tree_map(
                 lambda x, y: jnp.where(done, x, y),
                 reset_state,
                 next_state,

@@ -715,7 +715,7 @@ class InTheMatrix(environment.Environment):
                 state.freeze > 0, state.freeze - 1, state.freeze
             )
             state_sft_re = _soft_reset_state(key, state)
-            state = jax.tree_map(
+            state = jax.tree_util.tree_map(
                 lambda x, y: jnp.where(state.freeze == 0, x, y),
                 state_sft_re,
                 state,
@@ -743,7 +743,7 @@ class InTheMatrix(environment.Environment):
             # if inner episode is done, return start state for next game
             state_re = _reset_state(key, params)
             state_re = state_re.replace(outer_t=outer_t + 1)
-            state = jax.tree_map(
+            state = jax.tree_util.tree_map(
                 lambda x, y: jax.lax.select(reset_inner, x, y),
                 state_re,
                 state_nxt,

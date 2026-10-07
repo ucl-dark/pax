@@ -1,0 +1,3706 @@
+Start R1 ipd=tabular_v_tabular: 2026-03-22 22:52:26
+E0322 22:52:32.551410  774568 ptx_compiler_helpers.cc:154] *** WARNING *** Invoking ptxas with version 12.6.77, which corresponds to a CUDA version <=12.6.2. CUDA versions 12.x.y up to and including 12.6.2 miscompile certain edge cases around clamping.
+Please upgrade to CUDA 12.6.3 or newer.
+/home/lichenqi/pax_env_py3.11.5/lib/python3.11/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
+See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
+  ret = run_job(
+Jax backend: gpu
+[2026-03-22 22:52:33,146][root][INFO] - => Global setup ...
+wandb: WARNING `start_method` is deprecated and will be removed in a future version of wandb. This setting is currently non-functional and safely ignored.
+wandb: WARNING Using a boolean value for 'reinit' is deprecated. Use 'return_previous' or 'finish_previous' instead.
+wandb: Tracking run with wandb version 0.24.0
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in /localscratch/lichenqi.29035566.0/wandb/wandb/offline-run-20260322_225233-wmfthrv4
+run name run-seed-4
+run id wmfthrv4
+[2026-03-22 22:52:35,439][root][INFO] - => Done in 2.294 s
+[2026-03-22 22:52:35,439][root][INFO] - 
+[2026-03-22 22:52:35,440][root][INFO] - => Env setup ...
+[2026-03-22 22:52:35,455][root][INFO] - Env Type: sequential | Inner Episode Length: 150
+[2026-03-22 22:52:35,455][root][INFO] - Outer Episode Length: 1
+[2026-03-22 22:52:35,455][root][INFO] - => Done in 15.868 ms
+[2026-03-22 22:52:35,456][root][INFO] - 
+[2026-03-22 22:52:35,456][root][INFO] - => Agent setup ...
+Making network for iterated_matrix_game
+Making network for iterated_matrix_game
+[2026-03-22 22:52:36,192][root][INFO] - Agent Pair: [<pax.agents.ppo.ppo.PPO object at 0x14e539d32890>, <pax.agents.ppo.ppo.PPO object at 0x14e294d06610>]
+[2026-03-22 22:52:36,192][root][INFO] - Agent seeds: [4, 5]
+[2026-03-22 22:52:36,192][root][INFO] - => Done in 736.656 ms
+[2026-03-22 22:52:36,192][root][INFO] - 
+[2026-03-22 22:52:36,193][root][INFO] - => Watcher setup ...
+[2026-03-22 22:52:36,193][root][INFO] - => Done in 227.451 us
+[2026-03-22 22:52:36,193][root][INFO] - 
+[2026-03-22 22:52:36,193][root][INFO] - => Runner setup ...
+[2026-03-22 22:52:36,193][root][INFO] - Training with RL Runner
+[2026-03-22 22:52:36,799][root][INFO] - => Done in 606.384 ms
+[2026-03-22 22:52:36,800][root][INFO] - 
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: WARNING Symlinked 1 file into the W&B run directory; call wandb.save again to sync new files.
+wandb: 
+wandb: Run history:
+wandb:    cooperation_probability/CC ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    cooperation_probability/CD █▄▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    cooperation_probability/DC ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:    cooperation_probability/DD ██▁▁▁▁▁▁▃▁▁▁▁▂▁▁▁▂▁▁▁▁▁▁▄▁▁▁▁▂▁▁▁▁▁▁▁▁▁▁
+wandb: cooperation_probability/START █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          state_probability/CC ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          state_probability/CD █▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          state_probability/DC █▆▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:          state_probability/DD ▁███████████████████████████████████████
+wandb:       state_probability/START ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁
+wandb:                            +8 ...
+wandb: 
+wandb: Run summary:
+wandb:    cooperation_probability/CC 0
+wandb:    cooperation_probability/CD 0
+wandb:    cooperation_probability/DC 0
+wandb:    cooperation_probability/DD 0
+wandb: cooperation_probability/START 0.5
+wandb:          state_probability/CC 0
+wandb:          state_probability/CD 0
+wandb:          state_probability/DC 0
+wandb:          state_probability/DD 0.98676
+wandb:       state_probability/START 0.01325
+wandb:                            +8 ...
+wandb: 
+wandb: You can sync this run to the cloud by running:
+wandb: wandb sync /localscratch/lichenqi.29035566.0/wandb/wandb/offline-run-20260322_225233-wmfthrv4
+wandb: Find logs at: /localscratch/lichenqi.29035566.0/wandb/wandb/offline-run-20260322_225233-wmfthrv4/logs
+Number of Training Iterations: 1000
+Number of Episodes: 1000
+Training
+-----------------------
+Num iters 1000
+Log Interval 5
+Save Interval 100
+Saving iteration 0 locally and to WandB
+Episode 0
+cooperation_probability/CC: 0.5068456530570984
+cooperation_probability/CD: 0.49529698491096497
+cooperation_probability/DC: 0.5087577104568481
+cooperation_probability/DD: 0.49078282713890076
+cooperation_probability/START: 0.75
+state_probability/CC: 0.24668875336647034
+state_probability/CD: 0.2464238554239273
+state_probability/DC: 0.24576160311698914
+state_probability/DD: 0.24788081645965576
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 3725.0
+state_visitation/CD: 3721.0
+state_visitation/DC: 3711.0
+state_visitation/DD: 3743.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.5011999607086182, -1.4988000392913818)
+
+Episode 5
+cooperation_probability/CC: 0.06896551698446274
+cooperation_probability/CD: 0.05932203307747841
+cooperation_probability/DC: 0.014993026852607727
+cooperation_probability/DD: 0.007824989035725594
+cooperation_probability/START: 0.5199999809265137
+state_probability/CC: 0.0019205298740416765
+state_probability/CD: 0.00781457033008337
+state_probability/DC: 0.18993379175662994
+state_probability/DD: 0.7870861291885376
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 29.0
+state_visitation/CD: 118.0
+state_visitation/DC: 2868.0
+state_visitation/DD: 11885.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.620733380317688, -2.1747334003448486)
+
+Episode 10
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.02857142873108387
+cooperation_probability/DC: 0.0043668122962117195
+cooperation_probability/DD: 0.0022571771405637264
+cooperation_probability/START: 0.5
+state_probability/CC: 6.622516957577318e-05
+state_probability/CD: 0.002317880978807807
+state_probability/DC: 0.04549669101834297
+state_probability/DD: 0.9388742446899414
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 1.0
+state_visitation/CD: 35.0
+state_visitation/DC: 687.0
+state_visitation/DD: 14177.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.910266637802124, -2.041266679763794)
+
+Episode 15
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.1538461595773697
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0007481975480914116
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0008609272190369666
+state_probability/DC: 0.012251656502485275
+state_probability/DD: 0.9736424684524536
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 13.0
+state_visitation/DC: 185.0
+state_visitation/DD: 14702.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9760667085647583, -2.010666608810425)
+
+Episode 20
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0004722709418274462
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00046357617247849703
+state_probability/DC: 0.004701986908912659
+state_probability/DD: 0.9815894365310669
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 7.0
+state_visitation/DC: 71.0
+state_visitation/DD: 14822.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9908666610717773, -2.003866672515869)
+
+Episode 25
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00040371419163420796
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0003973510174546391
+state_probability/DC: 0.0021192054264247417
+state_probability/DD: 0.9842384457588196
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 6.0
+state_visitation/DC: 32.0
+state_visitation/DD: 14862.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9961333274841309, -2.001333236694336)
+
+Episode 30
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00040317163802683353
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0003973510174546391
+state_probability/DC: 0.0007947020349092782
+state_probability/DD: 0.9855629801750183
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 6.0
+state_visitation/DC: 12.0
+state_visitation/DD: 14882.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9988000392913818, -2.0)
+
+Episode 35
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0004031174466945231
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0003973510174546391
+state_probability/DC: 0.0006622517248615623
+state_probability/DD: 0.9856954216957092
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 6.0
+state_visitation/DC: 10.0
+state_visitation/DD: 14884.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999066710472107, -1.9998667240142822)
+
+Episode 40
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00020147750910837203
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.00046357617247849703
+state_probability/DD: 0.986092746257782
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 7.0
+state_visitation/DD: 14890.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9992667436599731, -2.0000667572021484)
+
+Episode 45
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999333381652832, -2.000333309173584)
+
+Episode 50
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00026860059006139636
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0002649006783030927
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9862252473831177
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 4.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14892.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -1.999733328819275)
+
+Episode 55
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0004028738185297698
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0003973510174546391
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9862914681434631
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 6.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14893.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0002667903900146, -1.9992667436599731)
+
+Episode 60
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00013428226520773023
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00013245033915154636
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9863576889038086
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 2.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14894.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9996000528335571, -2.0)
+
+Episode 65
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712310278089717e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9999333620071411, -1.9999333620071411)
+
+Episode 70
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712760659866035e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9997999668121338, -2.0)
+
+Episode 75
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.713662151014432e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9995334148406982, -2.0001332759857178)
+
+Episode 80
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.714113260386512e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.9863576889038086
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14894.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999400019645691, -2.000200033187866)
+
+Episode 85
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 90
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0001342642353847623
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00013245033915154636
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 2.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -1.9998667240142822)
+
+Episode 95
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Saving iteration 100 locally and to WandB
+Episode 100
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 105
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 110
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712760659866035e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9997999668121338, -2.0)
+
+Episode 115
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.3333333432674408
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0001342552131973207
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.0
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.000200033187866, -1.9996000528335571)
+
+Episode 120
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00013427324302028865
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00013245033915154636
+state_probability/DC: 0.00019867550872731954
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 2.0
+state_visitation/DC: 3.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -1.9999333620071411)
+
+Episode 125
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0002014369092648849
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9862914681434631
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14893.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999666690826416, -1.9998667240142822)
+
+Episode 130
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00046357617247849703
+state_probability/DD: 0.9862914681434631
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 7.0
+state_visitation/DD: 14893.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999066710472107, -2.0004665851593018)
+
+Episode 135
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999333381652832, -2.000333309173584)
+
+Episode 140
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.718172517139465e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0009271523449569941
+state_probability/DD: 0.9857616424560547
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 14.0
+state_visitation/DD: 14885.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9982000589370728, -2.000800132751465)
+
+Episode 145
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.715465860906988e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0005298013566061854
+state_probability/DD: 0.9861590266227722
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 8.0
+state_visitation/DD: 14891.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999000072479248, -2.0004000663757324)
+
+Episode 150
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0010596027132123709
+state_probability/DD: 0.9856954216957092
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 16.0
+state_visitation/DD: 14884.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9978666305541992, -2.0010666847229004)
+
+Episode 155
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00046357617247849703
+state_probability/DD: 0.9862914681434631
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 7.0
+state_visitation/DD: 14893.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999066710472107, -2.0004665851593018)
+
+Episode 160
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00020145044254604727
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.9862252473831177
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14892.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9995334148406982, -1.9999333620071411)
+
+Episode 165
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9994666576385498, -2.0002667903900146)
+
+Episode 170
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 175
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 180
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0001342642353847623
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00013245033915154636
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 2.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -1.9998667240142822)
+
+Episode 185
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9994666576385498, -2.0002667903900146)
+
+Episode 190
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999333381652832, -2.000333309173584)
+
+Episode 195
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00019867550872731954
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 3.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9996000528335571, -2.000200033187866)
+
+Saving iteration 200 locally and to WandB
+Episode 200
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0003311258624307811
+state_probability/DD: 0.986423909664154
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 5.0
+state_visitation/DD: 14895.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999333381652832, -2.000333309173584)
+
+Episode 205
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0008609272190369666
+state_probability/DD: 0.9858940839767456
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 13.0
+state_visitation/DD: 14887.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9982666969299316, -2.000866651535034)
+
+Episode 210
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0007947020349092782
+state_probability/DD: 0.9859603047370911
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 12.0
+state_visitation/DD: 14888.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9983999729156494, -2.000800132751465)
+
+Episode 215
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0002649006783030927
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 4.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9994666576385498, -2.0002667903900146)
+
+Episode 220
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0009933775290846825
+state_probability/DD: 0.9857616424560547
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 15.0
+state_visitation/DD: 14885.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9980000257492065, -2.000999927520752)
+
+Episode 225
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0010596027132123709
+state_probability/DD: 0.9856954216957092
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 16.0
+state_visitation/DD: 14884.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9978666305541992, -2.0010666847229004)
+
+Episode 230
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0005298013566061854
+state_probability/DD: 0.9862252473831177
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 8.0
+state_visitation/DD: 14892.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9989333152770996, -2.00053334236145)
+
+Episode 235
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 240
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 245
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 250
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 255
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 260
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 265
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 270
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712760659866035e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9997999668121338, -2.0)
+
+Episode 275
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 280
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 285
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0001342552131973207
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00013245033915154636
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 2.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -1.9997999668121338)
+
+Episode 290
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 295
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Saving iteration 300 locally and to WandB
+Episode 300
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999733328819275, -2.0001332759857178)
+
+Episode 305
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 310
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 315
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 320
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 325
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 330
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 335
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 340
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 345
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 350
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 355
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 360
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 365
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712310278089717e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866225719451904
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14898.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9999333620071411, -1.9999333620071411)
+
+Episode 370
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 375
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 380
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 385
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 390
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 395
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Saving iteration 400 locally and to WandB
+Episode 400
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 405
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 410
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 415
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 420
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 425
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.711859896313399e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0000667572021484, -1.9998667240142822)
+
+Episode 430
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 435
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 440
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 445
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 450
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 455
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 460
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.712760659866035e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.00013245033915154636
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 2.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9997999668121338, -2.0)
+
+Episode 465
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00020138281979598105
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.0
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.000200033187866, -1.9996000528335571)
+
+Episode 470
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 475
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.711859896313399e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.0
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0000667572021484, -1.9998667240142822)
+
+Episode 480
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 485
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 490
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 495
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Saving iteration 500 locally and to WandB
+Episode 500
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 505
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 510
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 515
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.00020138281979598105
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.00019867550872731954
+state_probability/DC: 0.0
+state_probability/DD: 0.986556351184845
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 3.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14897.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.000200033187866, -1.9996000528335571)
+
+Episode 520
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 525
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 530
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 535
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 540
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 545
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 550
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 555
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 560
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 565
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 570
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 575
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 580
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 585
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 590
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 595
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Saving iteration 600 locally and to WandB
+Episode 600
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 605
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 610
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 615
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 620
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 625
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 630
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 635
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 640
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 645
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 650
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 655
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 660
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 665
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 670
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 675
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 680
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 685
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 690
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 695
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Saving iteration 700 locally and to WandB
+Episode 700
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 705
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 6.713211769238114e-05
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 6.622516957577318e-05
+state_probability/DC: 0.00019867550872731954
+state_probability/DD: 0.9864901304244995
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 1.0
+state_visitation/DC: 3.0
+state_visitation/DD: 14896.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.999666690826416, -2.0000667572021484)
+
+Episode 710
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 715
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 720
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 725
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 730
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 735
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 740
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 745
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 750
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 755
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 760
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 765
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 770
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 775
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 780
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 785
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 790
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 795
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Saving iteration 800 locally and to WandB
+Episode 800
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 805
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 810
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 815
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 820
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 825
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 830
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 835
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 840
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 845
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 850
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 855
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 860
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 865
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 870
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 875
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 880
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 885
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 890
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 895
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Saving iteration 900 locally and to WandB
+Episode 900
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 905
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 910
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 915
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 920
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 925
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 930
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 935
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 940
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 945
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 950
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 955
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 960
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 965
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 970
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 975
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 980
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 985
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 6.622516957577318e-05
+state_probability/DD: 0.9866887927055359
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 1.0
+state_visitation/DD: 14899.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-1.9998667240142822, -2.0000667572021484)
+
+Episode 990
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+Episode 995
+cooperation_probability/CC: 0.0
+cooperation_probability/CD: 0.0
+cooperation_probability/DC: 0.0
+cooperation_probability/DD: 0.0
+cooperation_probability/START: 0.5
+state_probability/CC: 0.0
+state_probability/CD: 0.0
+state_probability/DC: 0.0
+state_probability/DD: 0.9867550134658813
+state_probability/START: 0.013245034031569958
+state_visitation/CC: 0.0
+state_visitation/CD: 0.0
+state_visitation/DC: 0.0
+state_visitation/DD: 14900.0
+state_visitation/START: 200.0
+Average Reward per Timestep: (-2.0, -2.0)
+
+End R1 ipd=tabular_v_tabular: 2026-03-22 22:52:58
+Elapsed: 32 seconds
+>>> RECORD the final 'Average Reward per Timestep: (r1, r2)' for Phase 2b <<<

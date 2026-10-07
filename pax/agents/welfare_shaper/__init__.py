@@ -1,0 +1,1 @@
+from pax.agents.welfare_shaper.welfare_shaper import WelfareShaper, make_welfare_shaper_agent

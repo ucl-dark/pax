@@ -591,7 +591,7 @@ class EvoMixedPayoffInputRunner:
                     f"Reward Per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print(
-                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                    f"Env Stats: {jax.tree_util.tree_map(lambda x: x.item(), env_stats)}"
                 )
                 print(
                     "--------------------------------------------------------------------------"

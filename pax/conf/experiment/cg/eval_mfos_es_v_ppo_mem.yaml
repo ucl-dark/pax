@@ -6,7 +6,7 @@ agent2: 'PPO_memory'
 
 # Environment
 env_id: coin_game
-env_type: sequential
+env_type: meta
 egocentric: True
 env_discount: 0.96
 payoff: [[1, 1, -2], [1, 1, -2]]
@@ -17,21 +17,23 @@ save_interval: 100
 benchmark: False
 gif: False
 
-# Runner 
-runner: eval
+# Runner
+runner: welfare_eval
 
 # Training
 # total popsize = popsize * num_devices
 num_envs: 100
 num_opps: 1
-num_outer_steps: 1
+num_outer_steps: 1000
 num_inner_steps: 16 
-num_iters: 1000
+num_iters: 1
 
 # Evaluation
-run_path: ucl-dark/cg/158n82qj
-model_path: exp/shaping-MFOS-vs-PPO_memory/run-seed-0/2023-01-06_17.01.54.968694/generation_2900
-
+run_path: lichenqi-university-of-regina/cg/0c724ymt
+model_path: exp/baseline-shaping-MFOS-vs-PPO_memory/run-seed-8/2026-04-28_13.11.28.897214/generation_3000
+welfare: #no meaningful, just to let the eval runner pass the sanity check
+  v_ref_shaper: 0.0
+  v_ref_opponent: 0.0
 
 # PPO agent parameters
 ppo1:
@@ -100,8 +102,8 @@ es:
   
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "lichenqi-university-of-regina"
   project: cg
-  group: 'eval-shaping-${agent1}-vs-${agent2}'
+  group: 'eval-baseline-shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True

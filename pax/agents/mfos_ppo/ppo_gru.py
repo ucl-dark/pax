@@ -136,6 +136,9 @@ class PPO(AgentInterface):
             target_values = jax.lax.stop_gradient(target_values)
             return advantages, target_values
 
+        # calculates over all T timesteps at once, but as a flat batch, not sequentially.
+        # before calling loss, we will reshape the data from [num_envs, num_steps, ..] to [num_envs * num_steps, ..]
+        # After tree_map with batch_size = T * num_envs 
         def loss(
             params: hk.Params,
             timesteps: int,
@@ -170,7 +173,7 @@ class PPO(AgentInterface):
 
             # Value loss: MSE
             value_cost = value_coeff
-            unclipped_value_error = target_values - values
+            unclipped_value_error = target_values - values #one step bootstrapped value - current value estimate
             unclipped_value_loss = unclipped_value_error**2
 
             # Value clipping
@@ -239,7 +242,7 @@ class PPO(AgentInterface):
                 sample.behavior_values,
                 sample.dones,
                 sample.hiddens,
-                sample.meta_actions,
+                sample.meta_actions, #th
             )
 
             # batch_gae_advantages = jax.vmap(gae_advantages, 1, (0, 0))
@@ -391,7 +394,7 @@ class PPO(AgentInterface):
             key, subkey = jax.random.split(key)
 
             if isinstance(obs_spec, dict):
-                # dummy_obs = jax.tree_map(lambda x: jnp.zeros(x), obs_spec)
+                # dummy_obs = jax.tree_util.tree_map(lambda x: jnp.zeros(x), obs_spec)
                 dummy_obs = {
                     "inventory": jnp.zeros(obs_spec["inventory"]),
                     "observation": jnp.zeros(obs_spec["observation"]),

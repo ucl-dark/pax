@@ -1,0 +1,118 @@
+# @package _global_
+
+# Welfare Shaper (Attention-based) vs PPO_memory (Coin Game) — unconstrained baseline
+# Same setup as welfare_shaper_att.yaml but with no IR constraints (no Lagrangian).
+# Fitness = R1 + R2 directly. Use this as a contrast run.
+
+# Agents
+agent1: 'WelfareShaperAtt'
+agent2: 'PPO_memory'
+
+# Environment
+env_id: coin_game
+env_type: meta
+egocentric: True
+env_discount: 0.96
+payoff: [[1, 1, -2], [1, 1, -2]]
+
+# Save
+save: True
+save_interval: 100
+benchmark: False
+
+# Runner
+runner: welfare_unconstrained_evo
+resume_dir: ""
+
+
+# Training
+top_k: 4
+popsize: 1000
+num_envs: 100
+num_opps: 1
+num_devices: 4
+num_outer_steps: 600
+num_inner_steps: 16
+num_iters: 3001
+att_type: 'att'
+
+
+# PPO agent parameters (for WelfareShaperAtt = agent1)
+ppo1:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True
+  hidden_size: 16
+
+# PPO agent parameters (for PPO_memory = agent2)
+ppo2:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True
+  hidden_size: 16
+
+# ES parameters
+es:
+  algo: OpenES
+  sigma_init: 0.04
+  sigma_decay: 0.999
+  sigma_limit: 0.01
+  init_min: 0.0
+  init_max: 0.0
+  clip_min: -1e10
+  clip_max: 1e10
+  lrate_init: 0.1
+  lrate_decay: 0.9999
+  lrate_limit: 0.001
+  beta_1: 0.99
+  beta_2: 0.999
+  eps: 1e-8
+  elite_ratio: 0.1
+  centered_rank: True
+  w_decay: 0.1
+  maximise: True
+  z_score: False
+  mean_reduce: False
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: cg
+  group: 'welfare-unconstrained-${agent1}-vs-${agent2}'
+  name: run-seed-${seed}
+  log: True
+  mode: offline

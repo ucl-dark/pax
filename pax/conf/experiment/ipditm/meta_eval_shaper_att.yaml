@@ -1,0 +1,88 @@
+# @package _global_
+
+# Agents  
+agent1: 'Shaper'
+agent2: 'PPO_memory'
+
+# Environment
+env_id: InTheMatrix
+env_type: meta
+env_discount: 0.96
+freeze: 5
+payoff: [[[3, 0], [5, 1]], [[3, 5], [0, 1]]]
+fixed_coins: True
+
+
+runner: ipditm_eval_welfare
+num_envs: 50
+num_opps: 1
+num_outer_steps: 500
+num_inner_steps: 152
+num_iters: 1            # one trial per job; overridden for shaper to num_outer_steps
+
+att_type: avg
+# Evaluation
+model_path: exp/baseline-shaping-Shaper-vs-PPO_memory/run-seed-7/2026-05-04_01.14.41.337020/generation_1600
+run_path: lichenqi-university-of-regina/ipditm/p5pgn14f
+welfare: #no meaningful, just to let the eval runner pass the sanity check
+  v_ref_shaper: 0.0
+  v_ref_opponent: 0.0
+
+
+save_gif: False
+
+# PPO agent parameters
+ppo1:
+  num_minibatches: 8
+  num_epochs: 2 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: True
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: False # only works with CNN
+  hidden_size: 32
+
+ppo2:
+  num_minibatches: 8
+  num_epochs: 2 
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: True
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True # only works with CNN
+  hidden_size: 8
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: ipditm
+  group: 'eval-baseline-${agent1}-vs-${agent2}'
+  name: eval-seed-${seed}
+  log: True
+  mode: online

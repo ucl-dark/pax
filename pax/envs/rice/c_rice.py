@@ -439,11 +439,11 @@ class ClubRice(environment.Environment):
                     )
                 )
 
-            obs = jax.tree_map(
+            obs = jax.tree_util.tree_map(
                 lambda x, y: jnp.where(done, x, y), reset_obs, tuple(obs)
             )
 
-            result_state = jax.tree_map(
+            result_state = jax.tree_util.tree_map(
                 lambda x, y: jnp.where(done, x, y),
                 reset_state,
                 next_state,

@@ -1,0 +1,126 @@
+# @package _global_
+
+# Evaluate a pretrained Welfare Shaper (Attention) vs fresh PPO_memory (Coin Game)
+# Freezes the shaper and lets the opponent learn over many episodes.
+
+# Agents  
+agent1: 'WelfareShaperAtt' # same architecture as welfareShaperAtt
+agent2: 'PPO_memory'
+
+# Environment
+env_id: coin_game
+env_type: meta
+egocentric: True
+env_discount: 0.96
+payoff: [[1, 1, -2], [1, 1, -2]]
+
+# Save
+save: True
+save_interval: 100
+benchmark: False
+gif: False
+
+# Runner
+runner: welfare_eval
+
+# Training
+num_envs: 100
+num_opps: 1
+num_outer_steps: 1000  
+num_inner_steps: 16
+num_iters: 1            # one trial per job — multi-seed via launcher (100 seeds)
+att_type: 'att'
+
+# Evaluation — pretrained model
+# seed 6
+# run_path: lichenqi-university-of-regina/cg/uudss2o9
+# model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory/run-seed-6/2026-04-18_01.42.25.668174/generation_3000
+
+# seed 5
+# run_path: lichenqi-university-of-regina/cg/kjctsaf3
+# model_path: exp/welfare-WelfareShaperAtt-vs-PPO_memory/run-seed-5/2026-04-18_01.42.25.737442/generation_3000
+# welfare:
+#   v_ref_shaper: 0.47
+#   v_ref_opponent: 0.26
+
+
+# Seed 9: unconstrained
+model_path: exp/welfare-unconstrained-WelfareShaperAtt-vs-PPO_memory/run-seed-9/2026-04-28_13.01.39.138889/generation_2800 
+run_path: lichenqi-university-of-regina/cg/646frkka
+welfare:
+  v_ref_shaper: 0.0
+  v_ref_opponent: 0.0
+
+# PPO agent parameters (for WelfareShaperAtt = agent1)
+ppo1:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True
+  hidden_size: 16
+
+# PPO agent parameters (for PPO_memory = agent2)
+ppo2:
+  num_minibatches: 8
+  num_epochs: 2
+  gamma: 0.96
+  gae_lambda: 0.95
+  ppo_clipping_epsilon: 0.2
+  value_coeff: 0.5
+  clip_value: True
+  max_gradient_norm: 0.5
+  anneal_entropy: False
+  entropy_coeff_start: 0.1
+  entropy_coeff_horizon: 0.6e8
+  entropy_coeff_end: 0.005
+  lr_scheduling: False
+  learning_rate: 0.005
+  adam_epsilon: 1e-5
+  with_memory: True
+  with_cnn: False
+  output_channels: 16
+  kernel_shape: [3, 3]
+  separate: True
+  hidden_size: 16
+
+es:
+  algo: OpenES
+  sigma_init: 0.04
+  sigma_decay: 0.999
+  sigma_limit: 0.01
+  init_min: 0.0
+  init_max: 0.0
+  clip_min: -1e10
+  clip_max: 1e10
+  lrate_init: 0.1
+  lrate_decay: 0.9999
+  lrate_limit: 0.001
+  beta_1: 0.99
+  beta_2: 0.999
+  eps: 1e-8
+  elite_ratio: 0.1
+  
+
+# Logging setup
+wandb:
+  entity: "lichenqi-university-of-regina"
+  project: cg
+  group: 'eval-welfare-${agent1}-vs-${agent2}'
+  name: eval-seed-${seed}
+  log: True

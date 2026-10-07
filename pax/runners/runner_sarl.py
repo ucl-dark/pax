@@ -222,7 +222,7 @@ class SARLRunner:
                 print(f"Episode {i}/{num_iters}")
 
                 print(
-                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                    f"Env Stats: {jax.tree_util.tree_map(lambda x: x.item(), env_stats)}"
                 )
                 print(f"Total Reward per Episode: {float(rewards_1.mean())}")
                 print()

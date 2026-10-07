@@ -1,0 +1,30 @@
+C_lr3e-4 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 1 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 1 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 1 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001
+C_lr3e-4 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 2 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 2 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 2 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001
+C_lr3e-4 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 3 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 3 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 3 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001
+C_lr3e-4 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 4 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 4 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 4 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001
+C_lr3e-4 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 5 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 5 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 5 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001
+C_lr3e-4 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0
+U_lr3e-4 6 unconstrained_lagrangian_coala_pg_v_tabular
+C_lr1e-4 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001
+C_lr1e-4_ki3x 6 lagrangian_coala_pg_v_tabular ++welfare.lam_max=2.0 ppo1.learning_rate=0.0001 ++welfare.ki=0.00167
+U_lr1e-4 6 unconstrained_lagrangian_coala_pg_v_tabular ppo1.learning_rate=0.0001

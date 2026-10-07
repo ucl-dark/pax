@@ -1,4 +1,7 @@
 import os
+import re
+import glob as glob_mod
+import pickle
 import time
 from datetime import datetime
 from typing import Any, Callable, NamedTuple
@@ -8,7 +11,7 @@ import jax.numpy as jnp
 from evosax import FitnessShaper
 
 import wandb
-from pax.utils import MemoryState, TrainingState, save
+from pax.utils import MemoryState, TrainingState, save, load
 
 # TODO: import when evosax library is updated
 # from evosax.utils import ESLog
@@ -176,7 +179,6 @@ class EvoRunner:
         # jit evo
         strategy.ask = jax.jit(strategy.ask)
         strategy.tell = jax.jit(strategy.tell)
-        param_reshaper.reshape = jax.jit(param_reshaper.reshape)
 
         def _inner_rollout(carry, unused):
             """Runner for inner episode"""
@@ -439,6 +441,26 @@ class EvoRunner:
             f"Time to Compile Jax Methods: {time.time() - self.start_time} Seconds"
         )
 
+    @staticmethod
+    def _find_latest_resume(resume_dir):
+        """Scan *resume_dir* recursively for ``generation_*_resume`` files
+        and return the path with the highest generation number, or None."""
+        pattern = os.path.join(resume_dir, "**", "generation_*_resume")
+        candidates = glob_mod.glob(pattern, recursive=True)
+        if not candidates:
+            return None
+        best_gen = -1
+        best_path = None
+        for path in candidates:
+            basename = os.path.basename(path)
+            match = re.search(r"generation_(\d+)_resume$", basename)
+            if match:
+                gen_num = int(match.group(1))
+                if gen_num > best_gen:
+                    best_gen = gen_num
+                    best_path = path
+        return best_path
+
     def run_loop(
         self,
         env_params,
@@ -496,16 +518,37 @@ class EvoRunner:
 
         a1_state, a1_mem = agent1._state, agent1._mem
 
-        for gen in range(num_gens):
+        # ---- Check for checkpoint to resume from ----
+        resume_dir = getattr(self.args, 'resume_dir', "")
+        resume_path = None
+        if resume_dir and os.path.isdir(resume_dir):
+            resume_path = self._find_latest_resume(resume_dir)
+            if resume_path:
+                print(f"[Resume] Found checkpoint: {resume_path}")
+            else:
+                print(f"[Resume] No generation_*_resume files in {resume_dir}, starting fresh.")
+
+        start_gen = 0
+        if resume_path:
+            ckpt = load(resume_path)
+            start_gen = ckpt["gen"] + 1
+            rng = ckpt["rng"]
+            evo_state = ckpt["evo_state"]
+            log = ckpt["log"]
+            print(f"[Resume] Resuming from generation {start_gen}/{num_gens}")
+
+        for gen in range(start_gen, num_gens):
             rng, rng_run, rng_evo, rng_key = jax.random.split(rng, 4)
 
             # Ask
             x, evo_state = strategy.ask(rng_evo, evo_state, es_params)
-            params = param_reshaper.reshape(x)
-            if self.args.num_devices == 1:
-                params = jax.tree_util.tree_map(
-                    lambda x: jax.lax.expand_dims(x, (0,)), params
-                )
+            params = jax.vmap(param_reshaper.reshape_single)(x)
+            params = jax.tree_util.tree_map(
+                lambda p: p.reshape(
+                    (self.args.num_devices, popsize) + p.shape[1:]
+                ),
+                params,
+            )
             # Evo Rollout
             (
                 fitness,
@@ -533,26 +576,28 @@ class EvoRunner:
             # Saving
             if gen % self.args.save_interval == 0:
                 log_savepath = os.path.join(self.save_dir, f"generation_{gen}")
-                if self.args.num_devices > 1:
-                    top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0 : self.args.num_devices]
-                    )
-                    top_params = jax.tree_util.tree_map(
-                        lambda x: x[0].reshape(x[0].shape[1:]), top_params
-                    )
-                else:
-                    top_params = param_reshaper.reshape(
-                        log["top_gen_params"][0:1]
-                    )
-                    top_params = jax.tree_util.tree_map(
-                        lambda x: x.reshape(x.shape[1:]), top_params
-                    )
+                top_params = jax.vmap(param_reshaper.reshape_single)(
+                    log["top_gen_params"][0:1]
+                )
+                top_params = jax.tree_util.tree_map(lambda p: p[0], top_params)
                 save(top_params, log_savepath)
                 if watchers:
                     print(f"Saving generation {gen} locally and to WandB")
                     wandb.save(log_savepath)
                 else:
                     print(f"Saving iteration {gen} locally")
+
+                # Save resume data alongside the existing generation file
+                resume_savepath = os.path.join(self.save_dir, f"generation_{gen}_resume")
+                resume_data = {
+                    "gen": gen,
+                    "rng": rng,
+                    "evo_state": evo_state,
+                    "log": log,
+                    "wandb_run_id": wandb.run.id if wandb.run else None,
+                }
+                with open(resume_savepath, "wb") as f:
+                    pickle.dump(resume_data, f, protocol=pickle.HIGHEST_PROTOCOL)
 
             if gen % log_interval == 0:
                 print(f"Generation: {gen}")
@@ -566,7 +611,7 @@ class EvoRunner:
                     f"Reward Per Timestep: {float(rewards_1.mean()), float(rewards_2.mean())}"
                 )
                 print(
-                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                    f"Env Stats: {jax.tree_util.tree_map(lambda x: x.item(), env_stats)}"
                 )
                 print(
                     "--------------------------------------------------------------------------"
@@ -586,6 +631,10 @@ class EvoRunner:
                 print()
 
             if watchers:
+                r1_mean = float(rewards_1.mean())
+                r2_mean = float(rewards_2.mean())
+                r1_per_episode = r1_mean * self.args.num_inner_steps
+                r2_per_episode = r2_mean * self.args.num_inner_steps
                 wandb_log = {
                     "train_iteration": gen,
                     "train/fitness/player_1": float(fitness.mean()),
@@ -601,12 +650,11 @@ class EvoRunner:
                     "train/time/seconds": float(
                         (time.time() - self.start_time)
                     ),
-                    "train/reward_per_timestep/player_1": float(
-                        rewards_1.mean()
-                    ),
-                    "train/reward_per_timestep/player_2": float(
-                        rewards_2.mean()
-                    ),
+                    "train/reward_per_timestep/player_1": r1_mean, #mislabeled, it is actually per episode reward
+                    "train/reward_per_timestep/player_2": r2_mean,
+                    "train/reward_per_episode/player_1": r1_per_episode,
+                    "train/reward_per_episode/player_2": r2_per_episode,
+                    "train/welfare/mean": r1_per_episode + r2_per_episode,
                 }
                 wandb_log.update(env_stats)
                 # loop through population
@@ -633,6 +681,6 @@ class EvoRunner:
                     lambda x: x.item() if isinstance(x, jax.Array) else x,
                     wandb_log,
                 )
-                wandb.log(wandb_log)
+                wandb.log(wandb_log, step=gen)
 
         return agents

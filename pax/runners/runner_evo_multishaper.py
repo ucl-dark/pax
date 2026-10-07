@@ -705,7 +705,7 @@ class MultishaperEvoRunner:
                     f"Targets Reward Per Timestep: {[float(reward.mean()) for reward in targets_rewards]}"
                 )
                 print(
-                    f"Env Stats: {jax.tree_map(lambda x: x.item(), env_stats)}"
+                    f"Env Stats: {jax.tree_util.tree_map(lambda x: x.item(), env_stats)}"
                 )
 
             if watchers:

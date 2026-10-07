@@ -22,6 +22,7 @@ num_outer_steps: 100
 num_inner_steps: 100 
 num_iters: 5000
 num_devices: 2
+att_type: 'nothing'
 
 # MFOS vs. Tabular trained on seed = 0
 run_path: ucl-dark/ipd/1r9txdso

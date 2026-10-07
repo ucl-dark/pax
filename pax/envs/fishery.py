@@ -91,7 +91,7 @@ class Fishery(environment.Environment):
                 r = jnp.where(E != 0, params.P * e / E * H - params.w * e, 0)
                 all_rewards.append(r)
 
-            state = jax.tree_map(
+            state = jax.tree_util.tree_map(
                 lambda x, y: jax.lax.select(done, x, y),
                 reset_state,
                 next_state,

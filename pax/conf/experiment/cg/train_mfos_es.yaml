@@ -20,6 +20,9 @@ benchmark: False
 # Runner 
 runner: evo
 
+# Resume (set to checkpoint dir to resume a previous run)
+resume_dir: ""
+
 # Training
 top_k: 4
 popsize: 1000 #512
@@ -28,8 +31,8 @@ num_envs: 100
 num_opps: 1
 num_devices: 4
 num_outer_steps: 600
-num_inner_steps: 16 
-num_iters: 3000
+num_inner_steps: 16
+num_iters: 3001
 
 # Evaluation
 run_path: ucl-dark/cg/3mpgbfm2
@@ -101,14 +104,16 @@ es:
   eps: 1e-8           # eps constant,
   elite_ratio: 0.1
   centered_rank: True     # Fitness centered_rank
-  w_decay: 0.1        # Decay old elite fitness 
-  maximise: True      # Maximise fitness 
-  z_score: False      # Normalise fitness 
+  w_decay: 0.1        # Decay old elite fitness
+  maximise: True      # Maximise fitness
+  z_score: False      # Normalise fitness
+  mean_reduce: True    # Remove mean from fitness
   
 # Logging setup
 wandb:
-  entity: "ucl-dark"
+  entity: "lichenqi-university-of-regina"
   project: cg
-  group: 'shaping-${agent1}-vs-${agent2}'
+  group: 'baseline-shaping-${agent1}-vs-${agent2}'
   name: run-seed-${seed}
   log: True
+  mode: offline

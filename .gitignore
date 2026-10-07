@@ -98,9 +98,12 @@ celerybeat.pid
 # Cython debug symbols
 cython_debug/
 
-# WandBD
+# WandB
 wandb/
 exp/
+wandb_exports/
+wandb_analysis.py
+wandb_cache/
 
 # Hydra
 .hydra

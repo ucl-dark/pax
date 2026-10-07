@@ -1,18 +1,25 @@
 absl-py
 black
-chex
+chex==0.1.90; platform_system == "Windows"
+chex==0.1.90; platform_system != "Windows"
 distrax
-dm-haiku
+dm-haiku==0.0.13; platform_system == "Windows"
+dm-haiku==0.0.13; platform_system != "Windows"
 dm-tree
-evosax
-flax
+evosax==0.1.6
+flax==0.8.5; platform_system == "Windows"
+flax; platform_system != "Windows"
 gymnax
 hydra-core
 isort
-jax
-jaxlib
-numpy
-optax
+jax==0.4.30; platform_system == "Windows"
+jaxlib==0.4.30; platform_system == "Windows"
+jax==0.8.2+computecanada; platform_system != "Windows"
+jaxlib==0.8.2+computecanada; platform_system != "Windows"
+numpy==1.26.4; platform_system == "Windows"
+numpy; platform_system != "Windows"
+optax==0.2.4; platform_system == "Windows"
+optax; platform_system != "Windows"
 pytest
 wandb
 pytest-cov
